@@ -42,7 +42,6 @@ def coerce_value(s: str):
 
 
 def validate(cell_str: str, value_str: str):
-    """(正規化セル番地, 変換後の値, エラー文字列 or None) を返す"""
     ref = cell_str.strip().upper()
     if not ref:
         return None, None, "セル番地を入力してください"
@@ -77,13 +76,24 @@ def build_output(file_bytes: bytes, edits: list) -> bytes:
     return buf.getvalue()
 
 
+def bump_form(prefill_cell: str = "", prefill_value: str = ""):
+    """フォームバージョンを上げ、新キーに prefill 値を注入する。
+    新キーはまだウィジェットとして登録されていないので session_state への
+    書き込みが Streamlit の制約に引っかからない。"""
+    new_v = st.session_state.form_version + 1
+    st.session_state.form_version = new_v
+    st.session_state[f"fc_{new_v}"] = prefill_cell
+    st.session_state[f"fv_{new_v}"] = prefill_value
+
+
 # ── セッション初期化 ────────────────────────────────────────────────────────
 
 for key, default in [
-    ("edits", []),
-    ("file_bytes", None),
-    ("fname", None),
-    ("editing_index", None),   # int: 再編集中のインデックス / None: 追加モード
+    ("edits",         []),
+    ("file_bytes",    None),
+    ("fname",         None),
+    ("editing_index", None),
+    ("form_version",  0),      # フォームキーのバージョン番号
 ]:
     if key not in st.session_state:
         st.session_state[key] = default
@@ -109,9 +119,7 @@ if st.session_state.fname != uploaded.name:
     st.session_state.fname         = uploaded.name
     st.session_state.edits         = []
     st.session_state.editing_index = None
-    # フォーム入力をクリア
-    st.session_state.pop("form_cell",  None)
-    st.session_state.pop("form_value", None)
+    bump_form()
 
 # ── メインレイアウト ─────────────────────────────────────────────────────────
 
@@ -162,25 +170,29 @@ with right:
     editing_idx = st.session_state.editing_index
     is_editing  = (editing_idx is not None and editing_idx < len(st.session_state.edits))
 
-    # ── フォームヘッダー ──────────────────────────────────────────────────
+    # フォームヘッダー
     if is_editing:
         current = st.session_state.edits[editing_idx]
         st.subheader(f"🔧 再編集中: `{current['sheet']}!{current['cell']}`")
     else:
         st.subheader("✏️ セルを追加")
 
-    # ── フォーム ─────────────────────────────────────────────────────────
-    # key= を使うことで st.session_state 経由の事前入力が可能
+    # フォームキーをバージョン番号で一意化することで、
+    # ✏️ ボタンクリック時の prefill 注入と Streamlit の制約を両立する
+    v = st.session_state.form_version
+    cell_key  = f"fc_{v}"
+    value_key = f"fv_{v}"
+
     with st.form("cell_form", clear_on_submit=True):
         cell_input = st.text_input(
             "セル番地",
-            key="form_cell",
+            key=cell_key,
             placeholder="例: A1、B3、C10",
             help="Excelのセル番地（列A-Z＋行番号）を入力",
         )
         value_input = st.text_input(
             "新しい値",
-            key="form_value",
+            key=value_key,
             placeholder="例: 100、テキスト、2024-01-01",
         )
 
@@ -200,6 +212,7 @@ with right:
 
     if cancel_btn:
         st.session_state.editing_index = None
+        bump_form()
         st.rerun()
 
     if update_btn:
@@ -208,7 +221,7 @@ with right:
             st.error(err)
         else:
             original_sheet = st.session_state.edits[editing_idx]["sheet"]
-            # 同シート・同セルへの別エントリが存在する場合は統合して重複排除
+            # 同シート・同セルへの別エントリが存在する場合は統合
             conflict = next(
                 (j for j, ex in enumerate(st.session_state.edits)
                  if ex["sheet"] == original_sheet and ex["cell"] == new_ref and j != editing_idx),
@@ -224,6 +237,7 @@ with right:
                     "value": new_val,
                 }
             st.session_state.editing_index = None
+            bump_form()
             st.toast("更新しました ✓")
             st.rerun()
 
@@ -243,6 +257,7 @@ with right:
             else:
                 st.session_state.edits.append({"sheet": sheet, "cell": new_ref, "value": new_val})
                 st.toast(f"{sheet}!{new_ref} を追加しました ✓")
+            bump_form()
             st.rerun()
 
     # ── 編集リスト ────────────────────────────────────────────────────────
@@ -270,26 +285,25 @@ with right:
                     st.markdown(f"`{e['sheet']}!{e['cell']}`　→　**{e['value']}**")
 
             with c_edit:
-                # 編集中は 📌、それ以外は ✏️（クリックでトグル）
                 if st.button("📌" if is_this else "✏️", key=f"edit_{i}",
                              help="編集を閉じる" if is_this else "この値を再編集"):
                     if is_this:
-                        # 編集モードを閉じる
+                        # 編集モードを閉じる → フォームをリセット
                         st.session_state.editing_index = None
+                        bump_form()
                     else:
-                        # このアイテムを編集モードに切り替え
-                        # key= 付き text_input は session_state 経由で事前入力できる
-                        st.session_state.editing_index  = i
-                        st.session_state["form_cell"]  = e["cell"]
-                        st.session_state["form_value"] = str(e["value"])
+                        # バージョンを上げてから新キーに prefill を注入
+                        # （新キーはまだウィジェット未登録 → 書き込み可能）
+                        st.session_state.editing_index = i
+                        bump_form(prefill_cell=e["cell"], prefill_value=str(e["value"]))
                     st.rerun()
 
             with c_del:
                 if st.button("✕", key=f"del_{i}", help="この編集を削除"):
                     st.session_state.edits.pop(i)
-                    # インデックス補正
                     if st.session_state.editing_index == i:
                         st.session_state.editing_index = None
+                        bump_form()
                     elif (st.session_state.editing_index is not None
                           and st.session_state.editing_index > i):
                         st.session_state.editing_index -= 1
@@ -298,6 +312,7 @@ with right:
         if st.button("すべてクリア", use_container_width=True):
             st.session_state.edits         = []
             st.session_state.editing_index = None
+            bump_form()
             st.rerun()
 
         st.divider()
