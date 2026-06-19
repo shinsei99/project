@@ -248,67 +248,163 @@ function drawStageClear(stage, totalStages, timer, totalTime, frame) {
 
 // ── Title ────────────────────────────────────────────────────────────────────
 function drawTitle(frame, hs, bs, bgmOn, seOn) {
-  drawBg(frame);
+  // ── Animated background ──────────────────────────────────────────────────
+  var breathe = Math.sin(frame * 0.007) * 0.5 + 0.5;
+  var g = _ctx.createLinearGradient(0, 0, 0, _H);
+  g.addColorStop(0,    'rgb('+Math.round(4+breathe*7)+','+Math.round(6+breathe*3)+','+Math.round(28+breathe*11)+')');
+  g.addColorStop(0.55, 'rgb('+Math.round(8+breathe*8)+','+Math.round(4+breathe*4)+','+Math.round(36+breathe*8)+')');
+  g.addColorStop(1,    'rgb(4,3,12)');
+  _ctx.fillStyle = g; _ctx.fillRect(0, 0, _W, _H);
+
+  // Twinkling stars
+  for (var i = 0; i < 62; i++) {
+    var sx = (i*141+47)%_W, sy = (i*233+31)%(_H*0.76);
+    _ctx.globalAlpha = (Math.sin(frame*0.04+i)*0.22+0.60)*0.76;
+    _ctx.fillStyle = i%5===0?'#FFE080':i%5===1?'#C8DDFF':'#FFFFFF';
+    _ctx.beginPath(); _ctx.arc(sx, sy, 0.55+(i%4)*0.35, 0, Math.PI*2); _ctx.fill();
+  }
+
+  // Floating magic particles (drift upward)
+  for (var j = 0; j < 24; j++) {
+    var py = _H - ((frame*0.52 + j*36) % _H);
+    var px = (j*91 + Math.sin(frame*0.013+j*0.9)*30 + 22) % (_W-36) + 18;
+    var pa = Math.abs(Math.sin(frame*0.028+j*1.2))*0.48+0.06;
+    _ctx.globalAlpha = pa;
+    _ctx.fillStyle = j%4===0?'#FFD700':j%4===1?'#FF88CC':j%4===2?'#88CCFF':'#AAFFAA';
+    _ctx.beginPath(); _ctx.arc(px, py, 1.1+(j%3)*0.55, 0, Math.PI*2); _ctx.fill();
+  }
+  _ctx.globalAlpha = 1;
   _ctx.textAlign = 'center';
 
-  // Title glow
-  _ctx.shadowColor = '#FF6B00'; _ctx.shadowBlur = 22;
-  _ctx.fillStyle = '#FFD700'; _ctx.font = 'bold 38px "Kosugi Maru",sans-serif';
-  _ctx.fillText('ひよこ防衛軍', _W/2, 160);
-  _ctx.shadowColor = '#FF9900'; _ctx.shadowBlur = 10;
-  _ctx.fillStyle = '#FFA040'; _ctx.font = 'bold 17px "Kosugi Maru",sans-serif';
-  _ctx.fillText('～地球救出大作戦～', _W/2, 192);
+  // ── Title text ──────────────────────────────────────────────────────────
+  var titleBob = Math.sin(frame * 0.042) * 2.5;
+  var titleSc  = 1 + Math.sin(frame * 0.028) * 0.016;
+
+  // Orange bloom behind title
+  var bloom = _ctx.createRadialGradient(_W/2, 154+titleBob, 0, _W/2, 154+titleBob, 125);
+  bloom.addColorStop(0, 'rgba(255,145,18,0.14)'); bloom.addColorStop(1, 'rgba(255,100,0,0)');
+  _ctx.fillStyle = bloom; _ctx.fillRect(0, 55+titleBob, _W, 165);
+
+  // English sub-label
+  _ctx.fillStyle = 'rgba(255,175,95,0.58)'; _ctx.font = 'bold 11px "Kosugi Maru",sans-serif';
+  _ctx.fillText('✦  PIYO  DEFENSE  ✦', _W/2, 106+titleBob);
+
+  // Main title with breathing scale
+  _ctx.save();
+  _ctx.translate(_W/2, 160+titleBob); _ctx.scale(titleSc, titleSc);
+  _ctx.shadowColor = '#FF6B00'; _ctx.shadowBlur = 32;
+  _ctx.fillStyle = '#FFD700'; _ctx.font = 'bold 46px "Kosugi Maru",sans-serif';
+  _ctx.fillText('ひよこ防衛軍', 0, 0);
+  _ctx.restore();
+
+  _ctx.shadowColor = '#FF9900'; _ctx.shadowBlur = 9;
+  _ctx.fillStyle = '#FFA040'; _ctx.font = 'bold 15px "Kosugi Maru",sans-serif';
+  _ctx.fillText('～地球救出大作戦～', _W/2, 184+titleBob);
   _ctx.shadowBlur = 0;
 
-  drawChick(_W/2, 308, 66, false);
-  drawCrow({ x:88,  y:268, size:28, hp:3,  maxHp:3,  wobble:frame*0.05,   type:'normal', hitFlash:0 });
-  drawCrow({ x:302, y:262, size:22, hp:3,  maxHp:3,  wobble:frame*0.05+1, type:'fast',   hitFlash:0 });
-  drawCrow({ x:195, y:250, size:40, hp:24, maxHp:24, wobble:frame*0.05+2, type:'tank',   hitFlash:0 });
-  drawEarth(_W/2, 422, 40);
+  // ── Character zone ──────────────────────────────────────────────────────
+  var chickBob = Math.sin(frame * 0.052) * 5;
+  var chickSc  = 1 + Math.sin(frame * 0.038) * 0.028;
 
-  // Score panel
-  var spG = _btnGrd(44, 466, _W-88, 44, 'rgba(12,18,45,0.88)', 'rgba(6,10,28,0.92)');
-  rrectGrd(44, 466, _W-88, 44, 8, spG, 'rgba(80,100,150,0.45)', 1.5);
+  // Chick golden aura pulse
+  _ctx.globalAlpha = 0.15 + Math.sin(frame*0.08)*0.06;
+  var aGrd = _ctx.createRadialGradient(_W/2, 300+chickBob, 0, _W/2, 300+chickBob, 88);
+  aGrd.addColorStop(0, '#FFD700'); aGrd.addColorStop(1, 'rgba(255,200,0,0)');
+  _ctx.fillStyle = aGrd;
+  _ctx.beginPath(); _ctx.arc(_W/2, 300+chickBob, 88, 0, Math.PI*2); _ctx.fill();
+  _ctx.globalAlpha = 1;
+
+  // Decorative sparkle stars
+  [[-58,226,0],[62,220,1.5],[-44,354,2.8],[52,348,1.1]].forEach(function(s,k) {
+    _ctx.globalAlpha = Math.abs(Math.sin(frame*0.055+k*1.6))*0.72+0.16;
+    _ctx.fillStyle = '#FFD700';
+    _ctx.font = (11+(k%2)*5)+'px sans-serif'; _ctx.textAlign = 'center';
+    _ctx.fillText('✦', _W/2+s[0], s[1]+Math.sin(frame*0.048+s[2])*5);
+  });
+  _ctx.globalAlpha = 1;
+
+  // Orbiting decorative crows
+  var orb = Math.sin(frame*0.025)*7;
+  drawCrow({ x:80+orb,  y:260+Math.sin(frame*0.042)*5,   size:26, hp:3,  maxHp:3,  wobble:frame*0.05,   type:'normal', hitFlash:0, rangedTimer:0 });
+  drawCrow({ x:310-orb, y:254+Math.sin(frame*0.042+1)*5, size:20, hp:3,  maxHp:3,  wobble:frame*0.05+1, type:'fast',   hitFlash:0, rangedTimer:0 });
+  drawCrow({ x:195,     y:240+Math.sin(frame*0.042+2)*4, size:36, hp:24, maxHp:24, wobble:frame*0.05+2, type:'tank',   hitFlash:0, rangedTimer:0 });
+
+  // Main chick — bigger, breathing
+  _ctx.save();
+  _ctx.translate(_W/2, 300+chickBob); _ctx.scale(chickSc, chickSc);
+  drawChick(0, 0, 78, false);
+  _ctx.restore();
+
+  drawEarth(_W/2, 414, 38);
+
+  // ── Score panel ──────────────────────────────────────────────────────────
+  var spG = _btnGrd(44, 466, _W-88, 44, 'rgba(10,14,40,0.90)', 'rgba(5,8,24,0.94)');
+  rrectGrd(44, 466, _W-88, 44, 10, spG, 'rgba(68,88,138,0.5)', 1.5);
   _ctx.fillStyle = '#FFD700'; _ctx.font = 'bold 12px "Kosugi Maru",sans-serif'; _ctx.textAlign = 'center';
-  _ctx.fillText('ベストスコア: ' + hs, _W/2, 484);
+  _ctx.fillText('🏆  ベストスコア: ' + hs, _W/2, 484);
   _ctx.fillStyle = '#7EC8E3'; _ctx.font = '11px "Kosugi Maru",sans-serif';
   _ctx.fillText('最高クリアステージ: ' + (bs > 0 ? 'STAGE ' + bs : '---'), _W/2, 500);
 
-  // START button — same tap area: y=522-582, x=72-318
-  var pulse = Math.sin(frame * 0.07) * 4;
+  // ── START button (tap area y=522-582, x=72-318 — UNCHANGED) ─────────────
+  var pulse = Math.sin(frame * 0.07) * 5;
+
+  // Drop shadow
+  rrect(76, 528+pulse, 238, 52, 14, 'rgba(0,0,0,0.52)', null);
+
+  // Gradient fill (vibrant orange-red)
   var stG = _ctx.createLinearGradient(72, 522+pulse, 72, 578+pulse);
-  stG.addColorStop(0, '#FF6040'); stG.addColorStop(0.5, '#E84B2B'); stG.addColorStop(1, '#B83010');
-  _ctx.shadowColor = '#FF6040'; _ctx.shadowBlur = 14;
-  rrectGrd(72, 522+pulse, 246, 56, 14, stG, '#FFD700', 2.5);
-  // Button shine
-  _ctx.shadowBlur = 0; _ctx.fillStyle = 'rgba(255,255,255,0.18)';
+  stG.addColorStop(0,    '#FF8050');
+  stG.addColorStop(0.40, '#E84B2B');
+  stG.addColorStop(0.85, '#C03010');
+  stG.addColorStop(1,    '#9E2008');
+  _ctx.shadowColor = 'rgba(255,82,30,0.75)'; _ctx.shadowBlur = 26;
+  rrectGrd(72, 522+pulse, 246, 56, 15, stG, '#FFD700', 3);
+  _ctx.shadowBlur = 0;
+
+  // Top bevel highlight
+  _ctx.fillStyle = 'rgba(255,255,255,0.24)';
   _ctx.beginPath();
-  _ctx.moveTo(86, 524+pulse); _ctx.lineTo(304, 524+pulse);
-  _ctx.lineTo(304, 537+pulse); _ctx.lineTo(86, 537+pulse); _ctx.closePath(); _ctx.fill();
-  _ctx.fillStyle = '#fff'; _ctx.font = 'bold 24px "Kosugi Maru",sans-serif'; _ctx.textAlign = 'center';
-  _ctx.fillText('START', _W/2, 557+pulse);
+  _ctx.moveTo(88, 524+pulse); _ctx.lineTo(302, 524+pulse);
+  _ctx.lineTo(302, 535+pulse); _ctx.lineTo(88, 535+pulse); _ctx.closePath(); _ctx.fill();
 
-  // HOW TO — same tap area: y=590-640, x=72-318
-  var htG = _btnGrd(72, 590, 246, 46, 'rgba(28,28,90,0.9)', 'rgba(12,12,55,0.9)');
-  rrectGrd(72, 590, 246, 46, 11, htG, 'rgba(80,100,200,0.6)', 2);
-  _ctx.fillStyle = '#AAC0FF'; _ctx.font = 'bold 16px "Kosugi Maru",sans-serif';
-  _ctx.fillText('あそびかた', _W/2, 619);
+  // Bottom bevel shadow
+  _ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  _ctx.beginPath();
+  _ctx.moveTo(88, 569+pulse); _ctx.lineTo(302, 569+pulse);
+  _ctx.lineTo(302, 576+pulse); _ctx.lineTo(88, 576+pulse); _ctx.closePath(); _ctx.fill();
 
-  // BGM toggle — same tap area: y=646-694, x=45-183
-  var bgmG = _btnGrd(45, 650, 138, 40, bgmOn ? 'rgba(15,65,15,0.9)' : 'rgba(55,15,15,0.9)', bgmOn ? 'rgba(6,40,6,0.9)' : 'rgba(35,6,6,0.9)');
-  rrectGrd(45, 650, 138, 40, 8, bgmG, bgmOn ? 'rgba(60,180,60,0.5)' : 'rgba(180,60,60,0.5)', 1.5);
-  _ctx.fillStyle = bgmOn ? '#88FF88' : '#FF8888'; _ctx.font = 'bold 14px "Kosugi Maru",sans-serif';
-  _ctx.fillText('BGM ' + (bgmOn ? 'ON' : 'OFF'), 114, 675);
+  // PLAY text
+  _ctx.shadowColor = 'rgba(0,0,0,0.6)'; _ctx.shadowBlur = 5; _ctx.shadowOffsetY = 2;
+  _ctx.fillStyle = '#FFFFFF'; _ctx.font = 'bold 27px "Kosugi Maru",sans-serif'; _ctx.textAlign = 'center';
+  _ctx.fillText('▶  PLAY  ◀', _W/2, 558+pulse);
+  _ctx.shadowBlur = 0; _ctx.shadowOffsetY = 0;
 
-  // SE toggle — same tap area: y=646-694, x=207-345
-  var seG = _btnGrd(207, 650, 138, 40, seOn ? 'rgba(15,65,15,0.9)' : 'rgba(55,15,15,0.9)', seOn ? 'rgba(6,40,6,0.9)' : 'rgba(35,6,6,0.9)');
-  rrectGrd(207, 650, 138, 40, 8, seG, seOn ? 'rgba(60,180,60,0.5)' : 'rgba(180,60,60,0.5)', 1.5);
-  _ctx.fillStyle = seOn ? '#88FF88' : '#FF8888';
-  _ctx.fillText('SE ' + (seOn ? 'ON' : 'OFF'), 276, 675);
+  // ── HOW TO button (tap area y=590-640, x=72-318 — UNCHANGED) ─────────────
+  var htG = _btnGrd(72, 590, 246, 46, 'rgba(22,24,76,0.92)', 'rgba(9,10,48,0.92)');
+  rrectGrd(72, 590, 246, 46, 11, htG, 'rgba(65,85,175,0.56)', 1.5);
+  _ctx.fillStyle = '#AAC0FF'; _ctx.font = 'bold 15px "Kosugi Maru",sans-serif';
+  _ctx.fillText('❓  あそびかた', _W/2, 618);
 
-  _ctx.fillStyle = '#444'; _ctx.font = '11px "Kosugi Maru",sans-serif';
+  // ── BGM toggle (tap area y=646-694, x=45-183 — UNCHANGED) ───────────────
+  var bgmG = _btnGrd(45, 650, 138, 40,
+    bgmOn ? 'rgba(10,55,10,0.92)' : 'rgba(48,10,10,0.92)',
+    bgmOn ? 'rgba(4,33,4,0.92)'   : 'rgba(28,4,4,0.92)');
+  rrectGrd(45, 650, 138, 40, 8, bgmG, bgmOn ? 'rgba(45,165,45,0.55)' : 'rgba(165,45,45,0.5)', 1.5);
+  _ctx.fillStyle = bgmOn ? '#80F080' : '#F08080'; _ctx.font = 'bold 13px "Kosugi Maru",sans-serif';
+  _ctx.fillText('♪ BGM ' + (bgmOn ? 'ON' : 'OFF'), 114, 675);
+
+  // ── SE toggle (tap area y=646-694, x=207-345 — UNCHANGED) ───────────────
+  var seG = _btnGrd(207, 650, 138, 40,
+    seOn ? 'rgba(10,55,10,0.92)' : 'rgba(48,10,10,0.92)',
+    seOn ? 'rgba(4,33,4,0.92)'   : 'rgba(28,4,4,0.92)');
+  rrectGrd(207, 650, 138, 40, 8, seG, seOn ? 'rgba(45,165,45,0.55)' : 'rgba(165,45,45,0.5)', 1.5);
+  _ctx.fillStyle = seOn ? '#80F080' : '#F08080';
+  _ctx.fillText('♩ SE  ' + (seOn ? 'ON' : 'OFF'), 276, 675);
+
+  // ── Footer ───────────────────────────────────────────────────────────────
+  _ctx.fillStyle = 'rgba(68,78,110,0.72)'; _ctx.font = '11px "Kosugi Maru",sans-serif';
   _ctx.fillText('全10ステージ × 5Wave構成', _W/2, 708);
-  _ctx.fillStyle = '#2A2A2A'; _ctx.font = '10px sans-serif';
+  _ctx.fillStyle = 'rgba(42,48,68,0.62)'; _ctx.font = '10px sans-serif';
   _ctx.fillText('PIYO-DEFENSE  v3.0', _W/2, _H - 24);
 }
 
