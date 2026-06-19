@@ -1,16 +1,20 @@
 'use strict';
 
 const UPGRADE_DEFS = [
-  { id:'atk_up',     name:'攻撃力アップ',       desc:'弾のダメージ +1',          icon:'⚔️'  },
-  { id:'spd_up',     name:'攻撃速度アップ',      desc:'連射速度が15%上がる',       icon:'⚡'  },
-  { id:'bullet_spd', name:'弾速アップ',          desc:'弾の速度が20%上がる',       icon:'💨'  },
-  { id:'pierce',     name:'貫通弾',              desc:'弾が敵を貫通する（重複可）',  icon:'🎯'  },
-  { id:'double_shot',name:'2連射',               desc:'1タップで2発発射する',       icon:'🔫'  },
-  { id:'crit_up',    name:'クリティカル率アップ', desc:'クリティカル率 +10%',       icon:'💥'  },
-  { id:'score_up',   name:'スコア倍率アップ',    desc:'スコア倍率 ×1.5',           icon:'⭐'  },
-  { id:'max_hp',     name:'最大HPアップ',        desc:'地球の最大HP +20',           icon:'❤️'  },
-  { id:'regen',      name:'自動回復',            desc:'5秒ごとにHP +1 回復（重複可）',icon:'💚' },
-  { id:'range_up',   name:'射程アップ',          desc:'弾の飛距離が25%伸びる',      icon:'🏹'  },
+  { id:'atk_up',        name:'攻撃力アップ',       desc:'弾のダメージ +1',               icon:'⚔️'  },
+  { id:'spd_up',        name:'攻撃速度アップ',      desc:'連射速度が15%上がる',            icon:'⚡'  },
+  { id:'bullet_spd',    name:'弾速アップ',          desc:'弾の速度が20%上がる',            icon:'💨'  },
+  { id:'pierce',        name:'貫通弾',              desc:'弾が敵を貫通する（重複可）',      icon:'🎯'  },
+  { id:'double_shot',   name:'2連射',               desc:'1タップで2発発射する',            icon:'🔫'  },
+  { id:'crit_up',       name:'クリティカル率アップ', desc:'クリティカル率 +10%',            icon:'💥'  },
+  { id:'score_up',      name:'スコア倍率アップ',    desc:'スコア倍率 ×1.5',               icon:'⭐'  },
+  { id:'max_hp',        name:'最大HPアップ',        desc:'地球の最大HP +20',               icon:'❤️'  },
+  { id:'regen',         name:'自動回復',            desc:'5秒ごとにHP +1 回復（重複可）',  icon:'💚'  },
+  { id:'range_up',      name:'射程アップ',          desc:'弾の飛距離が25%伸びる',          icon:'🏹'  },
+  { id:'tower_normal',  name:'ノーマルタワー 設置', desc:'バランス型の自動砲台を設置',      icon:'🏰'  },
+  { id:'tower_rapid',   name:'ラピッドタワー 設置', desc:'高速連射の自動砲台を設置',        icon:'🔰'  },
+  { id:'tower_sniper',  name:'スナイパータワー 設置',desc:'超長射程の自動砲台を設置',       icon:'🎯'  },
+  { id:'tower_support', name:'サポートタワー 設置', desc:'貫通弾で複数敵を攻撃',           icon:'💠'  },
 ];
 
 const PlayerUpgrades = {
@@ -54,6 +58,29 @@ function pickUpgrades(n) {
   while (result.length < n && pool.length > 0) {
     const i = ~~(Math.random() * pool.length);
     result.push(pool.splice(i, 1)[0]);
+  }
+  return result;
+}
+
+// Picks n-1 personal upgrades + 1 tower card (guaranteed tower option in pool)
+function pickUpgradesWithTowers(n) {
+  n = n || 3;
+  // Separate tower defs from personal defs
+  const personal = UPGRADE_DEFS.filter(function(d) { return d.id.indexOf('tower_') < 0; });
+  const towerDefs = UPGRADE_DEFS.filter(function(d) { return d.id.indexOf('tower_') === 0; });
+  const result = [];
+  // n-1 personal upgrades
+  const pPool = personal.slice();
+  while (result.length < n - 1 && pPool.length > 0) {
+    const i = ~~(Math.random() * pPool.length);
+    result.push(pPool.splice(i, 1)[0]);
+  }
+  // 1 tower option
+  if (towerDefs.length > 0) {
+    result.push(towerDefs[~~(Math.random() * towerDefs.length)]);
+  } else if (pPool.length > 0) {
+    const i = ~~(Math.random() * pPool.length);
+    result.push(pPool.splice(i, 1)[0]);
   }
   return result;
 }

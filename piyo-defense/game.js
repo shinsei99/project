@@ -24,8 +24,21 @@ SoundManager.init();
 // ── Constants ────────────────────────────────────────────────────────────────
 var CHICK_X = W / 2, CHICK_Y = H - 148;
 var CD_MAX  = { gunshi: 600, nurse: 900, barrier: 750 };
-var TOTAL_STAGES   = 20;
+var TOTAL_STAGES    = 20;
 var WAVES_PER_STAGE = 5;   // wave 5 = boss
+
+// ── Tower definitions ─────────────────────────────────────────────────────────
+var TOWER_DEFS = {
+  normal:  { name:'ノーマルタワー',  desc:'バランス型 自動砲台', icon:'🏰', dmg:6,  range:168, cdMax:38, col:'#8B6C14' },
+  rapid:   { name:'ラピッドタワー',  desc:'高速連射 軽ダメージ', icon:'🔰', dmg:3,  range:132, cdMax:14, col:'#145A8B' },
+  sniper:  { name:'スナイパータワー', desc:'長射程 高ダメージ',  icon:'🎯', dmg:16, range:245, cdMax:95, col:'#333344' },
+  support: { name:'サポートタワー',  desc:'貫通弾で範囲攻撃',   icon:'💠', dmg:5,  range:195, cdMax:28, col:'#1A6B4A' },
+};
+var TOWER_SLOTS = [
+  { x:80,  y:400, type:null, level:1, cd:0 },
+  { x:195, y:432, type:null, level:1, cd:0 },
+  { x:310, y:400, type:null, level:1, cd:0 },
+];
 
 // ── Auto-fire state ───────────────────────────────────────────────────────────
 var isHolding = false;
@@ -47,6 +60,7 @@ var STAGE_CLEAR_FRAMES = 150;   // 2.5s
 
 var score = 0, kills = 0, isNewHS = false;
 var continueFromStage = 1;
+var slowTimer = 0;
 var level = 1, xp = 0;
 var regenTimer = 0, playFrames = 0, frame = 0;
 var shakeX = 0, shakeY = 0, shakeMag = 0;
@@ -70,12 +84,16 @@ function waveTypes(stg, wv) {
   if (stg === 4) return wv <= 2 ? ['normal','fast','ranged'] : ['fast','ranged'];
   // Stage 5: add tank
   if (stg === 5) return wv <= 2 ? ['fast','ranged'] : ['fast','ranged','tank'];
-  // Stage 6: heavier mix
-  if (stg === 6) return wv <= 2 ? ['fast','ranged','tank'] : ['fast','ranged','tank'];
-  // Stage 7–8: ranged pressure + tanks
-  if (stg <= 8)  return wv <= 2 ? ['fast','ranged','tank'] : ['ranged','ranged','tank'];
-  // Stage 9–10: maximum classic intensity
-  if (stg <= 10) return wv <= 2 ? ['ranged','ranged','tank'] : ['fast','ranged','ranged','tank'];
+  // Stage 6: introduce sprinter
+  if (stg === 6) return wv <= 2 ? ['fast','sprinter','ranged'] : ['fast','sprinter','tank'];
+  // Stage 7: introduce armored
+  if (stg === 7) return wv <= 2 ? ['sprinter','armored','ranged'] : ['sprinter','armored','tank'];
+  // Stage 8: introduce regen
+  if (stg === 8) return wv <= 2 ? ['armored','regen','ranged'] : ['armored','regen','tank'];
+  // Stage 9: introduce shielded
+  if (stg === 9) return wv <= 2 ? ['regen','shielded','armored'] : ['regen','shielded','tank'];
+  // Stage 10: all classic + new mix
+  if (stg === 10) return wv <= 2 ? ['shielded','regen','tank'] : ['fast','shielded','regen','tank'];
   // Stage 11: introduce ghost
   if (stg === 11) return wv <= 2 ? ['fast','ranged','ghost'] : ['ranged','ghost','tank'];
   // Stage 12: ghost + pressure
@@ -84,10 +102,10 @@ function waveTypes(stg, wv) {
   if (stg === 13) return wv <= 2 ? ['ghost','ranged','healer','fast'] : ['ghost','ranged','healer','tank'];
   // Stage 14: healer becomes core threat
   if (stg === 14) return wv <= 2 ? ['ghost','healer','tank','fast'] : ['ghost','ghost','healer','tank'];
-  // Stage 15: introduce bomber
-  if (stg === 15) return wv <= 2 ? ['ghost','healer','fast','fast'] : ['ghost','healer','fast','bomber'];
-  // Stage 16: bomber regularly appears
-  if (stg === 16) return wv <= 2 ? ['ghost','healer','tank','fast'] : ['ghost','healer','tank','bomber'];
+  // Stage 15: introduce bomber + splitter
+  if (stg === 15) return wv <= 2 ? ['ghost','healer','fast','splitter'] : ['ghost','healer','splitter','bomber'];
+  // Stage 16: bomber regularly + shielded
+  if (stg === 16) return wv <= 2 ? ['ghost','healer','shielded','splitter'] : ['ghost','healer','shielded','bomber'];
   // Stage 17–18: heavy pressure all threats
   if (stg <= 18) return wv <= 2 ? ['ghost','healer','bomber','fast'] : ['ghost','healer','bomber','tank'];
   // Stage 19–20: hell difficulty
@@ -116,6 +134,7 @@ function initGame() {
   cds = { gunshi: 0, nurse: 0, barrier: 0 };
   PlayerUpgrades.reset();
   enemies = []; bullets = []; enemyBullets = []; particles = []; floats = [];
+  TOWER_SLOTS.forEach(function(t) { t.type = null; t.level = 1; t.cd = 0; });
   stage = 1; wave = 1;
   waveSpawned = 0; waveTotal = 0; waveTimer = 0;
   bossWarnTimer = 0; stageClearTimer = 0;
@@ -141,6 +160,7 @@ function initGameContinue(fromStage) {
   cds = { gunshi: 0, nurse: 0, barrier: 0 };
   PlayerUpgrades.reset();
   enemies = []; bullets = []; enemyBullets = []; particles = []; floats = [];
+  TOWER_SLOTS.forEach(function(t) { t.type = null; t.level = 1; t.cd = 0; });
   stage = fromStage; wave = 1;
   waveSpawned = 0; waveTotal = 0; waveTimer = 0;
   bossWarnTimer = 0; stageClearTimer = 0;
@@ -226,26 +246,38 @@ function onKill(e) {
   var pts = Math.round(e.pts * PlayerUpgrades.scoreMulti);
   score  += pts;
   gs.evoGauge = Math.min(100, gs.evoGauge + (
-    e.type === 'boss'   ? 50 :
-    e.type === 'tank'   ? 15 :
-    e.type === 'healer' ? 18 :
-    e.type === 'bomber' ? 15 :
+    e.type === 'boss'     ? 50 :
+    e.type === 'tank'     ? 15 :
+    e.type === 'splitter' ? 18 :
+    e.type === 'healer'   ? 18 :
+    e.type === 'bomber'   ? 15 :
+    e.type === 'armored'  ? 12 :
+    e.type === 'shielded' ? 12 :
     10
   ));
   spawnP(e.x, e.y, 'poof', 8);
   addFloat(e.x, e.y - 24, '+' + pts, '#FFD700', 14);
-  if (e.type === 'boss' || e.type === 'tank') SoundManager.killBig();
+  if (e.type === 'boss' || e.type === 'tank' || e.type === 'splitter') SoundManager.killBig();
   else SoundManager.kill();
+  // Splitter: spawns 2 swarm enemies on death
+  if (e.type === 'splitter') {
+    enemies.push(new Enemy('swarm', e.x - 22, e.y, stage, wave));
+    enemies.push(new Enemy('swarm', e.x + 22, e.y, stage, wave));
+    addFloat(e.x, e.y - 20, '分裂！', '#CC44FF', 16);
+    spawnP(e.x, e.y, 'explosion', 10);
+  }
   gainXP(e.xpGain);
 }
 
 // ── Level up ─────────────────────────────────────────────────────────────────
 function gainXP(amount) {
   xp += amount;
+  if (gs.state === 'levelup') return;  // bank XP, resolve after player picks
   if (xp >= xpToNext(level)) {
     xp -= xpToNext(level);
     level++;
-    levelChoices = pickUpgrades(3);
+    levelChoices = pickUpgradesWithTowers(3);
+    slowTimer    = 0;
     gs.state     = 'levelup';
     SoundManager.levelUp();
     spawnP(CHICK_X, CHICK_Y, 'levelup', 22);
@@ -254,9 +286,36 @@ function gainXP(amount) {
 
 function applyLevelUp(idx) {
   var ch = levelChoices[idx];
-  PlayerUpgrades.apply(ch.id);
-  if (ch.id === 'max_hp') gs.maxEarthHP = PlayerUpgrades.maxHp;
+  if (ch.id.indexOf('tower_') === 0) {
+    var ttype = ch.id.replace('tower_', '');
+    // Find an empty slot first
+    var placed = false;
+    for (var si = 0; si < TOWER_SLOTS.length; si++) {
+      if (!TOWER_SLOTS[si].type) {
+        TOWER_SLOTS[si].type = ttype;
+        addFloat(TOWER_SLOTS[si].x, TOWER_SLOTS[si].y - 40, TOWER_DEFS[ttype].name + '設置！', '#FFD700', 14);
+        spawnP(TOWER_SLOTS[si].x, TOWER_SLOTS[si].y, 'levelup', 8);
+        placed = true; break;
+      }
+    }
+    if (!placed) {
+      // All slots occupied: upgrade an existing tower of the same type, or any
+      for (var si2 = 0; si2 < TOWER_SLOTS.length; si2++) {
+        if (TOWER_SLOTS[si2].type === ttype || si2 === TOWER_SLOTS.length - 1) {
+          TOWER_SLOTS[si2].level = Math.min(5, TOWER_SLOTS[si2].level + 1);
+          addFloat(TOWER_SLOTS[si2].x, TOWER_SLOTS[si2].y - 40,
+            TOWER_DEFS[TOWER_SLOTS[si2].type].name + ' Lv.' + TOWER_SLOTS[si2].level + '！', '#FFD700', 14);
+          break;
+        }
+      }
+    }
+  } else {
+    PlayerUpgrades.apply(ch.id);
+    if (ch.id === 'max_hp') gs.maxEarthHP = PlayerUpgrades.maxHp;
+  }
   gs.state = 'battle';
+  // Check if banked XP triggers another levelup
+  if (xp >= xpToNext(level)) gainXP(0);
 }
 
 // ── Stage clear / Ending ──────────────────────────────────────────────────────
@@ -306,6 +365,10 @@ function update() {
   frame++;
   switch (gs.state) {
     case 'battle':     updateBattle();     break;
+    case 'levelup':    // game continues at 1/3 speed during levelup
+      slowTimer++;
+      if (slowTimer % 3 === 0) updateBattle();
+      break;
     case 'stageclear': updateStageClear(); break;
     case 'stageintro': updateStageIntro(); break;
     default: break;
@@ -371,6 +434,16 @@ function updateBattle() {
         enemyBullets.push(new EnemyBullet(er.x, er.y, er.dmg));
         spawnP(er.x, er.y, 'boss_beam', 3);
         SoundManager.hit();
+      } else if (er.type === 'phase_change') {
+        var phaseMsg = er.phase === 3 ? '🔥 FINAL PHASE!! 🔥' : '⚡ PHASE ' + er.phase + '!! ⚡';
+        addFloat(W/2, H*0.3, phaseMsg, '#FF4444', 26);
+        spawnP(W/2, H*0.35, 'explosion', 22);
+        shakeMag = 12; SoundManager.bossWarn();
+        // Phase 2: spawn minions
+        if (er.phase >= 2) { spawnEnemy(); spawnEnemy(); }
+      } else if (er.type === 'boss_summon') {
+        spawnEnemy(); spawnEnemy();
+        addFloat(W/2, H*0.35, '増援召喚！', '#FF3333', 18);
       } else if (er.type === 'heal') {
         var healCount = 0;
         enemies.forEach(function(en) {
@@ -438,6 +511,7 @@ function updateBattle() {
   bullets  = bullets.filter(function(b) { return !b.dead; });
   enemies  = enemies.filter(function(e) { return !e.dead; });
 
+  updateTowers();
   updateParticlesFloats();
 
   gs.earthHP = Math.max(0, Math.min(gs.maxEarthHP, gs.earthHP));
@@ -473,6 +547,33 @@ function updateStageIntro() {
     gs.state = 'battle';
     startWave();
   }
+}
+
+function updateTowers() {
+  TOWER_SLOTS.forEach(function(t) {
+    if (!t.type) return;
+    var def = TOWER_DEFS[t.type];
+    if (t.cd > 0) { t.cd--; return; }
+    var nearest = null, nearestDist = def.range;
+    for (var ei = 0; ei < enemies.length; ei++) {
+      var en = enemies[ei];
+      if (en.dead) continue;
+      var dx = en.x - t.x, dy = en.y - t.y;
+      var d  = Math.sqrt(dx*dx + dy*dy);
+      if (d < nearestDist) { nearest = en; nearestDist = d; }
+    }
+    if (nearest) {
+      t.cd = def.cdMax;
+      bullets.push(new Bullet(t.x, t.y, nearest.x, nearest.y, {
+        damage:   def.dmg * t.level,
+        pierce:   t.type === 'support' ? 3 : 0,
+        crit:     false, evolved: false,
+        bulletSpd: t.type === 'sniper' ? 1.4 : 1.0,
+        rangeMult: 3.0
+      }));
+      spawnP(t.x, t.y - 10, 'hit', 1);
+    }
+  });
 }
 
 function updateParticlesFloats() {
@@ -533,6 +634,9 @@ function drawBattleScr(frozenBg) {
   drawGround(stage);
   drawEvoBar(gs.evoGauge, gs.isEvolved, gs.evoTimer);
   drawHudTop(gs.earthHP, gs.maxEarthHP, gs.barrierActive, stage, wave, WAVES_PER_STAGE, score, level, xp, xpToNext(level), kills, SaveManager.getHigh().score, frame);
+
+  // Towers (drawn behind enemies)
+  TOWER_SLOTS.forEach(function(slot) { drawTower(slot, !!frozenBg); });
 
   enemies.forEach(function(e) { e.type === 'boss' ? drawBoss(e, frame) : drawCrow(e); });
 

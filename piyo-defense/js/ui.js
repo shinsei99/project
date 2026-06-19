@@ -420,11 +420,11 @@ function drawHowTo(frame) {
   var rows = [
     ['👆','画面を押しっぱなしで連続発射！'],
     ['🌍','地球のHPが0になるとゲームオーバー'],
-    ['💪','敵を倒してレベルアップ！'],
-    ['⬆️','Lv.UP時に強化を1つ選ぼう'],
-    ['👻','幽霊カラス：消えたり現れたり！'],
-    ['💗','ヒーラー：仲間の敵を回復させる！'],
-    ['💣','爆弾カラス：地球に激突で大爆発！'],
+    ['⬆️','Lv.UP中もゲームは継続（スロー）！'],
+    ['🏰','強化でタワーを設置して自動攻撃！'],
+    ['👻','幽霊：消える  💚リジェネ：自己回復'],
+    ['🛡️','装甲：ダメージ半減  ⚡スプリンター'],
+    ['💣','爆弾：地球に激突  🔮分裂：2体に！'],
     ['🏆','全20ステージをクリアせよ！'],
   ];
   rows.forEach(function(row, i) {
@@ -445,16 +445,20 @@ function drawHowTo(frame) {
 
 // ── Level Up ─────────────────────────────────────────────────────────────────
 function drawLevelUp(choices, level) {
-  _ctx.fillStyle = 'rgba(0,0,0,0.86)'; _ctx.fillRect(0, 0, _W, _H);
+  _ctx.fillStyle = 'rgba(0,0,12,0.82)'; _ctx.fillRect(0, 0, _W, _H);
   _ctx.textAlign = 'center';
   _ctx.shadowColor = '#FFD700'; _ctx.shadowBlur = 24;
   _ctx.fillStyle = '#FFD700'; _ctx.font = 'bold 36px "Kosugi Maru",sans-serif';
-  _ctx.fillText('LEVEL UP!', _W/2, 188);
+  _ctx.fillText('LEVEL UP!', _W/2, 180);
   _ctx.shadowBlur = 0;
   _ctx.fillStyle = '#CC88FF'; _ctx.font = 'bold 14px "Kosugi Maru",sans-serif';
-  _ctx.fillText('Lv.' + level + ' に上がった！', _W/2, 218);
-  _ctx.fillStyle = '#888'; _ctx.font = '13px "Kosugi Maru",sans-serif';
-  _ctx.fillText('強化を1つ選んでください', _W/2, 242);
+  _ctx.fillText('Lv.' + level + ' に上がった！', _W/2, 208);
+  // Slow-mode indicator
+  _ctx.fillStyle = 'rgba(255,200,80,0.82)';
+  _ctx.font = '12px "Kosugi Maru",sans-serif';
+  _ctx.fillText('⏱ ゲームはスローで継続中', _W/2, 230);
+  _ctx.fillStyle = '#888'; _ctx.font = '12px "Kosugi Maru",sans-serif';
+  _ctx.fillText('強化を1つ選んでください', _W/2, 248);
 
   // Cards — tap areas: y=268+i*180 to 268+i*180+162 (unchanged)
   choices.forEach(function(ch, i) {

@@ -3,14 +3,20 @@
 // ── Enemy ────────────────────────────────────────────────────────────────────
 // baseHp is set so Stage1-Wave1 normal dies in 1 hit (base dmg=2)
 const ENEMY_DEF = {
-  normal: { baseHp:2,  dmg:5,  size:28, pts:10,  spd:0.9,  xpGain:1 },
-  fast:   { baseHp:1,  dmg:4,  size:20, pts:10,  spd:1.9,  xpGain:1 },
-  ranged: { baseHp:4,  dmg:8,  size:26, pts:15,  spd:0.65, xpGain:2 },
-  tank:   { baseHp:8,  dmg:12, size:44, pts:20,  spd:0.4,  xpGain:2 },
-  ghost:  { baseHp:3,  dmg:6,  size:26, pts:20,  spd:1.1,  xpGain:2 },
-  healer: { baseHp:5,  dmg:4,  size:28, pts:25,  spd:0.55, xpGain:3 },
-  bomber: { baseHp:5,  dmg:18, size:38, pts:30,  spd:0.48, xpGain:3 },
-  boss:   { baseHp:60, dmg:0,  size:90, pts:150, spd:0.35, xpGain:5 },
+  normal:   { baseHp:2,  dmg:5,  size:28, pts:10,  spd:0.9,  xpGain:1 },
+  fast:     { baseHp:1,  dmg:4,  size:20, pts:10,  spd:1.9,  xpGain:1 },
+  ranged:   { baseHp:4,  dmg:8,  size:26, pts:15,  spd:0.65, xpGain:2 },
+  tank:     { baseHp:8,  dmg:12, size:44, pts:20,  spd:0.4,  xpGain:2 },
+  ghost:    { baseHp:3,  dmg:6,  size:26, pts:20,  spd:1.1,  xpGain:2 },
+  healer:   { baseHp:5,  dmg:4,  size:28, pts:25,  spd:0.55, xpGain:3 },
+  bomber:   { baseHp:5,  dmg:18, size:38, pts:30,  spd:0.48, xpGain:3 },
+  sprinter: { baseHp:2,  dmg:5,  size:22, pts:18,  spd:0.5,  xpGain:2 },  // pauses then dashes
+  armored:  { baseHp:6,  dmg:7,  size:30, pts:25,  spd:0.75, xpGain:2 },  // half damage
+  regen:    { baseHp:8,  dmg:6,  size:28, pts:22,  spd:0.65, xpGain:2 },  // self-heals
+  shielded: { baseHp:5,  dmg:6,  size:28, pts:24,  spd:0.8,  xpGain:3 },  // shield layer
+  splitter: { baseHp:10, dmg:8,  size:36, pts:30,  spd:0.5,  xpGain:4 },  // splits on death
+  swarm:    { baseHp:1,  dmg:3,  size:14, pts:5,   spd:1.3,  xpGain:1 },  // spawned by splitter
+  boss:     { baseHp:60, dmg:0,  size:90, pts:150, spd:0.35, xpGain:5 },
 };
 
 class Enemy {
@@ -45,6 +51,8 @@ class Enemy {
 
     if (type === 'boss') {
       this.vx = 1.5; this.vy = 0;
+      this.phase = 1;
+      this.summonTimer = 0;
     } else if (type === 'ranged') {
       this.stopY       = 175 + Math.random() * 90;
       this.rangedTimer = 0;
@@ -61,6 +69,29 @@ class Enemy {
     } else if (type === 'bomber') {
       this.vx = (Math.random() - 0.5) * 0.4;
       this.vy = this.spd;
+    } else if (type === 'sprinter') {
+      this.vx = (Math.random() - 0.5) * 1.2;
+      this.vy = this.spd;
+      this.sprintTimer = ~~(Math.random() * 40);  // stagger spawns
+      this.sprintPhase = 0;  // 0=pause, 1=dash
+    } else if (type === 'armored') {
+      this.vx = (Math.random() - 0.5) * 1.0;
+      this.vy = this.spd;
+    } else if (type === 'regen') {
+      this.vx = (Math.random() - 0.5) * 1.2;
+      this.vy = this.spd;
+      this.regenTimer = 0;
+    } else if (type === 'shielded') {
+      this.vx = (Math.random() - 0.5) * 1.2;
+      this.vy = this.spd;
+      this.maxShield = Math.max(2, Math.ceil(this.maxHp * 0.6));
+      this.shield     = this.maxShield;
+    } else if (type === 'splitter') {
+      this.vx = (Math.random() - 0.5) * 1.0;
+      this.vy = this.spd;
+    } else if (type === 'swarm') {
+      this.vx = (Math.random() - 0.5) * 2.5;
+      this.vy = this.spd;
     } else {
       this.vx = (Math.random() - 0.5) * 1.5;
       this.vy = this.spd;
@@ -73,13 +104,35 @@ class Enemy {
     if (this.hitFlash > 0) this.hitFlash--;
 
     if (this.type === 'boss') {
+      // Phase check (phase advances, never decreases)
+      var hpRatio = this.hp / this.maxHp;
+      var newPhase = hpRatio < 0.25 ? 3 : hpRatio < 0.60 ? 2 : 1;
+      if (newPhase > this.phase) {
+        this.phase = newPhase;
+        this.bossTimer = 0;
+        return { type: 'phase_change', phase: newPhase };
+      }
+      // Phase-based movement speed
+      var targetSpd = this.phase === 3 ? 4.0 : this.phase === 2 ? 2.5 : 1.5;
+      this.vx = Math.sign(this.vx || 1) * targetSpd;
       this.x += this.vx;
       if (this.x < 70 || this.x > 320) this.vx *= -1;
       this.y = 230 + Math.sin(frame * 0.018) * 30;
+      // Phase 2+: summon minions periodically
+      if (this.phase >= 2) {
+        this.summonTimer++;
+        if (this.summonTimer >= 220) {
+          this.summonTimer = 0;
+          return { type: 'boss_summon' };
+        }
+      }
+      // Beam attack (faster per phase)
+      var beamInterval = this.phase === 3 ? 44 : this.phase === 2 ? 72 : 120;
+      var beamDmg      = this.phase === 3 ? 9  : 6;
       this.bossTimer++;
-      if (this.bossTimer >= 120) {
+      if (this.bossTimer >= beamInterval) {
         this.bossTimer = 0;
-        if (!barrierActive) return { type: 'beam', dmg: 6 };
+        if (!barrierActive) return { type: 'beam', dmg: beamDmg };
         else                return { type: 'barrier' };
       }
     } else if (this.type === 'ranged') {
@@ -135,6 +188,36 @@ class Enemy {
         if (!barrierActive) return { type: 'bomb', dmg: this.dmg };
         else                return { type: 'barrier' };
       }
+    } else if (this.type === 'sprinter') {
+      this.sprintTimer++;
+      if (this.sprintPhase === 0) {
+        // Pause: creep slowly
+        this.x += Math.sin(this.wobble) * 0.5;
+        this.y += this.vy * 0.15;
+        if (this.sprintTimer >= 55) { this.sprintTimer = 0; this.sprintPhase = 1; }
+      } else {
+        // Dash: very fast
+        this.x += this.vx;
+        this.y += this.vy * 4.5;
+        if (this.sprintTimer >= 18) { this.sprintTimer = 0; this.sprintPhase = 0; }
+      }
+      if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
+      if (this.y > H - 160) {
+        this.dead = true;
+        if (!barrierActive) return { type: 'reach', dmg: this.dmg };
+        else                return { type: 'barrier' };
+      }
+    } else if (this.type === 'regen') {
+      this.x += this.vx + Math.sin(this.wobble) * 0.4;
+      this.y += this.vy;
+      if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
+      this.regenTimer++;
+      if (this.regenTimer >= 90) { this.regenTimer = 0; this.hp = Math.min(this.maxHp, this.hp + 1); }
+      if (this.y > H - 160) {
+        this.dead = true;
+        if (!barrierActive) return { type: 'reach', dmg: this.dmg };
+        else                return { type: 'barrier' };
+      }
     } else {
       this.x += this.vx + Math.sin(this.wobble) * 0.4;
       this.y += this.vy;
@@ -150,6 +233,14 @@ class Enemy {
 
   // Returns true if killed
   takeDamage(dmg) {
+    // Armored: takes half damage
+    if (this.type === 'armored') dmg = Math.max(1, Math.ceil(dmg * 0.5));
+    // Shielded: damage hits shield first
+    if (this.type === 'shielded' && this.shield > 0) {
+      this.shield -= dmg;
+      if (this.shield < 0) { dmg = -this.shield; this.shield = 0; }
+      else { this.hitFlash = 6; return false; }
+    }
     this.hp -= dmg;
     this.hitFlash = 6;
     if (this.hp <= 0) { this.hp = 0; this.dead = true; return true; }

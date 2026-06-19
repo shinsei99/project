@@ -209,13 +209,19 @@ function drawChick(x, y, sz, evolved, acc) {
 
 // ── Crow ─────────────────────────────────────────────────────────────────────
 var CROW_COLORS = {
-  normal: { wing:'#141414', body:'#282828', hi:'#424242', eye:'#FF1A1A', glow:'rgba(255,20,20,0.55)'   },
-  fast:   { wing:'#001166', body:'#163388', hi:'#2850BB', eye:'#00EEFF', glow:'rgba(0,220,255,0.55)'   },
-  ranged: { wing:'#1A3A1A', body:'#1E6B1E', hi:'#3AAA3A', eye:'#FFCC00', glow:'rgba(255,210,0,0.58)'  },
-  tank:   { wing:'#3A0000', body:'#7A0000', hi:'#BB1818', eye:'#FF5500', glow:'rgba(255,80,0,0.55)'    },
-  ghost:  { wing:'#5A6A88', body:'#7A92AF', hi:'#A8C0D0', eye:'#88EEFF', glow:'rgba(100,210,255,0.55)' },
-  healer: { wing:'#7A1A4A', body:'#AA2060', hi:'#D85090', eye:'#FF88CC', glow:'rgba(255,120,200,0.58)' },
-  bomber: { wing:'#3A1800', body:'#8C3200', hi:'#CC5010', eye:'#FF8C00', glow:'rgba(255,110,0,0.60)'   },
+  normal:   { wing:'#141414', body:'#282828', hi:'#424242', eye:'#FF1A1A', glow:'rgba(255,20,20,0.55)'   },
+  fast:     { wing:'#001166', body:'#163388', hi:'#2850BB', eye:'#00EEFF', glow:'rgba(0,220,255,0.55)'   },
+  ranged:   { wing:'#1A3A1A', body:'#1E6B1E', hi:'#3AAA3A', eye:'#FFCC00', glow:'rgba(255,210,0,0.58)'  },
+  tank:     { wing:'#3A0000', body:'#7A0000', hi:'#BB1818', eye:'#FF5500', glow:'rgba(255,80,0,0.55)'    },
+  ghost:    { wing:'#5A6A88', body:'#7A92AF', hi:'#A8C0D0', eye:'#88EEFF', glow:'rgba(100,210,255,0.55)' },
+  healer:   { wing:'#7A1A4A', body:'#AA2060', hi:'#D85090', eye:'#FF88CC', glow:'rgba(255,120,200,0.58)' },
+  bomber:   { wing:'#3A1800', body:'#8C3200', hi:'#CC5010', eye:'#FF8C00', glow:'rgba(255,110,0,0.60)'   },
+  sprinter: { wing:'#2A4400', body:'#548B00', hi:'#88CC00', eye:'#AAFF00', glow:'rgba(140,220,0,0.60)'   },
+  armored:  { wing:'#2A2A3A', body:'#4A5060', hi:'#7A88A0', eye:'#AACCFF', glow:'rgba(140,180,255,0.50)' },
+  regen:    { wing:'#003A14', body:'#006B28', hi:'#00AA40', eye:'#44FF88', glow:'rgba(40,220,100,0.58)'   },
+  shielded: { wing:'#0A1A3A', body:'#102866', hi:'#2050BB', eye:'#66AAFF', glow:'rgba(80,150,255,0.60)'  },
+  splitter: { wing:'#2A004A', body:'#550088', hi:'#8800CC', eye:'#CC44FF', glow:'rgba(180,60,255,0.60)'   },
+  swarm:    { wing:'#3A0808', body:'#6A0C0C', hi:'#991414', eye:'#FF3333', glow:'rgba(220,40,40,0.50)'    },
 };
 
 function drawCrow(e) {
@@ -235,6 +241,60 @@ function drawCrow(e) {
   _ctx.fillStyle = 'rgba(0,0,0,0.55)';
   _ctx.beginPath(); _ctx.ellipse(0, s * 0.9, s * 0.46, s * 0.1, 0, 0, Math.PI * 2); _ctx.fill();
   _ctx.globalAlpha = al;
+
+  // Sprinter: green speed-lines during dash phase
+  if (e.type === 'sprinter' && e.sprintPhase === 1) {
+    _ctx.globalAlpha = al * 0.55;
+    _ctx.strokeStyle = '#AAFF00'; _ctx.lineWidth = 2;
+    for (var sl = 0; sl < 3; sl++) {
+      _ctx.shadowColor = '#88FF00'; _ctx.shadowBlur = 6;
+      _ctx.beginPath(); _ctx.moveTo((sl-1)*12, -s*0.4); _ctx.lineTo((sl-1)*12, s*1.2); _ctx.stroke();
+    }
+    _ctx.shadowBlur = 0; _ctx.globalAlpha = al;
+  }
+
+  // Armored: metallic plate overlay
+  if (e.type === 'armored') {
+    _ctx.globalAlpha = al * 0.35;
+    _ctx.strokeStyle = '#AACCFF'; _ctx.lineWidth = 2.5;
+    _ctx.shadowColor = '#8899BB'; _ctx.shadowBlur = 8;
+    _ctx.beginPath(); _ctx.ellipse(0, 0, s * 0.52, s * 0.46, 0, 0, Math.PI * 2); _ctx.stroke();
+    _ctx.shadowBlur = 0; _ctx.globalAlpha = al;
+  }
+
+  // Regen: green healing pulse
+  if (e.type === 'regen' && e.regenTimer > 60) {
+    var rr = (e.regenTimer - 60) / 30;
+    _ctx.globalAlpha = al * rr * 0.35;
+    _ctx.shadowColor = '#44FF88'; _ctx.shadowBlur = 14;
+    _ctx.fillStyle = '#44FF88';
+    _ctx.beginPath(); _ctx.arc(0, 0, s * 0.80, 0, Math.PI * 2); _ctx.fill();
+    _ctx.shadowBlur = 0; _ctx.globalAlpha = al;
+  }
+
+  // Shielded: blue shield bubble (proportional to shield remaining)
+  if (e.type === 'shielded' && e.shield > 0) {
+    var sr = e.shield / e.maxShield;
+    _ctx.globalAlpha = al * (0.15 + sr * 0.25);
+    _ctx.shadowColor = '#66AAFF'; _ctx.shadowBlur = 16;
+    _ctx.fillStyle = '#2266CC';
+    _ctx.beginPath(); _ctx.arc(0, 0, s * 0.95, 0, Math.PI * 2); _ctx.fill();
+    _ctx.shadowBlur = 0;
+    _ctx.globalAlpha = al * (0.35 + sr * 0.25);
+    _ctx.strokeStyle = '#88CCFF'; _ctx.lineWidth = 2.5;
+    _ctx.beginPath(); _ctx.arc(0, 0, s * 0.95, 0, Math.PI * 2); _ctx.stroke();
+    _ctx.globalAlpha = al;
+  }
+
+  // Splitter: purple crack lines
+  if (e.type === 'splitter') {
+    _ctx.globalAlpha = al * 0.5;
+    _ctx.strokeStyle = '#CC44FF'; _ctx.lineWidth = 1.5;
+    _ctx.shadowColor = '#AA00FF'; _ctx.shadowBlur = 8;
+    _ctx.beginPath(); _ctx.moveTo(-s*0.3, -s*0.4); _ctx.lineTo(0, 0); _ctx.lineTo(s*0.3, -s*0.4); _ctx.stroke();
+    _ctx.beginPath(); _ctx.moveTo(-s*0.2, s*0.3); _ctx.lineTo(0, 0); _ctx.lineTo(s*0.2, s*0.3); _ctx.stroke();
+    _ctx.shadowBlur = 0; _ctx.globalAlpha = al;
+  }
 
   // Healer: pink heal aura pulses when about to fire
   if (e.type === 'healer' && e.healTimer > 60) {
@@ -317,7 +377,8 @@ function drawCrow(e) {
   _ctx.beginPath(); _ctx.arc(s * 0.37, -s * 0.32, s * 0.025, 0, Math.PI * 2); _ctx.fill();
 
   // HP bar for chunky / priority enemies
-  if (e.type === 'tank' || e.type === 'healer' || e.type === 'bomber' || e.maxHp > 12) {
+  if (e.type === 'tank' || e.type === 'healer' || e.type === 'bomber' ||
+      e.type === 'splitter' || e.type === 'regen' || e.type === 'shielded' || e.maxHp > 12) {
     var bw = s * 1.6, bx = -bw / 2, by = s * 0.65;
     rrect(bx - 1, by - 1, bw + 2, 12, 4, 'rgba(0,0,0,0.75)', null);
     var ratio = e.hp / e.maxHp;
@@ -355,12 +416,22 @@ function drawBoss(e, frame) {
     _ctx.globalAlpha = al;
   }
 
-  // Aura pulse
-  var pa  = (0.07 + Math.sin(frame * 0.05) * 0.03) * al;
-  var aG  = _ctx.createRadialGradient(0, 0, s * 0.3, 0, 0, s * 1.4);
-  aG.addColorStop(0, 'rgba(175,75,255,' + pa + ')');
-  aG.addColorStop(1, 'rgba(175,75,255,0)');
-  _ctx.fillStyle = aG; _ctx.beginPath(); _ctx.arc(0, 0, s * 1.4, 0, Math.PI * 2); _ctx.fill();
+  // Aura pulse — color & intensity based on phase
+  var phase    = e.phase || 1;
+  var auraBase = phase === 3 ? 'rgba(255,60,60,' : phase === 2 ? 'rgba(255,140,30,' : 'rgba(175,75,255,';
+  var pa       = (0.07 + Math.sin(frame * (0.05 + phase * 0.02)) * 0.04) * al * (1 + (phase-1) * 0.5);
+  var aG       = _ctx.createRadialGradient(0, 0, s * 0.3, 0, 0, s * (1.4 + (phase-1) * 0.2));
+  aG.addColorStop(0, auraBase + pa + ')');
+  aG.addColorStop(1, auraBase + '0)');
+  _ctx.fillStyle = aG; _ctx.beginPath(); _ctx.arc(0, 0, s * 1.6, 0, Math.PI * 2); _ctx.fill();
+  // Phase 2-3: outer warning ring
+  if (phase >= 2) {
+    _ctx.globalAlpha = al * (0.12 + Math.sin(frame * 0.12) * 0.08);
+    _ctx.strokeStyle = phase === 3 ? '#FF4444' : '#FF8800';
+    _ctx.lineWidth   = phase === 3 ? 4 : 2.5;
+    _ctx.beginPath(); _ctx.arc(0, 0, s * 1.6, 0, Math.PI * 2); _ctx.stroke();
+    _ctx.globalAlpha = al;
+  }
 
   // UFO dish
   _ctx.shadowColor = '#AA55FF'; _ctx.shadowBlur = 20;
@@ -475,6 +546,58 @@ function drawEnemyBullet(eb) {
   _ctx.fillStyle = g;
   _ctx.beginPath(); _ctx.arc(0, 0, eb.size, 0, Math.PI * 2); _ctx.fill();
   _ctx.shadowBlur = 0; _ctx.restore();
+}
+
+// ── Tower ─────────────────────────────────────────────────────────────────────
+function drawTower(slot, showRange) {
+  _ctx.save(); _ctx.translate(slot.x, slot.y);
+  if (!slot.type) {
+    // Empty slot: dotted circle hint
+    _ctx.globalAlpha = 0.22; _ctx.setLineDash([5, 6]);
+    _ctx.strokeStyle = '#667'; _ctx.lineWidth = 1.5;
+    _ctx.beginPath(); _ctx.arc(0, 0, 18, 0, Math.PI * 2); _ctx.stroke();
+    _ctx.setLineDash([]);
+    _ctx.fillStyle = '#667'; _ctx.font = '14px sans-serif';
+    _ctx.textAlign = 'center'; _ctx.textBaseline = 'middle'; _ctx.fillText('+', 0, 1);
+    _ctx.textBaseline = 'alphabetic'; _ctx.globalAlpha = 1; _ctx.restore(); return;
+  }
+  var def = (typeof TOWER_DEFS !== 'undefined') ? TOWER_DEFS[slot.type] : null;
+  if (!def) { _ctx.restore(); return; }
+  // Range circle when paused
+  if (showRange) {
+    _ctx.globalAlpha = 0.07; _ctx.fillStyle = def.col;
+    _ctx.beginPath(); _ctx.arc(0, 0, def.range, 0, Math.PI*2); _ctx.fill();
+    _ctx.globalAlpha = 0.18; _ctx.strokeStyle = def.col; _ctx.lineWidth = 1;
+    _ctx.beginPath(); _ctx.arc(0, 0, def.range, 0, Math.PI*2); _ctx.stroke();
+    _ctx.globalAlpha = 1;
+  }
+  // Drop shadow
+  _ctx.globalAlpha = 0.38; _ctx.fillStyle = 'rgba(0,0,0,0.5)';
+  _ctx.beginPath(); _ctx.ellipse(0, 16, 18, 5, 0, 0, Math.PI*2); _ctx.fill(); _ctx.globalAlpha = 1;
+  // Tower body
+  _ctx.shadowColor = def.col; _ctx.shadowBlur = 12;
+  var bG = _ctx.createRadialGradient(-7, -7, 1, 0, 0, 20);
+  bG.addColorStop(0, 'rgba(255,255,255,0.35)'); bG.addColorStop(1, def.col);
+  _ctx.fillStyle = bG; _ctx.strokeStyle = 'rgba(255,255,255,0.35)'; _ctx.lineWidth = 1.5;
+  _ctx.beginPath();
+  _ctx.moveTo(-11, 12); _ctx.lineTo(11, 12); _ctx.lineTo(15, -2);
+  _ctx.lineTo(0, -18); _ctx.lineTo(-15, -2); _ctx.closePath();
+  _ctx.fill(); _ctx.stroke(); _ctx.shadowBlur = 0;
+  // Barrel
+  _ctx.fillStyle = 'rgba(0,0,0,0.68)';
+  _ctx.beginPath(); _ctx.rect(2, -24, 6, 14); _ctx.fill();
+  _ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  _ctx.beginPath(); _ctx.rect(3, -24, 2, 12); _ctx.fill();
+  // Level stars
+  for (var li = 0; li < slot.level - 1; li++) {
+    _ctx.fillStyle = '#FFD700'; _ctx.shadowColor = '#FFD700'; _ctx.shadowBlur = 5;
+    _ctx.beginPath(); _ctx.arc(-14 + li * 8, 16, 2.5, 0, Math.PI*2); _ctx.fill();
+    _ctx.shadowBlur = 0;
+  }
+  // Icon
+  _ctx.font = '13px sans-serif'; _ctx.textAlign = 'center'; _ctx.textBaseline = 'middle';
+  _ctx.fillText(def.icon, 0, -5); _ctx.textBaseline = 'alphabetic';
+  _ctx.restore();
 }
 
 function drawParticle(p) {
