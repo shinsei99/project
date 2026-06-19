@@ -185,12 +185,22 @@ function startWave() {
   }
 }
 
-function spawnEnemy() {
+function spawnEnemy(typeOverride) {
   var types = waveTypes(stage, wave);
-  var type  = types[~~(Math.random() * types.length)];
+  var type  = typeOverride || types[~~(Math.random() * types.length)];
   var x     = 55 + Math.random() * (W - 110);
   var y     = (type === 'boss') ? 190 : -60;
   enemies.push(new Enemy(type, x, y, stage, wave));
+}
+
+function spawnMinion() {
+  // Use wave-4 types so boss summons never spawn more bosses
+  var minionTypes = waveTypes(stage, Math.max(1, wave - 1));
+  var filtered = minionTypes.filter(function(t) { return t !== 'boss'; });
+  if (!filtered.length) filtered = ['normal'];
+  var type = filtered[~~(Math.random() * filtered.length)];
+  var x = 55 + Math.random() * (W - 110);
+  enemies.push(new Enemy(type, x, -60, stage, wave));
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -440,9 +450,9 @@ function updateBattle() {
         spawnP(W/2, H*0.35, 'explosion', 22);
         shakeMag = 12; SoundManager.bossWarn();
         // Phase 2: spawn minions
-        if (er.phase >= 2) { spawnEnemy(); spawnEnemy(); }
+        if (er.phase >= 2) { spawnMinion(); spawnMinion(); }
       } else if (er.type === 'boss_summon') {
-        spawnEnemy(); spawnEnemy();
+        spawnMinion(); spawnMinion();
         addFloat(W/2, H*0.35, '増援召喚！', '#FF3333', 18);
       } else if (er.type === 'heal') {
         var healCount = 0;
