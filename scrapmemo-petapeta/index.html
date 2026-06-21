@@ -1915,6 +1915,25 @@ document.getElementById('page-wrap').addEventListener('pointerdown',e=>{
 
 setInterval(save,60000);
 
+// ── CHROME拡張機能からのクリップ受信 ──
+window.addEventListener('petapeta-clip', e => {
+  const { type, content, sourceUrl } = e.detail;
+  const el = {
+    id: nid(), type: 'memo',
+    x: Math.floor(Math.random()*100+16),
+    y: Math.floor(Math.random()*80+16),
+    w: 300, rot: randRot(), sourceUrl: sourceUrl||'', deco: randDeco(),
+    blocks: type === 'image'
+      ? [{ id: nid(), type: 'image', src: content, caption: '' }]
+      : [{ id: nid(), type: 'text', content: content||'' }]
+  };
+  pages[curIdx].elements.push(el);
+  const cv = document.getElementById('canvas');
+  if (cv) { cv.querySelector('.empty-hint')?.remove(); drawScrap(el, cv); }
+  soundPeta(); touchPage(); save();
+  toast(type === 'image' ? '画像をクリップしました 📷' : 'テキストをクリップしました ✓');
+});
+
 // ══════════════════════════════════════════
 //  BOOT
 // ══════════════════════════════════════════
