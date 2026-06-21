@@ -168,7 +168,7 @@ body.t-graph .page::after{display:none;}
 #img-lightbox img{max-width:92vw;max-height:88vh;object-fit:contain;border-radius:4px;}
 
 /* webclip card */
-.wc-card{background:#fff;border-radius:2px;overflow:hidden;}
+.wc-card{background:transparent;border-radius:0;overflow:hidden;}
 .wc-site{display:flex;align-items:center;gap:6px;padding:7px 10px 4px;
   border-bottom:1px solid rgba(0,0,0,.06);}
 .wc-favicon{width:14px;height:14px;border-radius:2px;flex-shrink:0;}
@@ -301,6 +301,15 @@ body.t-graph .page::after{display:none;}
 .url-field input::placeholder{color:rgba(200,170,120,.35);}
 #memo-charcount{text-align:right;font-size:11px;color:rgba(160,130,90,.6);padding:0 16px 4px;}
 
+/* ── DECO PICKER ── */
+#deco-picker{display:flex;gap:12px;padding:8px 14px 6px;border-top:1px solid rgba(255,255,255,.07);flex-shrink:0;}
+.dp-group{display:flex;align-items:center;gap:6px;flex:1;}
+.dp-label{font-size:11px;color:rgba(200,170,120,.6);flex-shrink:0;}
+.dp-swatches{display:flex;gap:5px;flex-wrap:wrap;}
+.dp-swatch{width:22px;height:22px;border-radius:3px;border:2px solid transparent;cursor:pointer;position:relative;flex-shrink:0;}
+.dp-swatch.round{border-radius:50%;}
+.dp-swatch.sel{border-color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.4);}
+
 /* ── WEBCLIP SHEET ── */
 #wc-url-input{width:100%;padding:12px 14px;background:rgba(255,255,255,.06);
   border:1px solid rgba(240,210,150,.2);border-radius:12px;
@@ -424,6 +433,16 @@ body.t-graph .page::after{display:none;}
     <div class="sh-head">
       <h3><i class="fas fa-paste"></i> スクラップ編集</h3>
       <span id="memo-charcount" style="font-size:11px;color:rgba(200,170,100,.5)"></span>
+    </div>
+    <div id="deco-picker">
+      <div class="dp-group">
+        <span class="dp-label">テープ</span>
+        <div class="dp-swatches" id="dp-tapes"></div>
+      </div>
+      <div class="dp-group">
+        <span class="dp-label">ピン</span>
+        <div class="dp-swatches" id="dp-pins"></div>
+      </div>
     </div>
     <div id="memo-editor"></div>
     <div class="ed-actions">
@@ -576,11 +595,11 @@ const esc  = s => s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt
 const fmtD = iso => { const d=new Date(iso); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
 const touchPage = () => { if (pages[curIdx]) pages[curIdx].lastAccessed = nowS(); };
 
-const TAPE_COLORS = ['#FFE87C','#B5D5FF','#FFB5C2','#B5FFD0'];
-const PIN_COLORS  = ['#e04040','#4080e0','#e0c020','#40b050'];
+const TAPE_COLORS = ['#FFE87C','#B5D5FF','#FFB5C2','#B5FFD0','#D5B5FF','#FFD5A0','#F0ECD8'];
+const PIN_COLORS  = ['#e04040','#4080e0','#e0c020','#40b050','#9040c0','#e07020','#909090'];
 function randDeco() {
-  if (Math.random() > .5) return { type:'tape', color: TAPE_COLORS[Math.floor(Math.random()*4)] };
-  return { type:'pin', color: PIN_COLORS[Math.floor(Math.random()*4)] };
+  if (Math.random() > .5) return { type:'tape', color: TAPE_COLORS[Math.floor(Math.random()*TAPE_COLORS.length)] };
+  return { type:'pin', color: PIN_COLORS[Math.floor(Math.random()*PIN_COLORS.length)] };
 }
 
 function makeTornPath() {
@@ -689,7 +708,7 @@ function drawScrap(el, canvas) {
   }
 
   if (el.type === 'webclip') {
-    buildWebClipPreview(div, el);  // tornPath applied inside to wc-card
+    buildWebClipPreview(div, el);
   } else {
     buildMemoPreview(div, el);
   }
@@ -748,9 +767,8 @@ function openImgLightbox(src) {
 }
 
 function buildWebClipPreview(div, el) {
-  div.style.clipPath = '';  // clear any old clipPath from outer .scrap
+  div.style.clipPath = '';
   const wc = document.createElement('div'); wc.className='wc-card';
-  if (el.tornPath) wc.style.clipPath = el.tornPath;  // clip only inner card — deco-tape/pin won't be clipped
   const site = document.createElement('div'); site.className='wc-site';
   if (el.favicon) {
     const fav=document.createElement('img'); fav.className='wc-favicon';
@@ -1148,10 +1166,45 @@ function addNewPage() {
 // ══════════════════════════════════════════
 //  MEMO EDITOR
 // ══════════════════════════════════════════
+function buildDecoPicker() {
+  const tp=document.getElementById('dp-tapes'); tp.innerHTML='';
+  const pp=document.getElementById('dp-pins');  pp.innerHTML='';
+  TAPE_COLORS.forEach(c=>{
+    const s=document.createElement('div'); s.className='dp-swatch'; s.style.background=c;
+    s.dataset.type='tape'; s.dataset.color=c;
+    s.addEventListener('click',()=>updateDecoPick('tape',c)); tp.appendChild(s);
+  });
+  PIN_COLORS.forEach(c=>{
+    const s=document.createElement('div'); s.className='dp-swatch round'; s.style.background=c;
+    s.dataset.type='pin'; s.dataset.color=c;
+    s.addEventListener('click',()=>updateDecoPick('pin',c)); pp.appendChild(s);
+  });
+}
+function updateDecoPick(type, color) {
+  if (!editEl) return;
+  editEl.deco = { type, color };
+  syncDecoSel();
+  // live update deco on canvas
+  const div = document.querySelector(`.scrap[data-id="${editEl.id}"]`);
+  if (div) {
+    div.querySelectorAll('.deco-tape,.deco-pin').forEach(d=>d.remove());
+    const dc=document.createElement('div');
+    dc.className=type==='tape'?'deco-tape':'deco-pin'; dc.style.background=color;
+    div.insertBefore(dc, div.firstChild);
+  }
+}
+function syncDecoSel() {
+  document.querySelectorAll('#deco-picker .dp-swatch').forEach(s=>{
+    const match = editEl?.deco && s.dataset.type===editEl.deco.type && s.dataset.color===editEl.deco.color;
+    s.classList.toggle('sel', !!match);
+  });
+}
 function openMemo(el) {
   editEl=el;
   renderBlocks();
   document.getElementById('memo-url-input').value = el.sourceUrl||'';
+  buildDecoPicker();
+  syncDecoSel();
   document.getElementById('memo-sheet').classList.add('open');
   setTimeout(()=>{
     const ta=document.querySelector('#memo-editor .block-textarea');
@@ -1325,7 +1378,7 @@ function placeWebClip() {
     sourceUrl:wcData.sourceUrl, title:wcData.title,
     description:wcData.description, image:wcData.image,
     siteName:wcData.siteName, favicon:wcData.favicon,
-    tornPath:makeTornPath(), deco:randDeco()
+    deco:randDeco()
   };
   pages[curIdx].elements.push(el);
   const cv=document.getElementById('canvas');
