@@ -1242,6 +1242,7 @@ async function fetchOGP(url) {
       const doc=new DOMParser().parseFromString(html,'text/html');
       const og=prop=>doc.querySelector(`meta[property="${prop}"]`)?.getAttribute('content')||doc.querySelector(`meta[name="${prop}"]`)?.getAttribute('content')||'';
       return {
+        _ok:true,
         title:og('og:title')||doc.title||url,
         description:og('og:description')||og('description')||'',
         image:og('og:image')||'',
@@ -1264,16 +1265,16 @@ async function doFetchOGP() {
   try {
     const data=await fetchOGP(finalUrl);
     wcData={...data, sourceUrl:finalUrl};
-    // Update preview
     const fav=document.getElementById('wcp-fav');
-    if (data.favicon) { fav.src=data.favicon; fav.style.display=''; } else fav.style.display='none';
+    if (data.favicon) { fav.src=data.favicon; fav.style.display='inline'; } else fav.style.display='none';
     document.getElementById('wcp-site').textContent=data.siteName||'';
     document.getElementById('wcp-title').textContent=data.title||'';
     document.getElementById('wcp-desc').textContent=data.description||'';
     const img=document.getElementById('wcp-img');
-    if (data.image) { img.src=data.image; img.style.display=''; } else img.style.display='none';
-    document.getElementById('wc-preview').style.display='';
+    if (data.image) { img.src=data.image; img.style.display='block'; } else img.style.display='none';
+    document.getElementById('wc-preview').style.display='block';  // fix: was '' which kept CSS display:none
     document.getElementById('wc-scrap-btn').disabled=false;
+    toast(data._ok ? '取得しました ✓' : '情報を一部取得しました');
   } catch(e) { toast('取得に失敗しました'); }
   document.getElementById('wc-loading').style.display='none';
 }
