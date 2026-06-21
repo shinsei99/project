@@ -1,0 +1,41 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Deploy to gh-pages
+        run: |
+          # デプロイ対象フォルダを一時保存
+          cp -r scrapmemo-petapeta /tmp/scrapmemo-petapeta
+
+          # gh-pagesブランチに切り替え
+          git fetch origin gh-pages
+          git checkout gh-pages
+
+          # mainの最新を上書きコピー
+          cp -r /tmp/scrapmemo-petapeta ./scrapmemo-petapeta
+
+          # 変更があればコミット＆プッシュ
+          git add scrapmemo-petapeta/
+          if git diff --cached --quiet; then
+            echo "変更なし、スキップ"
+          else
+            git commit -m "Deploy: ${{ github.event.head_commit.message }}"
+            git push origin gh-pages
+          fi
