@@ -305,6 +305,15 @@ body.t-graph .page::after{display:none;}
 .page-act-btn:hover,.page-act-btn:active{opacity:1;transform:scale(1.18);}
 .page-act-btn.padd{background:rgba(74,123,192,.85);color:#fff;}
 .page-act-btn.pdel{background:rgba(192,72,72,.8);color:#fff;}
+/* page reorder buttons (right edge, bottom) */
+.page-reorder{position:absolute;bottom:26px;right:8px;display:flex;flex-direction:column;
+  gap:4px;z-index:85;pointer-events:auto;}
+.page-mv-btn{width:24px;height:24px;border-radius:50%;border:none;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;cursor:pointer;touch-action:manipulation;
+  box-shadow:0 1px 5px rgba(0,0,0,.22);transition:transform .12s,opacity .15s;
+  opacity:.45;background:rgba(180,140,55,.75);color:#fff;}
+.page-mv-btn:hover,.page-mv-btn:active{opacity:1;transform:scale(1.2);}
 /* page delete confirmation (centered overlay) */
 #page-confirm{position:fixed;inset:0;z-index:9100;display:none;
   align-items:center;justify-content:center;
@@ -877,6 +886,24 @@ function renderPage() {
     pa.appendChild(db);
   }
   div.appendChild(pa);
+
+  // page reorder arrows (bottom-right)
+  const pr = document.createElement('div'); pr.className='page-reorder';
+  if (curIdx > 0) {
+    const ub = document.createElement('button'); ub.className='page-mv-btn'; ub.title='このページを前へ';
+    ub.innerHTML='<i class="fas fa-chevron-up"></i>';
+    ub.addEventListener('pointerdown', e=>e.stopPropagation());
+    ub.addEventListener('click', e=>{ e.stopPropagation(); movePageOrder(-1); });
+    pr.appendChild(ub);
+  }
+  if (curIdx < pages.length - 1) {
+    const db2 = document.createElement('button'); db2.className='page-mv-btn'; db2.title='このページを後ろへ';
+    db2.innerHTML='<i class="fas fa-chevron-down"></i>';
+    db2.addEventListener('pointerdown', e=>e.stopPropagation());
+    db2.addEventListener('click', e=>{ e.stopPropagation(); movePageOrder(1); });
+    pr.appendChild(db2);
+  }
+  if (pr.children.length) div.appendChild(pr);
 
   setupPageDrag(div);
   wrap.insertBefore(div, document.getElementById('fc'));
@@ -1514,6 +1541,14 @@ function addNewPage() {
   save(); toast('新しいページを追加しました ＋');
 }
 
+function movePageOrder(dir) {
+  const target = curIdx + dir;
+  if (target < 0 || target >= pages.length) return;
+  [pages[curIdx], pages[target]] = [pages[target], pages[curIdx]];
+  curIdx = target;
+  save(); renderPage();
+  toast(dir < 0 ? '前のページと入れ替えました' : '後ろのページと入れ替えました');
+}
 function deleteCurrentPage() {
   if (pages.length <= 1) { toast('最後のページは削除できません'); return; }
   const pg=pages[curIdx];
