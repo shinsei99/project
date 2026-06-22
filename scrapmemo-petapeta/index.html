@@ -160,17 +160,6 @@ body.t-graph .page::after{display:none;}
   background:linear-gradient(to right,#ddd0b8 0%,#f0ead8 25%,#f8f2e4 100%);}
 
 /* ── EDGE INDICATORS ── */
-.edge-ind{position:absolute;top:50%;transform:translateY(-50%);
-  width:36px;height:80px;background:rgba(240,192,64,.22);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  color:rgba(240,192,64,.8);font-size:16px;
-  opacity:0;transition:opacity .2s;pointer-events:none;z-index:40;
-  border-radius:0 18px 18px 0;overflow:hidden;}
-#edge-r{right:0;border-radius:18px 0 0 18px;}
-.edge-ind.on{opacity:1;}
-.edge-timer-bar{position:absolute;bottom:0;left:0;width:100%;
-  height:0%;background:rgba(240,192,64,.6);transition:none;}
-.edge-ind.timing .edge-timer-bar{height:100%;transition:height .8s linear;}
 
 /* ══════════════════════════════════════════
    SCRAP ELEMENTS
@@ -641,8 +630,6 @@ body.ed-light .movepage-item:hover{background:rgba(100,60,10,.1);}
       <div id="page-wrap">
         <!-- page injected here -->
         <div id="fc"><div class="fcf"></div><div class="fcb"></div></div>
-        <div class="edge-ind" id="edge-l"><i class="fas fa-chevron-left"></i><div class="edge-timer-bar"></div></div>
-        <div class="edge-ind" id="edge-r"><i class="fas fa-chevron-right"></i><div class="edge-timer-bar"></div></div>
       </div>
     </div>
   </div>
@@ -964,11 +951,8 @@ let editEl  = null;
 let currentTheme = 't-cork';
 let memoRotMode = 'random'; // 'random' | 'straight'
 
-// drag-to-edge state
-let edgeDragEl  = null; // the element data being edge-dragged
-let edgeDragDiv = null; // the lifted DOM div
-let edgeTimer   = null;
-let edgeSide    = null;
+let edgeDragEl  = null;
+let edgeDragDiv = null;
 
 // ══════════════════════════════════════════
 //  HELPERS
@@ -1027,7 +1011,7 @@ function mkData() {
         {id:'b2',type:'text',content:'🌐 Webクリップ\n\n下の 🌐 ボタンでURLを入力\n→ サイトの内容をカードで保存\n\nカードをタップすると\nブラウザでサイトが開きます'}
       ]},
       { id:'e3', type:'memo', x:68, y:375, w:260, rot:-2, sourceUrl:'', deco:{type:'tape',color:'#B5D5FF'}, blocks:[
-        {id:'b3',type:'text',content:'📖 ページ管理\n\nページ右上の ＋ ボタンで新しいページを追加\n🗑️ ボタンでそのページを削除（30日復元可能）\nスワイプでページ切り替え\n端へドラッグで隣ページへカード移動'}
+        {id:'b3',type:'text',content:'📖 ページ管理\n\nページ右上の ＋ ボタンで新しいページを追加\n🗑️ ボタンでそのページを削除（30日復元可能）\nスワイプでページ切り替え\n↗ボタンでメモを別ページへ移動'}
       ]},
     ]},
     { id:'p2', title:'古いメモ 📂', lastAccessed:ago(7), elements:[
@@ -1052,7 +1036,7 @@ function mkData() {
 // ══════════════════════════════════════════
 function renderPage() {
   const wrap = document.getElementById('page-wrap');
-  [...wrap.children].forEach(c => { if (c.id !== 'fc' && !c.classList.contains('edge-ind') && c !== edgeDragDiv) c.remove(); });
+  [...wrap.children].forEach(c => { if (c.id !== 'fc' && c !== edgeDragDiv) c.remove(); });
 
   const pg  = pages[curIdx];
   const div = document.createElement('div');
@@ -1415,7 +1399,6 @@ function setupScrapDrag(div, el, canvas, rz) {
       // Direct transform update — no rAF, no reflow, GPU-composited
       div.style.transform=`translate(${dx}px,${dy}px) rotate(${el.rot||0}deg)`;
       checkTrash(ev.clientX, ev.clientY, _botRect);
-      checkEdge(ev.clientX, el, div, canvas, _wrRect);
     };
 
     _up = ev => {
@@ -1425,7 +1408,6 @@ function setupScrapDrag(div, el, canvas, rz) {
       div.removeEventListener('pointerup', _up);
       div.removeEventListener('pointercancel', _up);
       _move=null; _up=null;
-      clearEdge();
       document.getElementById('trash-zone').classList.remove('drag-active','drop-ready');
 
       const cx = ev.clientX || lastX;
@@ -1561,90 +1543,6 @@ function showDeleteConfirm(div, el) {
     if(_delDiv && _delEl) dropToCanvas(_delDiv, _delEl);
     _delDiv=null; _delEl=null;
   };
-}
-
-// ══════════════════════════════════════════
-//  EDGE DETECTION (drag to page switch)
-// ══════════════════════════════════════════
-function checkEdge(cx, el, div, canvas, wrRect) {
-  if (isAnim) return;  // ページアニメ中はエッジ判定をスキップ
-  const wr=wrRect||document.getElementById('page-wrap').getBoundingClientRect();
-  const ZONE=55;
-  const inLeft  = cx < wr.left + ZONE && curIdx > 0;
-  const inRight = cx > wr.right - ZONE && curIdx < pages.length-1;
-  const side = inLeft ? 'left' : inRight ? 'right' : null;
-
-  if (side !== edgeSide) {
-    clearEdge();
-    edgeSide = side;
-    if (side) startEdgeTimer(side, el, div, canvas);
-  }
-}
-
-function startEdgeTimer(side, el, div, canvas) {
-  const ind = document.getElementById('edge-'+side[0]);
-  ind.classList.add('on');
-
-  // Progressive page peel: animate toward 80° over 700ms then complete
-  const fc = document.getElementById('fc');
-  fc.style.display = 'block';
-  fc.style.transition = 'none';
-  fc.style.transformOrigin = side==='right' ? 'left center' : 'right center';
-  fc.style.transform = 'rotateY(0deg)';
-  requestAnimationFrame(() => {
-    fc.style.transition = 'transform 750ms cubic-bezier(0.25,0.1,0.25,1)';
-    fc.style.transform = `rotateY(${side==='right'?-80:80}deg)`;
-  });
-
-  edgeTimer = setTimeout(() => {
-    edgeTimer=null;
-    // edgeSide はリセットしない → checkEdge が同じ端で即再発火するのを防ぐ
-    // ユーザーが端から離れたときに clearEdge() が edgeSide をリセットする
-    ['edge-l','edge-r'].forEach(id=>{
-      const e2=document.getElementById(id);
-      e2.classList.remove('on','timing');
-      const bar=e2.querySelector('.edge-timer-bar');
-      if(bar){bar.style.transition='none';bar.style.height='0%';}
-      setTimeout(()=>{if(bar)bar.style.transition='';},50);
-    });
-
-    const targetIdx = side==='right' ? curIdx+1 : curIdx-1;
-    isAnim=true;
-    soundFlip();
-    fc.style.transition='none';
-    fc.style.transform=`rotateY(${side==='right'?-80:80}deg)`;
-    requestAnimationFrame(()=>{
-      fc.style.transition='transform .38s cubic-bezier(0.4,0,0.6,1)';
-      fc.style.transform=`rotateY(${side==='right'?-180:180}deg)`;
-    });
-    setTimeout(()=>{
-      curIdx=targetIdx;
-      renderPage(); // edgeDragDiv は renderPage() で削除されない（除外済み）
-      fc.style.transition='none'; fc.style.transform='rotateY(0deg)'; fc.style.display='none';
-      isAnim=false;
-      // edgeSide はユーザーが端から出たとき checkEdge→clearEdge でリセット
-    },380);
-  }, 800);
-}
-
-function clearEdge() {
-  clearTimeout(edgeTimer); edgeTimer=null; edgeSide=null;
-  ['edge-l','edge-r'].forEach(id=>{
-    const el=document.getElementById(id);
-    el.classList.remove('on','timing');
-    const bar=el.querySelector('.edge-timer-bar');
-    if (bar) { bar.style.transition='none'; bar.style.height='0%'; }
-    setTimeout(()=>{ if(bar) bar.style.transition=''; },50);
-  });
-  // Reverse peel when user leaves edge zone
-  if (!isAnim) {
-    const fc=document.getElementById('fc');
-    if (fc && fc.style.display!=='none') {
-      fc.style.transition='transform .28s cubic-bezier(0.25,0.1,0.25,1)';
-      fc.style.transform='rotateY(0deg)';
-      setTimeout(()=>{ if(!isAnim){fc.style.display='none';fc.style.transition='';} },280);
-    }
-  }
 }
 
 // ══════════════════════════════════════════
