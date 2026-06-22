@@ -1445,7 +1445,7 @@ function setupScrapDrag(div, el, canvas, rz) {
           const a=Object.assign(document.createElement('a'),{href:el.sourceUrl,target:'_blank',rel:'noopener noreferrer'});
           a.click();
         }
-        else if (div.classList.contains('photo-card') && !tapTarget?.closest('.sp-link,.sp-check-row')) {
+        else if (tapTarget?.closest('.sp-img')) {
           const imgBlock = el.blocks?.find(b => b.type === 'image');
           if (imgBlock) openImgLightbox(imgBlock.src);
         }
