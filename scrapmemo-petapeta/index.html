@@ -542,6 +542,23 @@ body.ed-light .dp-font-btn.sel{border-color:#a07030;color:#a07030;background:rgb
 .deco-toggle{background:none;border:none;color:rgba(200,170,120,.65);font-size:18px;
   cursor:pointer;padding:5px 7px;border-radius:8px;line-height:1;transition:color .15s;}
 .deco-toggle:active,.deco-toggle.on{color:var(--gold);}
+#movepage-wrap{position:relative;display:inline-flex;}
+#movepage-btn{background:none;border:none;color:rgba(200,170,120,.65);font-size:18px;
+  cursor:pointer;padding:5px 7px;border-radius:8px;line-height:1;transition:color .15s;}
+#movepage-btn:active,#movepage-btn.on{color:var(--gold);}
+#movepage-drop{position:absolute;top:calc(100% + 4px);right:0;z-index:200;
+  background:#3a2a18;border:1px solid rgba(200,170,120,.25);border-radius:10px;
+  min-width:140px;padding:4px 0;box-shadow:0 4px 16px rgba(0,0,0,.45);display:none;}
+#movepage-drop.open{display:block;}
+.movepage-item{display:block;width:100%;padding:8px 14px;text-align:left;
+  background:none;border:none;color:rgba(220,190,140,.85);font-size:13px;
+  cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;}
+.movepage-item:hover{background:rgba(200,170,120,.15);color:var(--gold);}
+body.ed-light #movepage-btn{color:rgba(120,80,20,.5);}
+body.ed-light #movepage-btn:active,body.ed-light #movepage-btn.on{color:#7a4010;}
+body.ed-light #movepage-drop{background:#f0e8d8;border-color:rgba(100,60,10,.18);}
+body.ed-light .movepage-item{color:#5a3a10;}
+body.ed-light .movepage-item:hover{background:rgba(100,60,10,.1);}
 #memo-charcount{text-align:right;font-size:11px;color:rgba(200,170,100,.45);padding:2px 16px 0;flex-shrink:0;}
 
 /* ── TOAST ── */
@@ -623,7 +640,13 @@ body.ed-light .dp-font-btn.sel{border-color:#a07030;color:#a07030;background:rgb
     <div class="sh-handle"></div>
     <div class="sh-head">
       <h3><i class="fas fa-paste"></i> スクラップ編集</h3>
-      <button class="deco-toggle" id="deco-toggle-btn" onclick="toggleDecoPanel()" title="デコ設定"><i class="fas fa-palette"></i></button>
+      <div style="display:flex;align-items:center;gap:2px;">
+        <div id="movepage-wrap">
+          <button id="movepage-btn" onclick="toggleMovePageDrop()" title="ページ移動"><i class="fas fa-share"></i></button>
+          <div id="movepage-drop"></div>
+        </div>
+        <button class="deco-toggle" id="deco-toggle-btn" onclick="toggleDecoPanel()" title="デコ設定"><i class="fas fa-palette"></i></button>
+      </div>
     </div>
     <div id="deco-panel">
       <div id="deco-picker">
@@ -1775,12 +1798,65 @@ function toggleDecoPanel() {
   btn.classList.toggle('on', isOpen);
 }
 
+function toggleMovePageDrop() {
+  const drop = document.getElementById('movepage-drop');
+  const btn = document.getElementById('movepage-btn');
+  if (drop.classList.contains('open')) { closeMoveDrop(); return; }
+  drop.innerHTML = '';
+  pages.forEach((pg, idx) => {
+    if (idx === curIdx) return;
+    const item = document.createElement('button');
+    item.className = 'movepage-item';
+    item.textContent = (idx + 1) + '. ' + (pg.title || 'ページ ' + (idx + 1));
+    item.addEventListener('click', () => moveElToPage(idx));
+    drop.appendChild(item);
+  });
+  drop.classList.add('open');
+  btn.classList.add('on');
+}
+
+function closeMoveDrop() {
+  const drop = document.getElementById('movepage-drop');
+  const btn = document.getElementById('movepage-btn');
+  if (drop) drop.classList.remove('open');
+  if (btn) btn.classList.remove('on');
+}
+
+function moveElToPage(targetIdx) {
+  if (!editEl) return;
+  // capture current block edits
+  const ed = document.getElementById('memo-editor');
+  (editEl.blocks || []).forEach(b => {
+    const ta = ed.querySelector(`[data-block-id="${b.id}"] .block-textarea`);
+    if (ta) b.content = ta.value;
+  });
+  // remove from current page
+  pages[curIdx].elements = pages[curIdx].elements.filter(e => e.id !== editEl.id);
+  document.querySelector(`.scrap[data-id="${editEl.id}"]`)?.remove();
+  // add to target page (center of canvas)
+  const moved = Object.assign({}, editEl, { x: 120, y: 80 });
+  pages[targetIdx].elements.push(moved);
+  save();
+  // close editor
+  const sheet = document.getElementById('memo-sheet');
+  sheet.classList.remove('open');
+  const box = sheet.querySelector('.sh-box'); if (box) box.style.maxHeight = '';
+  document.getElementById('deco-panel').classList.remove('open');
+  document.getElementById('deco-toggle-btn').classList.remove('on');
+  closeMoveDrop();
+  editEl = null;
+  renderPage();
+  toast('「' + (pages[targetIdx].title || 'ページ ' + (targetIdx + 1)) + '」に移動しました ✓');
+}
+
 function openMemo(el) {
   editEl = el;
   renderBlocks();
   document.getElementById('memo-url-input').value = el.sourceUrl || '';
   buildDecoPicker();
   syncDecoSel();
+  const mbtn = document.getElementById('movepage-btn');
+  if (mbtn) mbtn.style.display = pages.length > 1 ? '' : 'none';
   // apply per-memo font to editor (after renderBlocks creates the textareas)
   setTimeout(()=>{ _applyEditorFont(el.font ? FONTS[el.font]?.css||'' : ''); }, 0);
   document.getElementById('rot-display').textContent = (el.rot || 0) + '°';
@@ -1823,6 +1899,7 @@ function closeMemo() {
   const box = sheet.querySelector('.sh-box'); if (box) box.style.maxHeight = '';
   document.getElementById('deco-panel').classList.remove('open');
   document.getElementById('deco-toggle-btn').classList.remove('on');
+  closeMoveDrop();
   editEl=null;
 }
 
@@ -2395,6 +2472,10 @@ document.addEventListener('keydown',e=>{
   }
   if (e.key==='Escape') { closeTitle(); closeSort(); closeMemo(); closeWCSheet(); closeTodo(); closeSearch(); closeSettings(); }
 });
+document.addEventListener('pointerdown', e=>{
+  const wrap = document.getElementById('movepage-wrap');
+  if (wrap && !wrap.contains(e.target)) closeMoveDrop();
+}, true);
 document.getElementById('title-in').addEventListener('keydown',e=>{ if(e.key==='Enter') confirmTitle(); });
 document.getElementById('wc-url-input').addEventListener('keydown',e=>{ if(e.key==='Enter') doFetchOGP(); });
 document.getElementById('todo-title-in').addEventListener('keydown',e=>{
