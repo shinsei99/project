@@ -1857,10 +1857,7 @@ function openMemo(el) {
   sheet.classList.add('open');
   if (window.visualViewport) {
     const box = sheet.querySelector('.sh-box');
-    const updateH = () => { if (box) box.style.maxHeight = Math.round(window.visualViewport.height * 0.97) + 'px'; };
-    updateH();
-    sheet._vpHandler = updateH;
-    window.visualViewport.addEventListener('resize', updateH);
+    if (box) box.style.maxHeight = Math.round(window.visualViewport.height * 0.97) + 'px';
   }
   setTimeout(() => {
     const ta = document.querySelector('#memo-editor .block-textarea');
@@ -1887,10 +1884,6 @@ function closeMemo() {
   }
   const sheet = document.getElementById('memo-sheet');
   sheet.classList.remove('open');
-  if (window.visualViewport && sheet._vpHandler) {
-    window.visualViewport.removeEventListener('resize', sheet._vpHandler);
-    sheet._vpHandler = null;
-  }
   const box = sheet.querySelector('.sh-box'); if (box) box.style.maxHeight = '';
   document.getElementById('deco-panel').classList.remove('open');
   document.getElementById('deco-toggle-btn').classList.remove('on');
@@ -1915,6 +1908,7 @@ function makeBlockDOM(b) {
     const ta=document.createElement('textarea'); ta.className='block-textarea';
     ta.placeholder='テキストを入力…'; ta.value=b.content||'';
     ta.addEventListener('input',()=>{ updateCharCount(); });
+    ta.addEventListener('focus',()=>{ setTimeout(()=>{ ta.scrollIntoView({block:'nearest',behavior:'smooth'}); },300); });
     ta.addEventListener('contextmenu',e=>{ e.preventDefault(); document.getElementById('fi-block').click(); });
     wrap.appendChild(ta); wrap.appendChild(del);
   } else if (b.type==='checkbox') {
