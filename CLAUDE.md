@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## GitHub
 
-Authenticated as **shinsei99** via `gh auth login`. The remote repository is `https://github.com/shinsei99/claude-project` (private).
+Authenticated as **shinsei99** via `gh auth login`. The remote repository is `https://github.com/shinsei99/project` (public). Static HTML apps are published via GitHub Pages from the `gh-pages` branch (root), one folder per app, served at `https://shinsei99.github.io/project/<app>/`.
 
 Common `gh` commands used in this repo:
 
