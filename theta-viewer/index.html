@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="description" content="RICOH THETAのパノラマ写真をAIで奥行き解析し、Matterport風の3D空間に変換するブラウザ完結ビューワー" />
+    <meta name="theme-color" content="#07090f" />
+
+    <!-- OGP -->
+    <meta property="og:title" content="THETA SPACE - AI Panoramic 3D Viewer" />
+    <meta property="og:description" content="THETAのパノラマ写真をAIで3D空間に変換。ブラウザだけで完結、完全無料。" />
+    <meta property="og:type" content="website" />
+
+    <!-- PWA / iOS -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="THETA SPACE" />
+
+    <title>THETA SPACE · AI 3D Viewer</title>
+    <style>
+      /* Prevent FOUC */
+      html, body { background: #07090f; margin: 0; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

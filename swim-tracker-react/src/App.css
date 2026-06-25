@@ -1,0 +1,80 @@
+.app { display: flex; flex-direction: column; min-height: 100vh; }
+.app-header {
+  background: linear-gradient(135deg, #1e40af, #3b82f6);
+  color: white; padding: 16px 20px;
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.app-header h1 { font-size: 1.3rem; font-weight: 700; color: white; margin: 0; }
+.app-body { display: flex; flex: 1; }
+.sidebar {
+  width: 260px; min-width: 260px; background: white;
+  border-right: 1px solid #e2e8f0; padding: 16px;
+  display: flex; flex-direction: column; gap: 10px; overflow-y: auto;
+}
+.sidebar-section-title { font-size: 0.8rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.main-content { flex: 1; padding: 20px; overflow-y: auto; }
+.tabs { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 2px solid #e2e8f0; overflow-x: auto; }
+.tab-btn { padding: 10px 14px; border: none; background: none; color: #64748b; font-size: 0.88rem; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; white-space: nowrap; }
+.tab-btn:hover { color: #3b82f6; }
+.tab-btn.active { color: #3b82f6; border-bottom-color: #3b82f6; font-weight: 700; }
+.card { background: white; border-radius: 12px; padding: 16px 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); margin-bottom: 12px; }
+.form-group { margin-bottom: 12px; }
+.form-group label { display: block; font-size: 0.84rem; font-weight: 600; color: #374151; margin-bottom: 4px; }
+.form-group input[type="text"],.form-group input[type="date"],.form-group input[type="number"],.form-group select { width: 100%; padding: 8px 11px; border: 1px solid #d1d5db; border-radius: 7px; font-size: 0.95rem; outline: none; background: white; }
+.form-group input:focus,.form-group select:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+.radio-group { display: flex; gap: 16px; flex-wrap: wrap; }
+.radio-group label { display: flex; align-items: center; gap: 6px; font-weight: normal; cursor: pointer; font-size: 0.9rem; }
+.btn { padding: 9px 16px; border: none; border-radius: 8px; font-size: 0.92rem; font-weight: 600; min-height: 42px; transition: all 0.15s; }
+.btn-primary { background: #3b82f6; color: white; }
+.btn-primary:hover { background: #2563eb; }
+.btn-secondary { background: #f1f5f9; color: #374151; border: 1px solid #d1d5db; }
+.btn-secondary:hover { background: #e2e8f0; }
+.btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+.btn-danger:hover { background: #fecaca; }
+.btn-success { background: #dcfce7; color: #16a34a; border: 1px solid #86efac; }
+.btn-full { width: 100%; }
+.btn-sm { padding: 5px 11px; font-size: 0.82rem; min-height: 30px; }
+.badge-best { background: linear-gradient(90deg,#22c55e,#16a34a); color: white; padding: 11px 15px; border-radius: 9px; font-weight: 700; margin: 10px 0; display: block; }
+.badge-jo { background: linear-gradient(90deg,#3b82f6,#2563eb); color: white; padding: 11px 15px; border-radius: 9px; font-weight: 700; margin: 10px 0; display: block; }
+.badge-info { background: #eef2ff; color: #3730a3; padding: 11px 15px; border-radius: 9px; font-weight: 600; margin: 10px 0; display: block; }
+.data-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.data-table th { background: #f8fafc; padding: 8px 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #e2e8f0; color: #374151; white-space: nowrap; }
+.data-table td { padding: 7px 10px; border-bottom: 1px solid #f1f5f9; }
+.data-table tr:hover td { background: #f8fafc; }
+.table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid #e2e8f0; max-height: 340px; overflow-y: auto; }
+.splits-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.hint { font-size: 0.8rem; color: #64748b; margin-top: 3px; }
+.hint-success { color: #16a34a; }
+.hint-warn { color: #d97706; }
+.hint-error { color: #dc2626; }
+.goal-card { border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; border-left: 5px solid; display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.goal-card.active { background: white; border-color: #6366f1; box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+.goal-card.done { background: #f0fdf4; border-color: #22c55e; }
+.goal-card.expired { background: #fff7ed; border-color: #f97316; }
+.goal-card-content { flex: 1; }
+.goal-card strong { font-size: 0.95rem; }
+.goal-card .goal-status { margin-top: 4px; font-size: 0.9rem; }
+.goal-card .goal-memo { margin-top: 4px; font-size: 0.82rem; color: #64748b; }
+.user-name { font-size: 1rem; font-weight: 700; }
+.user-meta { font-size: 0.8rem; color: #64748b; margin-top: 2px; }
+.photo-wrap { margin: 8px 0; }
+.photo-wrap img { width: 100%; border-radius: 10px; object-fit: cover; max-height: 150px; }
+.divider { border: none; border-top: 1px solid #e2e8f0; margin: 12px 0; }
+.section-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.expander { border: 1px solid #e2e8f0; border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+.expander-header { width: 100%; text-align: left; padding: 10px 14px; background: #f8fafc; border: none; font-weight: 600; font-size: 0.9rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; }
+.expander-body { padding: 14px; }
+.empty-state { text-align: center; padding: 40px 20px; color: #64748b; }
+.empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+.app-footer { text-align: center; color: #94a3b8; font-size: 0.8rem; padding: 16px; }
+.chart-wrap { margin: 12px 0; }
+.select-label { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; }
+.select-label select { padding: 5px 8px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 0.88rem; }
+.info-card { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; font-size: 0.9rem; color: #1e40af; }
+@media (max-width: 700px) {
+  .app-body { flex-direction: column; }
+  .sidebar { width: 100%; min-width: 0; border-right: none; border-bottom: 1px solid #e2e8f0; }
+  .splits-grid { grid-template-columns: repeat(2, 1fr); }
+}

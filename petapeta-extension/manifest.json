@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "PetaPeta Clipper",
+  "version": "1.0",
+  "description": "テキスト・画像をScrapMemo-PetaPetaに送る",
+  "permissions": ["contextMenus", "tabs", "scripting"],
+  "host_permissions": ["https://shinsei99.github.io/*", "<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": { "128": "icon.png" }
+}
