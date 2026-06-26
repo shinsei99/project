@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Building {
+  id        String   @id @default(cuid())
+  name      String
+  type      String
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rooms     Room[]
+}
+
+model Room {
+  id           String   @id @default(cuid())
+  buildingId   String
+  roomNumber   String
+  floor        Int
+  layout       String
+  status       String   @default("空室")
+  squareMeters Float?
+  rent         Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  building Building       @relation(fields: [buildingId], references: [id], onDelete: Cascade)
+  tenant   Tenant?
+  security SecurityInfo?
+  repairs  RepairHistory[]
+
+  @@unique([buildingId, roomNumber])
+}
+
+model Tenant {
+  id                       String   @id @default(cuid())
+  roomId                   String   @unique
+  name                     String
+  phone                    String
+  email                    String?
+  condoFee                 Int?
+  waterFee                 Int?
+  supportFee               Int?
+  paymentMethod            String?
+  paymentAccountName       String?
+  emergencyContactName     String?
+  emergencyContactRelation String?
+  emergencyContactPhone    String?
+  guarantorCompany         String
+  guarantorPlan            String?
+  guarantorContractNumber  String
+  contractStart            DateTime
+  contractEnd              DateTime
+  support24                Boolean  @default(false)
+  earlyTermination         Boolean  @default(false)
+  earlyTerminationDetail   String?
+  initialEquipment         String?
+  occupation               String?
+  moveInDate               DateTime?
+  depositAmount            Int?
+  keyMoney                 Int?
+  renewalFee               Int?
+  contractPeriodMonths     Int?
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
+
+model SecurityInfo {
+  id                 String  @id @default(cuid())
+  roomId             String  @unique
+  keyOriginalNumber  String
+  electronicLockCode String?
+
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}
+
+model RepairHistory {
+  id               String   @id @default(cuid())
+  roomId           String
+  date             DateTime
+  category         String
+  description      String
+  contractor       String
+  costIncludingTax Int
+  notes            String?
+  createdAt        DateTime @default(now())
+
+  room    Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  invoice Invoice?
+}
+
+model Invoice {
+  id              String    @id @default(cuid())
+  repairHistoryId String    @unique
+  status          String    @default("未保管")
+  fileUrl         String?
+  fileName        String?
+  uploadedAt      DateTime?
+  createdAt       DateTime  @default(now())
+
+  repair RepairHistory @relation(fields: [repairHistoryId], references: [id], onDelete: Cascade)
+}
