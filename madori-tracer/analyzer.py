@@ -76,7 +76,11 @@ Do NOT relocate any equipment based on "typical" floor plan assumptions.
 - Doors: straight line + quarter-circle arc (dashed)
 - Windows: three parallel lines across wall
 - PS / MB / 棚: keep as small text labels
-- North compass: circle with filled black arrow + "N", bottom-right corner
+
+## RULE 6 — NO ORIENTATION / COMPASS (MANDATORY)
+NEVER draw any compass, north arrow, or orientation symbol (方位記号・北マーク・"N" arrow).
+This applies EVEN IF the original drawing contains one — omit it entirely.
+Do NOT add letters N/E/S/W, do NOT add any directional arrow or compass circle anywhere in the output.
 """
 
 
