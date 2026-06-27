@@ -17,11 +17,11 @@ from models.restoration_data import (
 )
 from services import excel_parser, document_export_service
 from services.pdf_parser import parse_pdf, PdfExtractionError
-from services.depreciation_engine import calculate, USEFUL_LIFE
+from services.depreciation_engine import calculate, MATERIAL_TYPES, policy_of, DEPRECIABLE
 from services.excel_export_service import build as build_excel
 
 
-MATERIAL_OPTIONS = list(USEFUL_LIFE.keys())
+MATERIAL_OPTIONS = MATERIAL_TYPES
 FAULT_OPTIONS = [FAULT_TENANT, FAULT_NATURAL]
 
 st.set_page_config(page_title="原状回復費用 自動精算", page_icon="🏠", layout="wide")
@@ -109,6 +109,14 @@ st.header("3. 抽出明細の確認・微調整")
 
 items: list[LineItem] = st.session_state["items"]
 
+st.info(
+    "**ガイドライン原則**：故意・過失が証明されない限り、すべて経年劣化＝**オーナー負担(0%)** が既定です。"
+    "入居者の故意・過失が認められる項目だけ「過失の有無」を**故意過失**に変更してください。\n\n"
+    "・クロス／CF等は**部分補修の原価**を「過失対象額」に入力すると、その額にのみ残存価値率を適用します"
+    "（空欄なら全額対象）。\n"
+    "・「諸経費」は工事費の入居者:オーナー比率で自動按分されます。"
+)
+
 if not items:
     st.write("まだ明細がありません。業者見積をアップロードして解析するか、下から手動追加してください。")
 else:
@@ -119,6 +127,7 @@ else:
                 "業者見積総額(円)": it.vendor_amount,
                 "部材種別": it.material_type,
                 "過失の有無": it.fault,
+                "過失対象額(部分補修)": it.fault_target_amount,
             }
             for it in items
         ]
@@ -131,9 +140,22 @@ else:
             "業者見積総額(円)": st.column_config.NumberColumn(min_value=0, step=100),
             "部材種別": st.column_config.SelectboxColumn(options=MATERIAL_OPTIONS),
             "過失の有無": st.column_config.SelectboxColumn(options=FAULT_OPTIONS),
+            "過失対象額(部分補修)": st.column_config.NumberColumn(
+                min_value=0, step=100,
+                help="故意・過失で汚損した部分のみの原価（㎡単位など）。空欄なら全額を対象とみなす。償却対象(クロス/CF/下地)のみ有効。",
+            ),
         },
         key="item_editor",
     )
+
+    def _target(val) -> int | None:
+        if val is None or (isinstance(val, float) and pd.isna(val)) or str(val).strip() == "":
+            return None
+        try:
+            return int(val)
+        except (ValueError, TypeError):
+            return None
+
     # 編集結果を LineItem に反映
     st.session_state["items"] = [
         LineItem(
@@ -141,6 +163,7 @@ else:
             vendor_amount=int(r["業者見積総額(円)"] or 0),
             material_type=str(r["部材種別"]),
             fault=str(r["過失の有無"]),
+            fault_target_amount=_target(r.get("過失対象額(部分補修)")),
         )
         for _, r in edited.iterrows()
         if str(r["工事・部材名"]).strip()

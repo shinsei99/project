@@ -26,7 +26,13 @@ class LineItem:
     name: str                       # 工事・部材名（業者見積から抽出）
     vendor_amount: int              # 業者見積総額（税込・原価）
     material_type: str = "その他"   # 自動判別された部材種別
-    fault: str = FAULT_TENANT       # 過失の有無（故意過失 / 経年劣化）
+    # 既定は経年劣化（通常損耗）＝オーナー負担。故意・過失が証明された項目のみ
+    # 故意過失に切り替える（ガイドラインの原則：証明されない限りオーナー負担）。
+    fault: str = FAULT_NATURAL      # 過失の有無（故意過失 / 経年劣化）
+    # 故意・過失による「部分補修」の原価（㎡単位など）。クロス・CF等の償却対象で、
+    # 部屋全体の全面張替ではなく汚損箇所のみを入居者負担とするために使う。
+    # None の場合は業者見積総額（全額）を対象とみなす。
+    fault_target_amount: int | None = None
 
     # 計算結果（depreciation_engine が埋める）
     useful_life: int | None = None  # 耐用年数（年）。None=償却なし
