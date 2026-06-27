@@ -59,6 +59,9 @@ nyanko-ice/android/
 !brain-dump/
 !brain-dump/**
 brain-dump/.vercel/
+!restoration-calculator/
+!restoration-calculator/**
+restoration-calculator/.venv/
 
 # --- Build artifacts (all apps) — safety net, never commit these ---
 **/node_modules/
