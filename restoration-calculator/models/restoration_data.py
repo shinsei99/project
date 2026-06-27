@@ -33,6 +33,11 @@ class LineItem:
     # 部屋全体の全面張替ではなく汚損箇所のみを入居者負担とするために使う。
     # None の場合は業者見積総額（全額）を対象とみなす。
     fault_target_amount: int | None = None
+    # 業者見積から読み取った全体施工面積（㎡）。単価が㎡単価の品目で取得する。
+    total_sqm: float | None = None
+    # 入居者の故意・過失による汚損箇所の面積（㎡、ユーザー入力）。
+    # total_sqm と併用すると「過失㎡ / 全体㎡」の比率で部分補修原価を自動算出する。
+    fault_sqm: float | None = None
 
     # 計算結果（depreciation_engine が埋める）
     useful_life: int | None = None  # 耐用年数（年）。None=償却なし

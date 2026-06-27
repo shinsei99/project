@@ -115,13 +115,23 @@ def _calc_work_item(item: LineItem, residence_years: float) -> None:
     # 以降は故意・過失（FAULT_TENANT）
     if policy == DEPRECIABLE and life:
         rate = residual_rate(life, residence_years)
-        # 部分補修の原価（指定なければ全額を対象とみなす）
-        target = item.fault_target_amount
-        if target is None:
+        # 部分補修の対象原価を決める。優先順位:
+        #   ① 過失㎡ / 全体㎡ の面積比 × 業者見積総額
+        #   ② 過失対象額（手入力の原価）
+        #   ③ いずれもなければ全額
+        if item.total_sqm and item.fault_sqm and item.total_sqm > 0:
+            ratio = min(1.0, item.fault_sqm / item.total_sqm)
+            target = item.vendor_amount * ratio
+            target_note = (
+                f"過失{item.fault_sqm:g}㎡/全体{item.total_sqm:g}㎡"
+                f"＝面積比{ratio * 100:.1f}%（対象¥{int(target):,}）"
+            )
+        elif item.fault_target_amount is not None:
+            target = item.fault_target_amount
+            target_note = f"部分補修原価¥{int(target):,}"
+        else:
             target = item.vendor_amount
             target_note = "全額対象"
-        else:
-            target_note = f"部分補修原価¥{target:,}"
         tenant = int(math.floor(target * rate))
         item.tenant_rate = rate
         item.tenant_amount = tenant

@@ -18,6 +18,11 @@ from models.restoration_data import LineItem
 # 列特定のためのキーワード
 NAME_KEYWORDS = ["工事", "品名", "項目", "内容", "名称", "摘要", "仕様", "明細"]
 AMOUNT_KEYWORDS = ["金額", "価格", "御見積", "見積", "小計", "合計", "計", "円"]
+QTY_KEYWORDS = ["数量", "数", "面積", "平米", "㎡", "m2", "m²", "平方"]
+UNIT_KEYWORDS = ["単位", "unit"]
+
+# 面積（㎡）を表す単位表記
+SQM_UNIT_TOKENS = ["㎡", "m2", "m²", "平米", "平方", "ｍ2", "ｍ²"]
 
 # 合計・小計など、明細ではない行を示す語
 TOTAL_ROW_KEYWORDS = ["合計", "小計", "総計", "御見積額", "税込", "消費税", "値引", "計"]
@@ -89,6 +94,50 @@ def _is_total_row(name: str) -> bool:
     return any(kw in n for kw in TOTAL_ROW_KEYWORDS)
 
 
+def _to_float(value) -> float | None:
+    """セル値を小数に変換する（面積㎡の取得用）。"""
+    if value is None:
+        return None
+    s = str(value).strip()
+    if not s:
+        return None
+    s = s.translate(str.maketrans("０１２３４５６７８９．", "0123456789."))
+    s = re.sub(r"[^\d.\-]", "", s)
+    if s in ("", "-", "."):
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _is_sqm_unit(value) -> bool:
+    s = str(value).strip().lower() if value is not None else ""
+    return any(tok.lower() in s for tok in SQM_UNIT_TOKENS)
+
+
+def _find_qty_unit_cols(df) -> tuple:
+    """ヘッダー行を探して (数量列, 単位列, 数量列が面積列か) を返す。"""
+    cols = list(df.columns)
+    for i in range(min(15, len(df))):
+        row = df.iloc[i]
+        qcol = ucol = None
+        qty_is_area = False
+        for c in cols:
+            v = row[c]
+            s = str(v).strip() if v is not None else ""
+            if not s:
+                continue
+            if qcol is None and any(k in s for k in QTY_KEYWORDS):
+                qcol = c
+                qty_is_area = any(k in s for k in ["面積", "平米", "㎡", "m2", "m²", "平方"])
+            if ucol is None and any(k in s for k in UNIT_KEYWORDS):
+                ucol = c
+        if qcol is not None:
+            return qcol, ucol, qty_is_area
+    return None, None, False
+
+
 def _score_column_as_name(series: pd.Series) -> int:
     """その列が『工事名列』らしいスコア。"""
     score = 0
@@ -142,8 +191,14 @@ def parse(file, filename: str = "") -> list[LineItem]:
     amount_scores = {c: _score_column_as_amount(df[c]) for c in df.columns}
 
     name_col = max(name_scores, key=name_scores.get)
-    # 金額列は名前列と別の列から選ぶ
-    amount_candidates = {c: s for c, s in amount_scores.items() if c != name_col}
+
+    # 数量・単位列をヘッダーから特定（面積㎡の取得用）
+    qty_col, unit_col, qty_is_area = _find_qty_unit_cols(df)
+
+    # 金額列は名前列・数量列と別の列から選ぶ
+    amount_candidates = {
+        c: s for c, s in amount_scores.items() if c not in (name_col, qty_col)
+    }
     if not amount_candidates:
         return []
     amount_col = max(amount_candidates, key=amount_candidates.get)
@@ -164,11 +219,20 @@ def parse(file, filename: str = "") -> list[LineItem]:
         if str(name).strip() in NAME_KEYWORDS + AMOUNT_KEYWORDS:
             continue
 
+        # 面積（㎡）: 単位が㎡、または数量列ヘッダー自体が面積列のとき数量を採用
+        total_sqm = None
+        if qty_col is not None:
+            qv = _to_float(row[qty_col])
+            if qv is not None and qv > 0:
+                if qty_is_area or (unit_col is not None and _is_sqm_unit(row[unit_col])):
+                    total_sqm = qv
+
         items.append(
             LineItem(
                 name=str(name).strip(),
                 vendor_amount=amount,
                 material_type=detect_material(name),
+                total_sqm=total_sqm,
             )
         )
 

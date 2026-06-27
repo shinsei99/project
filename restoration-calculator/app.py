@@ -15,7 +15,7 @@ from models.restoration_data import (
     FAULT_TENANT,
     FAULT_NATURAL,
 )
-from services import excel_parser, document_export_service
+from services import excel_parser, document_export_service, issuer_store
 from services.pdf_parser import parse_pdf, PdfExtractionError
 from services.depreciation_engine import calculate, MATERIAL_TYPES, policy_of, DEPRECIABLE
 from services.excel_export_service import build as build_excel
@@ -38,19 +38,59 @@ if "items" not in st.session_state:
     st.session_state["items"] = []  # list[LineItem]
 
 
-# ---- サイドバー：発行元（自社）情報 ----
+# ---- サイドバー：発行元（自社）情報（プロフィール保存・切替） ----
+NEW_ISSUER_LABEL = "＋ 新規入力"
+
+if "issuer_form_version" not in st.session_state:
+    st.session_state.issuer_form_version = 0
+if "issuer_prefill" not in st.session_state:
+    st.session_state.issuer_prefill = dict(issuer_store.EMPTY_ISSUER)
+
 with st.sidebar:
     st.header("🏢 発行元（自社）情報")
-    st.caption("見積書・請求書に印字されます。")
+    st.caption("見積書・請求書に印字されます。会社名で保存・切り替えできます。")
+
+    issuers_df = issuer_store.load_issuers()
+    options = [NEW_ISSUER_LABEL] + issuers_df["name"].tolist()
+    selected = st.selectbox("保存済みの発行元から呼び出し", options, key="issuer_select")
+
+    # 選択が変わったらフォームのプリフィルを更新（key を変えて再描画）
+    if selected != NEW_ISSUER_LABEL:
+        row = issuers_df[issuers_df["name"] == selected].iloc[0]
+        candidate = {f: str(row.get(f, "")) for f in issuer_store.ISSUER_FIELDS}
+    else:
+        candidate = dict(issuer_store.EMPTY_ISSUER)
+    if candidate != st.session_state.issuer_prefill:
+        st.session_state.issuer_prefill = candidate
+        st.session_state.issuer_form_version += 1
+
+    v = st.session_state.issuer_form_version
+    p = st.session_state.issuer_prefill
     issuer = {
-        "name": st.text_input("会社名", value=st.session_state.get("iss_name", "")),
-        "address": st.text_area("住所", value=st.session_state.get("iss_addr", ""), height=60),
-        "tel": st.text_input("TEL", value=st.session_state.get("iss_tel", "")),
-        "fax": st.text_input("FAX", value=st.session_state.get("iss_fax", "")),
-        "registration_no": st.text_input("インボイス登録番号", value=st.session_state.get("iss_reg", "")),
-        "bank": st.text_area("振込先（請求書用）", value=st.session_state.get("iss_bank", ""), height=60),
+        "name": st.text_input("会社名", value=p["name"], key=f"iss_name_{v}"),
+        "address": st.text_area("住所", value=p["address"], height=60, key=f"iss_addr_{v}"),
+        "tel": st.text_input("TEL", value=p["tel"], key=f"iss_tel_{v}"),
+        "fax": st.text_input("FAX", value=p["fax"], key=f"iss_fax_{v}"),
+        "registration_no": st.text_input("インボイス登録番号", value=p["registration_no"], key=f"iss_reg_{v}"),
+        "bank": st.text_area("振込先（請求書用）", value=p["bank"], height=60, key=f"iss_bank_{v}"),
         "issue_date": "",
     }
+
+    col_s, col_d = st.columns(2)
+    with col_s:
+        if st.button("💾 保存", use_container_width=True):
+            if issuer["name"].strip():
+                issuer_store.save_issuer(issuer)
+                st.success(f"「{issuer['name']}」を保存しました。")
+                st.rerun()
+            else:
+                st.warning("会社名を入力してください。")
+    with col_d:
+        if st.button("🗑 削除", use_container_width=True, disabled=selected == NEW_ISSUER_LABEL):
+            issuer_store.delete_issuer(selected)
+            st.session_state.issuer_prefill = dict(issuer_store.EMPTY_ISSUER)
+            st.success(f"「{selected}」を削除しました。")
+            st.rerun()
 
 
 # ============ 1. 基本情報 ============
@@ -112,8 +152,8 @@ items: list[LineItem] = st.session_state["items"]
 st.info(
     "**ガイドライン原則**：故意・過失が証明されない限り、すべて経年劣化＝**オーナー負担(0%)** が既定です。"
     "入居者の故意・過失が認められる項目だけ「過失の有無」を**故意過失**に変更してください。\n\n"
-    "・クロス／CF等は**部分補修の原価**を「過失対象額」に入力すると、その額にのみ残存価値率を適用します"
-    "（空欄なら全額対象）。\n"
+    "・クロス／CF等は見積から読み取った「**全体㎡**」に対し、汚損箇所の「**過失㎡**」を入力すると、"
+    "その面積比ぶんの原価にのみ残存価値率を適用します（㎡が無い場合は「過失対象額(円)」で代替、空欄なら全額対象）。\n"
     "・「諸経費」は工事費の入居者:オーナー比率で自動按分されます。"
 )
 
@@ -127,7 +167,9 @@ else:
                 "業者見積総額(円)": it.vendor_amount,
                 "部材種別": it.material_type,
                 "過失の有無": it.fault,
-                "過失対象額(部分補修)": it.fault_target_amount,
+                "全体㎡": it.total_sqm,
+                "過失㎡": it.fault_sqm,
+                "過失対象額(円)": it.fault_target_amount,
             }
             for it in items
         ]
@@ -140,19 +182,27 @@ else:
             "業者見積総額(円)": st.column_config.NumberColumn(min_value=0, step=100),
             "部材種別": st.column_config.SelectboxColumn(options=MATERIAL_OPTIONS),
             "過失の有無": st.column_config.SelectboxColumn(options=FAULT_OPTIONS),
-            "過失対象額(部分補修)": st.column_config.NumberColumn(
+            "全体㎡": st.column_config.NumberColumn(
+                min_value=0.0, step=0.1, format="%.2f",
+                help="業者見積から読み取った施工面積（㎡）。クロス・CF等で自動取得。",
+            ),
+            "過失㎡": st.column_config.NumberColumn(
+                min_value=0.0, step=0.1, format="%.2f",
+                help="入居者の故意・過失による汚損箇所の面積（㎡）。全体㎡との比率で部分補修原価を自動算出。",
+            ),
+            "過失対象額(円)": st.column_config.NumberColumn(
                 min_value=0, step=100,
-                help="故意・過失で汚損した部分のみの原価（㎡単位など）。空欄なら全額を対象とみなす。償却対象(クロス/CF/下地)のみ有効。",
+                help="㎡が不明な場合の代替。部分補修の原価を直接入力（㎡入力があればそちらを優先）。",
             ),
         },
         key="item_editor",
     )
 
-    def _target(val) -> int | None:
+    def _num(val, cast):
         if val is None or (isinstance(val, float) and pd.isna(val)) or str(val).strip() == "":
             return None
         try:
-            return int(val)
+            return cast(val)
         except (ValueError, TypeError):
             return None
 
@@ -163,7 +213,9 @@ else:
             vendor_amount=int(r["業者見積総額(円)"] or 0),
             material_type=str(r["部材種別"]),
             fault=str(r["過失の有無"]),
-            fault_target_amount=_target(r.get("過失対象額(部分補修)")),
+            total_sqm=_num(r.get("全体㎡"), float),
+            fault_sqm=_num(r.get("過失㎡"), float),
+            fault_target_amount=_num(r.get("過失対象額(円)"), int),
         )
         for _, r in edited.iterrows()
         if str(r["工事・部材名"]).strip()
