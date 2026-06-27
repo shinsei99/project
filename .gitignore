@@ -56,6 +56,9 @@ building-manager/public/uploads/
 nyanko-ice/node_modules/
 nyanko-ice/ios/
 nyanko-ice/android/
+!brain-dump/
+!brain-dump/**
+brain-dump/.vercel/
 
 # --- Build artifacts (all apps) — safety net, never commit these ---
 **/node_modules/
