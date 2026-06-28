@@ -125,6 +125,7 @@ with st.expander("📝 退去時確認書兼誓約書を出力（基本情報の
         pledge_key_cost = st.number_input("カギ交換代（返却不足時・円）", min_value=0, value=0, step=1000, key="pledge_keycost")
     with pc2:
         pledge_smoke = st.radio("喫煙の有無", ["有　　・　　無", "有", "無"], horizontal=True, key="pledge_smoke")
+        pledge_pet = st.radio("ペット飼育の有無", ["有　　・　　無", "有", "無"], horizontal=True, key="pledge_pet")
         pledge_left = st.radio("残置物の有無", ["有　　・　　無", "有", "無"], horizontal=True, key="pledge_left")
     with pc3:
         pledge_date = st.date_input("立会日", value=move_out, format="YYYY/MM/DD", key="pledge_date")
@@ -139,6 +140,7 @@ with st.expander("📝 退去時確認書兼誓約書を出力（基本情報の
         "keys_count": pledge_keys,
         "key_replacement_cost": int(pledge_key_cost),
         "smoking": pledge_smoke,
+        "pet": pledge_pet,
         "leftover": pledge_left,
         "witness_date": (
             f"令和{pledge_date.year - 2018}年{pledge_date.month}月{pledge_date.day}日"

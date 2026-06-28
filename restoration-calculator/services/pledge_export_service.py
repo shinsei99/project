@@ -29,15 +29,16 @@ LEFT_TOP = Alignment(horizontal="left", vertical="top", wrap_text=True)
 # A4縦・6列レイアウト（修繕箇所=A:B / 仕様=C:D / 詳細等=E:F）
 WIDTHS = {"A": 13, "B": 13, "C": 12, "D": 12, "E": 14, "F": 14}
 
-# 誓約文（taikyoji_kakuninsho_v1.pdf の文言）
+# 誓約文（taikyoji_kakuninsho_v2.pdf の文言。喫煙・ペット条項を第1段落に標準で含む）
 PLEDGE_LINES = [
     "　私は上記物件の契約解除に際し、貴社立会いのもと、賃貸借契約書に定められた特約制限"
     "（退去時クリーニング費用等）および、私が原状回復にあたって負担する上記修繕箇所の内容に"
-    "ついて確認いたしました。",
-    "　なお、修繕後に請求される工事代金の負担額については、別途提示される原状回復見積書"
-    "（またはその概算額）に基づき、金額確定後速やかにお支払いする事を誓約いたします。"
-    "また、後日送付される見積書の発行から7日以内に異議申し立てがない場合、当該金額に同意した"
-    "ものとみなします。",
+    "ついて確認いたしました。なお、喫煙およびペットの飼育（無断飼育含む）に起因する汚損・破損・"
+    "異臭等の修繕費用は、ガイドラインの定めに関わらず、通常損耗にあたらない入居者負担の"
+    "損害賠償対象であることを承諾します。",
+    "　修繕後に請求される工事代金の負担額については、別途提示される原状回復見積書（またはその"
+    "概算額）に基づき、金額確定後速やかにお支払いする事を誓約いたします。また、後日送付される"
+    "見積書の発行から7日以内に異議申し立てがない場合、当該金額に同意したものとみなします。",
     "　請求期日までに支払いが実行されなかった場合は、保証会社（または連帯保証人）への立替請求"
     "（代位弁済請求）がなされること、および保証会社が立替払いを行った後に私に対して求償権を"
     "行使することについて、一切の異議申し立てをいたしません。",
@@ -108,6 +109,7 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
         ("◎入居期間", period),
         ("◎鍵の返却", keys_text),
         ("◎喫煙の有無", f"{options.get('smoking', '有　　・　　無')}　（※電子タバコ・加熱式タバコ等を含む）"),
+        ("◎ペット飼育の有無", f"{options.get('pet', '有　　・　　無')}　（※無断飼育、一時的な預かり、種類を問わずすべて含む）"),
         ("◎残置物の有無", options.get("leftover", "有　　・　　無")),
     ]
     r = 4
@@ -121,9 +123,12 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
     r += 1
     _merge_set(ws, f"A{r}:F{r}", "【原状回復・修繕必要箇所】", font=bold, align=LEFT)
     r += 1
-    _merge_set(ws, f"A{r}:B{r}", "修繕箇所", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
-    _merge_set(ws, f"C{r}:D{r}", "仕　様", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
-    _merge_set(ws, f"E{r}:F{r}", "詳　細　等", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
+    wrap_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    _merge_set(ws, f"A{r}:B{r}", "修繕箇所", font=bold, align=wrap_center, fill=HEADER_FILL, border=True)
+    _merge_set(ws, f"C{r}:D{r}", "仕　様", font=bold, align=wrap_center, fill=HEADER_FILL, border=True)
+    _merge_set(ws, f"E{r}:F{r}", "詳細等（故意・過失、喫煙、ペット損耗の別を含む）",
+               font=bold, align=wrap_center, fill=HEADER_FILL, border=True)
+    ws.row_dimensions[r].height = 30
     r += 1
 
     # 入居者負担のある項目＋鍵交換代を転記
@@ -159,13 +164,8 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
                    align=Alignment(horizontal="right", vertical="center"), border=True)
         r += 1
 
-    # ── 誓約文（喫煙・残置物を認めた場合は該当文を追加）──
+    # ── 誓約文（喫煙・ペットは第1段落に標準で含む。残置物「有」のみ所有権放棄文を追加）──
     pledge_lines = list(PLEDGE_LINES)
-    if str(options.get("smoking", "")).strip() == "有":
-        pledge_lines.append(
-            "　また、喫煙（電子タバコ・加熱式タバコ等を含む）に起因するクロスの黄ばみ・臭気・"
-            "汚損については通常損耗に当たらず、クロス張替え等の費用を入居者が負担する事に同意いたします。"
-        )
     if str(options.get("leftover", "")).strip() == "有":
         pledge_lines.append(
             "　また、室内に残置した物品については、その所有権を放棄し、貴社が任意に"
