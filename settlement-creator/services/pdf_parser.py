@@ -61,6 +61,28 @@ _PROMPT_TAX = """\
 """
 
 
+_PROMPT_RENTAL = """\
+日本語の「賃貸借契約書」または「賃貸 重要事項説明書」PDFです（ファイル名: {filename}）。
+レイアウトはPDFごとに異なります。内容を読み取り、JSONのみを返してください。
+
+出力形式（このJSONのみ・説明文不要）:
+{{
+  "家賃": "", "共益費": "", "駐車場": "", "火災保険": "",
+  "敷金": "", "礼金": "", "保証料": "", "鍵交換代": "",
+  "駐車場礼金": "", "仲介手数料": "",
+  "貸主氏名": "", "借主氏名": "", "物件所在": "", "入居日": ""
+}}
+
+注意事項:
+・金額は数字のみ（カンマ・円記号・「円」「ヶ月」は不要）。記載がなければ空文字
+・家賃・共益費・駐車場・火災保険は1ヶ月あたりの月額。火災保険が年額なら12で割らず空文字
+・敷金・礼金・保証料が「家賃の○ヶ月」と書かれている場合は金額に換算して入れる
+・貸主＝オーナー（管理会社でなく所有者）、借主＝入居者。法人名でも可
+・入居日は契約開始日・賃料発生日。YYYY-MM-DD 形式。なければ空文字
+・物件所在は部屋番号も含める
+"""
+
+
 class PdfExtractionError(RuntimeError):
     pass
 
@@ -140,6 +162,11 @@ def parse_explanation(file_bytes: bytes) -> dict:
 def parse_tax_certificate(file_bytes: bytes) -> dict:
     """固定資産税評価証明書PDFから税額をパースする。"""
     return _parse_pdf(file_bytes, _PROMPT_TAX)
+
+
+def parse_rental_explanation(file_bytes: bytes) -> dict:
+    """賃貸借契約書・賃貸重説PDFから賃料・一時金・宛名をパースする。"""
+    return _parse_pdf(file_bytes, _PROMPT_RENTAL)
 
 
 def to_amount(value) -> int:

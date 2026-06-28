@@ -72,7 +72,25 @@ def _fmt_date(d) -> str:
     return d.strftime("%Y年%m月%d日") if d else "（決済日 未定）"
 
 
-def _write_sheet(ws, data: SettlementData, doc: SettlementDoc) -> None:
+def _issuer_lines(issuer: dict) -> list[str]:
+    out = []
+    if issuer.get("name"):
+        out.append(issuer["name"])
+    if issuer.get("representative"):
+        out.append(f"代表者　{issuer['representative']}")
+    if issuer.get("address"):
+        out.append(issuer["address"])
+    tel_fax = []
+    if issuer.get("tel"):
+        tel_fax.append(f"TEL {issuer['tel']}")
+    if issuer.get("fax"):
+        tel_fax.append(f"FAX {issuer['fax']}")
+    if tel_fax:
+        out.append("　".join(tel_fax))
+    return out
+
+
+def _write_sheet(ws, data: SettlementData, doc: SettlementDoc, issuer: dict) -> None:
     for col, w in COLUMN_WIDTHS.items():
         ws.column_dimensions[col].width = w
 
@@ -88,7 +106,15 @@ def _write_sheet(ws, data: SettlementData, doc: SettlementDoc) -> None:
     ws["A2"].font = Font(bold=True, size=12)
     ws["A2"].alignment = Alignment(horizontal="left", vertical="center")
 
-    row = 4
+    # 発行企業（右寄せ）
+    row = 3
+    for line in _issuer_lines(issuer):
+        ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=3)
+        c = ws.cell(row=row, column=2, value=line)
+        c.alignment = Alignment(horizontal="right", vertical="center")
+        c.font = Font(size=10)
+        row += 1
+    row = max(row, 4) + 1
     # 1. 決済日時・場所
     _section_header(ws, row, "1. 決済日時・場所")
     row += 1
@@ -179,15 +205,17 @@ def _write_sheet(ws, data: SettlementData, doc: SettlementDoc) -> None:
     _setup_a4(ws, row - 1)
 
 
-def build(data: SettlementData, buyer: SettlementDoc, seller: SettlementDoc) -> bytes:
+def build(data: SettlementData, buyer: SettlementDoc, seller: SettlementDoc,
+          issuer: dict | None = None) -> bytes:
     """買主用・売主用の2シートを持つ決済案内書 xlsx をバイト列で返す。"""
+    issuer = issuer or {}
     wb = Workbook()
     ws_buyer = wb.active
     ws_buyer.title = "買主用決済案内書"
-    _write_sheet(ws_buyer, data, buyer)
+    _write_sheet(ws_buyer, data, buyer, issuer)
 
     ws_seller = wb.create_sheet("売主用決済案内書")
-    _write_sheet(ws_seller, data, seller)
+    _write_sheet(ws_seller, data, seller, issuer)
 
     out = io.BytesIO()
     wb.save(out)

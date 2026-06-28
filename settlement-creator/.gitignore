@@ -2,3 +2,5 @@
 __pycache__/
 *.pyc
 .DS_Store
+# 保存した発行企業プロフィール（ローカル専用・各PCに保持）
+data/

@@ -69,6 +69,7 @@ realestate-valuation/.streamlit/secrets.toml
 !settlement-creator/
 !settlement-creator/**
 settlement-creator/.venv/
+settlement-creator/data/
 
 # --- Build artifacts (all apps) — safety net, never commit these ---
 **/node_modules/
