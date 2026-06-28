@@ -81,6 +81,10 @@ jyuusetsu-research/reports/
 jyuusetsu-research/data/
 # 個人情報を含む実テンプレートは公開しない（白紙版を各PCに配置／README参照）
 jyuusetsu-research/templates/*.xlsx
+!mail-merge-pro/
+!mail-merge-pro/**
+mail-merge-pro/.build/
+mail-merge-pro/scripts/icon.iconset/
 
 # --- Build artifacts (all apps) — safety net, never commit these ---
 **/node_modules/

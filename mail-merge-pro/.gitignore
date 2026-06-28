@@ -1,0 +1,9 @@
+# Swift Package のビルド生成物（各PCで再生成するため共有しない）
+.build/
+*.dSYM/
+
+# アイコンの中間ファイル（AppIcon.icns は共有するが iconset は再生成可能）
+scripts/icon.iconset/
+
+# macOS
+.DS_Store
