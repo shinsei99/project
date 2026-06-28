@@ -44,8 +44,24 @@ PLEDGE_LINES = [
     "行使することについて、一切の異議申し立てをいたしません。",
 ]
 
-# 折り返し行高の推定に用いる1行あたりの全角文字数（A〜F幅合計に対する目安）
-_CHARS_PER_LINE = 50
+_PT_PER_LINE = 15   # 折り返し1行あたりの高さ(pt)
+_PAD = 4            # セル内余白(pt)
+
+
+def _weight(s: str) -> int:
+    """文字列の表示幅（半角=1・全角=2）。"""
+    return sum(2 if ord(ch) > 0x2E80 else 1 for ch in str(s))
+
+
+def _wrap_lines(s: str, width_units: float) -> int:
+    """Excel列幅 width_units（半角文字数相当）に対する折り返し行数。"""
+    return max(1, math.ceil(_weight(s) / max(1.0, width_units)))
+
+
+def _row_height(width_text_pairs) -> float:
+    """(幅, テキスト) の組から、行に必要な高さ(pt)を返す。"""
+    lines = max(_wrap_lines(t, w) for w, t in width_text_pairs)
+    return lines * _PT_PER_LINE + _PAD
 
 
 def _merge_set(ws, cell_range, value=None, font=None, align=None, fill=None,
@@ -110,13 +126,14 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
         ("◎鍵の返却", keys_text),
         ("◎喫煙の有無", f"{options.get('smoking', '有　　・　　無')}　（※電子タバコ・加熱式タバコ等を含む）"),
         ("◎ペット飼育の有無", f"{options.get('pet', '有　　・　　無')}　（※無断飼育、一時的な預かり、種類を問わずすべて含む）"),
-        ("◎残置物の有無", options.get("leftover", "有　　・　　無")),
+        ("◎残置物の有無",
+         f"{options.get('leftover', '有　　・　　無')}　（※「有」の場合、合意した残置物の所有権を放棄し、貴社の処分に同意します）"),
     ]
     r = 4
     for label, value in rows:
         _merge_set(ws, f"A{r}:B{r}", label, font=bold, align=LEFT, fill=HEADER_FILL, border=True)
         _merge_set(ws, f"C{r}:F{r}", value, font=base, align=LEFT, border=True)
-        ws.row_dimensions[r].height = 19
+        ws.row_dimensions[r].height = _row_height([(26, label), (52, value)])
         r += 1
 
     # ── 原状回復・修繕必要箇所 ──
@@ -124,11 +141,11 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
     _merge_set(ws, f"A{r}:F{r}", "【原状回復・修繕必要箇所】", font=bold, align=LEFT)
     r += 1
     wrap_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    detail_header = "詳細等（故意・過失、喫煙、ペット損耗の別を含む）"
     _merge_set(ws, f"A{r}:B{r}", "修繕箇所", font=bold, align=wrap_center, fill=HEADER_FILL, border=True)
     _merge_set(ws, f"C{r}:D{r}", "仕　様", font=bold, align=wrap_center, fill=HEADER_FILL, border=True)
-    _merge_set(ws, f"E{r}:F{r}", "詳細等（故意・過失、喫煙、ペット損耗の別を含む）",
-               font=bold, align=wrap_center, fill=HEADER_FILL, border=True)
-    ws.row_dimensions[r].height = 30
+    _merge_set(ws, f"E{r}:F{r}", detail_header, font=bold, align=wrap_center, fill=HEADER_FILL, border=True)
+    ws.row_dimensions[r].height = _row_height([(26, "修繕箇所"), (28, detail_header)])
     r += 1
 
     # 入居者負担のある項目＋鍵交換代を転記
@@ -164,24 +181,34 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
                    align=Alignment(horizontal="right", vertical="center"), border=True)
         r += 1
 
-    # ── 誓約文（喫煙・ペットは第1段落に標準で含む。残置物「有」のみ所有権放棄文を追加）──
-    pledge_lines = list(PLEDGE_LINES)
-    if str(options.get("leftover", "")).strip() == "有":
-        pledge_lines.append(
-            "　また、室内に残置した物品については、その所有権を放棄し、貴社が任意に"
-            "処分（廃棄を含む）することに異議申し立ていたしません。"
-        )
+    # ── 誓約文（喫煙・ペットは第1段落に標準で含む。残置物の所有権放棄は◎残置物欄に注記）──
     r += 1
-    for line in pledge_lines:
+    for line in PLEDGE_LINES:
         _merge_set(ws, f"A{r}:F{r}", line, font=base, align=LEFT_TOP)
-        lines = max(1, math.ceil(len(line) / _CHARS_PER_LINE))
-        ws.row_dimensions[r].height = lines * 15 + 2
+        ws.row_dimensions[r].height = _row_height([(78, line)])
         r += 1
 
     # ── 署名日 ──
     r += 1
     _merge_set(ws, f"A{r}:F{r}", "令和　　　　年　　　　　月　　　　　日",
                font=base, align=Alignment(horizontal="right", vertical="center"))
+    r += 1
+
+    # ── 立会人（管理会社＝発行元情報）──
+    contact = issuer.get("tel", "")
+    if issuer.get("fax"):
+        contact = f"{contact}　FAX {issuer['fax']}" if contact else f"FAX {issuer['fax']}"
+
+    def _info_row(label, value):
+        nonlocal r
+        _merge_set(ws, f"A{r}:A{r}", label, font=bold, align=LEFT)
+        _merge_set(ws, f"B{r}:F{r}", value, font=base, align=LEFT)
+        ws.row_dimensions[r].height = _row_height([(13, label), (65, value)])
+        r += 1
+
+    _info_row("立会人", issuer.get("name", ""))
+    _info_row("住　所", issuer.get("address", ""))
+    _info_row("連絡先", contact)
     r += 1
 
     # ── 署名欄（入居者）※囲み罫線ではなく下罫線 ──
@@ -194,6 +221,9 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
         ws.row_dimensions[r].height = 26
         r += 1
 
+    _merge_set(ws, f"A{r}:F{r}", "＜入居者＞", font=bold, align=LEFT)
+    ws.row_dimensions[r].height = 18
+    r += 1
     _sign_row("現住所", f"B{r}:F{r}")
     _sign_row("新住所", f"B{r}:F{r}")
     _sign_row("氏　名", f"B{r}:E{r}", with_seal=True)
