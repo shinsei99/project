@@ -26,14 +26,14 @@ TEMPLATE_PATH = os.path.join(
 ITEM_START_ROW = 10
 COLUMN_HEADER_ROW = 9
 
-# A4横1ページ幅に収めるための列幅（文字数単位）
-COLUMN_WIDTHS = {"A": 22, "B": 13, "C": 9, "D": 13, "E": 13, "F": 38}
+# A4縦1ページ幅に収めるための列幅（文字数単位）
+COLUMN_WIDTHS = {"A": 20, "B": 11, "C": 8, "D": 11, "E": 11, "F": 29}
 
 
 def _setup_a4_print(ws, last_row: int) -> None:
-    """A4横・1ページ幅フィット・列見出し繰り返しの印刷設定を適用する。"""
+    """A4縦・1ページ幅フィット・列見出し繰り返しの印刷設定を適用する。"""
     ws.page_setup.paperSize = 9          # A4
-    ws.page_setup.orientation = "landscape"
+    ws.page_setup.orientation = "portrait"
     if ws.sheet_properties.pageSetUpPr is None:
         ws.sheet_properties.pageSetUpPr = PageSetupProperties()
     ws.sheet_properties.pageSetUpPr.fitToPage = True

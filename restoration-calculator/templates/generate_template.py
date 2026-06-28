@@ -22,14 +22,14 @@ def main() -> None:
     header_font = Font(bold=True, color="FFFFFF", size=11)
     center = Alignment(horizontal="center", vertical="center")
 
-    # 列幅（A4横1ページ幅に収まる値）
-    widths = {"A": 22, "B": 13, "C": 9, "D": 13, "E": 13, "F": 38}
+    # 列幅（A4縦1ページ幅に収まる値）
+    widths = {"A": 20, "B": 11, "C": 8, "D": 11, "E": 11, "F": 29}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 
-    # A4横・1ページ幅フィットの印刷設定（出力側でも再設定するが基準値を持たせる）
+    # A4縦・1ページ幅フィットの印刷設定（出力側でも再設定するが基準値を持たせる）
     ws.page_setup.paperSize = 9
-    ws.page_setup.orientation = "landscape"
+    ws.page_setup.orientation = "portrait"
     ws.sheet_properties.pageSetUpPr = PageSetupProperties(fitToPage=True)
     ws.page_setup.fitToWidth = 1
     ws.page_setup.fitToHeight = 0
@@ -55,12 +55,14 @@ def main() -> None:
         "工事・部材名", "業者見積総額(原価)", "入居者負担率",
         "入居者負担額", "オーナー負担額", "算出根拠メモ",
     ]
+    wrap_center = Alignment(horizontal="center", vertical="center", wrap_text=True)
     for i, h in enumerate(headers, start=1):
         c = ws.cell(row=9, column=i, value=h)
         c.fill = header_fill
         c.font = header_font
-        c.alignment = center
+        c.alignment = wrap_center   # 狭い列でも見出しが折り返して収まるように
         c.border = border
+    ws.row_dimensions[9].height = 30   # 折り返し2行分の高さ
 
     # 明細スタイルの雛形（10行目に罫線だけ用意）
     for col in range(1, 7):
