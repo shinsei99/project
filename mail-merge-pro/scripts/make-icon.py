@@ -2,85 +2,112 @@
 """
 make-icon.py
 Mail Merge Pro のアプリアイコン(1024px)を生成する。
-デザイン: 白の角丸スクエア背景に、青い「循環矢印（くるりと回る輪＋右向き矢印）」と封筒。
-一斉送信／繰り返し送信のイメージ。
+デザイン: 白の角丸スクエア背景に、封筒＋上に並ぶ3人（複数宛先）＋右下に
+送信バッジ（紙飛行機）。青→紫グラデーション。一斉送信のイメージ。
 """
 from PIL import Image, ImageDraw
-import math
 import os
 
 S = 1024
-center = S / 2
 
-# ---- 青のグラデーション素材（左上=明 → 右下=暗）----
-blue_top = (40, 150, 255)
-blue_bottom = (10, 95, 230)
-blue = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-bd = ImageDraw.Draw(blue)
-for y in range(S):
-    t = y / S
-    col = tuple(int(blue_top[i] + (blue_bottom[i] - blue_top[i]) * t) for i in range(3)) + (255,)
-    bd.line([(0, y), (S, y)], fill=col)
 
-# ---- 青で塗る形のマスク（白=塗る）----
-mask = Image.new("L", (S, S), 0)
-m = ImageDraw.Draw(mask)
+# ---- 斜めグラデーション素材（左上=青 → 右下=紫）----
+def make_gradient(start, end):
+    img = Image.new("RGB", (S, S))
+    try:
+        import numpy as np
+        ys, xs = np.mgrid[0:S, 0:S]
+        t = (xs + ys) / (2.0 * (S - 1))
+        arr = np.zeros((S, S, 3), dtype=np.uint8)
+        for c in range(3):
+            arr[..., c] = (start[c] + (end[c] - start[c]) * t).astype("uint8")
+        return Image.fromarray(arr, "RGB")
+    except Exception:
+        d = ImageDraw.Draw(img)
+        for y in range(S):
+            t = y / S
+            col = tuple(int(start[i] + (end[i] - start[i]) * t) for i in range(3))
+            d.line([(0, y), (S, y)], fill=col)
+        return img
 
-# 循環の輪（太いリング・右下に開口部を残す）。
-cx, cy = S * 0.49, S * 0.47
-R = S * 0.33
-thick = S * 0.052
-# PIL の角度は3時方向=0°、時計回り。右下(開口)を避けて長い弧を描く。
-start_ang, end_ang = 55, 310
-m.arc([cx - R, cy - R, cx + R, cy + R], start=start_ang, end=end_ang,
-      fill=255, width=int(thick))
-# 矢印側(start_ang)の端だけ丸める。矢印で隠れる位置なので自然になじむ。
-rad = math.radians(start_ang)
-ex, ey = cx + R * math.cos(rad), cy + R * math.sin(rad)
-r = thick / 2
-m.ellipse([ex - r, ey - r, ex + r, ey + r], fill=255)
 
-# 右向きの矢印（輪の右下から外へ）。
-ax = cx + R * math.cos(math.radians(start_ang))
-ay = cy + R * math.sin(math.radians(start_ang))
-sh = S * 0.052   # シャフト半幅
-hh = S * 0.105   # 矢じり半幅
-shaft_len = S * 0.085
-head_len = S * 0.12
-arrow = [
-    (ax - shaft_len, ay - sh),
-    (ax, ay - sh),
-    (ax, ay - hh),
-    (ax + head_len, ay),
-    (ax, ay + hh),
-    (ax, ay + sh),
-    (ax - shaft_len, ay + sh),
-]
-m.polygon(arrow, fill=255)
+grad = make_gradient((58, 158, 226), (126, 64, 222)).convert("RGBA")
 
-# 封筒（中央・角丸の長方形）。
-ex0, ey0, ex1, ey1 = S * 0.25, S * 0.345, S * 0.73, S * 0.655
-m.rounded_rectangle([ex0, ey0, ex1, ey1], radius=int(S * 0.035), fill=255)
+# ---- ベース（白の角丸プレート）----
+base = Image.new("RGBA", (S, S), (249, 249, 251, 255))
+dr = ImageDraw.Draw(base)
 
-# ---- 合成: 白背景に青を流し込む ----
-bg = Image.new("RGBA", (S, S), (247, 247, 248, 255))
-img = bg.copy()
-img.paste(blue, (0, 0), mask)
+WHITE = (255, 255, 255, 255)
+ow = int(S * 0.016)  # 白フチの太さ
 
-# ---- 封筒のフラップ（白いV字）を上から描く ----
-dr = ImageDraw.Draw(img)
-pad = (ey1 - ey0) * 0.16
-v_top = ey0 + pad
-v_bottom = ey0 + (ey1 - ey0) * 0.58
-lw = int(S * 0.028)
-dr.line([(ex0 + pad, v_top), ((ex0 + ex1) / 2, v_bottom)], fill=(255, 255, 255, 255), width=lw)
-dr.line([((ex0 + ex1) / 2, v_bottom), (ex1 - pad, v_top)], fill=(255, 255, 255, 255), width=lw)
 
-# ---- 全体を角丸スクエアにクリップ ----
+def fill_grad(mask_img):
+    """L マスクの白領域にグラデーションを流し込む。"""
+    base.paste(grad, (0, 0), mask_img)
+
+
+def silhouette_mask(draw_fn):
+    """空マスクに draw_fn(d) で形を描いて返す。"""
+    m = Image.new("L", (S, S), 0)
+    draw_fn(ImageDraw.Draw(m))
+    return m
+
+
+def person(cx, hy, r):
+    """頭＋肩の人型を、白フチ付きで描く。座標は 0..1 の割合。
+    肩→頭の順に描くことで、頭が肩の上に白フチで分離して乗る。"""
+    cx, hy, r = cx * S, hy * S, r * S
+    head = [cx - r, hy - r, cx + r, hy + r]
+    sw, sh = r * 1.4, r * 1.25          # 肩の半幅・半高
+    scy = hy + r * 1.75                  # 肩の中心（頭の下）
+    shoulders = [cx - sw, scy - sh, cx + sw, scy + sh]
+
+    # 肩：白フチ → グラデ本体。
+    dr.ellipse([shoulders[0] - ow, shoulders[1] - ow, shoulders[2] + ow, shoulders[3] + ow], fill=WHITE)
+    fill_grad(silhouette_mask(lambda d: d.ellipse(shoulders, fill=255)))
+    # 頭：白フチ → グラデ本体（肩の上に重ね、首元に白い分離を作る）。
+    dr.ellipse([head[0] - ow, head[1] - ow, head[2] + ow, head[3] + ow], fill=WHITE)
+    fill_grad(silhouette_mask(lambda d: d.ellipse(head, fill=255)))
+
+
+# ---- 3人（奥→手前: 右, 左, 中央）----
+person(0.60, 0.185, 0.066)
+person(0.24, 0.175, 0.070)
+person(0.42, 0.135, 0.083)
+
+# ---- 封筒 ----
+ex0, ey0, ex1, ey1 = S * 0.06, S * 0.36, S * 0.78, S * 0.90
+rad = int(S * 0.04)
+# 白フチ。
+dr.rounded_rectangle([ex0 - ow, ey0 - ow, ex1 + ow, ey1 + ow], radius=rad + ow, fill=WHITE)
+# グラデ本体。
+fill_grad(silhouette_mask(lambda d: d.rounded_rectangle([ex0, ey0, ex1, ey1], radius=rad, fill=255)))
+# フラップのV字（白）。
+ecx = (ex0 + ex1) / 2
+v_bottom = ey0 + (ey1 - ey0) * 0.46
+lw = int(S * 0.024)
+dr.line([(ex0 + ow, ey0 + ow), (ecx, v_bottom), (ex1 - ow, ey0 + ow)], fill=WHITE, width=lw, joint="curve")
+
+# ---- 送信バッジ（紙飛行機）----
+bx, by, br = S * 0.755, S * 0.745, S * 0.155
+# 白フチ（封筒との隙間）。
+dr.ellipse([bx - br - ow * 1.6, by - br - ow * 1.6, bx + br + ow * 1.6, by + br + ow * 1.6], fill=WHITE)
+# グラデ円。
+fill_grad(silhouette_mask(lambda d: d.ellipse([bx - br, by - br, bx + br, by + br], fill=255)))
+# 紙飛行機（白・2枚羽）。
+q = br
+tip = (bx + 0.60 * q, by - 0.52 * q)
+left = (bx - 0.62 * q, by - 0.02 * q)
+mid = (bx - 0.10 * q, by + 0.12 * q)
+tail = (bx - 0.16 * q, by + 0.56 * q)
+dr.polygon([tip, left, mid], fill=WHITE)        # 上の羽
+dr.polygon([tip, mid, tail], fill=WHITE)         # 下の羽
+
+# ---- 角丸スクエアにクリップ ----
 corner = Image.new("L", (S, S), 0)
 ImageDraw.Draw(corner).rounded_rectangle([0, 0, S, S], radius=int(S * 0.225), fill=255)
 out = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-out.paste(img, (0, 0), corner)
+out.paste(base, (0, 0), corner)
 
 # ---- iconset 書き出し ----
 out_dir = os.path.join(os.path.dirname(__file__), "icon.iconset")
@@ -91,10 +118,9 @@ def write(name, px):
     out.resize((px, px), Image.LANCZOS).save(os.path.join(out_dir, name))
 
 
-for base in [16, 32, 128, 256, 512]:
-    write(f"icon_{base}x{base}.png", base)
-    write(f"icon_{base}x{base}@2x.png", base * 2)
+for b in [16, 32, 128, 256, 512]:
+    write(f"icon_{b}x{b}.png", b)
+    write(f"icon_{b}x{b}@2x.png", b * 2)
 
-# プレビュー用に 512 を別名でも保存。
 out.resize((512, 512), Image.LANCZOS).save(os.path.join(os.path.dirname(__file__), "icon-preview.png"))
 print("iconset written to", out_dir)
