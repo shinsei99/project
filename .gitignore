@@ -70,6 +70,10 @@ realestate-valuation/.streamlit/secrets.toml
 !settlement-creator/**
 settlement-creator/.venv/
 settlement-creator/data/
+!legal-crosscheck/
+!legal-crosscheck/**
+legal-crosscheck/.venv/
+legal-crosscheck/.streamlit/secrets.toml
 
 # --- Build artifacts (all apps) — safety net, never commit these ---
 **/node_modules/
