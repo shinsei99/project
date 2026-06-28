@@ -112,12 +112,16 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
         return d.strftime("%Y年%m月%d日") if d else "―"
 
     key_cost = int(options.get("key_replacement_cost") or 0)
-    keys_text = f"{options.get('keys_count', '')}　本　（※紛失・返却不足の場合はカギ交換が必要）"
+    keys_count = str(options.get("keys_count", "")).strip()
+    keys_disp = keys_count if keys_count else "　　　　"  # 未記入時は手書き用の空白
+    keys_text = f"{keys_disp}　本　（※紛失・返却不足の場合はカギ交換が必要）"
     if key_cost > 0:
         keys_text += f"　カギ交換代：¥{key_cost:,}"
     y, m = data.residence_period
     period = f"{_d(data.move_in_date)}　〜　{_d(data.move_out_date)}　（入居期間：{y}年{m}ヶ月）"
     room = f"{data.property_name}　{data.room_number}".strip()
+    if data.property_address:
+        room = f"{room}　（{data.property_address}）" if room else data.property_address
 
     rows = [
         ("◎物件名・部屋番号", room),
@@ -125,7 +129,7 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
         ("◎入居期間", period),
         ("◎鍵の返却", keys_text),
         ("◎喫煙の有無", f"{options.get('smoking', '有　　・　　無')}　（※電子タバコ・加熱式タバコ等を含む）"),
-        ("◎ペット飼育の有無", f"{options.get('pet', '有　　・　　無')}　（※無断飼育、一時的な預かり、種類を問わずすべて含む）"),
+        ("◎ペット飼育の有無", f"{options.get('pet', '有　　・　　無')}　（※無断飼育・一時預かりを問わず全て含む）"),
         ("◎残置物の有無",
          f"{options.get('leftover', '有　　・　　無')}　（※「有」の場合、合意した残置物の所有権を放棄し、貴社の処分に同意します）"),
     ]
