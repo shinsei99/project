@@ -66,6 +66,9 @@ restoration-calculator/.venv/
 !realestate-valuation/**
 realestate-valuation/.venv/
 realestate-valuation/.streamlit/secrets.toml
+!settlement-creator/
+!settlement-creator/**
+settlement-creator/.venv/
 
 # --- Build artifacts (all apps) — safety net, never commit these ---
 **/node_modules/
