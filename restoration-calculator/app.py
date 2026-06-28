@@ -107,7 +107,6 @@ with col2:
 with col3:
     move_in = st.date_input("入居日（契約開始日）", value=None, format="YYYY/MM/DD")
     move_out = st.date_input("退去日（明渡し日）", value=None, format="YYYY/MM/DD")
-property_address = st.text_input("物件住所（誓約書に記載）", value="")
 
 if move_in and move_out:
     tmp = RestorationData(move_in_date=move_in, move_out_date=move_out)
@@ -132,7 +131,7 @@ with st.expander("📝 退去時確認書兼誓約書を出力（基本情報の
 
     pledge_data = RestorationData(
         tenant_name=tenant_name, property_name=property_name, room_number=room_number,
-        property_address=property_address, move_in_date=move_in, move_out_date=move_out,
+        move_in_date=move_in, move_out_date=move_out,
         deposit=int(deposit),
         items=st.session_state["result"].items if "result" in st.session_state else [],
     )
@@ -289,7 +288,6 @@ if st.button("🧮 按分を計算する", disabled=not can_calc, type="primary"
         tenant_name=tenant_name,
         property_name=property_name,
         room_number=room_number,
-        property_address=property_address,
         move_in_date=move_in,
         move_out_date=move_out,
         deposit=int(deposit),

@@ -1,14 +1,15 @@
 """退去時確認書兼原状回復費用負担誓約書（Excel）出力サービス。
 
 退去立会い時に損耗が発見された場合、入居者に署名させる誓約書を生成する。
-元フォーマット「退去確認書兼誓約書.xls」のレイアウトを参考に再構築し、
-入居期間（入居日〜退去日・○年○ヶ月）と入居者負担の修繕箇所を自動転記する。
-宛先は管理会社（発行元）、末尾の住所・氏名欄は入居者が署名する。
+参考フォーマット「taikyoji_kakuninsho_v1.pdf」の文言・レイアウトに基づき再構築。
+ヘッダー表（物件名・部屋番号／契約者名／入居期間／鍵／喫煙／残置物）、
+原状回復・修繕必要箇所の表、誓約文、署名欄（現住所／新住所／氏名 印／連絡先）で構成する。
 """
 
 from __future__ import annotations
 
 import io
+import math
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -19,6 +20,7 @@ from models.restoration_data import RestorationData
 
 THIN = Side(style="thin", color="000000")
 BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+BOTTOM_BORDER = Border(bottom=THIN)
 HEADER_FILL = PatternFill("solid", fgColor="D9D9D9")
 CENTER = Alignment(horizontal="center", vertical="center")
 LEFT = Alignment(horizontal="left", vertical="center", wrap_text=True)
@@ -27,17 +29,22 @@ LEFT_TOP = Alignment(horizontal="left", vertical="top", wrap_text=True)
 # A4縦・6列レイアウト（修繕箇所=A:B / 仕様=C:D / 詳細等=E:F）
 WIDTHS = {"A": 13, "B": 13, "C": 12, "D": 12, "E": 14, "F": 14}
 
+# 誓約文（taikyoji_kakuninsho_v1.pdf の文言）
 PLEDGE_LINES = [
-    "　私は上記物件の契約解除に際し、貴社立会いの下、私が原状回復にあたって負担する"
-    "上記修繕箇所の内容について確認いたしました。",
-    "　なお、修繕後に請求される工事代金の負担額については、責任をもって速やかにお支払い"
-    "する事を誓約いたします。",
-    "　請求期日までに支払いが実行されなかった場合は、保証会社への移管又は連帯保証人に"
-    "請求されても異議申し立ていたしません。",
+    "　私は上記物件の契約解除に際し、貴社立会いのもと、賃貸借契約書に定められた特約制限"
+    "（退去時クリーニング費用等）および、私が原状回復にあたって負担する上記修繕箇所の内容に"
+    "ついて確認いたしました。",
+    "　なお、修繕後に請求される工事代金の負担額については、別途提示される原状回復見積書"
+    "（またはその概算額）に基づき、金額確定後速やかにお支払いする事を誓約いたします。"
+    "また、後日送付される見積書の発行から7日以内に異議申し立てがない場合、当該金額に同意した"
+    "ものとみなします。",
+    "　請求期日までに支払いが実行されなかった場合は、保証会社（または連帯保証人）への立替請求"
+    "（代位弁済請求）がなされること、および保証会社が立替払いを行った後に私に対して求償権を"
+    "行使することについて、一切の異議申し立てをいたしません。",
 ]
 
-
-BOTTOM_BORDER = Border(bottom=THIN)
+# 折り返し行高の推定に用いる1行あたりの全角文字数（A〜F幅合計に対する目安）
+_CHARS_PER_LINE = 38
 
 
 def _merge_set(ws, cell_range, value=None, font=None, align=None, fill=None,
@@ -66,7 +73,7 @@ def _merge_set(ws, cell_range, value=None, font=None, align=None, fill=None,
 def build(data: RestorationData, issuer: dict, options: dict | None = None) -> bytes:
     """誓約書 xlsx をバイト列で返す。
 
-    options: {keys_count, smoking, leftover, witness_date}
+    options: {keys_count, key_replacement_cost, smoking, leftover, witness_date}
     """
     options = options or {}
     wb = Workbook()
@@ -79,64 +86,61 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
     base = Font(size=11)
     bold = Font(size=11, bold=True)
 
-    # 宛先・日付
-    _merge_set(ws, "A1:D1", f"{issuer.get('name', '') or '（管理会社名）'}　御中", font=bold, align=LEFT)
-    _merge_set(ws, "E1:F1", options.get("witness_date", ""), font=base,
-               align=Alignment(horizontal="right", vertical="center"))
+    # ── タイトル ──
+    _merge_set(ws, "A1:F2", "【退去時確認書兼原状回復費用負担誓約書】",
+               font=Font(size=15, bold=True), align=CENTER)
 
-    # タイトル
-    _merge_set(ws, "A3:F3", "【 退去時確認書兼原状回復費用負担誓約書 】",
-               font=Font(size=14, bold=True), align=CENTER)
-
-    # 物件の表示（タイトルは1行）
-    _merge_set(ws, "A5:A5", "＜物件の表示＞", font=bold,
-               align=Alignment(horizontal="left", vertical="center"))
-    _merge_set(ws, "B5:F5", data.property_address, font=base, align=LEFT)
-    room = f"{data.property_name}　{data.room_number}".strip()
-    _merge_set(ws, "B6:F6", room, font=base, align=LEFT)
-
-    # 入居期間（いつ〜いつ・○年○ヶ月）
+    # ── ヘッダー表（◎項目）──
     def _d(d):
         return d.strftime("%Y年%m月%d日") if d else "―"
-    y, m = data.residence_period
-    period = f"{_d(data.move_in_date)}　〜　{_d(data.move_out_date)}　（入居期間：{y}年{m}ヶ月）"
-    _merge_set(ws, "A7:A7", "◎入居期間", font=bold, align=LEFT)
-    _merge_set(ws, "B7:F7", period, font=base, align=LEFT)
 
-    # 確認項目
     key_cost = int(options.get("key_replacement_cost") or 0)
     keys_text = f"{options.get('keys_count', '')}　本"
     if key_cost > 0:
         keys_text += f"　（返却不足によるカギ交換代：¥{key_cost:,}）"
-    _merge_set(ws, "A8:A8", "◎鍵の返却", font=bold, align=LEFT)
-    _merge_set(ws, "B8:F8", keys_text, font=base, align=LEFT)
-    _merge_set(ws, "A9:A9", "◎喫煙の有無", font=bold, align=LEFT)
-    _merge_set(ws, "B9:F9", options.get("smoking", "有　　・　　無"), font=base, align=LEFT)
-    _merge_set(ws, "A10:A10", "◎残置物の有無", font=bold, align=LEFT)
-    _merge_set(ws, "B10:F10", options.get("leftover", "有　　・　　無"), font=base, align=LEFT)
+    y, m = data.residence_period
+    period = f"{_d(data.move_in_date)}　〜　{_d(data.move_out_date)}　（入居期間：{y}年{m}ヶ月）"
+    room = f"{data.property_name}　{data.room_number}".strip()
 
-    # 修繕箇所テーブル ヘッダー
-    header_row = 12
-    _merge_set(ws, f"A{header_row}:B{header_row}", "修繕箇所", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
-    _merge_set(ws, f"C{header_row}:D{header_row}", "仕　様", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
-    _merge_set(ws, f"E{header_row}:F{header_row}", "詳　細　等", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
+    rows = [
+        ("◎物件名・部屋番号", room),
+        ("◎契約者名", f"{data.tenant_name} 様" if data.tenant_name else ""),
+        ("◎入居期間", period),
+        ("◎鍵の返却", keys_text),
+        ("◎喫煙の有無", f"{options.get('smoking', '有　　・　　無')}　（※電子タバコ・加熱式タバコ等を含む）"),
+        ("◎残置物の有無", options.get("leftover", "有　　・　　無")),
+    ]
+    r = 4
+    for label, value in rows:
+        _merge_set(ws, f"A{r}:B{r}", label, font=bold, align=LEFT, fill=HEADER_FILL, border=True)
+        _merge_set(ws, f"C{r}:F{r}", value, font=base, align=LEFT, border=True)
+        ws.row_dimensions[r].height = 22
+        r += 1
 
-    # 修繕箇所の行データ（入居者負担のある項目＋鍵交換代）
-    rows: list[tuple[str, str, str, int]] = []
+    # ── 原状回復・修繕必要箇所 ──
+    r += 1
+    _merge_set(ws, f"A{r}:F{r}", "【原状回復・修繕必要箇所】", font=bold, align=LEFT)
+    r += 1
+    _merge_set(ws, f"A{r}:B{r}", "修繕箇所", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
+    _merge_set(ws, f"C{r}:D{r}", "仕　様", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
+    _merge_set(ws, f"E{r}:F{r}", "詳　細　等", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
+    r += 1
+
+    # 入居者負担のある項目＋鍵交換代を転記
+    item_rows: list[tuple[str, str, str, int]] = []
     for it in data.items:
         if it.tenant_amount > 0:
             spec = it.material_type
             if it.total_qty:
                 spec += f"（{it.total_qty:g}{it.unit}）"
-            rows.append((it.name, spec, f"入居者負担 ¥{it.tenant_amount:,}", it.tenant_amount))
+            item_rows.append((it.name, spec, f"入居者負担 ¥{it.tenant_amount:,}", it.tenant_amount))
     if key_cost > 0:
-        rows.append(("鍵交換（返却不足）", "シリンダー交換", f"入居者負担 ¥{key_cost:,}", key_cost))
+        item_rows.append(("鍵交換（返却不足）", "シリンダー交換", f"入居者負担 ¥{key_cost:,}", key_cost))
 
-    rows_needed = max(len(rows), 8)
-    r = header_row + 1
+    rows_needed = max(len(item_rows), 6)
     for i in range(rows_needed):
-        if i < len(rows):
-            name, spec, detail, _ = rows[i]
+        if i < len(item_rows):
+            name, spec, detail, _ = item_rows[i]
             _merge_set(ws, f"A{r}:B{r}", name, font=base, align=LEFT, border=True)
             _merge_set(ws, f"C{r}:D{r}", spec, font=base, align=LEFT, border=True)
             _merge_set(ws, f"E{r}:F{r}", detail, font=base, align=LEFT, border=True)
@@ -147,19 +151,20 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
         ws.row_dimensions[r].height = 22
         r += 1
 
-    # 入居者負担合計
-    total_tenant = sum(amt for *_, amt in rows)
-    if rows:
-        _merge_set(ws, f"A{r}:D{r}", "入居者負担合計（税込・概算）", font=bold, align=Alignment(horizontal="right", vertical="center"), border=True)
-        _merge_set(ws, f"E{r}:F{r}", f"¥{total_tenant:,}", font=bold, align=Alignment(horizontal="right", vertical="center"), border=True)
+    if item_rows:
+        total = sum(amt for *_, amt in item_rows)
+        _merge_set(ws, f"A{r}:D{r}", "入居者負担合計（税込・概算）", font=bold,
+                   align=Alignment(horizontal="right", vertical="center"), border=True)
+        _merge_set(ws, f"E{r}:F{r}", f"¥{total:,}", font=bold,
+                   align=Alignment(horizontal="right", vertical="center"), border=True)
         r += 1
 
-    # 誓約文（喫煙・残置物を認めた場合は該当の一文を追加）
+    # ── 誓約文（喫煙・残置物を認めた場合は該当文を追加）──
     pledge_lines = list(PLEDGE_LINES)
     if str(options.get("smoking", "")).strip() == "有":
         pledge_lines.append(
-            "　また、喫煙に起因するクロスの黄ばみ・臭気・汚損については通常損耗に当たらず、"
-            "クロス張替え等の費用を入居者が負担する事に同意いたします。"
+            "　また、喫煙（電子タバコ・加熱式タバコ等を含む）に起因するクロスの黄ばみ・臭気・"
+            "汚損については通常損耗に当たらず、クロス張替え等の費用を入居者が負担する事に同意いたします。"
         )
     if str(options.get("leftover", "")).strip() == "有":
         pledge_lines.append(
@@ -169,24 +174,32 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
     r += 1
     for line in pledge_lines:
         _merge_set(ws, f"A{r}:F{r}", line, font=base, align=LEFT_TOP)
-        ws.row_dimensions[r].height = 34
+        lines = max(1, math.ceil(len(line) / _CHARS_PER_LINE))
+        ws.row_dimensions[r].height = lines * 16 + 4
         r += 1
 
-    # 日付（署名日）
+    # ── 署名日 ──
     r += 1
     _merge_set(ws, f"A{r}:F{r}", "令和　　　　年　　　　　月　　　　　日",
                font=base, align=Alignment(horizontal="right", vertical="center"))
     r += 2
 
-    # 署名欄（入居者）※囲み罫線ではなく下罫線
-    _merge_set(ws, f"A{r}:A{r}", "住　所", font=bold, align=LEFT)
-    _merge_set(ws, f"B{r}:F{r}", None, align=LEFT, bottom_border=True)
-    r += 2
-    _merge_set(ws, f"A{r}:A{r}", "氏　名", font=bold, align=LEFT)
-    _merge_set(ws, f"B{r}:E{r}", None, align=LEFT, bottom_border=True)
-    _merge_set(ws, f"F{r}:F{r}", "印", font=base, align=CENTER)
+    # ── 署名欄（入居者）※囲み罫線ではなく下罫線 ──
+    def _sign_row(label, value_range, with_seal=False):
+        nonlocal r
+        _merge_set(ws, f"A{r}:A{r}", label, font=bold, align=LEFT)
+        _merge_set(ws, value_range, None, align=LEFT, bottom_border=True)
+        if with_seal:
+            _merge_set(ws, f"F{r}:F{r}", "印", font=base, align=CENTER)
+        ws.row_dimensions[r].height = 24
+        r += 2
 
-    # A4縦・1ページ幅フィット
+    _sign_row("現住所", f"B{r}:F{r}")
+    _sign_row("新住所", f"B{r}:F{r}")
+    _sign_row("氏　名", f"B{r}:E{r}", with_seal=True)
+    _sign_row("連絡先", f"B{r}:F{r}")
+
+    # ── A4縦・1ページ幅フィット ──
     ws.page_setup.paperSize = 9
     ws.page_setup.orientation = "portrait"
     if ws.sheet_properties.pageSetUpPr is None:
