@@ -17,6 +17,7 @@ from models.restoration_data import (
 )
 from services import (
     excel_parser, document_export_service, issuer_store, pledge_export_service,
+    property_store,
 )
 from services.pdf_parser import parse_pdf, PdfExtractionError
 from services.depreciation_engine import calculate, MATERIAL_TYPES, policy_of, DEPRECIABLE
@@ -97,17 +98,59 @@ with st.sidebar:
 
 # ============ 1. 基本情報 ============
 st.header("1. 基本情報の入力")
+
+# ---- 登録物件の呼び出し（物件名→住所を自動入力）----
+NEW_PROP_LABEL = "＋ 新規入力"
+if "prop_form_version" not in st.session_state:
+    st.session_state.prop_form_version = 0
+if "prop_prefill" not in st.session_state:
+    st.session_state.prop_prefill = {"name": "", "address": ""}
+
+props_df = property_store.load_properties()
+selected_prop = st.selectbox(
+    "登録物件から呼び出し（選ぶと物件名・住所が自動入力）",
+    [NEW_PROP_LABEL] + props_df["name"].tolist(), key="prop_select",
+)
+if selected_prop != NEW_PROP_LABEL:
+    prow = props_df[props_df["name"] == selected_prop].iloc[0]
+    prop_cand = {"name": selected_prop, "address": str(prow.get("address", ""))}
+else:
+    prop_cand = {"name": "", "address": ""}
+if prop_cand != st.session_state.prop_prefill:
+    st.session_state.prop_prefill = prop_cand
+    st.session_state.prop_form_version += 1
+pv = st.session_state.prop_form_version
+pp = st.session_state.prop_prefill
+
 col1, col2, col3 = st.columns(3)
 with col1:
     tenant_name = st.text_input("賃借人氏名", value="")
-    property_name = st.text_input("物件名", value="")
+    property_name = st.text_input("物件名", value=pp["name"], key=f"propname_{pv}")
 with col2:
     room_number = st.text_input("部屋番号", value="")
     deposit = st.number_input("預かり敷金（円）", min_value=0, value=0, step=1000)
 with col3:
     move_in = st.date_input("入居日（契約開始日）", value=None, format="YYYY/MM/DD")
     move_out = st.date_input("退去日（明渡し日）", value=None, format="YYYY/MM/DD")
-property_address = st.text_input("物件住所（任意・誓約書の物件名に併記）", value="")
+property_address = st.text_input(
+    "物件住所（任意・誓約書の物件名に併記）", value=pp["address"], key=f"propaddr_{pv}",
+)
+
+ps_col, pd_col, _ = st.columns([1, 1, 2])
+with ps_col:
+    if st.button("💾 物件を登録", use_container_width=True):
+        if property_name.strip():
+            property_store.save_property({"name": property_name, "address": property_address})
+            st.success(f"物件「{property_name}」を登録しました。")
+            st.rerun()
+        else:
+            st.warning("物件名を入力してください。")
+with pd_col:
+    if st.button("🗑 物件を削除", use_container_width=True, disabled=selected_prop == NEW_PROP_LABEL):
+        property_store.delete_property(selected_prop)
+        st.session_state.prop_prefill = {"name": "", "address": ""}
+        st.success(f"物件「{selected_prop}」を削除しました。")
+        st.rerun()
 
 if move_in and move_out:
     tmp = RestorationData(move_in_date=move_in, move_out_date=move_out)
