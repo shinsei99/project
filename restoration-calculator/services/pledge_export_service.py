@@ -37,7 +37,11 @@ PLEDGE_LINES = [
 ]
 
 
-def _merge_set(ws, cell_range, value=None, font=None, align=None, fill=None, border=False):
+BOTTOM_BORDER = Border(bottom=THIN)
+
+
+def _merge_set(ws, cell_range, value=None, font=None, align=None, fill=None,
+               border=False, bottom_border=False):
     ws.merge_cells(cell_range)
     top_left = cell_range.split(":")[0]
     cell = ws[top_left]
@@ -49,12 +53,13 @@ def _merge_set(ws, cell_range, value=None, font=None, align=None, fill=None, bor
         cell.alignment = align
     if fill:
         cell.fill = fill
-    if border:
+    if border or bottom_border:
         from openpyxl.utils import range_boundaries
         c1, r1, c2, r2 = range_boundaries(cell_range)
+        b = BOTTOM_BORDER if bottom_border else BORDER
         for r in range(r1, r2 + 1):
             for c in range(c1, c2 + 1):
-                ws.cell(row=r, column=c).border = BORDER
+                ws.cell(row=r, column=c).border = b
     return cell
 
 
@@ -83,8 +88,9 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
     _merge_set(ws, "A3:F3", "【 退去時確認書兼原状回復費用負担誓約書 】",
                font=Font(size=14, bold=True), align=CENTER)
 
-    # 物件の表示
-    _merge_set(ws, "A5:A6", "＜物件の表示＞", font=bold, align=Alignment(horizontal="left", vertical="center", wrap_text=True))
+    # 物件の表示（タイトルは1行）
+    _merge_set(ws, "A5:A5", "＜物件の表示＞", font=bold,
+               align=Alignment(horizontal="left", vertical="center"))
     _merge_set(ws, "B5:F5", data.property_address, font=base, align=LEFT)
     room = f"{data.property_name}　{data.room_number}".strip()
     _merge_set(ws, "B6:F6", room, font=base, align=LEFT)
@@ -98,8 +104,12 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
     _merge_set(ws, "B7:F7", period, font=base, align=LEFT)
 
     # 確認項目
+    key_cost = int(options.get("key_replacement_cost") or 0)
+    keys_text = f"{options.get('keys_count', '')}　本"
+    if key_cost > 0:
+        keys_text += f"　（返却不足によるカギ交換代：¥{key_cost:,}）"
     _merge_set(ws, "A8:A8", "◎鍵の返却", font=bold, align=LEFT)
-    _merge_set(ws, "B8:F8", f"{options.get('keys_count', '')}　本", font=base, align=LEFT)
+    _merge_set(ws, "B8:F8", keys_text, font=base, align=LEFT)
     _merge_set(ws, "A9:A9", "◎喫煙の有無", font=bold, align=LEFT)
     _merge_set(ws, "B9:F9", options.get("smoking", "有　　・　　無"), font=base, align=LEFT)
     _merge_set(ws, "A10:A10", "◎残置物の有無", font=bold, align=LEFT)
@@ -111,18 +121,23 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
     _merge_set(ws, f"C{header_row}:D{header_row}", "仕　様", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
     _merge_set(ws, f"E{header_row}:F{header_row}", "詳　細　等", font=bold, align=CENTER, fill=HEADER_FILL, border=True)
 
-    # 入居者負担のある項目を転記（無ければ空欄行）
-    billable = [it for it in data.items if it.tenant_amount > 0]
-    rows_needed = max(len(billable), 8)
-    r = header_row + 1
-    for i in range(rows_needed):
-        if i < len(billable):
-            it = billable[i]
+    # 修繕箇所の行データ（入居者負担のある項目＋鍵交換代）
+    rows: list[tuple[str, str, str, int]] = []
+    for it in data.items:
+        if it.tenant_amount > 0:
             spec = it.material_type
             if it.total_qty:
                 spec += f"（{it.total_qty:g}{it.unit}）"
-            detail = f"入居者負担 ¥{it.tenant_amount:,}"
-            _merge_set(ws, f"A{r}:B{r}", it.name, font=base, align=LEFT, border=True)
+            rows.append((it.name, spec, f"入居者負担 ¥{it.tenant_amount:,}", it.tenant_amount))
+    if key_cost > 0:
+        rows.append(("鍵交換（返却不足）", "シリンダー交換", f"入居者負担 ¥{key_cost:,}", key_cost))
+
+    rows_needed = max(len(rows), 8)
+    r = header_row + 1
+    for i in range(rows_needed):
+        if i < len(rows):
+            name, spec, detail, _ = rows[i]
+            _merge_set(ws, f"A{r}:B{r}", name, font=base, align=LEFT, border=True)
             _merge_set(ws, f"C{r}:D{r}", spec, font=base, align=LEFT, border=True)
             _merge_set(ws, f"E{r}:F{r}", detail, font=base, align=LEFT, border=True)
         else:
@@ -133,14 +148,26 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
         r += 1
 
     # 入居者負担合計
-    if billable:
+    total_tenant = sum(amt for *_, amt in rows)
+    if rows:
         _merge_set(ws, f"A{r}:D{r}", "入居者負担合計（税込・概算）", font=bold, align=Alignment(horizontal="right", vertical="center"), border=True)
-        _merge_set(ws, f"E{r}:F{r}", f"¥{data.total_tenant:,}", font=bold, align=Alignment(horizontal="right", vertical="center"), border=True)
+        _merge_set(ws, f"E{r}:F{r}", f"¥{total_tenant:,}", font=bold, align=Alignment(horizontal="right", vertical="center"), border=True)
         r += 1
 
-    # 誓約文
+    # 誓約文（喫煙・残置物を認めた場合は該当の一文を追加）
+    pledge_lines = list(PLEDGE_LINES)
+    if str(options.get("smoking", "")).strip() == "有":
+        pledge_lines.append(
+            "　また、喫煙に起因するクロスの黄ばみ・臭気・汚損については通常損耗に当たらず、"
+            "クロス張替え等の費用を入居者が負担する事に同意いたします。"
+        )
+    if str(options.get("leftover", "")).strip() == "有":
+        pledge_lines.append(
+            "　また、室内に残置した物品については、その所有権を放棄し、貴社が任意に"
+            "処分（廃棄を含む）することに異議申し立ていたしません。"
+        )
     r += 1
-    for line in PLEDGE_LINES:
+    for line in pledge_lines:
         _merge_set(ws, f"A{r}:F{r}", line, font=base, align=LEFT_TOP)
         ws.row_dimensions[r].height = 34
         r += 1
@@ -151,12 +178,12 @@ def build(data: RestorationData, issuer: dict, options: dict | None = None) -> b
                font=base, align=Alignment(horizontal="right", vertical="center"))
     r += 2
 
-    # 署名欄（入居者）
+    # 署名欄（入居者）※囲み罫線ではなく下罫線
     _merge_set(ws, f"A{r}:A{r}", "住　所", font=bold, align=LEFT)
-    _merge_set(ws, f"B{r}:F{r}", None, align=LEFT, border=True)
+    _merge_set(ws, f"B{r}:F{r}", None, align=LEFT, bottom_border=True)
     r += 2
     _merge_set(ws, f"A{r}:A{r}", "氏　名", font=bold, align=LEFT)
-    _merge_set(ws, f"B{r}:E{r}", None, align=LEFT, border=True)
+    _merge_set(ws, f"B{r}:E{r}", None, align=LEFT, bottom_border=True)
     _merge_set(ws, f"F{r}:F{r}", "印", font=base, align=CENTER)
 
     # A4縦・1ページ幅フィット

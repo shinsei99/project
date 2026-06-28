@@ -114,6 +114,52 @@ if move_in and move_out:
     st.info(f"📅 入居期間: **{tmp.residence_label}**（{tmp.residence_days}日 / {tmp.residence_years}年）")
 
 
+# ---- 誓約書（基本情報のみで出力可。立会い時に入居者へ署名させる）----
+with st.expander("📝 退去時確認書兼誓約書を出力（基本情報のみでOK・立会い時の署名用）", expanded=False):
+    st.caption(
+        "退去立会いで損耗・残置物等が確認された場合に、入居者へ署名してもらう誓約書です。"
+        "修繕箇所は手書き用に空欄で出力し、計算済みの場合は入居者負担項目を自動転記します。"
+    )
+    pc1, pc2, pc3 = st.columns(3)
+    with pc1:
+        pledge_keys = st.text_input("鍵の返却本数", value="", key="pledge_keys")
+        pledge_key_cost = st.number_input("カギ交換代（返却不足時・円）", min_value=0, value=0, step=1000, key="pledge_keycost")
+    with pc2:
+        pledge_smoke = st.radio("喫煙の有無", ["有　　・　　無", "有", "無"], horizontal=True, key="pledge_smoke")
+        pledge_left = st.radio("残置物の有無", ["有　　・　　無", "有", "無"], horizontal=True, key="pledge_left")
+    with pc3:
+        pledge_date = st.date_input("立会日", value=move_out, format="YYYY/MM/DD", key="pledge_date")
+
+    pledge_data = RestorationData(
+        tenant_name=tenant_name, property_name=property_name, room_number=room_number,
+        property_address=property_address, move_in_date=move_in, move_out_date=move_out,
+        deposit=int(deposit),
+        items=st.session_state["result"].items if "result" in st.session_state else [],
+    )
+    pledge_opts = {
+        "keys_count": pledge_keys,
+        "key_replacement_cost": int(pledge_key_cost),
+        "smoking": pledge_smoke,
+        "leftover": pledge_left,
+        "witness_date": (
+            f"令和{pledge_date.year - 2018}年{pledge_date.month}月{pledge_date.day}日"
+            if pledge_date else ""
+        ),
+    }
+    try:
+        pledge_bytes = pledge_export_service.build(pledge_data, issuer, pledge_opts)
+        pbase = f"{property_name or '物件'}_{room_number or ''}"
+        st.download_button(
+            "📝 誓約書(.xlsx)をダウンロード",
+            data=pledge_bytes,
+            file_name=f"退去時確認書兼誓約書_{pbase}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            type="primary",
+        )
+    except Exception as e:  # noqa: BLE001
+        st.error(f"誓約書の生成に失敗しました: {e}")
+
+
 # ============ 2. 業者見積Excelアップロード ============
 st.header("2. 業者見積書（Excel / PDF）のアップロード")
 uploaded = st.file_uploader(
@@ -295,8 +341,8 @@ if "result" in st.session_state:
     MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     base = f"{data.property_name or '物件'}_{data.room_number or ''}"
 
-    tab_seisan, tab_pledge, tab_doc = st.tabs(
-        ["📄 退去精算書（按分内訳）", "📝 誓約書（入居者署名用）", "🧾 見積書・請求書（賃借人提示用）"]
+    tab_seisan, tab_doc = st.tabs(
+        ["📄 退去精算書（按分内訳）", "🧾 見積書・請求書（賃借人提示用）"]
     )
 
     with tab_seisan:
@@ -312,41 +358,6 @@ if "result" in st.session_state:
             )
         except Exception as e:  # noqa: BLE001
             st.error(f"精算書の生成に失敗しました: {e}")
-
-    with tab_pledge:
-        st.caption(
-            "退去立会い時に損耗が発見された場合、入居者に署名してもらう"
-            "「退去時確認書兼原状回復費用負担誓約書」です。入居者負担の修繕箇所と入居期間を自動転記します。"
-        )
-        pc1, pc2 = st.columns(2)
-        with pc1:
-            keys_count = st.text_input("鍵の返却本数", value="", key="pledge_keys")
-            smoking = st.radio("喫煙の有無", ["有　　・　　無", "有", "無"], horizontal=True, key="pledge_smoke")
-        with pc2:
-            witness_date = st.date_input("立会日", value=data.move_out_date, format="YYYY/MM/DD", key="pledge_date")
-            leftover = st.radio("残置物の有無", ["有　　・　　無", "有", "無"], horizontal=True, key="pledge_left")
-        if not data.property_address:
-            st.info("「物件住所」を入力すると誓約書の物件表示に反映されます（基本情報の入力欄）。")
-        try:
-            pledge_opts = {
-                "keys_count": keys_count,
-                "smoking": smoking,
-                "leftover": leftover,
-                "witness_date": (
-                    f"令和{witness_date.year - 2018}年{witness_date.month}月{witness_date.day}日"
-                    if witness_date else ""
-                ),
-            }
-            pledge_bytes = pledge_export_service.build(data, issuer, pledge_opts)
-            st.download_button(
-                "📝 誓約書(.xlsx)をダウンロード",
-                data=pledge_bytes,
-                file_name=f"退去時確認書兼誓約書_{base}.xlsx",
-                mime=MIME,
-                type="primary",
-            )
-        except Exception as e:  # noqa: BLE001
-            st.error(f"誓約書の生成に失敗しました: {e}")
 
     with tab_doc:
         st.caption("入居者負担額を賃借人へ提示・請求するための見積書／請求書です（負担0円の項目は除外）。本書は誓約書に基づく旨が明記されます。")
