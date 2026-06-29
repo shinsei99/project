@@ -85,6 +85,9 @@ jyuusetsu-research/templates/*.xlsx
 !mail-merge-pro/**
 mail-merge-pro/.build/
 mail-merge-pro/scripts/icon.iconset/
+!tokuyaku-generator/
+!tokuyaku-generator/**
+tokuyaku-generator/.venv/
 
 # --- Build artifacts (all apps) — safety net, never commit these ---
 **/node_modules/
