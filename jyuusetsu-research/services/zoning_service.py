@@ -20,6 +20,18 @@ TIMEOUT = 15
 ZOOM = 13  # 用途地域 API が対応するズーム（11〜15）
 
 
+def get_api_key() -> str:
+    """APIキーを取得（st.secrets 優先、無ければ環境変数 REINFOLIB_API_KEY）。"""
+    try:
+        import streamlit as st
+
+        if "reinfolib_api_key" in st.secrets:
+            return str(st.secrets["reinfolib_api_key"]).strip()
+    except Exception:
+        pass
+    return os.environ.get("REINFOLIB_API_KEY", "").strip()
+
+
 def _deg2tile(lat: float, lon: float, zoom: int) -> Tuple[int, int]:
     """緯度経度 → スリッピーマップのタイル座標 (x, y)。"""
     lat_rad = math.radians(lat)
@@ -70,7 +82,7 @@ def get_zoning(lat: float, lon: float) -> Dict[str, str]:
         "防火地域": "",
         "高度地区": "",
     }
-    api_key = os.environ.get("REINFOLIB_API_KEY", "").strip()
+    api_key = get_api_key()
     if not api_key or lat is None or lon is None:
         return result
 
