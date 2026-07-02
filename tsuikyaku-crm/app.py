@@ -9,7 +9,7 @@
 を行う業務支援アプリ。データは SQLite に永続化（共有フォルダ/LAN運用可）。
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import streamlit as st
@@ -19,6 +19,13 @@ from services import fax
 
 st.set_page_config(page_title="顧客追客マネージャー", page_icon="📇", layout="wide")
 db.init_db()
+
+# 重要度に応じた「次回追客日」の自動提案（重要な客ほど短い間隔で追う）
+NEXT_DAYS = {"高": 15, "中": 30, "低": 60}
+
+
+def suggest_next_date(importance: str) -> date:
+    return date.today() + timedelta(days=NEXT_DAYS.get(importance, 30))
 
 
 # ============================================================ データアクセス
@@ -432,7 +439,10 @@ def render_detail():
             結果 = st.text_input("結果（例：不在／資料送付／前向き／見送り）")
             メモ = st.text_area("メモ", height=70)
             set_n = st.checkbox("次回追客日を更新する", value=True)
-            n_date = st.date_input("次回追客日", value=date.today())
+            _imp = c["重要度"] or "低"
+            n_date = st.date_input(
+                "次回追客日", value=suggest_next_date(_imp),
+                help=f"重要度「{_imp}」→{NEXT_DAYS.get(_imp, 30)}日後を自動提案（変更可）")
             new_status = st.selectbox("ステータスを更新（任意）",
                                       ["（変更しない）"] + db.STATUS)
             rec_by = st.text_input("記録者", me)
@@ -508,7 +518,7 @@ if nav == "🏠 ダッシュボード":
         return conn.execute(q, p).fetchone()[0]
 
     active = "status NOT IN ('成約','見送り')"
-    m = st.columns(5)
+    m = st.columns(6)
     m[0].metric("総顧客数", total)
     m[1].metric("未接触", scalar("SELECT COUNT(*) FROM customers WHERE status='未接触'"))
     m[2].metric("追客中", scalar("SELECT COUNT(*) FROM customers WHERE status='追客中'"))
@@ -517,6 +527,11 @@ if nav == "🏠 ダッシュボード":
         f"SELECT COUNT(*) FROM customers WHERE 次回追客日<>'' AND 次回追客日<=? AND {active}",
         (today,))
     m[4].metric("⏰ 要追客（期限到来）", overdue)
+    # 放置検知：次回追客日が未設定のまま追客リストから漏れている active 客
+    neglected_n = scalar(
+        f"SELECT COUNT(*) FROM customers "
+        f"WHERE (次回追客日 IS NULL OR 次回追客日='') AND {active}")
+    m[5].metric("🕳 放置（未設定）", neglected_n)
     conn.close()
 
     st.divider()
@@ -542,6 +557,48 @@ if nav == "🏠 ダッシュボード":
             open_detail(cid); st.rerun()
     else:
         st.success("追客期限が来ている先はありません。")
+
+    st.divider()
+    # ---- 放置検知：次回追客日が未設定で「期限到来リスト」に永遠に出てこない客 ----
+    nq_where = ["(次回追客日 IS NULL OR 次回追客日='')", active]
+    nq_params = []
+    if only_mine and me:
+        nq_where.append("社内担当=?"); nq_params.append(me)
+    conn = db.connect()
+    neglected = conn.execute(
+        f"""SELECT c.id, c.重要度, c.会社名, c.店名, c.種別,
+                   c.社内担当, c.status, c.tel, c.fax,
+                   (SELECT MAX(h.日付) FROM contact_history h
+                     WHERE h.customer_id=c.id) AS 最終接触日
+              FROM customers c
+             WHERE {' AND '.join(nq_where)}
+             ORDER BY (最終接触日 IS NOT NULL), 最終接触日,
+                      CASE c.重要度 WHEN '高' THEN 0 WHEN '中' THEN 1 ELSE 2 END""",
+        tuple(nq_params)).fetchall()
+    conn.close()
+    st.subheader(f"🕳 放置検知：次回追客日が未設定（{len(neglected)}件）")
+    st.caption("次回追客日が入っておらず、上の期限到来リストに永遠に出てこない先。"
+               "最終接触が古い（＝長く放置している）順。")
+    if neglected:
+        rows = []
+        for r in neglected:
+            last = r["最終接触日"]
+            if last:
+                keika = f"{(date.today() - date.fromisoformat(last)).days}日前"
+            else:
+                keika = "未接触"
+            d = dict(r); d["最終接触"] = keika; d.pop("最終接触日", None)
+            rows.append(d)
+        df = pd.DataFrame(rows)[["id", "重要度", "最終接触", "会社名", "店名",
+                                 "種別", "社内担当", "status", "tel", "fax"]]
+        st.dataframe(df, use_container_width=True, hide_index=True)
+        ncid = st.selectbox("開く顧客", [r["id"] for r in neglected], key="neg_open",
+                            format_func=lambda i: next(f"{r['会社名']} {r['店名']}"
+                                                       for r in neglected if r["id"] == i))
+        if st.button("▶ この顧客の詳細を開く", key="neg_btn"):
+            open_detail(ncid); st.rerun()
+    else:
+        st.success("次回追客日が未設定の放置客はいません。")
 
     st.divider()
     st.subheader("最近の対応履歴")
@@ -832,6 +889,28 @@ elif nav == "📠 一括FAX追客":
     also_next = st.checkbox("送付先の次回追客日を設定する", value=True)
     next_days = st.number_input("何日後に設定するか", 1, 90, 14)
 
+    # 送信ペース（スパム対策）：N通ごとに休止＋1通ごとにディレイ
+    st.markdown("##### 📦 送信ペース（スパム対策）")
+    _bsize_def = int(db.get_setting("efax_batch_size", "50") or 50)
+    _bpause_def = int(db.get_setting("efax_batch_pause", "60") or 60)
+    _delay_def = float(db.get_setting("efax_msg_delay", "1") or 1)
+    _bc = st.columns(3)
+    batch_size = _bc[0].number_input("1回に送る通数", 1, 500, _bsize_def,
+                                     key="fax_batch_size")
+    batch_pause = _bc[1].number_input("次の送信までの休止（秒）", 0, 3600, _bpause_def,
+                                      key="fax_batch_pause")
+    msg_delay = _bc[2].number_input("1通ごとの間隔（秒）", 0.0, 10.0, _delay_def,
+                                    step=0.5, key="fax_msg_delay")
+    _nbatch = -(-len(selected) // batch_size) if selected else 0
+    _cap = (f"{batch_size}通ごとに止めて{batch_pause}秒休止し、送信中も1通ごとに"
+            f"{msg_delay}秒あけます（連続送信によるスパム判定・SMTP制限を回避）。")
+    if selected:
+        _sec = (_nbatch - 1) * batch_pause + len(selected) * msg_delay
+        _cap += f" → 選択{len(selected)}件で所要 約{round(_sec / 60, 1)}分（約{_nbatch}回に分割）。"
+    st.caption(_cap)
+    st.caption("※CSV書き出し方式にはこの分割は関係ありません（自動送信のみ）。"
+               "既定値は⚙️設定で変更できます。")
+
     st.caption(f"送信対象: 選択した {len(selected)} 件")
 
     # 実行 → 確認画面 → 確定送信 の2段階
@@ -880,8 +959,22 @@ elif nav == "📠 一括FAX追客":
                 st.download_button("⬇ 送付リストCSVをダウンロード", data,
                                    "fax_broadcast.csv", "text/csv")
             else:
-                with st.spinner("eFAXメール送信中…"):
-                    results = fax.send_broadcast(selected, subject, body, attachment)
+                prog = st.progress(0.0)
+                stat = st.empty()
+
+                def _cb(done, total, phase, remaining=0):
+                    prog.progress(done / total if total else 1.0)
+                    if phase == "pausing":
+                        stat.info(f"⏸ スパム対策で休止中… 次のバッチまで残り {remaining}秒"
+                                  f"（{done}/{total} 送信済み）")
+                    else:
+                        stat.write(f"📤 送信中… {done}/{total}")
+
+                results = fax.send_broadcast(
+                    selected, subject, body, attachment,
+                    batch_size=int(batch_size), batch_pause_sec=int(batch_pause),
+                    per_msg_delay_sec=float(msg_delay), progress=_cb)
+                stat.empty(); prog.empty()
                 ok = [r for r in results if r["ok"]]
                 ng = [r for r in results if not r["ok"]]
                 sent_rows = [r for r in selected if r["id"] in {x["id"] for x in ok}]
@@ -1014,6 +1107,17 @@ elif nav == "⚙️ 設定":
                            help="Gmailの場合はアプリパスワード")
         frm = st.text_input("送信元メールアドレス", db.get_setting("smtp_from", ""))
         tls = st.checkbox("TLSを使う", db.get_setting("smtp_tls", "1") == "1")
+        st.markdown("**送信ペース（スパム対策の既定値）**")
+        bcol = st.columns(3)
+        bsize = bcol[0].text_input("1バッチの通数",
+                                   db.get_setting("efax_batch_size", "50"),
+                                   help="この通数ごとに送信を止めます（既定50）")
+        bpause = bcol[1].text_input("バッチ間の休止秒数",
+                                    db.get_setting("efax_batch_pause", "60"),
+                                    help="次のバッチまで空ける秒数（既定60＝1分）")
+        bdelay = bcol[2].text_input("1通ごとの間隔秒数",
+                                    db.get_setting("efax_msg_delay", "1"),
+                                    help="送信中に1通ごとに空ける秒数（既定1秒）")
         if st.form_submit_button("💾 保存"):
             db.set_setting("efax_gateway", gw)
             db.set_setting("efax_country_code", cc)
@@ -1023,6 +1127,9 @@ elif nav == "⚙️ 設定":
             db.set_setting("smtp_password", pw)
             db.set_setting("smtp_from", frm)
             db.set_setting("smtp_tls", "1" if tls else "0")
+            db.set_setting("efax_batch_size", (bsize.strip() or "50"))
+            db.set_setting("efax_batch_pause", (bpause.strip() or "60"))
+            db.set_setting("efax_msg_delay", (bdelay.strip() or "1"))
             st.success("保存しました。")
     st.caption("状態: " + ("✅ 送信可能" if fax.smtp_ready() else "⚠ 未設定（CSV書き出しは利用可）"))
 

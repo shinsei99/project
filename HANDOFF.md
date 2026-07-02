@@ -56,6 +56,10 @@ npm run dev                 # http://localhost:3000
 - 起動：`cd tsuikyaku-crm && pip install -r requirements.txt`（初回のみ `python import_accdb.py <accdb>`）→ `python3 -m streamlit run app.py --server.port 8515`。社内共有は `TSUIKYAKU_DB` で共有フォルダ指定 or `--server.address 0.0.0.0`。テスト：`python smoke_test.py`（全ページ＋クレンジング）。
 - **別PCへの引き継ぎ手順**：①`git pull` でコード取得 ②`pip install -r requirements.txt` ③このPCで **⚙️設定→エクスポート(4242)** した `tsuikyaku_backup_*.db` を別PCへ ④別PCで起動後 **⚙️設定→インポート** で復元（または `data/customers.db` に置く）。⑤設定（eFAXゲートウェイ/SMTP/自社情報/担当者マスタ）はDBに入るので復元すれば引き継がれる。
 - **未対応/メモ**：Python 3.9系（`tuple|None`等は`from __future__ import annotations`で回避）。物件マスタ112件は未活用（将来「物件が出たら該当客へ一括FAX」の物件連動が拡張余地）。自動分類で拾えない詳細種別（おむすび→その他等）は個別修正 or `db.py`のキーワード追加。
+- **追客改良（2026-07-03）★app.pyとservices/fax.pyのみ変更・DBスキーマ不変**：
+  - **放置検知**：ダッシュボードに「🕳 次回追客日が未設定のactive客」を炙り出すセクション＋メトリクスを追加。従来は「次回追客日≤今日」しか出ず未設定客が永遠に漏れていた（導入時684件中658件が未設定）。最終接触が古い順（未接触が先頭）に並べ経過日数を表示。SQLは overdue/放置/予定/完了 が総数と完全一致するよう設計。
+  - **次回追客日の自動提案**：追客記録フォームで重要度に応じ既定日を自動セット。`NEXT_DAYS = {"高":15, "中":30, "低":60}`（＝高15日/中30日/低60日ごと）、`suggest_next_date()`。手入力での変更も可。
+  - **一括FAXのバッチ送信（スパム対策）**：`fax.send_broadcast` を batch_size/batch_pause_sec/per_msg_delay_sec/progress 対応に拡張。**既定＝50通ごとに60秒休止＋1通ごと1秒**（⚙️設定の `efax_batch_size`/`efax_batch_pause`/`efax_msg_delay` に保存、送信画面でも都度変更可）。**バッチ毎にSMTP接続を張り直し**、送信中は進捗バー＋「次のバッチまで残り○秒」カウントダウン表示。旧実装は全件を1接続で連続送信していた。送信元がGmail無料は約500通/日・Workspaceは約2000通/日が上限の目安。
 
 ### 新規アプリ：ai-ticket-counter（AI受付＆起票カウンター）★今回コミット
 - 社内18アプリへの**不具合報告・改善要望・新アプリ希望**をチャットで受け付け、`claude` CLI が**対話でヒアリング**→**自動起票**→**報告書メール作成**する受付システム。**Python + FastAPI**（port 8600）。
