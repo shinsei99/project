@@ -40,6 +40,21 @@ npm run dev                 # http://localhost:3000
 - **AI抽出を使うには** claude CLI が必要（`~/.local/bin/claude` 等。無ければ抽出はエラーになるが他機能は動作）。
 - **既知**：`AiExtractButton`等の既存部屋コンポーネントに無害なTS2367（`step==="applying"`比較）が残存。ビルドには影響しない範囲。migrationsフォルダはschemaと未同期のため必ず `db push` を使う。
 
+### mail-merge-pro（Mac一斉メール送信）：送信間隔を統一 ★今回コミット e4fd383
+- **これは何**：Mac専用ネイティブの一斉メール送信アプリ（SwiftUI+MVVM、Swift Package）。SMTP不要で **Apple Mail を AppleScript 制御**して送る。`{name}` 差し込み・複数添付・送信元アカウント選択・テスト送信成功まで本番ロック・送信後は専用フォルダ「Mail Merge Pro 送信済み」へ自動隔離。
+- **今回の変更**：送信間隔を tsuikyaku-crm と統一。**1通ごと1秒＋50通ごと60秒（1分）休止**（スパム対策）。`Sources/MailMergePro/ViewModels/SendSettings.swift` に `perMessageDelaySeconds`（既定1）を追加、`intervalSeconds` 既定を 30→60 に変更。送信ループ `MailMergeViewModel.runBatchSend()` でバッチ内も1通ごとに `Task.sleep`（キャンセル対応）。
+- **間隔の変更方法**：送信間隔のUI設定画面は未実装。値を変えるなら `SendSettings.default`（および `init` の既定引数）を編集する。将来UIで可変にするなら `viewModel.settings` を編集させれば `perMessageDelaySeconds` もそのまま効く。
+- **引き継ぎ・ビルド手順**（別Mac）：
+  ```bash
+  git pull
+  cd mail-merge-pro
+  ./scripts/make-app.sh      # ユニバーサル(arm64+x86_64)ビルド＋アドホック署名 → ~/Desktop/Mail Merge Pro.app
+  # 型チェックだけなら swift build。macOS 14+ / Xcode(Swift toolchain) 必須。
+  ```
+  初回起動時に **Apple Mail の自動化許可**（システム設定→プライバシーとセキュリティ→オートメーション）が要る。ローカルビルドなのでGatekeeper警告は出ない。
+- **データ**：宛先CSV・テンプレJSONは Application Support にローカル保存（PC毎）。git対象外なので移行不要（各PCで読み込み直す）。
+- **未検証**：送信済みフォルダ隔離は「指定アカウントSentから一定時間内送信分を移動」方式。実機で数通送って隔離が狙い通りか要確認。
+
 ---
 
 ## 2026-07-02 セッションの作業
