@@ -45,7 +45,7 @@ private struct StartView: View {
                 Image(systemName: "photo.on.rectangle.angled")
                     .font(.system(size: 66, weight: .light))
                     .foregroundStyle(.tint)
-                Text("写真マークアップ")
+                Text("フォトリメイク")
                     .font(.title.bold())
                 Text("写真に文字・矢印を入れて、明るさやシャープも整えます")
                     .font(.subheadline)
