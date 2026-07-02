@@ -1,6 +1,44 @@
 # 引き継ぎメモ（別PCで作業を続けるために）
 
-最終更新：2026-07-02
+最終更新：2026-07-03
+
+---
+
+## 2026-07-03 セッションの作業（building-manager を大幅強化）★未コミット→本セッションでコミット予定
+
+対象アプリ：**building-manager（マンションビル管理／物件管理システム）**。Next.js16+Prisma7+SQLite、port 3000。この日の変更は全て `building-manager/` 配下。
+
+### 主な追加・変更
+1. **建物レベルのAI抽出**：部屋のAI自動入力と同方式で、マイソク/謄本/Excel資料から**建物情報**を抽出。
+   - 項目の単一情報源 `src/lib/buildingFields.ts`（共通＋マンション/ビル/駐車場の種別専用項目）。API `POST /api/buildings/[id]/ai-extract`（claude CLI sonnet）。UI `AiBuildingExtractButton`。**最大5枚同時アップ＆統合判断**（謄本=面積/権利、マイソク=交通/設備を優先、食い違いはnotesに記録）。
+   - **claude CLIパス解決を共通化** `src/lib/claudeBin.ts`（`~/.local/bin`→`/opt/homebrew/bin`→PATH、`CLAUDE_BIN`で上書き可）。旧`/opt/homebrew/bin`固定だと本機でENOENTだった。部屋ルートも同修正。
+   - **Office(xlsx/xls/docx)はテキスト変換必須**（claude Readはバイナリ不可）。前処理 `sheet_to_text.py`（openpyxl/xlrd/python-docx）。ルートの `prepareForClaude()` がOffice→テキスト、PDF/画像→向き補正を振り分け。
+2. **建物カテゴリを4種化**：マンション/ビル/駐車場/その他（`BUILDING_TYPES`）。駐車場は専用項目＋ラベルを「駐車場詳細/契約者一覧/区画」に（`src/lib/labels.ts`）。
+3. **管理/仲介 区分**：`Building.handling`。ダッシュボードにバッジ、建物詳細にプルダウン（`HandlingSelect`/`setBuildingHandling`）。
+4. **部屋ステータス「空室」→「募集中」に全面リネーム**（既存DB行も移行）。
+5. **ダッシュボード刷新**：全体合算カードは廃止し、**各建物カードに4指標（総/入居中/募集中/リフォーム中）＋管理仲介バッジ**。トップは**募集中の部屋のみ**表示。
+6. **オーナーをエンティティ化（1人が複数物件所有可）**：`Owner`モデル＋`Building.ownerId`。`/owners`一覧・登録、`/owners/[id]`詳細（所有物件一覧）、建物詳細の `OwnerCard`（既存選択/新規作成/他N件所有表示）。項目=法人名/名前/住所/電話/FAX/メール/備考。
+7. **建物詳細と部屋一覧をページ分割**：`/buildings/[id]`＝建物情報＋オーナー、`/buildings/[id]/rooms`＝部屋(区画)一覧。
+8. **設定画面 `/settings`（エクスポート/インポート）**：
+   - **全データJSONバックアップ**（7テーブル完全保存/復元）＝`/api/export|import/all`。
+   - **DB別Excel**（建物／部屋+入居者／オーナー）＝`/api/export|import/[kind]`。列定義は `src/lib/dataTables.ts`。取込はID一致でupsert・ID空で新規。往復＆入居者復元まで検証済み。
+   - **全エクスポートは暗証番号4242必須**（APIが`?pin=4242`検証、設定画面は解除するまでロック）。
+9. 用語整理：このアプリの「請求(Invoice)」は家賃でなく**修繕費の請求書/領収書の保管管理**。部屋詳細のボタンを「AI修繕請求書読込」に改称。
+
+### 別PCでのセットアップ（building-manager）
+```bash
+cd ~/building-manager
+npm install
+# .env に DATABASE_URL="file:./prisma/dev.db"（既存）
+npx prisma generate
+npx prisma db push          # ← 今回のスキーマ変更(Owner追加・handling・建物/駐車場カラム等)を反映。migrateは使わない
+npx tsx prisma/seed.mts     # サンプルデータ（任意）
+npm run dev                 # http://localhost:3000
+# Python前処理を使うなら: pip3 install openpyxl xlrd python-docx pymupdf pillow
+```
+- **データ移行**：現状は**サンプルデータのみ**なので移行不要。別PCでは `db push`＋`seed` で新規に用意すればOK。将来実データを移すときは ⚙️設定→全データエクスポート(JSON, 暗証4242) で持ち出し→別PCで ⚙️設定→インポート で復元。
+- **AI抽出を使うには** claude CLI が必要（`~/.local/bin/claude` 等。無ければ抽出はエラーになるが他機能は動作）。
+- **既知**：`AiExtractButton`等の既存部屋コンポーネントに無害なTS2367（`step==="applying"`比較）が残存。ビルドには影響しない範囲。migrationsフォルダはschemaと未同期のため必ず `db push` を使う。
 
 ---
 

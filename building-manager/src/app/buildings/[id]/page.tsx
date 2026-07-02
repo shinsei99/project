@@ -1,113 +1,89 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { StatusBadge } from "@/components/StatusBadge";
-import { AddRoomButton } from "./AddRoomButton";
 import { EditBuildingButton } from "./EditBuildingButton";
+import { EditBuildingInfoButton } from "./EditBuildingInfoButton";
+import { AiBuildingExtractButton } from "./AiBuildingExtractButton";
 import { DeleteBuildingButton } from "./DeleteBuildingButton";
-import { DeleteRoomButton } from "./DeleteRoomButton";
+import { HandlingSelect } from "./HandlingSelect";
+import { OwnerCard } from "./OwnerCard";
+import { BuildingInfoPanel } from "@/components/BuildingInfoPanel";
+import { unitsLabel } from "@/lib/labels";
 
 export default async function BuildingDetailPage(props: PageProps<"/buildings/[id]">) {
   const { id } = await props.params;
   const building = await prisma.building.findUnique({
     where: { id },
     include: {
-      rooms: {
-        include: { tenant: true, repairs: true },
-        orderBy: [{ floor: "asc" }, { roomNumber: "asc" }],
-      },
+      owner: { include: { _count: { select: { buildings: true } } } },
+      _count: { select: { rooms: true } },
     },
   });
   if (!building) notFound();
 
+  const allOwners = await prisma.owner.findMany({
+    select: { id: true, company: true, name: true },
+    orderBy: { createdAt: "asc" },
+  });
+
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="mb-1">
             <Link href={`/?type=${building.type}`} className="text-sm text-blue-600 hover:underline">
               ← {building.type}一覧
             </Link>
           </div>
-          <h1 className="text-2xl font-bold text-slate-800">{building.name}</h1>
-          {building.address && (
-            <p className="text-sm text-slate-400 mt-1">{building.address}</p>
-          )}
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-2xl font-bold text-slate-800">{building.name}</h1>
+            <HandlingSelect buildingId={building.id} value={building.handling} />
+          </div>
+          {building.address && <p className="text-sm text-slate-400 mt-1">{building.address}</p>}
         </div>
-        <div className="flex items-center gap-2">
-          <AddRoomButton buildingId={building.id} />
-          <EditBuildingButton
-            buildingId={building.id}
-            name={building.name}
-            type={building.type}
-            address={building.address}
-          />
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <AiBuildingExtractButton buildingId={building.id} buildingType={building.type} />
+          <EditBuildingInfoButton buildingId={building.id} buildingType={building.type} values={building} />
+          <EditBuildingButton buildingId={building.id} name={building.name} type={building.type} address={building.address} />
           <DeleteBuildingButton buildingId={building.id} buildingName={building.name} />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        <div className="px-6 py-4 border-b">
-          <h2 className="font-semibold text-slate-700">部屋一覧（{building.rooms.length}室）</h2>
+      {/* 部屋一覧/契約者一覧への導線 */}
+      <Link
+        href={`/buildings/${building.id}/rooms`}
+        className="flex items-center justify-between bg-slate-800 text-white rounded-xl px-6 py-4 shadow hover:bg-slate-700 transition-colors"
+      >
+        <div>
+          <p className="font-semibold">🚪 {unitsLabel(building.type)}・管理</p>
+          <p className="text-xs text-slate-300 mt-0.5">
+            {building.type === "駐車場" ? "区画・契約者・修繕・請求書の管理はこちら" : "部屋・入居者・修繕・請求書の管理はこちら"}
+          </p>
         </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
-              <tr>
-                <th className="px-4 py-3 text-left">部屋番号</th>
-                <th className="px-4 py-3 text-left">階</th>
-                <th className="px-4 py-3 text-left">間取り</th>
-                <th className="px-4 py-3 text-left">面積</th>
-                <th className="px-4 py-3 text-left">賃料</th>
-                <th className="px-4 py-3 text-left">ステータス</th>
-                <th className="px-4 py-3 text-left">入居者</th>
-                <th className="px-4 py-3 text-left">修繕</th>
-                <th className="px-4 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {building.rooms.map((room) => (
-                <tr key={room.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <Link href={`/rooms/${room.id}`} className="text-blue-600 hover:underline font-medium">
-                      {room.roomNumber}号室
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">{room.floor}F</td>
-                  <td className="px-4 py-3">{room.layout}</td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {room.squareMeters ? `${room.squareMeters}㎡` : "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {room.rent ? `¥${room.rent.toLocaleString()}` : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={room.status} />
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{room.tenant?.name ?? "—"}</td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {room.repairs.length > 0 ? `${room.repairs.length}件` : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <DeleteRoomButton
-                      roomId={room.id}
-                      buildingId={building.id}
-                      roomNumber={room.roomNumber}
-                    />
-                  </td>
-                </tr>
-              ))}
-              {building.rooms.length === 0 && (
-                <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-slate-400">
-                    部屋がありません。「+ 部屋を追加」から登録してください。
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+        <span className="text-sm">{building._count.rooms}{building.type === "駐車場" ? "区画" : "室"} →</span>
+      </Link>
+
+      <BuildingInfoPanel buildingType={building.type} values={building} />
+
+      <OwnerCard
+        buildingId={building.id}
+        allOwners={allOwners}
+        owner={
+          building.owner
+            ? {
+                id: building.owner.id,
+                company: building.owner.company,
+                name: building.owner.name,
+                address: building.owner.address,
+                phone: building.owner.phone,
+                fax: building.owner.fax,
+                email: building.owner.email,
+                note: building.owner.note,
+                buildingCount: building.owner._count.buildings,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

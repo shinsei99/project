@@ -16,7 +16,7 @@ export function AddRoomButton({ buildingId }: { buildingId: string }) {
         roomNumber: fd.get("roomNumber") as string,
         floor: "",
         layout: "",
-        status: "空室",
+        status: "募集中",
         squareMeters: "",
         rent: "",
       });

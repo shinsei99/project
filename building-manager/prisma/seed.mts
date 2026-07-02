@@ -18,14 +18,14 @@ async function main() {
     data: { name: "サンプルマンション", type: "マンション", address: "東京都渋谷区1-1-1" },
   });
   await prisma.room.create({
-    data: { buildingId: mansion.id, roomNumber: "101", floor: 1, layout: "1K", status: "空室", squareMeters: 25.5, rent: 65000 },
+    data: { buildingId: mansion.id, roomNumber: "101", floor: 1, layout: "1K", status: "募集中", squareMeters: 25.5, rent: 65000 },
   });
 
   const building = await prisma.building.create({
     data: { name: "サンプルビル", type: "ビル", address: "東京都新宿区2-2-2" },
   });
   await prisma.room.create({
-    data: { buildingId: building.id, roomNumber: "101", floor: 1, layout: "事務所", status: "空室", squareMeters: 50.0, rent: 150000 },
+    data: { buildingId: building.id, roomNumber: "101", floor: 1, layout: "事務所", status: "募集中", squareMeters: 50.0, rent: 150000 },
   });
 
   console.log("Seed complete!");

@@ -12,9 +12,71 @@ model Building {
   name      String
   type      String
   address   String?
+  handling  String? // 自社の関与区分（管理 / 仲介）
+
+  // 共通（賃貸資料・謄本からAI抽出）
+  access            String? // 交通・最寄駅
+  structure         String? // 構造・規模（例: 鉄骨造 9階建）
+  builtDate         String? // 築年月（例: 1987-03）
+  landArea          Float?  // 敷地面積 ㎡
+  totalFloorArea    Float?  // 延床面積 ㎡
+  parkingCount      Int?    // 駐車場台数
+  managementCompany String? // 管理会社
+  facilities        String? // 共用設備（フリーテキスト）
+  note              String? // 備考
+
+  // マンション専用
+  totalUnits     Int?     // 総戸数
+  rentalUnits    Int?     // 賃貸戸数
+  managementForm String?  // 管理形態（全部委託/一部委託/自主管理）
+  managerType    String?  // 管理員（常駐/日勤/巡回/なし）
+  managementFee  Int?     // 管理費（月額）
+  repairReserve  Int?     // 修繕積立金（月額）
+  autoLock       Boolean? // オートロック
+  deliveryBox    Boolean? // 宅配ボックス
+  hasElevator    Boolean? // エレベーター有無
+
+  // ビル専用
+  rentableArea      Float?  // 貸室総面積 ㎡
+  standardFloorArea Float?  // 基準階面積 ㎡
+  zoning            String? // 用途地域
+  elevatorCount     Int?    // エレベーター基数
+  hvacType          String? // 空調方式（セントラル/個別）
+  rentPerTsubo      Int?    // 想定賃料 坪単価
+  commonFeePerTsubo Int?    // 共益費 坪単価
+  securityCompany   String? // 警備会社
+  fireInspector     String? // 消防点検業者
+
+  // 駐車場専用
+  parkingType  String?  // 駐車場種別（平面/自走式/機械式）
+  totalSpaces  Int?     // 総区画数
+  vacantSpaces Int?     // 空き区画数
+  monthlyRate  Int?     // 月極賃料
+  carSize      String?  // 車室寸法・制限
+  hasRoof      Boolean? // 屋根あり
+
+  // オーナー（Ownerモデルへのリレーション。1オーナーが複数物件を所有可）
+  ownerId String?
+  owner   Owner?  @relation(fields: [ownerId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   rooms     Room[]
+}
+
+// 物件オーナー（1人が複数物件を所有しうるので独立エンティティ）
+model Owner {
+  id        String     @id @default(cuid())
+  company   String? // 法人名
+  name      String // 名前（個人名 or 代表者名）
+  address   String?
+  phone     String?
+  fax       String?
+  email     String?
+  note      String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  buildings Building[]
 }
 
 model Room {
@@ -23,7 +85,7 @@ model Room {
   roomNumber   String
   floor        Int
   layout       String
-  status       String   @default("空室")
+  status       String   @default("募集中")
   squareMeters Float?
   rent         Int?
   createdAt    DateTime @default(now())

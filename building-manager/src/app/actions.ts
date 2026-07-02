@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { BUILDING_FIELD_MAP, coerceBuildingValue } from "@/lib/buildingFields";
 
 export async function updateRoomStatus(roomId: string, status: string) {
   await prisma.room.update({ where: { id: roomId }, data: { status } });
@@ -134,13 +135,14 @@ export async function addRoom(buildingId: string, data: {
       roomNumber: data.roomNumber,
       floor: parseInt(data.floor, 10) || 1,
       layout: data.layout || "—",
-      status: data.status || "空室",
+      status: data.status || "募集中",
       squareMeters: data.squareMeters ? parseFloat(data.squareMeters) : null,
       rent: data.rent ? parseInt(data.rent, 10) : null,
     },
   });
   revalidatePath("/");
   revalidatePath(`/buildings/${buildingId}`);
+  revalidatePath(`/buildings/${buildingId}/rooms`);
   return room.id;
 }
 
@@ -148,7 +150,8 @@ export async function deleteRoom(roomId: string, buildingId: string) {
   await prisma.room.delete({ where: { id: roomId } });
   revalidatePath("/");
   revalidatePath(`/buildings/${buildingId}`);
-  redirect(`/buildings/${buildingId}`);
+  revalidatePath(`/buildings/${buildingId}/rooms`);
+  redirect(`/buildings/${buildingId}/rooms`);
 }
 
 export async function addBuilding(data: { name: string; type: string; address: string }) {
@@ -167,4 +170,95 @@ export async function deleteBuilding(buildingId: string) {
   await prisma.building.delete({ where: { id: buildingId } });
   revalidatePath("/");
   redirect("/");
+}
+
+// 自社の関与区分（管理 / 仲介）を保存。空文字なら未設定(null)。
+export async function setBuildingHandling(buildingId: string, handling: string) {
+  await prisma.building.update({
+    where: { id: buildingId },
+    data: { handling: handling || null },
+  });
+  revalidatePath("/");
+  revalidatePath(`/buildings/${buildingId}`);
+}
+
+// ===== オーナー（1人が複数物件を所有しうる独立エンティティ） =====
+
+type OwnerInput = {
+  company?: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  fax?: string;
+  email?: string;
+  note?: string;
+};
+
+function normalizeOwner(data: OwnerInput) {
+  return {
+    company: data.company?.trim() || null,
+    name: data.name.trim(),
+    address: data.address?.trim() || null,
+    phone: data.phone?.trim() || null,
+    fax: data.fax?.trim() || null,
+    email: data.email?.trim() || null,
+    note: data.note?.trim() || null,
+  };
+}
+
+export async function createOwner(data: OwnerInput, linkBuildingId?: string) {
+  const owner = await prisma.owner.create({ data: normalizeOwner(data) });
+  if (linkBuildingId) {
+    await prisma.building.update({ where: { id: linkBuildingId }, data: { ownerId: owner.id } });
+    revalidatePath(`/buildings/${linkBuildingId}`);
+  }
+  revalidatePath("/owners");
+  revalidatePath("/");
+  return owner.id;
+}
+
+export async function updateOwner(ownerId: string, data: OwnerInput) {
+  await prisma.owner.update({ where: { id: ownerId }, data: normalizeOwner(data) });
+  revalidatePath("/owners");
+  revalidatePath(`/owners/${ownerId}`);
+  revalidatePath("/");
+}
+
+export async function deleteOwner(ownerId: string) {
+  // 紐づく物件は ownerId を外す（物件自体は残す）
+  await prisma.building.updateMany({ where: { ownerId }, data: { ownerId: null } });
+  await prisma.owner.delete({ where: { id: ownerId } });
+  revalidatePath("/owners");
+  revalidatePath("/");
+}
+
+// 物件にオーナーを割当（空文字で解除）
+export async function setBuildingOwner(buildingId: string, ownerId: string) {
+  await prisma.building.update({
+    where: { id: buildingId },
+    data: { ownerId: ownerId || null },
+  });
+  revalidatePath("/");
+  revalidatePath(`/buildings/${buildingId}`);
+  revalidatePath("/owners");
+}
+
+// 建物レベルの詳細情報（構造・築年・戸数・オーナー等）を保存する。
+// キーは BUILDING_FIELDS のものだけ受け付け、定義に沿って型変換する。
+export async function updateBuildingInfo(buildingId: string, data: Record<string, unknown>) {
+  const payload: Record<string, unknown> = {};
+  for (const [key, raw] of Object.entries(data)) {
+    if (key === "address") {
+      // 住所は identity ではないので info 経由でも更新可
+      payload.address = raw ? String(raw) : null;
+      continue;
+    }
+    const def = BUILDING_FIELD_MAP[key];
+    if (!def) continue; // 未知キー(name/type)は無視。identity変更は updateBuilding 側
+    payload[key] = coerceBuildingValue(def, raw);
+  }
+  if (Object.keys(payload).length === 0) return;
+  await prisma.building.update({ where: { id: buildingId }, data: payload });
+  revalidatePath("/");
+  revalidatePath(`/buildings/${buildingId}`);
 }

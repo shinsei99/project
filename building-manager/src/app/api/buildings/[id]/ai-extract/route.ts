@@ -4,7 +4,7 @@ import { promisify } from "util";
 import { mkdtempSync, writeFileSync, rmSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-
+import { BUILDING_FIELDS } from "@/lib/buildingFields";
 import { resolveClaudeBin } from "@/lib/claudeBin";
 
 const execFileAsync = promisify(execFile);
@@ -31,7 +31,7 @@ async function correctOrientation(filePath: string): Promise<void> {
  * claude が読める形にファイルを整える。
  * - Office系(xlsx/xls/docx): テキスト(.txt)へ変換し、そのファイル名を返す
  * - PDF/画像: 向き補正して元のファイル名を返す
- * 変換失敗時は元ファイル名を返す（claude 側でエラー説明が返る）。
+ * 変換に失敗した場合は元ファイル名を返す（claude 側でエラー説明が返る）。
  */
 async function prepareForClaude(dir: string, name: string): Promise<string> {
   if (OFFICE_EXT.test(name)) {
@@ -40,7 +40,7 @@ async function prepareForClaude(dir: string, name: string): Promise<string> {
       await execFileAsync("python3", [SHEET_CLI, join(dir, name), join(dir, txtName)], { timeout: SHEET_TIMEOUT_MS });
       return txtName;
     } catch (e) {
-      console.warn("[ai-extract] sheet変換失敗:", name, e instanceof Error ? e.message : e);
+      console.warn("[building-ai-extract] sheet変換失敗:", name, e instanceof Error ? e.message : e);
       return name;
     }
   }
@@ -48,75 +48,66 @@ async function prepareForClaude(dir: string, name: string): Promise<string> {
   return name;
 }
 
+// BUILDING_FIELDS からAIに渡す項目説明を生成（単一情報源と同期）
+function fieldSpecLine(f: (typeof BUILDING_FIELDS)[number]): string {
+  const typeHint =
+    f.type === "int" || f.type === "float"
+      ? "数字のみ（単位・カンマ不要、不明はnull）"
+      : f.type === "bool"
+        ? "true / false（記載があれば。不明はnull）"
+        : "文字列（不明はnull）";
+  const scope = f.scope === "common" ? "共通" : `${f.scope}のみ`;
+  return `  "${f.key}": ${typeHint},  // ${f.label}（${scope}）`;
+}
+
+const FIELD_BLOCK = BUILDING_FIELDS.map(fieldSpecLine).join("\n");
+
 const PROMPT = `
-以下のファイル群は、同一の賃貸物件に関する書類です（契約書・重要事項説明書・CHECK表・申込書・身分証・保証会社書類など）。
-すべてのファイルを読み込み、物件管理システムへの登録に必要な情報を抽出してください。
+以下のファイル群（最大5件）は、同一の物件（マンション／ビル／駐車場／その他）に関する複数の書類です（賃貸募集資料・マイソク・登記簿謄本・重要事項説明書・パンフレット等）。
+すべてのファイルを突き合わせて総合的に判断し、物件管理システムの「建物情報」に登録すべき情報を1件分として統合抽出してください。
+※部屋ごとの入居者情報ではなく、建物そのものの情報（構造・築年・戸数・設備・所有者など）を対象とします。
+
+【複数書類の統合方針】
+- 各項目は全ファイルを見て「最も確からしい1つの値」を決める（1ファイルに無くても他ファイルにあれば採用）。
+- 情報源の優先順位（値が食い違う場合）:
+  ・面積(敷地/延床)・所有者(オーナー)・構造・築年・戸数・権利関係 → 登記簿謄本を優先
+  ・交通・共用設備・管理会社・管理費/修繕積立金・駐車場・用途地域 → 募集資料(マイソク)/重説を優先
+- 値が食い違った場合は優先ソースを採用し、extractionNotes に「どの項目でどう食い違い、どちらを採ったか」を記録。
+- 仲介業者・管理会社を所有者(オーナー)と混同しない。オーナーは登記簿の所有者欄のみ。
+- 募集資料の賃料・共益費は特定の部屋・区画の金額であることが多い。建物全体の想定坪単価と断定できない場合は rentPerTsubo/commonFeePerTsubo に入れず null。
+- 万一ファイル間で明らかに別建物が混在している場合は、最も情報量の多い建物を主として抽出し、その旨を extractionNotes に明記。
 
 必ず以下のJSON形式のみで返してください。説明文・コードブロック(\`\`\`json等)は一切不要です。JSONだけを返してください。
 
 {
-  "tenant": {
-    "name": "入居者名（フルネーム）",
-    "phone": "電話番号",
-    "email": "メールアドレス（不明はnull）",
-    "contractStart": "YYYY-MM-DD",
-    "contractEnd": "YYYY-MM-DD",
-    "moveInDate": "実際の入居日・鍵渡し日 YYYY-MM-DD（不明はnull）",
-    "occupation": "職業・勤務先名（不明はnull）",
-    "condoFee": 共益費の数字のみ（不明はnull）,
-    "waterFee": 水道代の数字のみ（不明はnull）,
-    "supportFee": 緊急サポート24費用の数字のみ（不明はnull）,
-    "depositAmount": 敷金の数字のみ（不明はnull）,
-    "keyMoney": 礼金の数字のみ（不明はnull）,
-    "renewalFee": 更新料の数字のみ（不明はnull）,
-    "contractPeriodMonths": 契約期間の月数（2年なら24、不明はnull）,
-    "paymentMethod": "銀行振込 or 口座振替 or 保証会社送金 or その他（不明はnull）",
-    "paymentAccountName": "振込名義人カナ（不明はnull）",
-    "emergencyContactName": "緊急連絡先氏名（不明はnull）",
-    "emergencyContactRelation": "続柄（不明はnull）",
-    "emergencyContactPhone": "緊急連絡先電話番号（不明はnull）",
-    "guarantorCompany": "保証会社名（不明はnull）",
-    "guarantorPlan": "加入プラン（不明はnull）",
-    "guarantorContractNumber": "保証契約番号（不明はnull）",
-    "support24": true/false（不明はnull）,
-    "earlyTermination": true/false（不明はnull）,
-    "earlyTerminationDetail": "違約金の詳細説明（不明はnull）",
-    "initialEquipment": "初期付帯設備のメモ（複数あれば改行区切り、不明はnull）"
+  "building": {
+    "name": "建物名称（不明はnull）",
+    "type": "マンション / ビル / 駐車場 / その他 のいずれか（判別できなければnull）",
+    "address": "所在地（不明はnull）",
+${FIELD_BLOCK}
   },
-  "security": {
-    "keyOriginalNumber": "鍵原本番号（不明はnull）",
-    "electronicLockCode": "電子錠暗証番号（不明はnull）"
-  },
-  "repairs": [
-    {
-      "date": "YYYY-MM-DD",
-      "category": "水回り or エアコン or 内装 or 電気 or 設備 or その他",
-      "description": "修繕内容",
-      "contractor": "対応業者名",
-      "costIncludingTax": 費用の数字のみ（税込）,
-      "notes": "備考（不明はnull）"
-    }
-  ],
   "extractionNotes": "抽出できなかった情報や特記事項（なければnull）"
 }
 
 注意事項:
 - 情報が見つからない項目は必ずnull（空文字列ではなく）
-- 金額は数字のみ（¥マーク・カンマ不要）
-- 日付はYYYY-MM-DD形式
-- repairs は修繕・工事関連書類がある場合のみ。なければ空配列 []
+- 金額・面積・戸数などは数字のみ（¥・㎡・カンマ・「戸」等の単位不要）
+- builtDate（築年月）は "YYYY-MM" 形式（例: 1987年03月 → "1987-03"）
+- structure（構造・規模）は「鉄骨造 9階建」のように構造＋階数をまとめて
+- facilities（共用設備）はメールボックス・EV・オートロック等をカンマ区切りで
+- autoLock/deliveryBox/hasElevator は共用設備の記載から true/false 判定
+- オーナー名・住所は登記簿謄本の所有者欄から。電話/メールは書類に無ければnull
+- マンション専用項目・ビル専用項目は、判別した種別に合うものだけ埋め、他はnullで可
 - 返答はJSONのみ。前後の説明・\`\`\`json等のマークダウン不要
 
 対象ファイル: {filenames}
 `.trim();
 
 function extractJson(text: string): unknown | null {
-  // ```json ... ``` ブロックを優先して探す
   const codeBlock = text.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (codeBlock) {
     try { return JSON.parse(codeBlock[1].trim()); } catch { /* fall through */ }
   }
-  // { ... } を貪欲マッチで探す
   const braceMatch = text.match(/\{[\s\S]*\}/);
   if (braceMatch) {
     try { return JSON.parse(braceMatch[0]); } catch { /* fall through */ }
@@ -136,7 +127,7 @@ export async function POST(
     return NextResponse.json({ error: "ファイルが選択されていません" }, { status: 400 });
   }
 
-  const tmpDir = mkdtempSync(join(tmpdir(), `building-ai-${id}-`));
+  const tmpDir = mkdtempSync(join(tmpdir(), `building-info-${id}-`));
   const savedNames: string[] = [];
 
   try {
@@ -147,7 +138,6 @@ export async function POST(
         .replace(/_+/g, "_");
       const savedPath = join(tmpDir, safeName);
       writeFileSync(savedPath, buf);
-      // Office系はテキスト化、PDF/画像は向きを自動補正（横向き・逆さでも読めるように）
       const readableName = await prepareForClaude(tmpDir, safeName);
       savedNames.push(readableName);
     }
@@ -160,7 +150,7 @@ export async function POST(
       { cwd: tmpDir, timeout: TIMEOUT_MS },
     );
 
-    if (stderr) console.warn("[ai-extract] stderr:", stderr.slice(0, 500));
+    if (stderr) console.warn("[building-ai-extract] stderr:", stderr.slice(0, 500));
 
     let claudeOutput: { result?: string; [k: string]: unknown };
     try {
@@ -173,7 +163,7 @@ export async function POST(
     const extracted = extractJson(resultText);
 
     if (!extracted) {
-      console.error("[ai-extract] raw result:", resultText.slice(0, 1000));
+      console.error("[building-ai-extract] raw result:", resultText.slice(0, 1000));
       return NextResponse.json({
         error: "AIの応答からJSONを抽出できませんでした。ファイルが読み取れないか、AIが別形式で返答しました。",
         raw: resultText.slice(0, 500),
