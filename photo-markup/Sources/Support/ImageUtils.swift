@@ -25,6 +25,20 @@ extension UIImage {
     }
 }
 
+extension UIImage {
+    /// 正規化矩形（0..1, 左上原点）で切り抜いたコピーを返す。
+    func cropped(to r: CGRect) -> UIImage {
+        guard let cg = cgImage else { return self }
+        let W = CGFloat(cg.width), H = CGFloat(cg.height)
+        let rect = CGRect(x: r.minX * W, y: r.minY * H,
+                          width: r.width * W, height: r.height * H).integral
+        let safe = rect.intersection(CGRect(x: 0, y: 0, width: W, height: H))
+        guard !safe.isNull, safe.width >= 1, safe.height >= 1,
+              let out = cg.cropping(to: safe) else { return self }
+        return UIImage(cgImage: out, scale: scale, orientation: .up)
+    }
+}
+
 /// コンテナ内に aspect-fit で画像を収めたときの実表示矩形を計算する。
 /// 注釈の正規化座標(0..1)を画面座標へ変換する基準に使う。
 func aspectFitRect(imageSize: CGSize, in container: CGSize) -> CGRect {

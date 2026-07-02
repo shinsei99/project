@@ -21,6 +21,7 @@ struct Annotation: Identifiable, Equatable {
     var isBold: Bool = true
     /// フォントサイズ（画像の高さに対する割合）。
     var fontHeightFraction: CGFloat = 0.07
+    var isVertical: Bool = false          // 縦書き
     var hasOutline: Bool = true
     var outlineColorHex: String = "#000000"
     /// 縁取り太さ（フォントptに対する割合 0...0.25）。
@@ -28,16 +29,19 @@ struct Annotation: Identifiable, Equatable {
     var outlineOpacity: CGFloat = 1
     var hasShadow: Bool = false
 
-    // ---- 矢印 ----
-    /// 矢印の長さ（画像短辺に対する割合）。
-    var arrowLengthFraction: CGFloat = 0.32
-    /// 矢印の軸の太さ（長さに対する割合）。
+    // ---- 矢印（尾→先端の2点で定義。向き・長さは2点から決まる）----
+    var arrowStart: CGPoint = CGPoint(x: 0.38, y: 0.58)   // 尾
+    var arrowEnd: CGPoint = CGPoint(x: 0.62, y: 0.42)     // 先端（矢じり）
+    /// 矢印の軸の太さ（長さに対する割合 0.06...0.30）。
     var arrowThicknessRatio: CGFloat = 0.14
 
     static func text(at p: CGPoint = CGPoint(x: 0.5, y: 0.5)) -> Annotation {
         Annotation(kind: .text, position: p)
     }
     static func arrow(at p: CGPoint = CGPoint(x: 0.5, y: 0.5)) -> Annotation {
-        Annotation(kind: .arrow, position: p, colorHex: "#FF2D55")
+        var a = Annotation(kind: .arrow, position: p, colorHex: "#FF2D55")
+        a.arrowStart = CGPoint(x: p.x - 0.13, y: p.y + 0.09)
+        a.arrowEnd = CGPoint(x: p.x + 0.13, y: p.y - 0.09)
+        return a
     }
 }

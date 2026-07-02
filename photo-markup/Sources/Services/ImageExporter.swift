@@ -23,47 +23,38 @@ enum ImageExporter {
     }
 
     private static func draw(_ a: Annotation, in c: CGContext, imageSize: CGSize) {
-        let center = CGPoint(x: a.position.x * imageSize.width,
-                             y: a.position.y * imageSize.height)
-        c.saveGState()
-        c.translateBy(x: center.x, y: center.y)
-        c.rotate(by: CGFloat(a.rotation.radians))
         switch a.kind {
-        case .text: drawText(a, in: c, imageSize: imageSize)
-        case .arrow: drawArrow(a, in: c, imageSize: imageSize)
+        case .text:
+            let center = CGPoint(x: a.position.x * imageSize.width,
+                                 y: a.position.y * imageSize.height)
+            c.saveGState()
+            c.translateBy(x: center.x, y: center.y)
+            c.rotate(by: CGFloat(a.rotation.radians))
+            drawText(a, in: c, imageSize: imageSize)
+            c.restoreGState()
+        case .arrow:
+            drawArrow(a, in: c, imageSize: imageSize)
         }
-        c.restoreGState()
     }
 
     private static func drawText(_ a: Annotation, in c: CGContext, imageSize: CGSize) {
         let pt = max(4, a.fontHeightFraction * imageSize.height)
-        let font = AnnotationFont.uiFont(name: a.fontName, size: pt, bold: a.isBold)
-        var attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: UIColor(hex: a.colorHex),
-        ]
-        if a.hasOutline {
-            attrs[.strokeColor] = UIColor(hex: a.outlineColorHex)
-                .withAlphaComponent(a.outlineOpacity)
-            attrs[.strokeWidth] = -Double(a.outlineWidthRatio * 100) // 負値=塗り＋縁取り
-        }
-        if a.hasShadow {
-            let sh = NSShadow()
-            sh.shadowColor = UIColor.black.withAlphaComponent(0.55)
-            sh.shadowBlurRadius = pt * 0.12
-            sh.shadowOffset = CGSize(width: 0, height: pt * 0.06)
-            attrs[.shadow] = sh
-        }
-        let text = a.text.isEmpty ? " " : a.text
-        let str = NSAttributedString(string: text, attributes: attrs)
-        let size = str.size()
-        str.draw(at: CGPoint(x: -size.width / 2, y: -size.height / 2))
+        let str = TextRendering.attributedString(a, fontPt: pt)
+        let bigSize = CGSize(width: CGFloat.greatestFiniteMagnitude,
+                             height: CGFloat.greatestFiniteMagnitude)
+        let bounds = str.boundingRect(
+            with: bigSize,
+            options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+        str.draw(in: CGRect(x: -bounds.width / 2, y: -bounds.height / 2,
+                            width: bounds.width, height: bounds.height))
     }
 
     private static func drawArrow(_ a: Annotation, in c: CGContext, imageSize: CGSize) {
-        let length = a.arrowLengthFraction * min(imageSize.width, imageSize.height)
+        let from = CGPoint(x: a.arrowStart.x * imageSize.width, y: a.arrowStart.y * imageSize.height)
+        let to = CGPoint(x: a.arrowEnd.x * imageSize.width, y: a.arrowEnd.y * imageSize.height)
+        let length = max(1, hypot(to.x - from.x, to.y - from.y))
         let thickness = length * a.arrowThicknessRatio
-        c.addPath(ArrowGeometry.path(length: length, thickness: thickness))
+        c.addPath(ArrowGeometry.pathBetween(from: from, to: to, thickness: thickness))
         c.setFillColor(UIColor(hex: a.colorHex).cgColor)
         c.fillPath()
     }

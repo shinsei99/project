@@ -11,12 +11,12 @@ struct ArrowStylePanel: View {
                 Text("矢印の色").font(.caption).foregroundStyle(.secondary)
                 ColorPaletteRow(hex: $annotation.colorHex)
             }
-            LabeledSlider(label: "長さ", value: fraction(\.arrowLengthFraction, mul: 100), range: 5...120)
             LabeledSlider(label: "太さ", value: fraction(\.arrowThicknessRatio, mul: 100), range: 6...30)
 
             Divider().overlay(Color.white.opacity(0.1))
             HStack {
-                Text("2本指でピンチ＝拡大 / 回転").font(.caption2).foregroundStyle(.secondary)
+                Text("○の両端をドラッグ＝向き・長さ／本体ドラッグ＝移動")
+                    .font(.caption2).foregroundStyle(.secondary)
                 Spacer()
                 Button(role: .destructive, action: onDelete) {
                     Label("削除", systemImage: "trash")

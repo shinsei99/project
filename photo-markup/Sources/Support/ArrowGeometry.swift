@@ -26,6 +26,17 @@ enum ArrowGeometry {
     static func boundingSize(length: CGFloat, thickness: CGFloat) -> CGSize {
         CGSize(width: length, height: thickness * 2.6)
     }
+
+    /// 尾 `a` から先端 `b` へ向かう矢印パス（そのままの座標系で返す）。
+    static func pathBetween(from a: CGPoint, to b: CGPoint, thickness: CGFloat) -> CGPath {
+        let dx = b.x - a.x, dy = b.y - a.y
+        let length = max(1, (dx * dx + dy * dy).squareRoot())
+        let angle = atan2(dy, dx)
+        let base = path(length: length, thickness: thickness) // 原点中心・+x 向き
+        var t = CGAffineTransform(translationX: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
+            .rotated(by: angle)
+        return base.copy(using: &t) ?? base
+    }
 }
 
 /// 注釈テキストのフォント解決と選択肢。

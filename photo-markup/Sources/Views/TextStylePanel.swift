@@ -47,7 +47,7 @@ struct TextStylePanel: View {
                               value: fraction(\.fontHeightFraction, mul: 1000), range: 20...220)
             }
         case .font:
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     ForEach(AnnotationFont.choices, id: \.name) { c in
                         Button(c.label) { annotation.fontName = c.name }
@@ -55,8 +55,12 @@ struct TextStylePanel: View {
                             .tint(annotation.fontName == c.name ? .accentColor : .secondary)
                     }
                 }
-                Toggle("太字にする", isOn: $annotation.isBold)
-                    .font(.subheadline)
+                HStack(spacing: 16) {
+                    Toggle("太字", isOn: $annotation.isBold)
+                    Toggle("縦書き", isOn: $annotation.isVertical)
+                }
+                .font(.subheadline)
+                .toggleStyle(.button)
             }
         case .color:
             VStack(alignment: .leading, spacing: 6) {

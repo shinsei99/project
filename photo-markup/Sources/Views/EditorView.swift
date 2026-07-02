@@ -7,6 +7,7 @@ struct EditorView: View {
 
     @State private var showAdjust = false
     @State private var adjustSnapshot = Adjustments()
+    @State private var showCrop = false
     @State private var showHelp = false
     @State private var saving = false
     @State private var saveMessage: String?
@@ -24,11 +25,16 @@ struct EditorView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.black)
             bottomArea
+                .frame(height: 214, alignment: .top)   // 固定高：選択で写真が上下に動かない
+                .frame(maxWidth: .infinity)
         }
         .background(Color(hex: "#0E0E14").ignoresSafeArea())
         .overlay { if saving { savingOverlay } }
         .fullScreenCover(isPresented: $showAdjust) {
             AdjustPanel(state: state, snapshot: adjustSnapshot)
+        }
+        .fullScreenCover(isPresented: $showCrop) {
+            CropView(state: state)
         }
         .sheet(isPresented: $showHelp) { HelpView() }
         .alert("保存", isPresented: Binding(
@@ -74,16 +80,24 @@ struct EditorView: View {
     }
 
     private var globalBar: some View {
-        HStack(spacing: 0) {
-            ToolTabButton(title: "文字", systemImage: "textformat", isActive: false) { state.addText() }
-            ToolTabButton(title: "矢印", systemImage: "arrow.up.left", isActive: false) { state.addArrow() }
-            ToolTabButton(title: "調整", systemImage: "slider.horizontal.3",
-                          isActive: !state.adjustments.isIdentity) {
-                adjustSnapshot = state.adjustments
-                showAdjust = true
+        VStack(spacing: 4) {
+            HStack(spacing: 0) {
+                ToolTabButton(title: "文字", systemImage: "textformat", isActive: false) { state.addText() }
+                ToolTabButton(title: "矢印", systemImage: "arrow.up.left", isActive: false) { state.addArrow() }
+                ToolTabButton(title: "調整", systemImage: "slider.horizontal.3",
+                              isActive: !state.adjustments.isIdentity) {
+                    adjustSnapshot = state.adjustments
+                    showAdjust = true
+                }
+                ToolTabButton(title: "切り抜き", systemImage: "crop", isActive: false) {
+                    showCrop = true
+                }
             }
+            Text("写真をタップで文字・矢印を追加。要素をタップで選択・操作。")
+                .font(.caption2).foregroundStyle(.secondary)
         }
         .padding(.vertical, 14)
+        .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial)
     }
 

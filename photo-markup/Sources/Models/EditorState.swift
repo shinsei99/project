@@ -7,7 +7,7 @@ final class EditorState: ObservableObject {
     /// 取り込んだ元画像（向き正規化済み・フル解像度）。
     @Published private(set) var originalImage: UIImage
     /// ライブプレビュー用に縮小した基底画像。
-    private let previewBase: UIImage
+    private var previewBase: UIImage
     /// 補正を適用したプレビュー画像（表示用）。
     @Published private(set) var previewImage: UIImage
 
@@ -29,8 +29,9 @@ final class EditorState: ObservableObject {
             t.colorHex = "#FFFFFF"
             t.fontHeightFraction = 0.09
             annotations.append(t)
-            var arrow = Annotation.arrow(at: CGPoint(x: 0.34, y: 0.52))
-            arrow.rotation = .degrees(150)
+            var arrow = Annotation.arrow(at: CGPoint(x: 0.36, y: 0.52))
+            arrow.arrowStart = CGPoint(x: 0.52, y: 0.42)   // 尾（右上）
+            arrow.arrowEnd = CGPoint(x: 0.30, y: 0.60)     // 先端（左下）
             annotations.append(arrow)
             selectedID = t.id
         }
@@ -66,8 +67,11 @@ final class EditorState: ObservableObject {
     }
     func deleteSelected() {
         guard let id = selectedID else { return }
+        delete(id)
+    }
+    func delete(_ id: UUID) {
         annotations.removeAll { $0.id == id }
-        selectedID = nil
+        if selectedID == id { selectedID = nil }
     }
     func bringSelectedToFront() {
         guard let i = selectedIndex else { return }
@@ -88,6 +92,31 @@ final class EditorState: ObservableObject {
             if Task.isCancelled { return }
             self?.previewImage = output
         }
+    }
+
+    /// 正規化矩形で画像を切り抜き、既存の注釈座標を新しい画像基準へ変換する。
+    func applyCrop(_ norm: CGRect) {
+        let r = CGRect(x: max(0, norm.minX), y: max(0, norm.minY),
+                       width: norm.width, height: norm.height)
+            .intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
+        guard r.width > 0.02, r.height > 0.02,
+              r.width < 0.999 || r.height < 0.999 else { return }
+
+        originalImage = originalImage.cropped(to: r)
+        previewBase = originalImage.downscaled(maxPixels: 1600)
+
+        for i in annotations.indices {
+            annotations[i].position = remap(annotations[i].position, in: r)
+            annotations[i].arrowStart = remap(annotations[i].arrowStart, in: r)
+            annotations[i].arrowEnd = remap(annotations[i].arrowEnd, in: r)
+            annotations[i].fontHeightFraction /= r.height   // 画像が小さくなる分、文字割合は拡大
+        }
+        previewImage = previewBase
+        schedulePreview()
+    }
+
+    private func remap(_ p: CGPoint, in r: CGRect) -> CGPoint {
+        CGPoint(x: (p.x - r.minX) / r.width, y: (p.y - r.minY) / r.height)
     }
 
     /// 保存用にフル解像度で補正＋注釈を焼き込んだ最終画像を生成。
