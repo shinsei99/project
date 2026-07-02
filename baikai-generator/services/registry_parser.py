@@ -20,7 +20,7 @@ from io import BytesIO
 
 import pdfplumber
 
-CLAUDE_BIN = os.path.expanduser("~/.local/bin/claude")
+CLAUDE_BIN = "/opt/homebrew/bin/claude"
 CLAUDE_TIMEOUT = 300        # テキスト解析のタイムアウト（秒）
 PDF_READ_TIMEOUT = 900      # スキャン画像を読ませる場合のタイムアウト（秒・最大15分）
 ORIENT_TIMEOUT = 120        # 向き判定（haiku）のタイムアウト（秒）

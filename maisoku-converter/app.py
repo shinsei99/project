@@ -270,7 +270,7 @@ def save_company_info(info: dict) -> None:
     COMPANY_JSON.write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding="utf-8")
 
 # ─── Claude CLI ───────────────────────────────────────────────────────────────
-CLAUDE_BIN     = "claude"
+CLAUDE_BIN     = "/opt/homebrew/bin/claude"
 CLAUDE_TIMEOUT = 600
 
 CLAUDE_PROMPT = """\

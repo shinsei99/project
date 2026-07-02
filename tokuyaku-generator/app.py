@@ -23,7 +23,7 @@ from docx.oxml import OxmlElement
 
 from clauses import CATEGORIES, find_item
 
-CLAUDE_BIN = os.path.expanduser("~/.local/bin/claude")
+CLAUDE_BIN = "/opt/homebrew/bin/claude"
 CLAUDE_TIMEOUT = 120
 
 STYLE_GUIDE = {
