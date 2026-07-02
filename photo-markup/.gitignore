@@ -1,0 +1,10 @@
+# ビルド生成物・ユーザー固有ファイル（project.yml から再生成できるものは追跡しない）
+build/
+DerivedData/
+.DS_Store
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
+xcuserdata/
+*.swiftpm/
+.swiftpm/
