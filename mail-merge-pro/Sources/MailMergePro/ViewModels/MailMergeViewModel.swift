@@ -315,6 +315,7 @@ final class MailMergeViewModel: ObservableObject {
     private func runBatchSend() async {
         let batchSize = settings.batchSize
         let interval = settings.intervalSeconds
+        let perMessageDelay = settings.perMessageDelaySeconds
         let total = recipients.count
 
         var index = 0
@@ -329,6 +330,16 @@ final class MailMergeViewModel: ObservableObject {
                 currentRecipientName = recipients[i].name
                 await sendOne(at: i)
                 sentProgress = i + 1
+
+                // 連続送信を避け、1通ごとに間隔をあける（バッチ内の最終通・全体最終通の後は不要）。
+                if perMessageDelay > 0 && i < batchEnd - 1 {
+                    do {
+                        try await Task.sleep(nanoseconds: UInt64(perMessageDelay * 1_000_000_000))
+                    } catch {
+                        finishSend(cancelled: true)
+                        return
+                    }
+                }
             }
 
             index = batchEnd
