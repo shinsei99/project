@@ -16,10 +16,22 @@ struct DeleteBadge: View {
     }
 }
 
-/// テキストの拡大・回転ハンドル（見た目のみ。ジェスチャーは呼び出し側で付ける）。
-struct ScaleRotateBadge: View {
+/// 拡大縮小ハンドル（見た目のみ。ジェスチャーは呼び出し側で付ける）。
+struct ResizeBadge: View {
     var body: some View {
         Image(systemName: "arrow.up.left.and.arrow.down.right")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(Color.accentColor)
+            .frame(width: 28, height: 28)
+            .background(Circle().fill(.white))
+            .overlay(Circle().stroke(Color.accentColor, lineWidth: 2))
+    }
+}
+
+/// 回転ハンドル（見た目のみ）。
+struct RotateBadge: View {
+    var body: some View {
+        Image(systemName: "arrow.triangle.2.circlepath")
             .font(.system(size: 11, weight: .bold))
             .foregroundStyle(Color.accentColor)
             .frame(width: 28, height: 28)

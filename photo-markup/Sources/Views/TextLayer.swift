@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// テキストを自分のバウンディングボックス内だけに収めて描く。
-/// ドラッグ移動、右下ハンドルで拡大・回転、×で削除。
+/// 1本指ドラッグ＝移動、右下ハンドル＝拡大縮小、右上ハンドル＝回転、2本指ピンチ＝拡大（回転はしない）。
 struct TextLayer: View {
     @Binding var annotation: Annotation
     let fitted: CGRect
@@ -10,10 +10,9 @@ struct TextLayer: View {
     let onDelete: () -> Void
 
     @State private var moveStart: CGPoint?
-    @State private var scaleStart: CGFloat?
-    @State private var rotStart: Angle?
-    @State private var handleStart: HandleStart?
-    struct HandleStart { var frac: CGFloat; var rot: Angle; var dist: CGFloat; var angle: Double }
+    @State private var scalePinchStart: CGFloat?
+    @State private var scaleHandleStart: (frac: CGFloat, dist: CGFloat)?
+    @State private var rotHandleStart: (rot: Angle, angle: Double)?
 
     var body: some View {
         let fontPt = max(6, annotation.fontHeightFraction * fitted.height)
@@ -36,7 +35,8 @@ struct TextLayer: View {
         let maxy = (corners.map { $0.y }.max() ?? 0) + margin
         let bbox = CGRect(x: center.x + minx, y: center.y + miny, width: maxx - minx, height: maxy - miny)
         let lc = CGPoint(x: -minx, y: -miny)
-        let br = rot(halfW, halfH)
+        let brOff = rot(halfW, halfH)     // 右下＝拡大縮小
+        let trOff = rot(halfW, -halfH)    // 右上＝回転
 
         ZStack(alignment: .topLeading) {
             StrokeTextLabel(annotation: annotation, fontPt: fontPt)
@@ -55,16 +55,19 @@ struct TextLayer: View {
                 .gesture(bodyGesture)
 
             if selected {
-                ScaleRotateBadge()
-                    .position(x: lc.x + br.x, y: lc.y + br.y)
-                    .gesture(scaleRotateGesture(center: center))
+                ResizeBadge()
+                    .position(x: lc.x + brOff.x, y: lc.y + brOff.y)
+                    .gesture(scaleGesture(center: center))
+                RotateBadge()
+                    .position(x: lc.x + trOff.x, y: lc.y + trOff.y)
+                    .gesture(rotateGesture(center: center))
             }
         }
         .frame(width: bbox.width, height: bbox.height)
         .position(x: bbox.midX, y: bbox.midY)
     }
 
-    /// 1本指=移動、2本指=拡大＋回転（矢印と同じく指で直接操作）。
+    /// 1本指=移動、2本指ピンチ=拡大のみ（回転はしない）。
     private var bodyGesture: some Gesture {
         let drag = DragGesture(minimumDistance: 2, coordinateSpace: .named("canvas"))
             .onChanged { v in
@@ -81,38 +84,40 @@ struct TextLayer: View {
         let magnify = MagnificationGesture()
             .onChanged { scale in
                 onSelect()
-                if scaleStart == nil { scaleStart = annotation.fontHeightFraction }
-                let base = scaleStart ?? annotation.fontHeightFraction
+                if scalePinchStart == nil { scalePinchStart = annotation.fontHeightFraction }
+                let base = scalePinchStart ?? annotation.fontHeightFraction
                 annotation.fontHeightFraction = min(max(base * scale, 0.02), 0.6)
             }
-            .onEnded { _ in scaleStart = nil }
+            .onEnded { _ in scalePinchStart = nil }
 
-        let rotate = RotationGesture()
-            .onChanged { ang in
-                onSelect()
-                if rotStart == nil { rotStart = annotation.rotation }
-                annotation.rotation = (rotStart ?? .zero) + ang
-            }
-            .onEnded { _ in rotStart = nil }
-
-        return drag.simultaneously(with: magnify).simultaneously(with: rotate)
+        return drag.simultaneously(with: magnify)
     }
 
-    private func scaleRotateGesture(center: CGPoint) -> some Gesture {
+    /// 右下ハンドル：中心からの距離で拡大縮小のみ。
+    private func scaleGesture(center: CGPoint) -> some Gesture {
         DragGesture(minimumDistance: 1, coordinateSpace: .named("canvas"))
             .onChanged { v in
                 onSelect()
-                let vec = CGPoint(x: v.location.x - center.x, y: v.location.y - center.y)
-                let dist = max(1, hypot(vec.x, vec.y))
-                let ang = atan2(vec.y, vec.x)
-                if handleStart == nil {
-                    handleStart = HandleStart(frac: annotation.fontHeightFraction,
-                                              rot: annotation.rotation, dist: dist, angle: Double(ang))
+                let dist = max(1, hypot(v.location.x - center.x, v.location.y - center.y))
+                if scaleHandleStart == nil {
+                    scaleHandleStart = (annotation.fontHeightFraction, dist)
                 }
-                guard let hs = handleStart else { return }
-                annotation.fontHeightFraction = min(max(hs.frac * (dist / hs.dist), 0.02), 0.6)
-                annotation.rotation = hs.rot + .radians(Double(ang) - hs.angle)
+                guard let s = scaleHandleStart else { return }
+                annotation.fontHeightFraction = min(max(s.frac * (dist / s.dist), 0.02), 0.6)
             }
-            .onEnded { _ in handleStart = nil }
+            .onEnded { _ in scaleHandleStart = nil }
+    }
+
+    /// 右上ハンドル：中心まわりの角度で回転のみ。
+    private func rotateGesture(center: CGPoint) -> some Gesture {
+        DragGesture(minimumDistance: 1, coordinateSpace: .named("canvas"))
+            .onChanged { v in
+                onSelect()
+                let ang = atan2(v.location.y - center.y, v.location.x - center.x)
+                if rotHandleStart == nil { rotHandleStart = (annotation.rotation, Double(ang)) }
+                guard let s = rotHandleStart else { return }
+                annotation.rotation = s.rot + .radians(Double(ang) - s.angle)
+            }
+            .onEnded { _ in rotHandleStart = nil }
     }
 }
