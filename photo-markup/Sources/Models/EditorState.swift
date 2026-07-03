@@ -47,10 +47,15 @@ final class EditorState: ObservableObject {
     }
 
     func binding(for id: UUID) -> Binding<Annotation>? {
-        guard let i = annotations.firstIndex(where: { $0.id == id }) else { return nil }
+        guard annotations.contains(where: { $0.id == id }) else { return nil }
+        // インデックスは固定せず、毎回 id で引き直す（削除・並べ替えで範囲外にならない）。
         return Binding(
-            get: { self.annotations[i] },
-            set: { self.annotations[i] = $0 }
+            get: { self.annotations.first { $0.id == id } ?? Annotation(kind: .text) },
+            set: { newValue in
+                if let i = self.annotations.firstIndex(where: { $0.id == id }) {
+                    self.annotations[i] = newValue
+                }
+            }
         )
     }
 
