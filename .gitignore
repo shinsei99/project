@@ -126,3 +126,5 @@ tsuikyaku-crm/*.db.bak
 **/.secret_key
 **/.env.local
 **/.env
+!photo-remake/
+!photo-remake/**

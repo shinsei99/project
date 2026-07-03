@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct PhotoMarkupApp: App {
+struct PhotoRemakeApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()

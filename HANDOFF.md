@@ -4,6 +4,28 @@
 
 ---
 
+## 2026-07-03 新規アプリ：photo-remake（フォトリメイク）★iOSネイティブ・コミット済み
+
+写真に**文字・矢印・モザイク**を入れて注釈し、**明るさ/コントラスト/鮮やかさ/シャープ/ノイズ除去**の軽補正と**トリミング**、**取り消し(Undo)**もできる iOS ネイティブアプリ。App Store 提出前提（iPhone/iPad ユニバーサル）。表示名「フォトリメイク」、英語名/ターゲット **PhotoRemake**、bundle id `com.shinsei.photoremake`、フォルダ `photo-remake/`。
+
+- **技術**：SwiftUI(iOS16+)＋Core Image。**XcodeGen**（`project.yml`が正）。`.xcodeproj`も同梱。
+- **メインPCでのビルド手順**：
+  ```bash
+  git pull
+  cd photo-remake
+  # 構成を変えたら: brew install xcodegen && xcodegen generate
+  open PhotoRemake.xcodeproj      # Xcodeで Signing→自分のTeam を設定 → 実機/シミュレータ実行 → Archive
+  # CLI確認: xcodebuild -project PhotoRemake.xcodeproj -scheme PhotoRemake -sdk iphonesimulator \
+  #   -destination 'platform=iOS Simulator,name=iPhone 16' build CODE_SIGNING_ALLOWED=NO
+  ```
+  - **注意**：フォルダを別PCへ持って行くと `build/`（DerivedData）に旧パスのキャッシュが残りビルドエラーになる。→ `build/` は .gitignore 済みなので通常pullでは来ないが、来た場合は `rm -rf build` してから再ビルド。
+- **App Store 提出物**：`Resources/PrivacyInfo.xcprivacy`（収集/追跡なし）、権限文言は project.yml の `INFOPLIST_KEY_*`、アイコンは `scripts/gen-icon.swift` 生成。
+- **DEBUG動作確認**：`SIMCTL_CHILD_PM_SAMPLE=1 xcrun simctl launch <dev> com.shinsei.photoremake` でサンプル画像＋注釈のエディタが直接開く（リリース非搭載）。
+- **実装の勘所（ハマりどころ）**：①テキストは `StrokeTextLabel`(UILabel) なので `.contentShape(Rectangle())` が無いとタップ選択不可。②`EditorState.binding(for:)` はインデックス固定禁止（idで都度検索、削除時の範囲外クラッシュ回避）。③各注釈は自分のbboxに収める(TextLayer/ArrowLayer/MosaicLayer)＝選択の干渉防止。④Handlesのバッジは共有`some View`関数にするとメタデータ生成でSIGSEGV→各Viewにインライン。
+- **次の拡張候補**：やり直し(Redo)、図形（丸/四角）＋番号バッジ、傾き・台形補正、共有ボタン。詳細は `photo-remake/README.md`。
+
+---
+
 ## 2026-07-03 セッションの作業（building-manager を大幅強化）★未コミット→本セッションでコミット予定
 
 対象アプリ：**building-manager（マンションビル管理／物件管理システム）**。Next.js16+Prisma7+SQLite、port 3000。この日の変更は全て `building-manager/` 配下。
