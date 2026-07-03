@@ -32,11 +32,18 @@ struct AnnotatedImageView: View {
             case .text:
                 TextLayer(annotation: b, fitted: fitted, selected: a.id == state.selectedID,
                           onSelect: { state.selectedID = a.id },
-                          onDelete: { state.delete(a.id) })
+                          onDelete: { state.delete(a.id) },
+                          onBeginEdit: { state.pushUndo() })
             case .arrow:
                 ArrowLayer(annotation: b, fitted: fitted, selected: a.id == state.selectedID,
                            onSelect: { state.selectedID = a.id },
-                           onDelete: { state.delete(a.id) })
+                           onDelete: { state.delete(a.id) },
+                           onBeginEdit: { state.pushUndo() })
+            case .mosaic:
+                MosaicLayer(annotation: b, mosaicImage: state.mosaicPreview, fitted: fitted,
+                            selected: a.id == state.selectedID,
+                            onSelect: { state.selectedID = a.id },
+                            onBeginEdit: { state.pushUndo() })
             }
         }
     }

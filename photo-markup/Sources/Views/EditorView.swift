@@ -24,6 +24,7 @@ struct EditorView: View {
             AnnotatedImageView(state: state)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.black)
+                .padding(.bottom, 10)   // 縦写真で操作パネルと密着しないよう少し離す
             bottomArea
                 .frame(height: 214, alignment: .top)   // 固定高：選択で写真が上下に動かない
                 .frame(maxWidth: .infinity)
@@ -55,10 +56,13 @@ struct EditorView: View {
             Menu {
                 Button { state.addText() } label: { Label("文字を追加", systemImage: "textformat") }
                 Button { state.addArrow() } label: { Label("矢印を追加", systemImage: "arrow.up.left") }
+                Button { state.addMosaic() } label: { Label("モザイクを追加", systemImage: "square.grid.3x3.fill") }
             } label: {
                 Label("追加", systemImage: "plus.circle")
             }
             Spacer()
+            Button { state.undo() } label: { Image(systemName: "arrow.uturn.backward") }
+                .disabled(!state.canUndo)
             Button { showHelp = true } label: { Image(systemName: "questionmark.circle") }
             Spacer()
             Button { save() } label: { Text("保存").fontWeight(.semibold) }
@@ -69,10 +73,18 @@ struct EditorView: View {
     }
 
     @ViewBuilder private var bottomArea: some View {
-        if let sel = state.selected, let b = state.binding(for: sel.id) {
+        if let sel = state.selected {
             switch sel.kind {
-            case .text: TextStylePanel(annotation: b, onDelete: { state.deleteSelected() })
-            case .arrow: ArrowStylePanel(annotation: b, onDelete: { state.deleteSelected() })
+            case .text:
+                if let b = state.binding(for: sel.id) {
+                    TextStylePanel(annotation: b, onDelete: { state.deleteSelected() })
+                }
+            case .arrow:
+                if let b = state.binding(for: sel.id) {
+                    ArrowStylePanel(annotation: b, onDelete: { state.deleteSelected() })
+                }
+            case .mosaic:
+                MosaicStylePanel(state: state, onDelete: { state.deleteSelected() })
             }
         } else {
             globalBar
@@ -84,6 +96,7 @@ struct EditorView: View {
             HStack(spacing: 0) {
                 ToolTabButton(title: "文字", systemImage: "textformat", isActive: false) { state.addText() }
                 ToolTabButton(title: "矢印", systemImage: "arrow.up.left", isActive: false) { state.addArrow() }
+                ToolTabButton(title: "モザイク", systemImage: "square.grid.3x3.fill", isActive: false) { state.addMosaic() }
                 ToolTabButton(title: "調整", systemImage: "slider.horizontal.3",
                               isActive: !state.adjustments.isIdentity) {
                     adjustSnapshot = state.adjustments
@@ -93,7 +106,7 @@ struct EditorView: View {
                     showCrop = true
                 }
             }
-            Text("写真をタップで文字・矢印を追加。要素をタップで選択・操作。")
+            Text("文字・矢印・モザイクを追加。要素をタップで選択・操作。↩︎で元に戻す。")
                 .font(.caption2).foregroundStyle(.secondary)
         }
         .padding(.vertical, 14)

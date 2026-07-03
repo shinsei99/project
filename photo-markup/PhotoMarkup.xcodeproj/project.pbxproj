@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0102854F9CE97561D8F32580 /* MosaicLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87EC6CA144FEC9C702B1E1AE /* MosaicLayer.swift */; };
 		04604879B0240E32600BD3D5 /* TextRendering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F8A313B2FA4D8F0EB04B5C1 /* TextRendering.swift */; };
 		0C5929DA00E182128C8D2D2A /* ArrowGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B66412FACC852D06E06E73F /* ArrowGeometry.swift */; };
 		0DB9F9256563B40BBD5CF9EB /* PhotoMarkupApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B62F2C23843745ED417FB365 /* PhotoMarkupApp.swift */; };
@@ -31,6 +32,7 @@
 		C8A0C89F395DA3AF2B2EF414 /* TextLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 458A3F2C5F328EB9EF65DB3A /* TextLayer.swift */; };
 		D67863A1C2F1109D574DAFAC /* AnnotatedImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76A5E1AEFBE44E19A8E27B65 /* AnnotatedImageView.swift */; };
 		E6F8ED6831010CB7CA31B6F9 /* ColorHex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E44EC45D5AC898F3A6F5726 /* ColorHex.swift */; };
+		EC477D78018CCFD014885ABA /* MosaicStylePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC032491266382D58C720BCD /* MosaicStylePanel.swift */; };
 		F2FB08727A233940FC594F28 /* PhotoSaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A81005AF11676825DD0D070 /* PhotoSaver.swift */; };
 		F4020F11CDDA33E2AE2348B6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 774FA7D18A873A8F6156E298 /* PrivacyInfo.xcprivacy */; };
 		F6BAFD0339EB2BA7794066F7 /* ArrowStylePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F5C67EFC3C6D5AC99F94612 /* ArrowStylePanel.swift */; };
@@ -50,6 +52,7 @@
 		76A5E1AEFBE44E19A8E27B65 /* AnnotatedImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotatedImageView.swift; sourceTree = "<group>"; };
 		774FA7D18A873A8F6156E298 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7F8A313B2FA4D8F0EB04B5C1 /* TextRendering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextRendering.swift; sourceTree = "<group>"; };
+		87EC6CA144FEC9C702B1E1AE /* MosaicLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MosaicLayer.swift; sourceTree = "<group>"; };
 		8E44EC45D5AC898F3A6F5726 /* ColorHex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorHex.swift; sourceTree = "<group>"; };
 		9D6B2B45BE223D0C54647201 /* AdjustPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdjustPanel.swift; sourceTree = "<group>"; };
 		AD91A9FDE03D2B70210FA037 /* PhotoMarkup.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PhotoMarkup.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -62,6 +65,7 @@
 		C54456855DC787CBED5D07EE /* CameraPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPicker.swift; sourceTree = "<group>"; };
 		C6BAD497B9CD6F401FFA5F1C /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		CB54E1D49F2CC25AB3987790 /* CropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropView.swift; sourceTree = "<group>"; };
+		CC032491266382D58C720BCD /* MosaicStylePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MosaicStylePanel.swift; sourceTree = "<group>"; };
 		D1E66D275BD11ED887161A71 /* Adjustments.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Adjustments.swift; sourceTree = "<group>"; };
 		D2A7CE4D68D2059FF08AB54B /* ImageProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageProcessor.swift; sourceTree = "<group>"; };
 		DE2231DA0B877DF879DA78EF /* TextStylePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextStylePanel.swift; sourceTree = "<group>"; };
@@ -142,6 +146,8 @@
 				CB54E1D49F2CC25AB3987790 /* CropView.swift */,
 				6531B6A664C329F378FE978C /* EditorView.swift */,
 				C4B6B613CA3DF0910EBE4650 /* Handles.swift */,
+				87EC6CA144FEC9C702B1E1AE /* MosaicLayer.swift */,
+				CC032491266382D58C720BCD /* MosaicStylePanel.swift */,
 				C6BAD497B9CD6F401FFA5F1C /* RootView.swift */,
 				458A3F2C5F328EB9EF65DB3A /* TextLayer.swift */,
 				DE2231DA0B877DF879DA78EF /* TextStylePanel.swift */,
@@ -245,6 +251,8 @@
 				A1BB09E19B8ECEAD30FB61DB /* ImageExporter.swift in Sources */,
 				8F9BDFD581FBFC697964FC25 /* ImageProcessor.swift in Sources */,
 				29B6C35656B8EE728FAB19B2 /* ImageUtils.swift in Sources */,
+				0102854F9CE97561D8F32580 /* MosaicLayer.swift in Sources */,
+				EC477D78018CCFD014885ABA /* MosaicStylePanel.swift in Sources */,
 				0DB9F9256563B40BBD5CF9EB /* PhotoMarkupApp.swift in Sources */,
 				F2FB08727A233940FC594F28 /* PhotoSaver.swift in Sources */,
 				8F21AB25F382DE42DED9824F /* RootView.swift in Sources */,

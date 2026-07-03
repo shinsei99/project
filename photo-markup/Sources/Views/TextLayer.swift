@@ -8,6 +8,7 @@ struct TextLayer: View {
     let selected: Bool
     let onSelect: () -> Void
     let onDelete: () -> Void
+    let onBeginEdit: () -> Void
 
     @State private var moveStart: CGPoint?
     @State private var scalePinchStart: CGFloat?
@@ -72,7 +73,7 @@ struct TextLayer: View {
         let drag = DragGesture(minimumDistance: 2, coordinateSpace: .named("canvas"))
             .onChanged { v in
                 onSelect()
-                if moveStart == nil { moveStart = annotation.position }
+                if moveStart == nil { moveStart = annotation.position; onBeginEdit() }
                 let start = moveStart ?? annotation.position
                 var p = CGPoint(x: start.x + v.translation.width / fitted.width,
                                 y: start.y + v.translation.height / fitted.height)
@@ -84,7 +85,7 @@ struct TextLayer: View {
         let magnify = MagnificationGesture()
             .onChanged { scale in
                 onSelect()
-                if scalePinchStart == nil { scalePinchStart = annotation.fontHeightFraction }
+                if scalePinchStart == nil { scalePinchStart = annotation.fontHeightFraction; onBeginEdit() }
                 let base = scalePinchStart ?? annotation.fontHeightFraction
                 annotation.fontHeightFraction = min(max(base * scale, 0.02), 0.6)
             }
@@ -100,7 +101,7 @@ struct TextLayer: View {
                 onSelect()
                 let dist = max(1, hypot(v.location.x - center.x, v.location.y - center.y))
                 if scaleHandleStart == nil {
-                    scaleHandleStart = (annotation.fontHeightFraction, dist)
+                    scaleHandleStart = (annotation.fontHeightFraction, dist); onBeginEdit()
                 }
                 guard let s = scaleHandleStart else { return }
                 annotation.fontHeightFraction = min(max(s.frac * (dist / s.dist), 0.02), 0.6)
@@ -114,7 +115,7 @@ struct TextLayer: View {
             .onChanged { v in
                 onSelect()
                 let ang = atan2(v.location.y - center.y, v.location.x - center.x)
-                if rotHandleStart == nil { rotHandleStart = (annotation.rotation, Double(ang)) }
+                if rotHandleStart == nil { rotHandleStart = (annotation.rotation, Double(ang)); onBeginEdit() }
                 guard let s = rotHandleStart else { return }
                 annotation.rotation = s.rot + .radians(Double(ang) - s.angle)
             }

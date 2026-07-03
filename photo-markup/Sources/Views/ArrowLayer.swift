@@ -19,8 +19,10 @@ struct ArrowLayer: View {
     let selected: Bool
     let onSelect: () -> Void
     let onDelete: () -> Void
+    let onBeginEdit: () -> Void
 
     @State private var moveBase: (CGPoint, CGPoint)?
+    @State private var handleActive = false
 
     var body: some View {
         let a = toPoint(annotation.arrowStart)
@@ -60,7 +62,7 @@ struct ArrowLayer: View {
         DragGesture(minimumDistance: 2, coordinateSpace: .named("canvas"))
             .onChanged { v in
                 onSelect()
-                if moveBase == nil { moveBase = (annotation.arrowStart, annotation.arrowEnd) }
+                if moveBase == nil { moveBase = (annotation.arrowStart, annotation.arrowEnd); onBeginEdit() }
                 guard let base = moveBase else { return }
                 let dx = v.translation.width / fitted.width
                 let dy = v.translation.height / fitted.height
@@ -75,7 +77,12 @@ struct ArrowLayer: View {
             .position(p)
             .gesture(
                 DragGesture(coordinateSpace: .named("canvas"))
-                    .onChanged { v in onSelect(); update(v.location) }
+                    .onChanged { v in
+                        onSelect()
+                        if !handleActive { handleActive = true; onBeginEdit() }
+                        update(v.location)
+                    }
+                    .onEnded { _ in handleActive = false }
             )
     }
 

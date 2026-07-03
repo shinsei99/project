@@ -58,4 +58,18 @@ actor ImageProcessor {
         guard let outCG = context.createCGImage(ci, from: rect) else { return image }
         return UIImage(cgImage: outCG, scale: image.scale, orientation: .up)
     }
+
+    /// 画像全体をモザイク（ピクセル化）した版を返す。blockFraction は画像幅に対するブロック割合。
+    func pixellate(_ image: UIImage, blockFraction: CGFloat) -> UIImage {
+        guard let cg = image.cgImage else { return image }
+        let ci = CIImage(cgImage: cg)
+        let f = CIFilter.pixellate()
+        f.inputImage = ci
+        f.scale = Float(max(4, blockFraction * CGFloat(cg.width)))
+        f.center = CGPoint(x: cg.width / 2, y: cg.height / 2)
+        guard let out = f.outputImage else { return image }
+        let rect = CGRect(x: 0, y: 0, width: cg.width, height: cg.height)
+        guard let outCG = context.createCGImage(out, from: rect) else { return image }
+        return UIImage(cgImage: outCG, scale: image.scale, orientation: .up)
+    }
 }

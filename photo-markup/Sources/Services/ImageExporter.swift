@@ -2,7 +2,7 @@ import UIKit
 
 /// 補正済みの基底画像に注釈を焼き込み、フル解像度の最終画像を生成する。
 enum ImageExporter {
-    static func compose(base: UIImage, annotations: [Annotation]) -> UIImage {
+    static func compose(base: UIImage, mosaic: UIImage? = nil, annotations: [Annotation]) -> UIImage {
         let px: CGSize
         if let cg = base.cgImage {
             px = CGSize(width: cg.width, height: cg.height)
@@ -17,9 +17,30 @@ enum ImageExporter {
         return renderer.image { ctx in
             base.draw(in: CGRect(origin: .zero, size: px))
             for a in annotations {
-                draw(a, in: ctx.cgContext, imageSize: px)
+                if a.kind == .mosaic {
+                    drawMosaic(a, mosaic: mosaic, imageSize: px)
+                } else {
+                    draw(a, in: ctx.cgContext, imageSize: px)
+                }
             }
         }
+    }
+
+    static func mosaicPixelRect(_ a: Annotation, _ imageSize: CGSize) -> CGRect {
+        let cx = a.position.x * imageSize.width
+        let cy = a.position.y * imageSize.height
+        let hw = a.mosaicHalfW * imageSize.width
+        let hh = a.mosaicHalfH * imageSize.height
+        return CGRect(x: cx - hw, y: cy - hh, width: hw * 2, height: hh * 2)
+    }
+
+    private static func drawMosaic(_ a: Annotation, mosaic: UIImage?, imageSize: CGSize) {
+        guard let mcg = mosaic?.cgImage else { return }
+        let rect = mosaicPixelRect(a, imageSize).integral
+            .intersection(CGRect(origin: .zero, size: imageSize))
+        guard !rect.isNull, rect.width >= 1, rect.height >= 1,
+              let sub = mcg.cropping(to: rect) else { return }
+        UIImage(cgImage: sub).draw(in: rect)
     }
 
     private static func draw(_ a: Annotation, in c: CGContext, imageSize: CGSize) {
@@ -34,6 +55,8 @@ enum ImageExporter {
             c.restoreGState()
         case .arrow:
             drawArrow(a, in: c, imageSize: imageSize)
+        case .mosaic:
+            break   // compose 側で処理
         }
     }
 

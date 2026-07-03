@@ -15,6 +15,23 @@ final class EditorState: ObservableObject {
     @Published var annotations: [Annotation] = []
     @Published var selectedID: UUID?
 
+    /// モザイク用にピクセル化したプレビュー（モザイク領域はこれを切り出して表示）。
+    @Published private(set) var mosaicPreview: UIImage?
+    /// モザイクの粗さ（画像幅に対するブロック割合）。
+    @Published var mosaicBlockFraction: CGFloat = 0.045 { didSet { refreshMosaicPreview() } }
+
+    // MARK: 取り消し（Undo）
+    private struct Snapshot {
+        var annotations: [Annotation]
+        var adjustments: Adjustments
+        var originalImage: UIImage
+        var previewBase: UIImage
+        var mosaicBlockFraction: CGFloat
+        var selectedID: UUID?
+    }
+    private var undoStack: [Snapshot] = []
+    @Published private(set) var canUndo = false
+
     private var previewTask: Task<Void, Never>?
 
     init(image: UIImage, seedDemo: Bool = false) {
@@ -33,7 +50,11 @@ final class EditorState: ObservableObject {
             arrow.arrowStart = CGPoint(x: 0.52, y: 0.42)   // 尾（右上）
             arrow.arrowEnd = CGPoint(x: 0.30, y: 0.60)     // 先端（左下）
             annotations.append(arrow)
-            selectedID = t.id
+            var m = Annotation.mosaic(at: CGPoint(x: 0.72, y: 0.5))
+            m.mosaicHalfW = 0.18; m.mosaicHalfH = 0.08
+            annotations.append(m)
+            selectedID = m.id
+            refreshMosaicPreview()
         }
     }
 
@@ -60,23 +81,74 @@ final class EditorState: ObservableObject {
     }
 
     func addText() {
+        pushUndo()
         var a = Annotation.text()
         a.colorHex = "#FFFFFF"
         annotations.append(a)
         selectedID = a.id
     }
     func addArrow() {
+        pushUndo()
         let a = Annotation.arrow()
         annotations.append(a)
         selectedID = a.id
+    }
+    func addMosaic() {
+        pushUndo()
+        let a = Annotation.mosaic()
+        annotations.append(a)
+        selectedID = a.id
+        refreshMosaicPreview()
     }
     func deleteSelected() {
         guard let id = selectedID else { return }
         delete(id)
     }
     func delete(_ id: UUID) {
+        pushUndo()
         annotations.removeAll { $0.id == id }
         if selectedID == id { selectedID = nil }
+        refreshMosaicPreview()
+    }
+
+    var hasMosaic: Bool { annotations.contains { $0.kind == .mosaic } }
+
+    // MARK: - モザイク・プレビュー
+
+    func refreshMosaicPreview() {
+        guard hasMosaic else { mosaicPreview = nil; return }
+        let img = previewImage
+        let bf = mosaicBlockFraction
+        Task { [weak self] in
+            let m = await ImageProcessor.shared.pixellate(img, blockFraction: bf)
+            self?.mosaicPreview = m
+        }
+    }
+
+    // MARK: - 取り消し（Undo）
+
+    /// 変更の直前に現在状態を退避（各操作・ジェスチャー開始時に呼ぶ）。
+    func pushUndo() {
+        undoStack.append(Snapshot(
+            annotations: annotations, adjustments: adjustments,
+            originalImage: originalImage, previewBase: previewBase,
+            mosaicBlockFraction: mosaicBlockFraction, selectedID: selectedID))
+        if undoStack.count > 40 { undoStack.removeFirst() }
+        canUndo = true
+    }
+
+    func undo() {
+        guard let s = undoStack.popLast() else { return }
+        annotations = s.annotations
+        originalImage = s.originalImage
+        previewBase = s.previewBase
+        selectedID = s.selectedID
+        mosaicBlockFraction = s.mosaicBlockFraction
+        adjustments = s.adjustments      // didSet で schedulePreview
+        canUndo = !undoStack.isEmpty
+        previewImage = previewBase
+        schedulePreview()
+        refreshMosaicPreview()
     }
     func bringSelectedToFront() {
         guard let i = selectedIndex else { return }
@@ -96,6 +168,7 @@ final class EditorState: ObservableObject {
             let output = await ImageProcessor.shared.render(adj, on: base)
             if Task.isCancelled { return }
             self?.previewImage = output
+            self?.refreshMosaicPreview()
         }
     }
 
@@ -106,6 +179,7 @@ final class EditorState: ObservableObject {
             .intersection(CGRect(x: 0, y: 0, width: 1, height: 1))
         guard r.width > 0.02, r.height > 0.02,
               r.width < 0.999 || r.height < 0.999 else { return }
+        pushUndo()
 
         originalImage = originalImage.cropped(to: r)
         previewBase = originalImage.downscaled(maxPixels: 1600)
@@ -115,9 +189,12 @@ final class EditorState: ObservableObject {
             annotations[i].arrowStart = remap(annotations[i].arrowStart, in: r)
             annotations[i].arrowEnd = remap(annotations[i].arrowEnd, in: r)
             annotations[i].fontHeightFraction /= r.height   // 画像が小さくなる分、文字割合は拡大
+            annotations[i].mosaicHalfW /= r.width
+            annotations[i].mosaicHalfH /= r.height
         }
         previewImage = previewBase
         schedulePreview()
+        refreshMosaicPreview()
     }
 
     private func remap(_ p: CGPoint, in r: CGRect) -> CGPoint {
@@ -127,6 +204,10 @@ final class EditorState: ObservableObject {
     /// 保存用にフル解像度で補正＋注釈を焼き込んだ最終画像を生成。
     func renderFinalImage() async -> UIImage {
         let adjusted = await ImageProcessor.shared.render(adjustments, on: originalImage)
-        return ImageExporter.compose(base: adjusted, annotations: annotations)
+        var mosaicFull: UIImage?
+        if hasMosaic {
+            mosaicFull = await ImageProcessor.shared.pixellate(adjusted, blockFraction: mosaicBlockFraction)
+        }
+        return ImageExporter.compose(base: adjusted, mosaic: mosaicFull, annotations: annotations)
     }
 }

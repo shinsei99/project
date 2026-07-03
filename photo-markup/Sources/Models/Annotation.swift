@@ -3,7 +3,7 @@ import SwiftUI
 /// 画像の上に載せる注釈（テキスト or 矢印）。
 /// サイズ・位置はすべて画像に対する正規化値で保持し、プレビューと書き出しを一致させる。
 struct Annotation: Identifiable, Equatable {
-    enum Kind: Equatable { case text, arrow }
+    enum Kind: Equatable { case text, arrow, mosaic }
 
     let id = UUID()
     var kind: Kind
@@ -35,8 +35,15 @@ struct Annotation: Identifiable, Equatable {
     /// 矢印の軸の太さ（長さに対する割合 0.06...0.30）。
     var arrowThicknessRatio: CGFloat = 0.14
 
+    // ---- モザイク（軸並行の矩形領域。中心＝position、半サイズを正規化で保持）----
+    var mosaicHalfW: CGFloat = 0.14
+    var mosaicHalfH: CGFloat = 0.06
+
     static func text(at p: CGPoint = CGPoint(x: 0.5, y: 0.5)) -> Annotation {
         Annotation(kind: .text, position: p)
+    }
+    static func mosaic(at p: CGPoint = CGPoint(x: 0.5, y: 0.5)) -> Annotation {
+        Annotation(kind: .mosaic, position: p, colorHex: "#000000")
     }
     static func arrow(at p: CGPoint = CGPoint(x: 0.5, y: 0.5)) -> Annotation {
         var a = Annotation(kind: .arrow, position: p, colorHex: "#FF2D55")
