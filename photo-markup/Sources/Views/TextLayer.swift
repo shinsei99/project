@@ -10,6 +10,8 @@ struct TextLayer: View {
     let onDelete: () -> Void
 
     @State private var moveStart: CGPoint?
+    @State private var scaleStart: CGFloat?
+    @State private var rotStart: Angle?
     @State private var handleStart: HandleStart?
     struct HandleStart { var frac: CGFloat; var rot: Angle; var dist: CGFloat; var angle: Double }
 
@@ -50,7 +52,7 @@ struct TextLayer: View {
                 .rotationEffect(annotation.rotation)
                 .position(lc)
                 .onTapGesture { onSelect() }
-                .gesture(moveGesture)
+                .gesture(bodyGesture)
 
             if selected {
                 ScaleRotateBadge()
@@ -62,8 +64,9 @@ struct TextLayer: View {
         .position(x: bbox.midX, y: bbox.midY)
     }
 
-    private var moveGesture: some Gesture {
-        DragGesture(minimumDistance: 2, coordinateSpace: .named("canvas"))
+    /// 1本指=移動、2本指=拡大＋回転（矢印と同じく指で直接操作）。
+    private var bodyGesture: some Gesture {
+        let drag = DragGesture(minimumDistance: 2, coordinateSpace: .named("canvas"))
             .onChanged { v in
                 onSelect()
                 if moveStart == nil { moveStart = annotation.position }
@@ -74,6 +77,25 @@ struct TextLayer: View {
                 annotation.position = p
             }
             .onEnded { _ in moveStart = nil }
+
+        let magnify = MagnificationGesture()
+            .onChanged { scale in
+                onSelect()
+                if scaleStart == nil { scaleStart = annotation.fontHeightFraction }
+                let base = scaleStart ?? annotation.fontHeightFraction
+                annotation.fontHeightFraction = min(max(base * scale, 0.02), 0.6)
+            }
+            .onEnded { _ in scaleStart = nil }
+
+        let rotate = RotationGesture()
+            .onChanged { ang in
+                onSelect()
+                if rotStart == nil { rotStart = annotation.rotation }
+                annotation.rotation = (rotStart ?? .zero) + ang
+            }
+            .onEnded { _ in rotStart = nil }
+
+        return drag.simultaneously(with: magnify).simultaneously(with: rotate)
     }
 
     private func scaleRotateGesture(center: CGPoint) -> some Gesture {
