@@ -128,3 +128,8 @@ tsuikyaku-crm/*.db.bak
 **/.env
 !photo-remake/
 !photo-remake/**
+
+!owner-payout-tracker/
+!owner-payout-tracker/**
+owner-payout-tracker/.venv/
+owner-payout-tracker/tracker.db
