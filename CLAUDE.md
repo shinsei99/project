@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-07-03時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全33本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全34本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
 ### 不動産（20本）
@@ -34,10 +34,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | マンション・ビル管理 | building-manager | — | 開発中 | — |
 | 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅ |
 
-### ツール（8本）※社内LAN共有なし
+### ツール（9本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
+| 横断ファイル検索ブラウザ | file-finder | 8520 | — |
 | 送付書ジェネレーター | soufu-generator | 8518 | — |
 | デジタル書斎 | digital-shosai | 3001 | — |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
