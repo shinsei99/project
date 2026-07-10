@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-07-10時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全35本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全36本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（21本）
+### 不動産（23本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
@@ -33,13 +33,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | AI受付＆起票カウンター | ai-ticket-counter | 8600 | ✅ | — |
 | マンション・ビル管理 | building-manager | — | 開発中 | — |
 | 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅ |
-| オーナー送金・月次締めマネージャー | owner-payout-tracker | 8519 | 未（plist未登録） | — |
+| オーナー送金・月次締めマネージャー | owner-payout-tracker | 8519 | ✅ | — |
+| 横断ファイル検索ブラウザ | file-finder | 8520 | ✅ | — |
+| 業務マニュアル（Web） | （git外・Dropbox共有フォルダ / `_業務マニュアル_生成用`） | — | ✅（Dropbox共有） | — |
 
-### ツール（9本）※社内LAN共有なし
+### ツール（8本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
-| 横断ファイル検索ブラウザ | file-finder | 8520 | — |
 | 送付書ジェネレーター | soufu-generator | 8518 | — |
 | デジタル書斎 | digital-shosai | 3001 | — |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
@@ -59,7 +60,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | にゃんこ大脱出 | neko-escape | GitHub Pages |
 | にゃんこのアイス屋さん | nyanko-ice | iOS App Store申請中 |
 
-### 番外：社内マニュアル（アプリ一覧外・Dropbox成果物）
+### 業務マニュアル（Web）補足 ※不動産カテゴリに計上（git外・Dropbox成果物）
 
 - **大京商事 業務マニュアル（Web）** … 自己完結HTML一枚（22マニュアル）。所在: `~/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ/業務マニュアル.html`（2026-07-10作成）。生成スクリプトは同階層 `_業務マニュアル_生成用/`（`python3 generate.py` で再生成可）。gitプロジェクト外・port無し・ブラウザで直接開く運用。詳細はメモ [[project-shared-folder-reorg]]。
 
@@ -81,6 +82,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8515 | 物件写真一括リサイズ | com.shinsei.image-resizer |
 | 8516 | 顧客追客マネージャー | com.shinsei.tsuikyaku-crm |
 | 8517 | 媒介契約書ジェネレーター | com.shinsei.baikai-generator |
+| 8519 | オーナー送金・月次締めマネージャー | com.shinsei.owner-payout-tracker |
+| 8520 | 横断ファイル検索ブラウザ | com.shinsei.file-finder |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 
 ---

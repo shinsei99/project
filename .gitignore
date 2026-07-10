@@ -139,3 +139,7 @@ owner-payout-tracker/tracker.db
 file-finder/.venv/
 # 社内共有ドライブの実ファイル一覧（物件名・取引先名を含む）は公開しない。各PCに配置／README参照
 file-finder/data/
+
+# launchd 登録キット（各PCで pull → bash _launchd/install-launchd.sh）
+!_launchd/
+!_launchd/**
