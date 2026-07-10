@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
-## ★ 最優先事項 — 全アプリ一覧（2026-07-03時点）
+## ★ 最優先事項 — 全アプリ一覧（2026-07-10時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全34本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全35本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（20本）
+### 不動産（21本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
@@ -33,6 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | AI受付＆起票カウンター | ai-ticket-counter | 8600 | ✅ | — |
 | マンション・ビル管理 | building-manager | — | 開発中 | — |
 | 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅ |
+| オーナー送金・月次締めマネージャー | owner-payout-tracker | 8519 | 未（plist未登録） | — |
 
 ### ツール（9本）※社内LAN共有なし
 
@@ -57,6 +58,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | サイボーグ防衛軍 | cyborg-defense | GitHub Pages |
 | にゃんこ大脱出 | neko-escape | GitHub Pages |
 | にゃんこのアイス屋さん | nyanko-ice | iOS App Store申請中 |
+
+### 番外：社内マニュアル（アプリ一覧外・Dropbox成果物）
+
+- **大京商事 業務マニュアル（Web）** … 自己完結HTML一枚（22マニュアル）。所在: `~/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ/業務マニュアル.html`（2026-07-10作成）。生成スクリプトは同階層 `_業務マニュアル_生成用/`（`python3 generate.py` で再生成可）。gitプロジェクト外・port無し・ブラウザで直接開く運用。詳細はメモ [[project-shared-folder-reorg]]。
 
 ### 社内LAN常時起動ポート一覧（launchd / メインMac）
 
