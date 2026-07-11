@@ -14,6 +14,7 @@ mkdir -p "$LA" "$LOGS"
 APPS=(
   "com.shinsei.file-finder|file-finder"
   "com.shinsei.owner-payout-tracker|owner-payout-tracker"
+  "com.shinsei.gyomu-manual|gyomu-manual"
 )
 
 for entry in "${APPS[@]}"; do
@@ -63,5 +64,6 @@ echo
 echo "=== launchd 登録確認 ==="
 launchctl list | grep -E "file-finder|owner-payout" || echo "(まだ起動処理中の可能性あり)"
 echo
-echo "※ 初回は run.sh が .venv を自動作成し streamlit を pip install するため、"
+echo "※ file-finder/owner-payout-tracker は初回 .venv 自動作成のため、"
 echo "   ポート(8519/8520)が上がるまで数十秒かかることがあります。"
+echo "※ gyomu-manual は python3 の標準モジュールのみ使用（即時起動）。"

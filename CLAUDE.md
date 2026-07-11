@@ -35,7 +35,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | オーナー送金・月次締めマネージャー | owner-payout-tracker | 8519 | ✅ | — |
 | 横断ファイル検索ブラウザ | file-finder | 8520 | ✅ | — |
 | 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅ |
-| 業務マニュアル（Web） | gyomu-manual | — | ✅（社内共有） | — |
+| 業務マニュアル（Web） | gyomu-manual | 8521 | ✅ | — |
 
 ### ツール（8本）※社内LAN共有なし
 
@@ -84,6 +84,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8517 | 媒介契約書ジェネレーター | com.shinsei.baikai-generator |
 | 8519 | オーナー送金・月次締めマネージャー | com.shinsei.owner-payout-tracker |
 | 8520 | 横断ファイル検索ブラウザ | com.shinsei.file-finder |
+| 8521 | 業務マニュアル（Web） | com.shinsei.gyomu-manual |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 
 ---
