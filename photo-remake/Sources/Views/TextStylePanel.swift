@@ -40,11 +40,45 @@ struct TextStylePanel: View {
         switch tab {
         case .text:
             VStack(spacing: 10) {
-                TextField("テキストを入力", text: $annotation.text, axis: .vertical)
-                    .textFieldStyle(.roundedBorder)
-                    .lineLimit(1...3)
+                ZStack(alignment: .topLeading) {
+                    if annotation.text.isEmpty {
+                        Text("テキストを入力")
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 10)
+                    }
+                    // TextEditor: Return は改行を挿入し、キーボードを閉じない（TextField と異なる）
+                    TextEditor(text: $annotation.text)
+                        .frame(minHeight: 44, maxHeight: 88)
+                        .scrollContentBackground(.hidden)
+                        .opacity(annotation.text.isEmpty ? 0.25 : 1)
+                        .toolbar {
+                            ToolbarItemGroup(placement: .keyboard) {
+                                Spacer()
+                                Button("完了") {
+                                    UIApplication.shared.sendAction(
+                                        #selector(UIResponder.resignFirstResponder),
+                                        to: nil, from: nil, for: nil)
+                                }
+                            }
+                        }
+                }
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(.systemGray4), lineWidth: 0.5))
                 LabeledSlider(label: "大きさ",
                               value: fraction(\.fontHeightFraction, mul: 1000), range: 20...220)
+                HStack(spacing: 10) {
+                    Text("太さ").font(.caption).foregroundStyle(.secondary)
+                        .frame(width: 56, alignment: .leading)
+                    Slider(value: Binding(
+                        get: { Double(annotation.fontWeightIndex) },
+                        set: { annotation.fontWeightIndex = Int($0.rounded()) }
+                    ), in: 0...8, step: 1)
+                    Text(AnnotationFont.weightLabels[max(0, min(annotation.fontWeightIndex, 8))])
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary).frame(width: 34, alignment: .trailing)
+                }
             }
         case .font:
             VStack(alignment: .leading, spacing: 8) {
@@ -56,7 +90,6 @@ struct TextStylePanel: View {
                     }
                 }
                 HStack(spacing: 16) {
-                    Toggle("太字", isOn: $annotation.isBold)
                     Toggle("縦書き", isOn: $annotation.isVertical)
                 }
                 .font(.subheadline)

@@ -18,6 +18,7 @@ import streamlit as st
 
 APP_DIR = Path(__file__).parent
 DEFAULT_XLSX = APP_DIR / "data" / "全ファイル一覧.xlsx"
+DEFAULT_XLSX.parent.mkdir(exist_ok=True)
 
 st.set_page_config(page_title="横断ファイル検索ブラウザ", page_icon="🔍", layout="wide")
 
@@ -95,18 +96,22 @@ def human_size(b: int) -> str:
 # ------------------------------------------------------------------ ヘッダー
 st.title("🔍 横断ファイル検索ブラウザ")
 
-# データソース。既定は同梱Excel。無ければアップロードで読み込む（PC間引き継ぎ用）
+# データソース。data/全ファイル一覧.xlsx があれば自動読込。アップロードすると上書き保存して永続化。
 has_default = DEFAULT_XLSX.exists()
-exp_label = "📁 データを最新の棚卸しExcelに差し替える" if has_default else "📁 棚卸しExcel（全ファイル一覧.xlsx）をアップロードしてください"
+exp_label = "📁 棚卸しExcelを更新する" if has_default else "📁 棚卸しExcel（全ファイル一覧.xlsx）をアップロードしてください"
 with st.expander(exp_label, expanded=not has_default):
     if not has_default:
-        st.info("このPCにはまだデータがありません。デスクトップ等の **全ファイル一覧.xlsx** を選ぶと検索を開始できます。")
-    uploaded = st.file_uploader("全ファイル一覧.xlsx を選択", type=["xlsx"])
+        st.info("**全ファイル一覧.xlsx** を選択してください。一度アップロードすると次回から自動で読み込まれます。")
+    else:
+        mtime = datetime.fromtimestamp(DEFAULT_XLSX.stat().st_mtime).strftime("%Y-%m-%d %H:%M")
+        st.caption(f"保存済みデータ: `{DEFAULT_XLSX.name}`　最終更新: {mtime}")
+    uploaded = st.file_uploader("全ファイル一覧.xlsx を選択（アップロードすると上書き保存）", type=["xlsx"])
+    if uploaded is not None:
+        DEFAULT_XLSX.write_bytes(uploaded.getvalue())
+        st.success(f"✅ 保存しました → `{DEFAULT_XLSX}`　次回から自動で読み込まれます。")
+        st.cache_data.clear()
 
-if uploaded is not None:
-    data = load_data(io.BytesIO(uploaded.getvalue()), float(len(uploaded.getvalue())))
-    st.caption(f"アップロード版を使用中：{uploaded.name}")
-elif has_default:
+if DEFAULT_XLSX.exists():
     data = load_data(str(DEFAULT_XLSX), DEFAULT_XLSX.stat().st_mtime)
 else:
     st.stop()
@@ -115,7 +120,7 @@ files = data[data["種別"] == "ファイル"].copy()
 
 st.caption(
     f"共有ドライブ棚卸し：{len(files):,} ファイル / "
-    f"{human_size(int(files['bytes'].sum()))} — フォルダを辿らず横断検索"
+    f"{human_size(int(files['bytes'].sum()))}"
 )
 
 # ------------------------------------------------------------------ 検索・絞り込みUI

@@ -18,7 +18,8 @@ struct Annotation: Identifiable, Equatable {
     // ---- テキスト ----
     var text: String = "テキスト"
     var fontName: String = ""            // 空ならシステムフォント
-    var isBold: Bool = true
+    /// フォントウェイト（0=UltraLight … 4=Regular … 6=Bold … 8=Black）
+    var fontWeightIndex: Int = 6
     /// フォントサイズ（画像の高さに対する割合）。
     var fontHeightFraction: CGFloat = 0.07
     var isVertical: Bool = false          // 縦書き

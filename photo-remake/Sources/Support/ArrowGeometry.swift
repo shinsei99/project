@@ -41,9 +41,15 @@ enum ArrowGeometry {
 
 /// 注釈テキストのフォント解決と選択肢。
 enum AnnotationFont {
-    static func uiFont(name: String, size: CGFloat, bold: Bool) -> UIFont {
+    static let weights: [UIFont.Weight] = [
+        .ultraLight, .thin, .light, .regular, .medium, .semibold, .bold, .heavy, .black
+    ]
+    static let weightLabels = ["極細", "細", "やや細", "標準", "中", "やや太", "太", "極太", "黒"]
+
+    static func uiFont(name: String, size: CGFloat, weightIndex: Int) -> UIFont {
+        let w = weights[max(0, min(weightIndex, weights.count - 1))]
         if !name.isEmpty, let f = UIFont(name: name, size: size) { return f }
-        return bold ? .boldSystemFont(ofSize: size) : .systemFont(ofSize: size)
+        return .systemFont(ofSize: size, weight: w)
     }
 
     /// 書体の選択肢（日本語表示に耐える代表フォント）。

@@ -21,7 +21,13 @@ struct AnnotatedImageView: View {
             .frame(width: geo.size.width, height: geo.size.height)
             .contentShape(Rectangle())
             .coordinateSpace(name: "canvas")
-            .onTapGesture { state.selectedID = nil }
+            .onTapGesture {
+                UIApplication.shared.sendAction(
+                    #selector(UIResponder.resignFirstResponder),
+                    to: nil, from: nil, for: nil
+                )
+                state.selectedID = nil
+            }
         }
     }
 

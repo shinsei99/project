@@ -32,9 +32,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 媒介契約書ジェネレーター | baikai-generator | 8517 | ✅ | — |
 | AI受付＆起票カウンター | ai-ticket-counter | 8600 | ✅ | — |
 | マンション・ビル管理 | building-manager | — | 開発中 | — |
-| 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅ |
 | オーナー送金・月次締めマネージャー | owner-payout-tracker | 8519 | ✅ | — |
 | 横断ファイル検索ブラウザ | file-finder | 8520 | ✅ | — |
+| 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅ |
 | 業務マニュアル（Web） | （git外・Dropbox共有フォルダ / `_業務マニュアル_生成用`） | — | ✅（Dropbox共有） | — |
 
 ### ツール（8本）※社内LAN共有なし

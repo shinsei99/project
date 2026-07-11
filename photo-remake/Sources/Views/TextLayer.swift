@@ -42,7 +42,7 @@ struct TextLayer: View {
         ZStack(alignment: .topLeading) {
             StrokeTextLabel(annotation: annotation, fontPt: fontPt)
                 .padding(pad)
-                .contentShape(Rectangle())   // UILabel はタップを通さないのでヒット領域を明示
+                .allowsHitTesting(false) // UIKit にタッチを消費させない
                 .overlay {
                     if selected {
                         RoundedRectangle(cornerRadius: 4)
@@ -52,8 +52,6 @@ struct TextLayer: View {
                 }
                 .rotationEffect(annotation.rotation)
                 .position(lc)
-                .onTapGesture { onSelect() }
-                .gesture(bodyGesture)
 
             if selected {
                 ResizeBadge()
@@ -66,6 +64,10 @@ struct TextLayer: View {
         }
         .frame(width: bbox.width, height: bbox.height)
         .position(x: bbox.midX, y: bbox.midY)
+        // ジェスチャーを外側のSwiftUIビューに付けることでUILabel競合を回避
+        .contentShape(Rectangle())
+        .onTapGesture { onSelect() }
+        .gesture(bodyGesture)
     }
 
     /// 1本指=移動、2本指ピンチ=拡大のみ（回転はしない）。

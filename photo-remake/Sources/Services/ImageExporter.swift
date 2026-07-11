@@ -62,14 +62,19 @@ enum ImageExporter {
 
     private static func drawText(_ a: Annotation, in c: CGContext, imageSize: CGSize) {
         let pt = max(4, a.fontHeightFraction * imageSize.height)
-        let str = TextRendering.attributedString(a, fontPt: pt)
+        let ref = TextRendering.attributedString(a, fontPt: pt)
         let bigSize = CGSize(width: CGFloat.greatestFiniteMagnitude,
                              height: CGFloat.greatestFiniteMagnitude)
-        let bounds = str.boundingRect(
-            with: bigSize,
-            options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
-        str.draw(in: CGRect(x: -bounds.width / 2, y: -bounds.height / 2,
-                            width: bounds.width, height: bounds.height))
+        let bounds = ref.boundingRect(with: bigSize,
+                                      options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+        let r = CGRect(x: -bounds.width / 2, y: -bounds.height / 2,
+                       width: bounds.width, height: bounds.height)
+        if a.hasShadow {
+            // 縁のみに影を付与（2パス）
+            TextRendering.drawTwoPass(a, fontPt: pt, string: TextRendering.displayString(a), in: r)
+        } else {
+            ref.draw(in: r)
+        }
     }
 
     private static func drawArrow(_ a: Annotation, in c: CGContext, imageSize: CGSize) {

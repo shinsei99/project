@@ -68,10 +68,11 @@ final class EditorState: ObservableObject {
     }
 
     func binding(for id: UUID) -> Binding<Annotation>? {
-        guard annotations.contains(where: { $0.id == id }) else { return nil }
-        // インデックスは固定せず、毎回 id で引き直す（削除・並べ替えで範囲外にならない）。
+        guard let initial = annotations.first(where: { $0.id == id }) else { return nil }
+        // フォールバックに Annotation(kind:.text) を使うと新UUID が生成され
+        // selectedID と不一致になるバグがあるため、初期値（同じ UUID）をキャプチャして使う。
         return Binding(
-            get: { self.annotations.first { $0.id == id } ?? Annotation(kind: .text) },
+            get: { self.annotations.first(where: { $0.id == id }) ?? initial },
             set: { newValue in
                 if let i = self.annotations.firstIndex(where: { $0.id == id }) {
                     self.annotations[i] = newValue
