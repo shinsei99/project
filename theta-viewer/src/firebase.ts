@@ -1,14 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
 import type { SpaceNode } from './types';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
+const HTTP_BASE = 'https://daikyocorp.co.jp/vr';
+const API_BASE  = 'http://localhost:8519';
 
-export const isConfigured = !!(supabaseUrl && supabaseKey);
-
-const supabase = isConfigured ? createClient(supabaseUrl, supabaseKey) : null;
-
-const BUCKET = 'theta-space';
+export const isConfigured = true;
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,7 +19,7 @@ export interface PropertySummary {
 export interface NodeMeta {
   name: string;
   imageUrl: string;
-  depthPath: string;
+  depthUrl: string;
   depthWidth: number;
   depthHeight: number;
 }
@@ -39,6 +34,56 @@ export interface PropertyViewData {
   rawNodeData: Record<string, NodeMeta>;
 }
 
+// ── List ──────────────────────────────────────────────────────────────────────
+
+export async function listProperties(): Promise<PropertySummary[]> {
+  const res = await fetch(`${HTTP_BASE}/index.json`, { cache: 'no-store' });
+  if (!res.ok) return [];
+  const data: Array<{ id: string; name: string; address: string; createdAt: string; roomCount: number }> = await res.json();
+  return data.map(r => ({
+    id: r.id,
+    name: r.name ?? '（名称未設定）',
+    address: r.address ?? '',
+    createdAt: new Date(r.createdAt),
+    roomCount: r.roomCount,
+    nodeOrder: [],
+  }));
+}
+
+// ── Load ──────────────────────────────────────────────────────────────────────
+
+export async function loadProperty(propertyId: string): Promise<PropertyViewData> {
+  const res = await fetch(`${HTTP_BASE}/${propertyId}/meta.json`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('物件が見つかりません (ID: ' + propertyId + ')');
+  const meta = await res.json() as {
+    id: string; name: string; address: string;
+    displacement: number;
+    pinPositions: Record<string, [number, number, number]>;
+    nodes: Array<{ id: string; name: string; imageUrl: string; depthUrl: string; depthWidth: number; depthHeight: number }>;
+  };
+
+  const nodes: SpaceNode[] = [];
+  const rawNodeData: Record<string, NodeMeta> = {};
+
+  for (const n of meta.nodes) {
+    const depthRes = await fetch(n.depthUrl, { cache: 'no-store' });
+    if (!depthRes.ok) throw new Error(`深度データの取得に失敗しました: ${n.name}`);
+    const depthMap = new Float32Array(await depthRes.arrayBuffer());
+    nodes.push({
+      id: n.id, name: n.name, imageUrl: n.imageUrl,
+      status: 'done', progress: 100, message: '',
+      depthMap, depthWidth: n.depthWidth, depthHeight: n.depthHeight,
+    });
+    rawNodeData[n.id] = { name: n.name, imageUrl: n.imageUrl, depthUrl: n.depthUrl, depthWidth: n.depthWidth, depthHeight: n.depthHeight };
+  }
+
+  return {
+    id: meta.id, name: meta.name, address: meta.address ?? '',
+    nodes, pinPositions: meta.pinPositions ?? {}, displacement: meta.displacement ?? 1.5,
+    rawNodeData,
+  };
+}
+
 // ── Save ──────────────────────────────────────────────────────────────────────
 
 export async function saveProperty(
@@ -49,99 +94,50 @@ export async function saveProperty(
   displacement: number,
   onProgress: (msg: string, pct: number) => void,
 ): Promise<string> {
-  if (!supabase) throw new Error('Supabase が設定されていません');
-
-  const propertyId = crypto.randomUUID().slice(0, 12);
-  const nodeData: Record<string, object> = {};
+  onProgress('物件を初期化中...', 2);
+  const initRes = await fetch(`${API_BASE}/api/property/init`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, address }),
+  });
+  if (!initRes.ok) throw new Error(await initRes.text());
+  const { id } = await initRes.json() as { id: string };
 
   for (let i = 0; i < nodes.length; i++) {
     const node = nodes[i];
-    const base = Math.round((i / nodes.length) * 85);
+    const pct = 5 + Math.round((i / nodes.length) * 85);
+    onProgress(`「${node.name}」をアップロード中...`, pct);
 
-    onProgress(`「${node.name}」の画像をアップロード中...`, base);
     const imageBlob = await fetch(node.imageUrl).then(r => r.blob());
-    const imagePath = `properties/${propertyId}/${node.id}/image.jpg`;
-    const { error: imgErr } = await supabase.storage
-      .from(BUCKET).upload(imagePath, imageBlob, { contentType: 'image/jpeg' });
-    if (imgErr) throw imgErr;
-    const imageUrl = supabase.storage.from(BUCKET).getPublicUrl(imagePath).data.publicUrl;
+    const depthArr = node.depthMap!;
+    const depthCopy = depthArr.buffer.slice(depthArr.byteOffset, depthArr.byteOffset + depthArr.byteLength) as ArrayBuffer;
+    const depthBlob = new Blob([depthCopy], { type: 'application/octet-stream' });
 
-    onProgress(`「${node.name}」の深度データをアップロード中...`, base + 10);
-    const arr = node.depthMap!;
-    const depthBuffer = arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength);
-    const depthPath = `properties/${propertyId}/${node.id}/depth.bin`;
-    const { error: depthErr } = await supabase.storage
-      .from(BUCKET).upload(depthPath, new Uint8Array(depthBuffer), { contentType: 'application/octet-stream' });
-    if (depthErr) throw depthErr;
+    const form = new FormData();
+    form.append('nodeId', node.id);
+    form.append('name', node.name);
+    form.append('depthWidth', String(node.depthWidth!));
+    form.append('depthHeight', String(node.depthHeight!));
+    form.append('image', imageBlob, `${node.id}-image.jpg`);
+    form.append('depth', depthBlob, `${node.id}-depth.bin`);
 
-    nodeData[node.id] = {
-      name: node.name, imageUrl, depthPath,
-      depthWidth: node.depthWidth!, depthHeight: node.depthHeight!,
-    };
+    const nodeRes = await fetch(`${API_BASE}/api/property/${id}/node`, { method: 'POST', body: form });
+    if (!nodeRes.ok) throw new Error(await nodeRes.text());
   }
 
   onProgress('物件情報を保存中...', 95);
-
-  const { error } = await supabase.from('properties').insert({
-    id: propertyId,
-    name,
-    address,
-    node_order: nodes.map(n => n.id),
-    node_data: nodeData,
-    pin_positions: pinPositions,
-    displacement,
+  const finalRes = await fetch(`${API_BASE}/api/property/${id}/finalize`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pinPositions, displacement }),
   });
-  if (error) throw error;
+  if (!finalRes.ok) throw new Error(await finalRes.text());
 
   onProgress('完了！', 100);
-  return propertyId;
+  return id;
 }
 
-// ── Load ──────────────────────────────────────────────────────────────────────
-
-export async function loadProperty(propertyId: string): Promise<PropertyViewData> {
-  if (!supabase) throw new Error('Supabase が設定されていません');
-
-  const { data, error } = await supabase
-    .from('properties').select('*').eq('id', propertyId).single();
-  if (error) throw error;
-  if (!data) throw new Error('物件が見つかりません (ID: ' + propertyId + ')');
-
-  const nodeData = data.node_data as Record<string, NodeMeta>;
-
-  const nodes: SpaceNode[] = [];
-  for (const nodeId of data.node_order as string[]) {
-    const nd = nodeData[nodeId];
-
-    const { data: depthBlob, error: depthErr } = await supabase.storage
-      .from(BUCKET).download(nd.depthPath);
-    if (depthErr) throw depthErr;
-
-    nodes.push({
-      id: nodeId,
-      name: nd.name,
-      imageUrl: nd.imageUrl,
-      status: 'done',
-      progress: 100,
-      message: '',
-      depthMap: new Float32Array(await depthBlob!.arrayBuffer()),
-      depthWidth: nd.depthWidth,
-      depthHeight: nd.depthHeight,
-    });
-  }
-
-  return {
-    id: propertyId,
-    name: data.name as string,
-    address: (data.address as string) ?? '',
-    nodes,
-    pinPositions: (data.pin_positions as Record<string, [number, number, number]>) ?? {},
-    displacement: (data.displacement as number) ?? 1.5,
-    rawNodeData: nodeData,
-  };
-}
-
-// ── Update ─────────────────────────────────────────────────────────────────────
+// ── Update ────────────────────────────────────────────────────────────────────
 
 export async function updateProperty(
   propertyId: string,
@@ -154,94 +150,66 @@ export async function updateProperty(
   displacement: number,
   onProgress: (msg: string, pct: number) => void,
 ): Promise<void> {
-  if (!supabase) throw new Error('Supabase が設定されていません');
+  onProgress('更新を開始中...', 2);
+  const initRes = await fetch(`${API_BASE}/api/property/${propertyId}/update-init`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, address }),
+  });
+  if (!initRes.ok) throw new Error(await initRes.text());
 
-  // Delete removed nodes from Storage
-  if (deletedNodeIds.length > 0) {
-    const paths = deletedNodeIds.flatMap(nid => [
-      `properties/${propertyId}/${nid}/image.jpg`,
-      `properties/${propertyId}/${nid}/depth.bin`,
-    ]);
-    await supabase.storage.from(BUCKET).remove(paths);
-  }
-
-  const newNodeData: Record<string, object> = {};
   const newNodes = nodes.filter(n => n.imageUrl.startsWith('blob:'));
-  const existingNodes = nodes.filter(n => !n.imageUrl.startsWith('blob:'));
 
-  // Keep existing nodes (update name only)
-  for (const node of existingNodes) {
-    const meta = existingNodeMeta[node.id];
-    newNodeData[node.id] = { ...meta, name: node.name };
-  }
-
-  // Upload new nodes
   for (let i = 0; i < newNodes.length; i++) {
     const node = newNodes[i];
-    const pct = Math.round((i / newNodes.length) * 85);
-    onProgress(`「${node.name}」の画像をアップロード中...`, pct);
+    const pct = 5 + Math.round((i / Math.max(newNodes.length, 1)) * 85);
+    onProgress(`「${node.name}」をアップロード中...`, pct);
 
     const imageBlob = await fetch(node.imageUrl).then(r => r.blob());
-    const imagePath = `properties/${propertyId}/${node.id}/image.jpg`;
-    const { error: imgErr } = await supabase.storage
-      .from(BUCKET).upload(imagePath, imageBlob, { contentType: 'image/jpeg' });
-    if (imgErr) throw imgErr;
-    const imageUrl = supabase.storage.from(BUCKET).getPublicUrl(imagePath).data.publicUrl;
+    const depthArr = node.depthMap!;
+    const depthCopy2 = depthArr.buffer.slice(depthArr.byteOffset, depthArr.byteOffset + depthArr.byteLength) as ArrayBuffer;
+    const depthBlob = new Blob([depthCopy2], { type: 'application/octet-stream' });
 
-    onProgress(`「${node.name}」の深度データをアップロード中...`, pct + 10);
-    const arr = node.depthMap!;
-    const depthBuffer = arr.buffer.slice(arr.byteOffset, arr.byteOffset + arr.byteLength);
-    const depthPath = `properties/${propertyId}/${node.id}/depth.bin`;
-    const { error: depthErr } = await supabase.storage
-      .from(BUCKET).upload(depthPath, new Uint8Array(depthBuffer), { contentType: 'application/octet-stream' });
-    if (depthErr) throw depthErr;
+    const form = new FormData();
+    form.append('nodeId', node.id);
+    form.append('name', node.name);
+    form.append('depthWidth', String(node.depthWidth!));
+    form.append('depthHeight', String(node.depthHeight!));
+    form.append('image', imageBlob, `${node.id}-image.jpg`);
+    form.append('depth', depthBlob, `${node.id}-depth.bin`);
 
-    newNodeData[node.id] = {
-      name: node.name, imageUrl, depthPath,
-      depthWidth: node.depthWidth!, depthHeight: node.depthHeight!,
-    };
+    const nodeRes = await fetch(`${API_BASE}/api/property/${propertyId}/node`, { method: 'POST', body: form });
+    if (!nodeRes.ok) throw new Error(await nodeRes.text());
   }
 
   onProgress('物件情報を保存中...', 95);
+  const existingNodes = nodes
+    .filter(n => !n.imageUrl.startsWith('blob:'))
+    .map(n => ({ id: n.id, nodeName: n.name, ...existingNodeMeta[n.id] }));
 
-  const { error } = await supabase.from('properties').update({
-    name,
-    address,
-    node_order: nodes.map(n => n.id),
-    node_data: newNodeData,
-    pin_positions: pinPositions,
-    displacement,
-  }).eq('id', propertyId);
-  if (error) throw error;
+  const newNodeIds = newNodes.map(n => n.id);
+
+  const updateRes = await fetch(`${API_BASE}/api/property/${propertyId}/update-meta`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, address, pinPositions, displacement, existingNodes, newNodeIds, deletedNodeIds }),
+  });
+  if (!updateRes.ok) throw new Error(await updateRes.text());
 
   onProgress('完了！', 100);
 }
 
-// ── List ──────────────────────────────────────────────────────────────────────
-
-export async function listProperties(): Promise<PropertySummary[]> {
-  if (!supabase) return [];
-  const { data, error } = await supabase
-    .from('properties').select('id, name, address, created_at, node_order').order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data ?? []).map(r => ({
-    id: r.id as string,
-    name: (r.name as string) ?? '（名称未設定）',
-    address: (r.address as string) ?? '',
-    createdAt: new Date(r.created_at as string),
-    roomCount: (r.node_order as string[]).length,
-    nodeOrder: r.node_order as string[],
-  }));
-}
-
 // ── Delete ────────────────────────────────────────────────────────────────────
 
-export async function deleteProperty(propertyId: string, nodeIds: string[]): Promise<void> {
-  if (!supabase) return;
-  const paths = nodeIds.flatMap(nid => [
-    `properties/${propertyId}/${nid}/image.jpg`,
-    `properties/${propertyId}/${nid}/depth.bin`,
-  ]);
-  await supabase.storage.from(BUCKET).remove(paths);
-  await supabase.from('properties').delete().eq('id', propertyId);
+export async function deleteProperty(propertyId: string, _nodeIds: string[]): Promise<void> {
+  // meta.json からnode IDを取得（index.jsonには含まれないため）
+  const meta = await fetch(`${HTTP_BASE}/${propertyId}/meta.json`)
+    .then(r => r.ok ? r.json() : null).catch(() => null);
+  const nodeIds: string[] = meta?.nodes?.map((n: { id: string }) => n.id) ?? _nodeIds;
+
+  await fetch(`${API_BASE}/api/property/${propertyId}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nodeIds }),
+  });
 }

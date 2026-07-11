@@ -3,10 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { listProperties, deleteProperty } from '../firebase';
 import type { PropertySummary } from '../firebase';
 
-const BASE = window.location.origin + window.location.pathname;
+const PUBLIC_BASE = 'https://daikyocorp.co.jp/vr/';
 
 function viewerUrl(id: string) {
-  return `${BASE}#/property/${id}`;
+  return `${PUBLIC_BASE}#/property/${id}`;
 }
 
 export default function PropertyListPage() {
