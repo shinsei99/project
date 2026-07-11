@@ -35,7 +35,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | オーナー送金・月次締めマネージャー | owner-payout-tracker | 8519 | ✅ | — |
 | 横断ファイル検索ブラウザ | file-finder | 8520 | ✅ | — |
 | 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅ |
-| 業務マニュアル（Web） | （git外・Dropbox共有フォルダ / `_業務マニュアル_生成用`） | — | ✅（Dropbox共有） | — |
+| 業務マニュアル（Web） | gyomu-manual | — | ✅（社内共有） | — |
 
 ### ツール（8本）※社内LAN共有なし
 
@@ -60,9 +60,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | にゃんこ大脱出 | neko-escape | GitHub Pages |
 | にゃんこのアイス屋さん | nyanko-ice | iOS App Store申請中 |
 
-### 業務マニュアル（Web）補足 ※不動産カテゴリに計上（git外・Dropbox成果物）
+### 業務マニュアル（Web）補足 ※不動産カテゴリに計上
 
-- **大京商事 業務マニュアル（Web）** … 自己完結HTML一枚（22マニュアル）。所在: `~/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ/業務マニュアル.html`（2026-07-10作成）。生成スクリプトは同階層 `_業務マニュアル_生成用/`（`python3 generate.py` で再生成可）。gitプロジェクト外・port無し・ブラウザで直接開く運用。詳細はメモ [[project-shared-folder-reorg]]。
+- **大京商事 業務マニュアル（Web）** … 自己完結HTML一枚（22マニュアル）。所在: `gyomu-manual/業務マニュアル.html`（2026-07-10作成）。生成スクリプト: `gyomu-manual/generate.py`（`python3 generate.py` で再生成可）。port無し・ブラウザで直接開く運用。
 
 ### 社内LAN常時起動ポート一覧（launchd / メインMac）
 
