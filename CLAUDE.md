@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-07-10時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全36本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全37本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
 ### 不動産（23本）
@@ -50,7 +50,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
 | フォトリメイク | photo-remake | — | iOS App Store申請前 |
 
-### ゲーム（5本）※社内LAN共有なし
+### ゲーム（6本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | 外部公開 |
 |---|---|---|
@@ -59,6 +59,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | サイボーグ防衛軍 | cyborg-defense | GitHub Pages |
 | にゃんこ大脱出 | neko-escape | GitHub Pages |
 | にゃんこのアイス屋さん | nyanko-ice | iOS App Store申請中 |
+| ネオンブロック | neon-blocks | iOS App Store申請予定（メインPCで作業） |
 
 ### 業務マニュアル（Web）補足 ※不動産カテゴリに計上
 
