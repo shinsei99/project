@@ -73,12 +73,13 @@ function MainDropZone({ onFiles }: { onFiles: (files: File[]) => void }) {
 interface SaveModalProps {
   nodes: SpaceNode[];
   pinPositions: Record<string, [number, number, number]>;
+  hiddenLinks: Record<string, boolean>;
   displacement: number;
   onClose: () => void;
   onSaved: (id: string) => void;
 }
 
-function SaveModal({ nodes, pinPositions, displacement, onClose, onSaved }: SaveModalProps) {
+function SaveModal({ nodes, pinPositions, hiddenLinks, displacement, onClose, onSaved }: SaveModalProps) {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [saving, setSaving] = useState(false);
@@ -86,8 +87,7 @@ function SaveModal({ nodes, pinPositions, displacement, onClose, onSaved }: Save
   const [savedId, setSavedId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const BASE = window.location.origin + window.location.pathname;
-  const savedUrl = savedId ? `${BASE}#/property/${savedId}` : '';
+  const savedUrl = savedId ? `https://daikyocorp.co.jp/vr/#/property/${savedId}` : '';
 
   const handleSave = async () => {
     if (!name.trim()) return;
@@ -96,7 +96,7 @@ function SaveModal({ nodes, pinPositions, displacement, onClose, onSaved }: Save
       const id = await saveProperty(
         name.trim(), address.trim(),
         nodes.filter(n => n.status === 'done'),
-        pinPositions, displacement,
+        pinPositions, hiddenLinks, displacement,
         (msg, pct) => setProgress({ msg, pct })
       );
       setSavedId(id);
@@ -205,6 +205,7 @@ export default function AdminPage() {
   const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
   const [displacement, setDisplacement] = useState(1.5);
   const [pinPositions, setPinPositions] = useState<Record<string, [number, number, number]>>({});
+  const [hiddenLinks, setHiddenLinks] = useState<Record<string, boolean>>({});
   const [showSaveModal, setShowSaveModal] = useState(false);
 
   const workerRef = useRef<Worker | null>(null);
@@ -290,6 +291,14 @@ export default function AdminPage() {
   const handlePinPositionReset = useCallback((fromId: string, toId: string) =>
     setPinPositions(prev => { const n = { ...prev }; delete n[`${fromId}::${toId}`]; return n; }), []);
 
+  const handleHiddenLinksChange = useCallback((fromId: string, toId: string, hidden: boolean) =>
+    setHiddenLinks(prev => {
+      const n = { ...prev };
+      if (hidden) n[`${fromId}::${toId}`] = true;
+      else delete n[`${fromId}::${toId}`];
+      return n;
+    }), []);
+
   const currentNode = nodes.find(n => n.id === currentNodeId && n.status === 'done') ?? null;
   const otherDoneNodes = nodes.filter(n => n.id !== currentNodeId && n.status === 'done');
   const processingNode = nodes.find(n => n.status === 'processing');
@@ -367,6 +376,8 @@ export default function AdminPage() {
               pinPositions={pinPositions}
               onPinPositionChange={handlePinPositionChange}
               onPinPositionReset={handlePinPositionReset}
+              hiddenLinks={hiddenLinks}
+              onHiddenLinksChange={handleHiddenLinksChange}
             />
           ) : nodes.length === 0 ? (
             <MainDropZone onFiles={handleFiles} />
@@ -405,6 +416,7 @@ export default function AdminPage() {
         <SaveModal
           nodes={nodes}
           pinPositions={pinPositions}
+          hiddenLinks={hiddenLinks}
           displacement={displacement}
           onClose={() => setShowSaveModal(false)}
           onSaved={() => { /* URL is shown inside modal */ }}

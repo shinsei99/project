@@ -44,6 +44,7 @@ interface UpdateModalProps {
   existingNodeMeta: Record<string, NodeMeta>;
   deletedNodeIds: string[];
   pinPositions: Record<string, [number, number, number]>;
+  hiddenLinks: Record<string, boolean>;
   displacement: number;
   onClose: () => void;
   onSaved: () => void;
@@ -51,7 +52,7 @@ interface UpdateModalProps {
 
 function UpdateModal({
   propertyId, name, address, nodes, existingNodeMeta, deletedNodeIds,
-  pinPositions, displacement, onClose, onSaved,
+  pinPositions, hiddenLinks, displacement, onClose, onSaved,
 }: UpdateModalProps) {
   const [saving, setSaving] = useState(false);
   const [progress, setProgress] = useState({ msg: '', pct: 0 });
@@ -64,7 +65,7 @@ function UpdateModal({
         propertyId, name, address,
         nodes.filter(n => n.status === 'done'),
         existingNodeMeta, deletedNodeIds,
-        pinPositions, displacement,
+        pinPositions, hiddenLinks, displacement,
         (msg, pct) => setProgress({ msg, pct }),
       );
       setDone(true);
@@ -135,6 +136,7 @@ export default function EditPage() {
   const [currentNodeId, setCurrentNodeId] = useState<string | null>(null);
   const [displacement, setDisplacement] = useState(1.5);
   const [pinPositions, setPinPositions] = useState<Record<string, [number, number, number]>>({});
+  const [hiddenLinks, setHiddenLinks] = useState<Record<string, boolean>>({});
   const [showUpdateModal, setShowUpdateModal] = useState(false);
 
   const workerRef = useRef<Worker | null>(null);
@@ -152,6 +154,7 @@ export default function EditPage() {
         setExistingNodeMeta(d.rawNodeData);
         setDisplacement(d.displacement);
         setPinPositions(d.pinPositions);
+        setHiddenLinks(d.hiddenLinks);
         setCurrentNodeId(d.nodes[0]?.id ?? null);
       })
       .catch(e => setLoadError(e instanceof Error ? e.message : String(e)))
@@ -258,6 +261,14 @@ export default function EditPage() {
 
   const handlePinPositionReset = useCallback((fromId: string, toId: string) =>
     setPinPositions(prev => { const n = { ...prev }; delete n[`${fromId}::${toId}`]; return n; }), []);
+
+  const handleHiddenLinksChange = useCallback((fromId: string, toId: string, hidden: boolean) =>
+    setHiddenLinks(prev => {
+      const n = { ...prev };
+      if (hidden) n[`${fromId}::${toId}`] = true;
+      else delete n[`${fromId}::${toId}`];
+      return n;
+    }), []);
 
   const currentNode = nodes.find(n => n.id === currentNodeId && n.status === 'done') ?? null;
   const otherDoneNodes = nodes.filter(n => n.id !== currentNodeId && n.status === 'done');
@@ -373,6 +384,8 @@ export default function EditPage() {
               pinPositions={pinPositions}
               onPinPositionChange={handlePinPositionChange}
               onPinPositionReset={handlePinPositionReset}
+              hiddenLinks={hiddenLinks}
+              onHiddenLinksChange={handleHiddenLinksChange}
             />
           ) : (
             <div className="viewer-placeholder">
@@ -413,6 +426,7 @@ export default function EditPage() {
           existingNodeMeta={existingNodeMeta}
           deletedNodeIds={deletedNodeIds}
           pinPositions={pinPositions}
+          hiddenLinks={hiddenLinks}
           displacement={displacement}
           onClose={() => setShowUpdateModal(false)}
           onSaved={() => {}}

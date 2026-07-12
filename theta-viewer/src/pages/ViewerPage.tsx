@@ -69,6 +69,7 @@ export default function ViewerPage() {
             pinPositions={data.pinPositions}
             onPinPositionChange={() => {}}
             onPinPositionReset={() => {}}
+            hiddenLinks={data.hiddenLinks}
             readOnly
           />
         ) : (

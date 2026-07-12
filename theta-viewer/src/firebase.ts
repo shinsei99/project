@@ -30,6 +30,7 @@ export interface PropertyViewData {
   address: string;
   nodes: SpaceNode[];
   pinPositions: Record<string, [number, number, number]>;
+  hiddenLinks: Record<string, boolean>;
   displacement: number;
   rawNodeData: Record<string, NodeMeta>;
 }
@@ -59,6 +60,7 @@ export async function loadProperty(propertyId: string): Promise<PropertyViewData
     id: string; name: string; address: string;
     displacement: number;
     pinPositions: Record<string, [number, number, number]>;
+    hiddenLinks: Record<string, boolean>;
     nodes: Array<{ id: string; name: string; imageUrl: string; depthUrl: string; depthWidth: number; depthHeight: number }>;
   };
 
@@ -79,8 +81,8 @@ export async function loadProperty(propertyId: string): Promise<PropertyViewData
 
   return {
     id: meta.id, name: meta.name, address: meta.address ?? '',
-    nodes, pinPositions: meta.pinPositions ?? {}, displacement: meta.displacement ?? 1.5,
-    rawNodeData,
+    nodes, pinPositions: meta.pinPositions ?? {}, hiddenLinks: meta.hiddenLinks ?? {},
+    displacement: meta.displacement ?? 1.5, rawNodeData,
   };
 }
 
@@ -91,6 +93,7 @@ export async function saveProperty(
   address: string,
   nodes: SpaceNode[],
   pinPositions: Record<string, [number, number, number]>,
+  hiddenLinks: Record<string, boolean>,
   displacement: number,
   onProgress: (msg: string, pct: number) => void,
 ): Promise<string> {
@@ -129,7 +132,7 @@ export async function saveProperty(
   const finalRes = await fetch(`${API_BASE}/api/property/${id}/finalize`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pinPositions, displacement }),
+    body: JSON.stringify({ pinPositions, hiddenLinks, displacement }),
   });
   if (!finalRes.ok) throw new Error(await finalRes.text());
 
@@ -147,6 +150,7 @@ export async function updateProperty(
   existingNodeMeta: Record<string, NodeMeta>,
   deletedNodeIds: string[],
   pinPositions: Record<string, [number, number, number]>,
+  hiddenLinks: Record<string, boolean>,
   displacement: number,
   onProgress: (msg: string, pct: number) => void,
 ): Promise<void> {
@@ -192,7 +196,7 @@ export async function updateProperty(
   const updateRes = await fetch(`${API_BASE}/api/property/${propertyId}/update-meta`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, address, pinPositions, displacement, existingNodes, newNodeIds, deletedNodeIds }),
+    body: JSON.stringify({ name, address, pinPositions, hiddenLinks, displacement, existingNodes, newNodeIds, deletedNodeIds }),
   });
   if (!updateRes.ok) throw new Error(await updateRes.text());
 

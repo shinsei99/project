@@ -75,10 +75,11 @@ function ClickTargetSphere({ onHit }: { onHit: (pos: THREE.Vector3) => void }) {
 
 // ── Navigation Pin ────────────────────────────────────────────────────────────
 
-function NavigationPin({ position, label, isEditing, onClick }: {
+function NavigationPin({ position, label, isEditing, isHidden, onClick }: {
   position: [number, number, number];
   label: string;
   isEditing: boolean;
+  isHidden?: boolean;
   onClick: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -100,7 +101,8 @@ function NavigationPin({ position, label, isEditing, onClick }: {
     }
   });
 
-  const color = isEditing ? '#ffcc00' : hovered ? '#ffffff' : '#00e5ff';
+  const color = isEditing ? '#ffcc00' : isHidden ? '#888888' : hovered ? '#ffffff' : '#00e5ff';
+  const baseOpacity = isHidden ? 0.3 : 1;
 
   // Billboard always faces the camera regardless of pin position on the sphere.
   // depthTest={false} prevents displaced sphere geometry from occluding the pin.
@@ -109,7 +111,7 @@ function NavigationPin({ position, label, isEditing, onClick }: {
       {/* Rotating arc ring */}
       <mesh ref={ringRef}>
         <ringGeometry args={[0.48, 0.65, 48, 1, 0, Math.PI * 1.6]} />
-        <meshBasicMaterial color={color} transparent opacity={isEditing ? 1 : hovered ? 1 : 0.85} side={THREE.DoubleSide} depthTest={false} />
+        <meshBasicMaterial color={color} transparent opacity={(isEditing ? 1 : hovered ? 1 : 0.85) * baseOpacity} side={THREE.DoubleSide} depthTest={false} />
       </mesh>
 
       {/* Clickable center disc */}
@@ -121,7 +123,7 @@ function NavigationPin({ position, label, isEditing, onClick }: {
         <circleGeometry args={[0.45, 40]} />
         <meshBasicMaterial
           color={isEditing ? '#332200' : hovered ? '#004488' : '#001a33'}
-          transparent opacity={hovered || isEditing ? 0.95 : 0.7}
+          transparent opacity={(hovered || isEditing ? 0.95 : 0.7) * baseOpacity}
           side={THREE.DoubleSide} depthTest={false}
         />
       </mesh>
@@ -129,13 +131,13 @@ function NavigationPin({ position, label, isEditing, onClick }: {
       {/* Center icon */}
       <mesh position={[0, 0.32, 0]}>
         <coneGeometry args={[0.14, 0.28, 3]} />
-        <meshBasicMaterial color={color} transparent opacity={0.9} side={THREE.DoubleSide} depthTest={false} />
+        <meshBasicMaterial color={color} transparent opacity={0.9 * baseOpacity} side={THREE.DoubleSide} depthTest={false} />
       </mesh>
 
       {/* Label */}
       <Html position={[0, 0.95, 0]} center distanceFactor={8}>
-        <div className={`pin-label${hovered ? ' hovered' : ''}${isEditing ? ' editing' : ''}`}>
-          {isEditing ? `✎ ${label}` : label}
+        <div className={`pin-label${hovered ? ' hovered' : ''}${isEditing ? ' editing' : ''}${isHidden ? ' hidden-pin' : ''}`}>
+          {isEditing ? `✎ ${label}` : isHidden ? `👁‍🗨 ${label}` : label}
         </div>
       </Html>
     </Billboard>
@@ -150,6 +152,31 @@ function getDefaultPosition(index: number, total: number): [number, number, numb
   return [r * Math.cos(angle), y, r * Math.sin(angle)];
 }
 
+// ── Gyroscope helpers ─────────────────────────────────────────────────────────
+
+// DeviceOrientation → camera quaternion（標準VRパノラマ変換）
+const _gyroQ0 = new THREE.Quaternion();
+const _gyroQ1 = new THREE.Quaternion(-Math.sqrt(0.5), 0, 0, Math.sqrt(0.5));
+const _gyroZee = new THREE.Vector3(0, 0, 1);
+const _gyroEuler = new THREE.Euler();
+
+function applyDeviceOrientation(
+  camera: THREE.Camera,
+  alpha: number, beta: number, gamma: number,
+  screenAngle: number,
+) {
+  _gyroEuler.set(
+    THREE.MathUtils.degToRad(beta),
+    THREE.MathUtils.degToRad(alpha),
+    THREE.MathUtils.degToRad(-gamma),
+    'YXZ',
+  );
+  camera.quaternion.setFromEuler(_gyroEuler);
+  camera.quaternion.multiply(_gyroQ1);
+  _gyroQ0.setFromAxisAngle(_gyroZee, -THREE.MathUtils.degToRad(screenAngle));
+  camera.quaternion.multiply(_gyroQ0);
+}
+
 // ── Scene Controller ──────────────────────────────────────────────────────────
 
 function SceneController({
@@ -157,11 +184,15 @@ function SceneController({
   movingTowardRef,
   shouldResetCameraRef,
   editModeRef,
+  gyroModeRef,
+  orientationRef,
 }: {
   isTransitioningRef: MutableRefObject<boolean>;
   movingTowardRef: MutableRefObject<THREE.Vector3 | null>;
   shouldResetCameraRef: MutableRefObject<boolean>;
   editModeRef: MutableRefObject<boolean>;
+  gyroModeRef: MutableRefObject<boolean>;
+  orientationRef: MutableRefObject<{ alpha: number; beta: number; gamma: number } | null>;
 }) {
   const { camera, gl } = useThree();
   const isDragging = useRef(false);
@@ -173,7 +204,7 @@ function SceneController({
     const dom = gl.domElement;
 
     const onDown = (e: MouseEvent) => {
-      if (isTransitioningRef.current || editModeRef.current) return;
+      if (isTransitioningRef.current || editModeRef.current || gyroModeRef.current) return;
       isDragging.current = true;
       prev.current = { x: e.clientX, y: e.clientY };
     };
@@ -191,7 +222,7 @@ function SceneController({
       radius.current = Math.max(0.001, Math.min(8, radius.current + e.deltaY * 0.01));
     };
     const onTouchStart = (e: TouchEvent) => {
-      if (e.touches.length !== 1 || editModeRef.current) return;
+      if (e.touches.length !== 1 || editModeRef.current || gyroModeRef.current) return;
       isDragging.current = true;
       prev.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     };
@@ -222,7 +253,7 @@ function SceneController({
       dom.removeEventListener('touchmove', onTouchMove);
       dom.removeEventListener('touchend', onTouchEnd);
     };
-  }, [gl, isTransitioningRef, editModeRef]);
+  }, [gl, isTransitioningRef, editModeRef, gyroModeRef]);
 
   useFrame((_, delta) => {
     if (shouldResetCameraRef.current) {
@@ -235,6 +266,13 @@ function SceneController({
     if (isTransitioningRef.current && movingTowardRef.current) {
       camera.position.lerp(movingTowardRef.current, delta * 5);
       camera.lookAt(0, 0, 0);
+    } else if (gyroModeRef.current && orientationRef.current) {
+      camera.position.set(0, 0, 0.001);
+      const { alpha, beta, gamma } = orientationRef.current;
+      const screenAngle =
+        (screen.orientation?.angle) ??
+        ((window as unknown as { orientation?: number }).orientation ?? 0);
+      applyDeviceOrientation(camera, alpha, beta, gamma, screenAngle);
     } else {
       const { theta, phi } = spherical.current;
       const r = radius.current;
@@ -261,6 +299,8 @@ export interface PanoramaViewerProps {
   pinPositions: Record<string, [number, number, number]>;
   onPinPositionChange: (fromId: string, toId: string, pos: [number, number, number]) => void;
   onPinPositionReset: (fromId: string, toId: string) => void;
+  hiddenLinks?: Record<string, boolean>;
+  onHiddenLinksChange?: (fromId: string, toId: string, hidden: boolean) => void;
   readOnly?: boolean;
 }
 
@@ -273,27 +313,66 @@ export default function PanoramaViewer({
   pinPositions,
   onPinPositionChange,
   onPinPositionReset,
+  hiddenLinks = {},
+  onHiddenLinksChange,
   readOnly = false,
 }: PanoramaViewerProps) {
   const [fadeOpacity, setFadeOpacity] = useState(0);
   const [editMode, setEditMode] = useState(false);
   const [editTargetId, setEditTargetId] = useState<string | null>(null);
+  const [gyroEnabled, setGyroEnabled] = useState(false);
 
   const isTransitioningRef = useRef(false);
   const movingTowardRef = useRef<THREE.Vector3 | null>(null);
   const shouldResetCameraRef = useRef(false);
   const editModeRef = useRef(false);
+  const gyroModeRef = useRef(false);
+  const orientationRef = useRef<{ alpha: number; beta: number; gamma: number } | null>(null);
 
-  // Keep ref in sync with state for use inside Three.js frame loop
+  // Keep refs in sync with state for use inside Three.js frame loop
   useEffect(() => { editModeRef.current = editMode; }, [editMode]);
+  useEffect(() => { gyroModeRef.current = gyroEnabled; }, [gyroEnabled]);
 
-  const visibleOtherNodes = otherNodes.slice(0, 6);
+  // DeviceOrientation listener
+  useEffect(() => {
+    if (!gyroEnabled) { orientationRef.current = null; return; }
+    const handler = (e: DeviceOrientationEvent) => {
+      if (e.alpha !== null && e.beta !== null && e.gamma !== null) {
+        orientationRef.current = { alpha: e.alpha, beta: e.beta, gamma: e.gamma };
+      }
+    };
+    window.addEventListener('deviceorientation', handler, true);
+    return () => window.removeEventListener('deviceorientation', handler, true);
+  }, [gyroEnabled]);
+
+  const handleGyroToggle = useCallback(async () => {
+    if (gyroEnabled) { setGyroEnabled(false); return; }
+    // iOS 13+ requires explicit permission
+    const DOE = DeviceOrientationEvent as unknown as { requestPermission?: () => Promise<string> };
+    if (typeof DOE.requestPermission === 'function') {
+      try {
+        const result = await DOE.requestPermission();
+        if (result === 'granted') setGyroEnabled(true);
+        else alert('センサーの使用が許可されませんでした');
+      } catch {
+        alert('センサーの許可リクエストに失敗しました');
+      }
+    } else {
+      setGyroEnabled(true);
+    }
+  }, [gyroEnabled]);
+
+  const allOtherNodes = otherNodes;
+  // 非表示フィルタ: editModeは全ピン表示（位置調整のため）、通常モードは非表示を除外
+  const visibleOtherNodes = editMode
+    ? allOtherNodes
+    : allOtherNodes.filter(n => !hiddenLinks[`${currentNode.id}::${n.id}`]);
 
   // Get position for a specific target node (custom or default)
   const getPinPosition = useCallback((toNodeId: string, index: number): [number, number, number] => {
     const key = `${currentNode.id}::${toNodeId}`;
-    return pinPositions[key] ?? getDefaultPosition(index, visibleOtherNodes.length);
-  }, [currentNode.id, pinPositions, visibleOtherNodes.length]);
+    return pinPositions[key] ?? getDefaultPosition(index, allOtherNodes.length);
+  }, [currentNode.id, pinPositions, allOtherNodes.length]);
 
   // Enter edit mode for a specific pin
   const handleEditPin = useCallback((nodeId: string) => {
@@ -357,12 +436,14 @@ export default function PanoramaViewer({
         {/* Navigation / edit pins */}
         {visibleOtherNodes.map((node, i) => {
           const pos = getPinPosition(node.id, i);
+          const isHidden = !!hiddenLinks[`${currentNode.id}::${node.id}`];
           return (
             <NavigationPin
               key={node.id}
               position={pos}
               label={node.name}
               isEditing={editMode && editTargetId === node.id}
+              isHidden={isHidden}
               onClick={() => handlePinClick(node.id, pos)}
             />
           );
@@ -373,6 +454,8 @@ export default function PanoramaViewer({
           movingTowardRef={movingTowardRef}
           shouldResetCameraRef={shouldResetCameraRef}
           editModeRef={editModeRef}
+          gyroModeRef={gyroModeRef}
+          orientationRef={orientationRef}
         />
       </Canvas>
 
@@ -386,34 +469,37 @@ export default function PanoramaViewer({
         }}
       />
 
-      {/* Controls overlay */}
+      {/* Gyro toggle — floating bottom-right */}
+      {!editMode && (
+        <button
+          className={`btn-gyro-float${gyroEnabled ? ' active' : ''}`}
+          onClick={handleGyroToggle}
+          title={gyroEnabled ? 'ジャイロをオフ' : 'スマホの向きで視点操作'}
+        >
+          {gyroEnabled ? '🔄' : '📱'}
+        </button>
+      )}
+
+      {/* Controls overlay — 編集モード or 管理画面のみ表示 */}
+      {(editMode || !readOnly) && (
       <div className="controls-overlay">
         {!editMode ? (
           <>
-            {!readOnly && (
-              <div className="ctrl-row">
-                <span className="ctrl-label">変形量</span>
-                <input
-                  type="range" min={0} max={4} step={0.1}
-                  value={displacement}
-                  onChange={e => onDisplacementChange(Number(e.target.value))}
-                  className="ctrl-slider"
-                />
-                <span className="ctrl-val">{displacement.toFixed(1)}</span>
-              </div>
-            )}
-            <div className="ctrl-bottom-row">
-              <div className="ctrl-hints">
-                <span>ドラッグ: 視点</span>
-                <span>ホイール: ズーム</span>
-                {visibleOtherNodes.length > 0 && <span>↓ 下を向いて移動</span>}
-              </div>
-              {!readOnly && visibleOtherNodes.length > 0 && (
-                <button className="btn-edit-pins" onClick={() => setEditMode(true)}>
-                  📍 ピン編集
-                </button>
-              )}
+            <div className="ctrl-row">
+              <span className="ctrl-label">変形量</span>
+              <input
+                type="range" min={0} max={4} step={0.1}
+                value={displacement}
+                onChange={e => onDisplacementChange(Number(e.target.value))}
+                className="ctrl-slider"
+              />
+              <span className="ctrl-val">{displacement.toFixed(1)}</span>
             </div>
+            {allOtherNodes.length > 0 && (
+              <button className="btn-edit-pins" onClick={() => setEditMode(true)}>
+                📍 ピン編集
+              </button>
+            )}
           </>
         ) : (
           <div className="edit-panel">
@@ -425,20 +511,29 @@ export default function PanoramaViewer({
               移動先を選んでパノラマ上の好きな場所をクリック
             </div>
             <div className="edit-pin-list">
-              {visibleOtherNodes.map((node) => {
+              {allOtherNodes.map((node) => {
                 const isSelected = editTargetId === node.id;
                 const hasCustom = !!pinPositions[`${currentNode.id}::${node.id}`];
+                const isHidden = !!hiddenLinks[`${currentNode.id}::${node.id}`];
                 return (
-                  <button
-                    key={node.id}
-                    className={`edit-pin-item${isSelected ? ' selected' : ''}`}
-                    onClick={() => handleEditPin(node.id)}
-                  >
-                    <span className="edit-pin-dot" style={{ background: isSelected ? '#ffcc00' : '#00e5ff' }} />
-                    <span className="edit-pin-name">{node.name}</span>
-                    {hasCustom && <span className="edit-pin-custom">✓</span>}
-                    {isSelected && <span className="edit-pin-arrow">← クリックで配置</span>}
-                  </button>
+                  <div key={node.id} className={`edit-pin-item${isSelected ? ' selected' : ''}${isHidden ? ' pin-hidden' : ''}`}>
+                    <button
+                      className="edit-pin-visibility"
+                      title={isHidden ? 'ピンを表示する' : 'ピンを非表示にする'}
+                      onClick={() => onHiddenLinksChange?.(currentNode.id, node.id, !isHidden)}
+                    >
+                      {isHidden ? '🙈' : '👁'}
+                    </button>
+                    <button
+                      className="edit-pin-select"
+                      onClick={() => handleEditPin(node.id)}
+                    >
+                      <span className="edit-pin-dot" style={{ background: isSelected ? '#ffcc00' : isHidden ? '#666' : '#00e5ff' }} />
+                      <span className="edit-pin-name">{node.name}</span>
+                      {hasCustom && <span className="edit-pin-custom">✓</span>}
+                      {isSelected && <span className="edit-pin-arrow">← クリックで配置</span>}
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -446,7 +541,7 @@ export default function PanoramaViewer({
               ピンを初期位置に戻すにはリセットボタンを長押し
             </div>
             <div className="edit-pin-reset-row">
-              {visibleOtherNodes.map((node) => {
+              {allOtherNodes.map((node) => {
                 const hasCustom = !!pinPositions[`${currentNode.id}::${node.id}`];
                 return (
                   <button
@@ -464,6 +559,7 @@ export default function PanoramaViewer({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }

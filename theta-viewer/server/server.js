@@ -33,15 +33,26 @@ function bufferToStream(buffer) {
   return pt;
 }
 
-// FTP接続を新規作成してfnを実行し、必ずcloseする（タイムアウト0=制限なし）
-async function withFtp(fn) {
-  const client = new ftp.Client(0); // 0=タイムアウトなし
-  client.ftp.verbose = false;
-  try {
-    await client.access({ host: FTP_HOST, user: FTP_USER, password: FTP_PASS, secure: false });
-    return await fn(client);
-  } finally {
-    try { client.close(); } catch {}
+// FTP接続を新規作成してfnを実行し、必ずcloseする（タイムアウト発生時は最大3回リトライ）
+async function withFtp(fn, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    const client = new ftp.Client(120000); // 120秒タイムアウト
+    client.ftp.verbose = false;
+    try {
+      await client.access({ host: FTP_HOST, user: FTP_USER, password: FTP_PASS, secure: false });
+      const result = await fn(client);
+      client.close();
+      return result;
+    } catch (e) {
+      try { client.close(); } catch {}
+      if (attempt < retries) {
+        const wait = 3000 * attempt;
+        console.error(`[FTP] attempt ${attempt} failed (${e.message}), retry in ${wait}ms...`);
+        await new Promise(r => setTimeout(r, wait));
+      } else {
+        throw e;
+      }
+    }
   }
 }
 
@@ -130,10 +141,10 @@ app.post('/api/property/:id/finalize', async (req, res) => {
   if (!session) return res.status(404).json({ error: 'セッションが見つかりません。' });
 
   try {
-    const { pinPositions, displacement } = req.body;
+    const { pinPositions, hiddenLinks, displacement } = req.body;
     const { nodes, name, address } = session;
 
-    const meta = { id, name, address, createdAt: new Date().toISOString(), displacement, pinPositions, nodes };
+    const meta = { id, name, address, createdAt: new Date().toISOString(), displacement, pinPositions, hiddenLinks: hiddenLinks ?? {}, nodes };
 
     await withFtp(async (client) => {
       await ftpUpload(client, `${FTP_ROOT}/${id}/meta.json`, Buffer.from(JSON.stringify(meta)));
@@ -204,10 +215,10 @@ app.post('/api/property/:id/update-meta', async (req, res) => {
   if (!session) return res.status(404).json({ error: 'セッションが見つかりません。' });
 
   try {
-    const { name, address, pinPositions, displacement, existingNodes, newNodeIds, deletedNodeIds } = req.body;
+    const { name, address, pinPositions, hiddenLinks, displacement, existingNodes, newNodeIds, deletedNodeIds } = req.body;
     const newNodes = session.nodes.filter(n => (newNodeIds || []).includes(n.id));
     const allNodes = [...(existingNodes || []), ...newNodes];
-    const meta = { id, name, address, createdAt: new Date().toISOString(), displacement, pinPositions, nodes: allNodes };
+    const meta = { id, name, address, createdAt: new Date().toISOString(), displacement, pinPositions, hiddenLinks: hiddenLinks ?? {}, nodes: allNodes };
 
     await withFtp(async (client) => {
       for (const nodeId of (deletedNodeIds || [])) {
