@@ -19,6 +19,8 @@
 
 ## 起動
 
+依存：`openpyxl`（未導入なら `pip3 install -r requirements.txt`）
+
 ```bash
 python3 serve.py         # → http://localhost:8522 が自動で開く
 # または 起動.command をダブルクリック
