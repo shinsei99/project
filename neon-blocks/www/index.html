@@ -1,0 +1,927 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="NEON BLOCKS">
+<meta name="theme-color" content="#101018">
+<title>NEON BLOCKS — 100 STAGES</title>
+<style>
+  :root{ --bg:#101018; --panel:rgba(255,255,255,.04); --line:rgba(255,255,255,.10); }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; height:100%;}
+  body{
+    font-family:'Hiragino Kaku Gothic ProN','Segoe UI',system-ui,sans-serif;
+    color:#e9e9f5;
+    background:
+      radial-gradient(1100px 640px at 15% -10%, rgba(176,38,255,.16), transparent 60%),
+      radial-gradient(900px 640px at 90% 110%, rgba(0,240,255,.14), transparent 60%),
+      var(--bg);
+    min-height:100%; overflow-x:hidden;
+    user-select:none; -webkit-user-select:none;
+    touch-action:manipulation; overscroll-behavior:none;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  body::before{
+    content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);
+    background-size:38px 38px;
+    mask-image:radial-gradient(circle at 50% 40%,#000,transparent 78%);
+  }
+
+  .mute{position:fixed; top:calc(env(safe-area-inset-top) + 8px); right:12px; z-index:130;
+    width:40px; height:40px; border-radius:12px; font-size:18px; cursor:pointer;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); color:#e9e9f5;}
+  .mute:hover{background:rgba(255,255,255,.13);}
+  .mute.help{left:12px; right:auto; font-size:20px; font-weight:800;}
+  header{position:relative; z-index:2; text-align:center; padding:6px 12px 0;}
+  h1{
+    margin:0; font-size:clamp(18px,4.2vw,26px); font-weight:800; letter-spacing:.16em;
+    background:linear-gradient(90deg,#39ff14,#00f0ff 40%,#b026ff 70%,#ff2d95);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 14px rgba(0,240,255,.35));
+  }
+
+  .hud{position:relative; z-index:2; max-width:560px; margin:6px auto 2px; padding:0 16px;}
+  .hud-top{display:flex; align-items:baseline; justify-content:space-between; gap:12px;}
+  .stg{font-size:15px; font-weight:800; letter-spacing:.05em;}
+  .stg b{color:#00f0ff; font-size:18px;}
+  .stgname{font-size:13px; color:#9a9ab8; letter-spacing:.12em;}
+  .retrybadge{font-size:13px; font-weight:800; color:#ffd60a; white-space:nowrap;}
+  .clock{font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.05em; color:#39ff14;}
+  .clock.low{color:#ff3b5c;}
+  .tbar{margin-top:7px; height:9px; border-radius:6px; background:rgba(18,18,26,.9); overflow:hidden;}
+  .tfill{height:100%; width:100%; border-radius:6px;
+    background:linear-gradient(90deg,#39ff14,#00f0ff); transition:width .1s linear;}
+  .tfill.low{background:linear-gradient(90deg,#ff3b5c,#ff7a00); animation:pulse .6s infinite;}
+  @keyframes pulse{50%{filter:brightness(1.5) saturate(1.2);}}
+
+  #boardWrap{
+    position:relative; z-index:2; margin:8px auto 4px; padding:10px 10px;
+    max-width:100vw; overflow-x:auto; overflow-y:hidden;
+    scroll-behavior:smooth; -webkit-overflow-scrolling:touch;
+  }
+  #boardWrap::-webkit-scrollbar{height:6px;}
+  #boardWrap::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18); border-radius:3px;}
+  #board{position:relative; margin:0 auto;}
+  #board.shake{animation:shake .5s ease;}
+  @keyframes shake{10%,90%{transform:translateX(-2px);}20%,80%{transform:translateX(4px);}30%,50%,70%{transform:translateX(-7px);}40%,60%{transform:translateX(7px);}}
+
+  .slot{
+    position:absolute; border-radius:9px;
+    background:rgba(255,255,255,.045);
+    border:1px dashed rgba(255,255,255,.16);
+    box-shadow:inset 0 0 10px rgba(0,0,0,.45);
+  }
+  .slot.flash{animation:flash .7s ease;}
+  @keyframes flash{
+    0%{box-shadow:inset 0 0 10px rgba(0,0,0,.45);}
+    40%{box-shadow:inset 0 0 26px rgba(255,255,255,.9),0 0 22px rgba(0,240,255,.8);}
+    100%{box-shadow:inset 0 0 10px rgba(0,0,0,.45);}
+  }
+
+  .piece{position:absolute;}
+  .block{
+    position:absolute; border-radius:9px;
+    background:
+      linear-gradient(150deg, rgba(255,255,255,.35), rgba(255,255,255,0) 45%),
+      rgba(var(--c),.34);
+    border:1.5px solid rgba(var(--c),.95);
+    box-shadow:inset 0 3px 7px rgba(255,255,255,.30), inset 0 -4px 9px rgba(0,0,0,.40), 0 0 15px rgba(var(--c),.55);
+    backdrop-filter:blur(2px);
+  }
+
+  .dock{
+    position:relative; z-index:2; display:flex; flex-wrap:wrap; gap:10px;
+    justify-content:center; align-items:stretch; max-width:560px; margin:4px auto 2px; padding:0 14px;
+  }
+  .slotbox{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+    padding:8px 14px; border:1px solid var(--line); border-radius:16px; background:var(--panel); min-height:80px;
+  }
+  .slotbox.now{border-color:rgba(0,240,255,.4); box-shadow:0 0 16px rgba(0,240,255,.18);}
+  .slotbox .lbl{font-size:10px; letter-spacing:.3em; color:#8a8aa8;}
+  .cur{position:relative; cursor:grab; animation:bob 2s ease-in-out infinite;}
+  @keyframes bob{50%{transform:translateY(-3px);}}
+  .nxt{display:flex; gap:12px; align-items:center; min-width:52px; justify-content:center;}
+  .cur .piece, .nxt .piece{position:relative;}
+  .cur .piece.pop{animation:pop .38s cubic-bezier(.2,1.5,.4,1);}
+  @keyframes pop{0%{transform:scale(.2) rotate(-16deg);opacity:0;}100%{transform:scale(1);opacity:1;}}
+  .drag-clone{position:fixed; z-index:9999; pointer-events:none; filter:drop-shadow(0 12px 18px rgba(0,0,0,.5));}
+  .board-piece{cursor:pointer;}
+  .block.spark{animation:spark .6s ease;}
+  @keyframes spark{0%{filter:brightness(2.5) drop-shadow(0 0 12px #fff);}60%{filter:brightness(1.4) drop-shadow(0 0 8px #fff);}100%{filter:none;}}
+  .block.sparkbad{animation:sparkbad .6s ease;}
+  @keyframes sparkbad{0%,100%{filter:none;}25%,75%{filter:brightness(1.2) drop-shadow(0 0 9px #ff3b5c);}}
+
+  .controls{position:relative; z-index:2; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:6px 0 2px;}
+  button.btn{
+    font:inherit; font-size:13px; letter-spacing:.05em; color:#e9e9f5;
+    padding:8px 13px; border-radius:11px; cursor:pointer;
+    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); transition:.15s;
+  }
+  button.btn:hover{background:rgba(255,255,255,.13); transform:translateY(-1px);}
+  button.btn.key{border-color:rgba(0,240,255,.5); box-shadow:0 0 10px rgba(0,240,255,.25);}
+  .hint{position:relative; z-index:2; text-align:center; font-size:11px; color:#7a7a98; margin:5px 12px 14px; line-height:1.5;}
+  kbd{background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); border-radius:5px; padding:1px 6px; font-size:11px;}
+
+  .hud.boss .stg b{color:#ff2d95;}
+  .hud.boss .tfill:not(.low){background:linear-gradient(90deg,#ff2d95,#ffd60a);}
+  .items{position:relative; z-index:2; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:2px 0 2px;}
+  .btn.item{position:relative; font-size:12px; padding:7px 11px;}
+  .btn.item .cnt{display:inline-block; min-width:18px; margin-left:4px; padding:0 5px; border-radius:9px;
+    background:rgba(0,240,255,.22); color:#bff8ff; font-weight:700;}
+  .btn.item:disabled{opacity:.32; cursor:default; transform:none;}
+  .slot.hintglow{animation:hintg 1.6s ease 2;}
+  @keyframes hintg{
+    0%,100%{box-shadow:inset 0 0 10px rgba(0,0,0,.45);}
+    30%,70%{box-shadow:inset 0 0 26px rgba(255,255,255,.95),0 0 24px rgba(255,214,10,1);}
+  }
+  #toast{position:fixed; left:50%; bottom:22%; z-index:200; transform:translateX(-50%) translateY(10px);
+    background:rgba(20,20,30,.95); border:1px solid rgba(0,240,255,.5); color:#e9e9f5;
+    padding:10px 20px; border-radius:12px; font-size:14px; font-weight:700; opacity:0; pointer-events:none; transition:.25s;
+    box-shadow:0 0 20px rgba(0,240,255,.35);}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  #title{position:fixed; inset:0; z-index:120; display:none; place-items:center; background:rgba(8,8,14,.9); backdrop-filter:blur(8px);}
+  #title.show{display:grid; animation:fade .3s;}
+  #titleArt{position:relative; margin:14px auto 20px;
+    filter:drop-shadow(0 0 20px rgba(0,240,255,.35)); animation:floaty 3.4s ease-in-out infinite;}
+  @keyframes floaty{50%{transform:translateY(-7px);}}
+  #help{position:fixed; inset:0; z-index:140; display:none; place-items:center; background:rgba(8,8,14,.85); backdrop-filter:blur(8px);}
+  #help.show{display:grid; animation:fade .25s;}
+  .helpcard{text-align:left; max-width:min(440px,92vw); max-height:82vh; overflow-y:auto;}
+  .helpbody{font-size:13px; line-height:1.7; color:#cfcfe0; margin-bottom:16px;}
+  .helpbody h4{margin:12px 0 4px; font-size:12px; letter-spacing:.12em; color:#00f0ff;}
+  .helpbody p{margin:0 0 4px; white-space:normal;}
+  #overlay{position:fixed; inset:0; z-index:100; display:none; place-items:center; background:rgba(8,8,14,.8); backdrop-filter:blur(6px);}
+  #overlay.show{display:grid; animation:fade .3s;}
+  @keyframes fade{from{opacity:0}to{opacity:1}}
+  .card{
+    text-align:center; padding:32px 38px; border-radius:22px; max-width:88vw;
+    background:rgba(20,20,30,.92); border:1px solid rgba(255,255,255,.14);
+    box-shadow:0 0 60px rgba(0,240,255,.25); animation:rise .4s cubic-bezier(.2,1.3,.4,1);
+  }
+  @keyframes rise{from{transform:translateY(24px) scale(.9);opacity:0}to{transform:none;opacity:1}}
+  .card .big{font-size:clamp(26px,7vw,46px); font-weight:900; letter-spacing:.08em; margin:0 0 6px;
+    background:linear-gradient(90deg,#39ff14,#00f0ff,#b026ff,#ff2d95);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 20px rgba(0,240,255,.5));}
+  .card .big.fail{background:linear-gradient(90deg,#ff3b5c,#ff7a00); -webkit-background-clip:text; background-clip:text;}
+  .card p{color:#b9b9d0; margin:6px 0 20px; white-space:pre-line;}
+</style>
+
+<button id="helpBtn" class="mute help">?</button>
+<button id="muteBtn" class="mute">🔊</button>
+<header><h1>NEON&nbsp;BLOCKS</h1></header>
+
+<div class="hud">
+  <div class="hud-top">
+    <div class="stg">STAGE <b id="stgNo">1</b> / 100 <span class="stgname" id="stgName"></span></div>
+    <div style="display:flex; gap:12px; align-items:baseline">
+      <span class="retrybadge" id="retryLeft"></span>
+      <div class="clock" id="clock">0:00</div>
+    </div>
+  </div>
+  <div class="tbar"><div class="tfill" id="tfill"></div></div>
+</div>
+
+<div id="boardWrap"><div id="board"></div></div>
+
+<div class="dock">
+  <div class="slotbox now"><span class="lbl">NOW</span><div id="cur" class="cur"></div></div>
+  <div class="slotbox"><span class="lbl">NEXT</span><div id="nxt" class="nxt"></div></div>
+</div>
+
+<div class="controls">
+  <button class="btn key" id="rotBtn">⟳ 回転 <kbd>Space</kbd></button>
+  <button class="btn" id="undoBtn">↩ 戻す</button>
+  <button class="btn" id="retryBtn">🔄 リトライ</button>
+  <button class="btn" id="ckptBtn">⏮ セーブ地点</button>
+</div>
+
+<div class="items">
+  <button class="btn item" id="it-hint">💡 ヒント <span class="cnt">0</span></button>
+  <button class="btn item" id="it-time">⏱ +25s <span class="cnt">0</span></button>
+  <button class="btn item" id="it-auto">⚡ オート <span class="cnt">0</span></button>
+  <button class="btn item" id="it-reverse">⏪ リバース <span class="cnt">0</span></button>
+</div>
+
+
+<div id="overlay"><div class="card">
+  <p class="big" id="ovTitle">STAGE CLEAR</p>
+  <p id="ovText"></p>
+  <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
+    <button class="btn key" id="ovBtn">次へ ▶</button>
+    <button class="btn" id="ovBtn2" style="display:none">セーブ地点へ ▶</button>
+  </div>
+</div></div>
+
+<div id="toast"></div>
+
+<div id="help"><div class="card helpcard">
+  <p class="big" style="font-size:26px; margin-bottom:10px">遊び方</p>
+  <div class="helpbody">
+    <h4>ルール</h4>
+    <p>ピースを枠にはめて<b>全マスを埋める</b>パズル。制限時間内にクリアしよう。<b>同じ色＝同じ形</b>。</p>
+    <h4>操作</h4>
+    <p><b>NOW</b> のピースを盤面へ<b>ドラッグ</b>して配置。<kbd>Space</kbd>／「⟳回転」で回転。盤上のピースは<b>タップで戻せます</b>。正しく置くと<b style="color:#ffd60a">キラッ</b>と光ります。</p>
+    <h4>ボス＆セーブ</h4>
+    <p><b>5面ごと</b>に動物ボス＝<b>セーブポイント</b>。撃破するとセーブされ、お助けアイテムが補充されます。</p>
+    <h4>お助けアイテム</h4>
+    <p>💡 <b>ヒント</b>：正解の位置を光らせる<br>
+       ⏱ <b>+25s</b>：制限時間を追加<br>
+       ⚡ <b>オート</b>：正解の位置に1個自動配置<br>
+       ⏪ <b>リバース</b>：間違えて置いたブロックだけ除去</p>
+    <h4>リトライ</h4>
+    <p>🔄 <b>リトライ</b>：同じ面をやり直し（🔁 回数制・セグメント共有）<br>
+       ⏮ <b>セーブ地点</b>：いつでもセーブ地点へ戻る（無制限・アイテム補充）<br>
+       リトライ回数を使い切って失敗すると <b style="color:#ff3b5c">GAME OVER</b> → セーブ地点へ。</p>
+  </div>
+  <button class="btn key" id="helpClose">閉じる ✕</button>
+</div></div>
+
+<div id="title"><div class="card">
+  <p class="big">NEON BLOCKS</p>
+  <div id="titleArt"></div>
+  <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
+    <button class="btn key" id="btnResume">続きから ▶</button>
+    <button class="btn" id="btnNew">最初から ▶</button>
+  </div>
+</div></div>
+
+<script>
+"use strict";
+
+/* ---------- palette: colour is keyed to piece SHAPE ---------- */
+const EXPAL=[
+  '57,255,20','0,240,255','255,214,10','255,122,0','176,38,255','255,45,149','0,255,153',
+  '255,60,60','60,140,255','180,255,0','255,0,240','120,90,255','255,170,0','0,255,255',
+];
+
+/* ---------- audio: fully procedural (no external files) ---------- */
+const Sound=(function(){
+  let ctx=null,master,bgm,sfx,started=false,timer=null,step=0;
+  let muted=(localStorage.getItem('neonblocks_mute')==='1');
+  const stepDur=0.28;
+  const mtof=m=>440*Math.pow(2,(m-69)/12);
+  function ensure(){
+    if(ctx)return true;
+    try{ ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return false; }
+    master=ctx.createGain(); master.gain.value=muted?0:1; master.connect(ctx.destination);
+    bgm=ctx.createGain(); bgm.gain.value=0.22; bgm.connect(master);
+    sfx=ctx.createGain(); sfx.gain.value=0.5; sfx.connect(master);
+    return true;
+  }
+  function tone(dest,freq,type,t0,dur,vol,att,rel){
+    att=att||0.005; rel=rel||0.08;
+    const o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=type; o.frequency.setValueAtTime(freq,t0);
+    g.gain.setValueAtTime(0.0001,t0);
+    g.gain.exponentialRampToValueAtTime(vol,t0+att);
+    g.gain.exponentialRampToValueAtTime(0.0001,t0+dur+rel);
+    o.connect(g); g.connect(dest); o.start(t0); o.stop(t0+dur+rel+0.03);
+  }
+  const ARP=[57,60,64,67,64,60,62,67,69,72,69,67,64,60,55,52], BASS=[45,41,48,43];
+  function tick(){
+    if(!ctx)return; const t=ctx.currentTime+0.03;
+    tone(bgm, mtof(ARP[step%ARP.length]), 'triangle', t, stepDur*0.9, 0.14, 0.01, 0.13);
+    if(step%4===0){ const b=BASS[(Math.floor(step/4))%BASS.length]; tone(bgm,mtof(b),'sine',t,stepDur*3.6,0.26,0.02,0.2); tone(bgm,mtof(b+12),'sine',t,stepDur*3.6,0.07,0.02,0.2); }
+    if(step%8===0){ tone(bgm,mtof(64),'sine',t,stepDur*7,0.045,0.4,0.6); tone(bgm,mtof(69),'sine',t,stepDur*7,0.045,0.4,0.6); }
+    step=(step+1)%ARP.length;
+  }
+  function startBGM(){ if(timer||!ctx)return; timer=setInterval(tick,stepDur*1000); tick(); }
+  function s(name){
+    if(!ctx||muted)return; const t=ctx.currentTime;
+    switch(name){
+      case 'place': tone(sfx,mtof(72),'triangle',t,0.07,0.30,0.004,0.05); tone(sfx,mtof(79),'triangle',t+0.055,0.08,0.26,0.004,0.06); break;
+      case 'bad':   tone(sfx,150,'sawtooth',t,0.17,0.22,0.004,0.1); tone(sfx,118,'sawtooth',t+0.02,0.2,0.18,0.004,0.1); break;
+      case 'rotate':tone(sfx,1180,'square',t,0.03,0.10,0.001,0.02); break;
+      case 'ret':   tone(sfx,mtof(64),'triangle',t,0.08,0.22,0.004,0.06); tone(sfx,mtof(59),'triangle',t+0.05,0.08,0.2,0.004,0.06); break;
+      case 'item':  [72,76,79,84].forEach((n,i)=>tone(sfx,mtof(n),'triangle',t+i*0.05,0.09,0.2,0.004,0.06)); break;
+      case 'clear': [60,64,67,72].forEach((n,i)=>tone(sfx,mtof(n),'triangle',t+i*0.09,0.15,0.26,0.005,0.1)); break;
+      case 'boss':  [57,60,64,67,72,76,79].forEach((n,i)=>tone(sfx,mtof(n),'sawtooth',t+i*0.08,0.2,0.18,0.01,0.14)); [48,55,64].forEach(n=>tone(sfx,mtof(n),'triangle',t+0.62,0.9,0.14,0.02,0.5)); break;
+      case 'fail':  [64,60,55,48].forEach((n,i)=>tone(sfx,mtof(n),'sawtooth',t+i*0.12,0.18,0.18,0.01,0.12)); break;
+      case 'over':  [55,52,48,43,36].forEach((n,i)=>tone(sfx,mtof(n),'sawtooth',t+i*0.14,0.26,0.2,0.01,0.18)); break;
+    }
+  }
+  function begin(){ if(!ensure())return; if(ctx.state==='suspended')ctx.resume(); startBGM(); }  // idempotent: resume + keep BGM alive
+  function toggle(){ ensure(); muted=!muted; localStorage.setItem('neonblocks_mute',muted?'1':'0'); if(master)master.gain.value=muted?0:1; return muted; }
+  return {begin, s, toggle, isMuted:()=>muted};
+})();
+
+/* ---------- polyomino library ---------- */
+const BASE=[
+  [[0,0]],[[0,0],[1,0]],
+  [[0,0],[1,0],[2,0]],[[0,0],[1,0],[1,1]],
+  [[0,0],[1,0],[0,1],[1,1]],[[0,0],[1,0],[2,0],[3,0]],[[0,0],[1,0],[2,0],[1,1]],
+  [[0,0],[0,1],[0,2],[1,2]],[[1,0],[2,0],[0,1],[1,1]],
+  [[0,0],[1,0],[0,1],[1,1],[0,2]],[[0,0],[0,1],[0,2],[0,3],[1,3]],
+  [[0,0],[1,0],[2,0],[1,1],[1,2]],[[1,0],[0,1],[1,1],[1,2],[1,3]],[[1,0],[0,1],[1,1],[2,1],[1,2]],
+];
+const key=(x,y)=>x+','+y;
+function norm(c){let mx=Infinity,my=Infinity;for(const[a,b]of c){mx=Math.min(mx,a);my=Math.min(my,b);}return c.map(([a,b])=>[a-mx,b-my]);}
+function rot(c){return norm(c.map(([a,b])=>[b,-a]));}
+function flip(c){return norm(c.map(([a,b])=>[-a,b]));}
+function orients(s){const m=new Map();let cur=norm(s);for(let f=0;f<2;f++){for(let r=0;r<4;r++){const k=JSON.stringify([...cur].sort());if(!m.has(k))m.set(k,cur);cur=rot(cur);}cur=flip(cur);}return[...m.values()];}
+// rotation/reflection-invariant signature -> same free polyomino => same colour
+function canon(cells){let best=null,cur=norm(cells);for(let f=0;f<2;f++){for(let r=0;r<4;r++){const s=JSON.stringify(cur.slice().sort((a,b)=>a[1]-b[1]||a[0]-b[0]));if(best===null||s<best)best=s;cur=rot(cur);}cur=flip(cur);}return best;}
+const LIB=BASE.map(s=>({size:s.length,os:orients(s),canon:canon(s)})).sort((a,b)=>b.size-a.size);
+// largest bounding dimension any piece can reach in any rotation (used to fix the NOW slot size)
+const PIECE_MAX=(function(){let m=1;LIB.forEach(e=>e.os.forEach(o=>{let w=0,h=0;o.forEach(([c,r])=>{w=Math.max(w,c+1);h=Math.max(h,r+1);});m=Math.max(m,w,h);}));return m;})();
+const SHAPE_COLOR={}; (function(){let ci=0;for(const s of BASE){const k=canon(s);if(!(k in SHAPE_COLOR)){SHAPE_COLOR[k]=EXPAL[ci%EXPAL.length];ci++;}}})();
+function colorOf(cells){return SHAPE_COLOR[canon(cells)]||'255,255,255';}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+/* ---------- tiler (guarantees a solution; capped by piece size for difficulty) ---------- */
+function tileRegion(keys,cap){
+  const rem=new Set(keys), groups=[];
+  const lib=LIB.filter(e=>e.size<=cap), bySize={};
+  for(const e of lib){(bySize[e.size]=bySize[e.size]||[]).push(e);}
+  const order=[]; Object.keys(bySize).map(Number).sort((a,b)=>b-a).forEach(s=>order.push(...shuffle(bySize[s].slice())));
+  while(rem.size){
+    let best=null;
+    for(const k of rem){const[x,y]=k.split(',').map(Number);if(!best||y<best.y||(y===best.y&&x<best.x))best={x,y};}
+    const{x:cx,y:cy}=best; let placed=null;
+    outer:
+    for(const e of order){
+      for(const o of shuffle(e.os.slice())){
+        for(const anc of o){
+          const ox=cx-anc[0], oy=cy-anc[1], abs=[]; let ok=true;
+          for(const[c,r]of o){const kk=key(ox+c,oy+r);if(!rem.has(kk)){ok=false;break;}abs.push([ox+c,oy+r]);}
+          if(ok){placed=abs;break outer;}
+        }
+      }
+    }
+    if(!placed)placed=[[cx,cy]];
+    for(const[x,y]of placed)rem.delete(key(x,y));
+    groups.push(placed);
+  }
+  return groups;
+}
+function tileBest(keys,cap,N){
+  let best=null,bs=Infinity;
+  for(let i=0;i<N;i++){const g=tileRegion(keys,cap);const sc=g.filter(x=>x.length===1).length*100+g.length;if(sc<bs){bs=sc;best=g;}}
+  return best;
+}
+
+/* ---------- 100-stage system: curated icons + animal bosses + procedural blobs ---------- */
+const TOTAL=100;
+function ascii(rows){const c=[];rows.forEach((row,y)=>{for(let x=0;x<row.length;x++){const ch=row[x];if(ch!=='.'&&ch!==' ')c.push([x,y]);}});return c;}
+function mulberry32(seed){let a=seed>>>0;return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+// non-boss curated icons (chunky, verified tileable)
+const CURATED=[
+ {n:'スクエア', rows:['###','###','###']},
+ {n:'ブロック', rows:['####','####','####']},
+ {n:'エル',     rows:['##..','##..','####','####']},
+ {n:'プラス',   rows:['.##.','####','####','.##.']},
+ {n:'ティー',   rows:['######','######','..##..','..##..']},
+ {n:'ダイヤ',   rows:['..##..','.####.','######','.####.','..##..']},
+ {n:'ヘキサ',   rows:['..##..','.####.','######','######','.####.','..##..']},
+ {n:'アロー',   rows:['..##..','.####.','######','######','..##..','..##..']},
+ {n:'ハート',   rows:['.##.##.','#######','#######','.#####.','..###..']},
+ {n:'トラペ',   rows:['..####..','.######.','########','########']},
+ {n:'ハウス',   rows:['..####..','.######.','########','.######.','.######.']},
+ {n:'ジェム',   rows:['...##...','..####..','.######.','########','.######.','..####..','...##...']},
+ {n:'クラウン', rows:['##.##.##','########','########']},
+ {n:'ロケット', rows:['..##..','.####.','######','######','..##..','.####.','..##..']},
+ {n:'スター',   rows:['...##...','...##...','...##...','########','########','...##...','...##...','...##...']},
+ {n:'グランド', rows:['..####..','.######.','########','########','########','.######.','..####..']},
+ {n:'ロボット', rows:['########','##.##.##','########','########','.##..##.','.##..##.']},
+ {n:'ダイヤ大', rows:['....##....','...####...','..######..','.########.','##########','.########.','..######..','...####...','....##....']},
+ {n:'クロス',   rows:['..####..','..####..','########','########','..####..','..####..']},
+ {n:'ツイン',   rows:['##..##..##','##..##..##','##########','##########']},
+];
+
+// animal BOSSES (every 5 stages / checkpoints) — ordered small→large so early bosses are gentle
+const ANIMALS=[
+ {n:'ヒヨコ', rows:['...##...','..####..','.######.','########','########','.######.','.##..##.']},
+ {n:'ゾウ',   rows:['.######..','########.','#########','#########','##.##.#.#']},
+ {n:'サカナ', rows:['....####..','..######.#','.#########','.#########','..######.#','....####..']},
+ {n:'ペンギン',rows:['..####..','.######.','.######.','.######.','.######.','########','.##..##.']},
+ {n:'ウサギ', rows:['.##..##.','.##..##.','.##..##.','########','########','########','.######.']},
+ {n:'フクロウ',rows:['##....##','##....##','########','########','########','.######.','..####..']},
+ {n:'カメ',   rows:['...####...','..######..','.########.','##########','.########.','##.####.##']},
+ {n:'クマ',   rows:['##....##','##....##','########','########','########','########','.######.']},
+ {n:'ネコ',   rows:['.##...##.','.##...##.','.#######.','#########','#########','#########','.#######.','..#####..']},
+];
+const PROC_NAMES=['クリスタル','ネビュラ','フラクタル','ラビリンス','コメット','プリズム','ヴォルテクス','モザイク','オーロラ','パルサー'];
+
+// procedural silhouette from 2x2 blocks (always tiles cleanly); ~half symmetric, ~half asymmetric
+function blobStage(idx){
+  const r=mulberry32(1000+idx);
+  const sym=mulberry32(7000+idx)()<0.5;
+  const target=Math.min(84,36+Math.round((idx-20)*0.55));
+  const Kc=Math.max(4,Math.round(target/(sym?8:4)));
+  const set=new Set(['0,0']); const list=[[0,0]]; let guard=0;
+  while(set.size<Kc && guard++<9999){
+    const [bx,by]=list[Math.floor(r()*list.length)];
+    const d=[[1,0],[-1,0],[0,1],[0,-1]][Math.floor(r()*4)];
+    const nx=bx+d[0],ny=by+d[1],k=nx+','+ny;
+    if(!set.has(k)){set.add(k);list.push([nx,ny]);}
+  }
+  const coarse=new Set();
+  for(const k of set){const[x,y]=k.split(',').map(Number);coarse.add(k);if(sym)coarse.add((-1-x)+','+y);}
+  const cells=[];
+  for(const k of coarse){const[x,y]=k.split(',').map(Number);const rx=x*2,ry=y*2;cells.push([rx,ry],[rx+1,ry],[rx,ry+1],[rx+1,ry+1]);}
+  return norm(cells);
+}
+function isBoss(idx){return (idx+1)%5===0;}                 // 5,10,...,100 = checkpoints
+function stageCap(idx){return idx<2?3:idx<5?4:5;}
+function needRot(idx){return idx>=10;}                       // stage 11+ : random orientation
+function stageDef(idx){
+  if(isBoss(idx)){ const a=ANIMALS[(((idx+1)/5)-1)%ANIMALS.length]; return {cells:ascii(a.rows), name:a.n, boss:true}; }
+  if(idx<20){ const c=CURATED[idx]; return {cells:ascii(c.rows), name:c.n, boss:false}; }
+  return {cells:blobStage(idx), name:PROC_NAMES[idx%PROC_NAMES.length]+' '+(idx+1), boss:false};
+}
+
+/* ---------- state ---------- */
+let cell=34, curW=1, curH=1;
+let stage=0, grid, pieces, queue=[], placedStack=[], drag=null, curBoss=false;
+let timeLeft=0, timeMax=0, timerId=null;
+const board=document.getElementById('board');
+const curBox=document.getElementById('cur'), nxtBox=document.getElementById('nxt');
+
+/* ---------- save / help items ---------- */
+const SAVE_KEY='neonblocks_v1';
+/* ===== お助けアイテム 配布設定（ここで調整） ===== */
+const RETRY_LIMIT=3;                                        // セーブ地点リトライ回数（チェックポイント毎に回復）
+const STARTING_ITEMS={hint:3, time:2, auto:1, reverse:1};   // 「最初から」開始時
+function ckptItemsFor(cp){                                  // 「セーブ地点から」再開時の初期値（固定・cp=チェックポイント面index）
+  const tier=Math.floor(cp/25);                            // 0〜3（25面ごとに1段増える）
+  return {hint:4+tier, time:2+tier, auto:1+Math.floor(tier/2), reverse:1+Math.floor(tier/2)};
+}
+/* ============================================= */
+const ZERO_ITEMS={hint:0,time:0,auto:0,reverse:0};
+let save={ckpt:0, items:Object.assign({},STARTING_ITEMS), retries:RETRY_LIMIT};
+function loadSave(){ try{ const s=JSON.parse(localStorage.getItem(SAVE_KEY)); if(s&&typeof s.ckpt==='number'){ save=s; save.items=Object.assign({},ZERO_ITEMS, s.items||{}); if(typeof save.retries!=='number')save.retries=RETRY_LIMIT; } }catch(e){} }
+function writeSave(){ try{ localStorage.setItem(SAVE_KEY, JSON.stringify(save)); }catch(e){} }
+// restart from a save point => grant the configured baseline items
+function restoreCkptItems(){ save.items=Object.assign({},ZERO_ITEMS, ckptItemsFor(save.ckpt)); writeSave(); }
+// save-point restart: UNLIMITED. refills the segment's retry budget + items, back to the checkpoint
+function savePointRetry(){ save.retries=RETRY_LIMIT; restoreCkptItems(); loadStage(save.ckpt); }
+// same-stage retry: spends 1 from the shared segment budget (used across stages 12,13,…)
+function stageRetry(){ if(save.retries<=0) return false; save.retries--; writeSave(); loadStage(stage); return true; }
+function gameOver(){
+  Sound.s('over');
+  showOverlay('GAME OVER','リトライ回数を使い切りました…\nセーブ地点（STAGE '+(save.ckpt+1)+'）へ戻ります',
+    'セーブ地点から再開 ▶', ()=>savePointRetry(), true);
+}
+
+function fitCell(){
+  const availW=Math.min(window.innerWidth,560)-24;
+  const availH=Math.max(window.innerHeight*0.40,220);
+  const byW=Math.floor(availW/Math.min(curW,9));
+  const byH=Math.floor(availH/(curH+0.4));
+  cell=Math.max(20,Math.min(46,byW,byH));
+}
+function bbox(cells){let w=0,h=0;for(const[c,r]of cells){w=Math.max(w,c+1);h=Math.max(h,r+1);}return{w,h};}
+
+function loadStage(n){
+  Sound.begin();                                   // ensure BGM/audio is running (resumes if suspended)
+  stage=n; const st=stageDef(n); curBoss=st.boss; curName=st.name;
+  grid=new Map(); pieces=[]; placedStack=[];
+  const cells=st.cells;
+  for(const[x,y]of cells) grid.set(key(x,y),{x,y,filled:false,el:null});
+
+  const groups=tileBest([...grid.keys()], stageCap(n), 40);
+  groups.forEach((abs,i)=>{
+    let c=norm(abs);
+    if(needRot(n)){ const t=Math.floor(Math.random()*4); for(let k=0;k<t;k++)c=rot(c); }  // random orientation => rotation required
+    // home = this piece's slot in the reference solution (used by hint/auto)
+    pieces.push({id:i, cells:c, color:colorOf(c), home:abs.map(a=>a.slice()), homeShape:norm(abs), placed:false, boardEls:[]});
+  });
+  queue=shuffle(pieces.slice());   // feed order
+
+  // time limit scales with cell count, tighter later; bosses get extra
+  const factor = n<10 ? 4.6 : n<40 ? 3.7 : n<70 ? 3.1 : 2.7;
+  timeMax = Math.max(30, Math.round(cells.length*factor*(st.boss?1.4:1)));
+  timeLeft = timeMax;
+
+  renderBoard(); renderDock(true); renderHUD(); renderItems(); updateClock();
+  startTimer();
+}
+let curName='';
+
+/* ---------- rendering ---------- */
+function renderBoard(){
+  board.innerHTML='';
+  let W=0,H=0; for(const g of grid.values()){W=Math.max(W,g.x+1);H=Math.max(H,g.y+1);}
+  curW=W; curH=H; fitCell();
+  board.style.width=W*cell+'px'; board.style.height=H*cell+'px';
+  for(const g of grid.values()){
+    const s=document.createElement('div'); s.className='slot';
+    s.style.left=g.x*cell+3+'px'; s.style.top=g.y*cell+3+'px';
+    s.style.width=cell-6+'px'; s.style.height=cell-6+'px';
+    board.appendChild(s); g.el=s;
+  }
+  pieces.filter(p=>p.placed).forEach(drawPlaced);
+  const wrap=document.getElementById('boardWrap');
+  wrap.scrollLeft=Math.max(0,(W*cell-wrap.clientWidth)/2);
+}
+function makeBlockEl(color,c,r,sz){
+  sz=sz||cell;
+  const b=document.createElement('div'); b.className='block';
+  b.style.left=c*sz+3+'px'; b.style.top=r*sz+3+'px';
+  b.style.width=sz-6+'px'; b.style.height=sz-6+'px';
+  b.style.setProperty('--c',color); return b;
+}
+function makePieceEl(p,sz){
+  sz=sz||cell;
+  const bb=bbox(p.cells), el=document.createElement('div'); el.className='piece';
+  el.style.width=bb.w*sz+'px'; el.style.height=bb.h*sz+'px'; el.dataset.id=p.id;
+  for(const[c,r]of p.cells)el.appendChild(makeBlockEl(p.color,c,r,sz));
+  return el;
+}
+// NOW (current, draggable) + NEXT preview
+function renderDock(pop){
+  curBox.innerHTML=''; nxtBox.innerHTML='';
+  const box=PIECE_MAX*cell;                       // fixed square slot: piece rotates in place, layout never shifts
+  curBox.style.width=box+'px'; curBox.style.height=box+'px'; curBox.style.position='relative';
+  if(queue.length){
+    const p=queue[0], el=makePieceEl(p,cell), bb=bbox(p.cells);
+    el.style.position='absolute';
+    el.style.left=((box-bb.w*cell)/2)+'px';
+    el.style.top=((box-bb.h*cell)/2)+'px';
+    if(pop)el.classList.add('pop');
+    el.addEventListener('pointerdown',e=>startDrag(e,p));
+    curBox.appendChild(el);
+  }else{
+    curBox.innerHTML='<span style="font-size:11px;color:#5c5c78">✓</span>';
+  }
+  const sz=Math.max(11,Math.round(cell*0.46));
+  let shown=0;
+  for(let i=1;i<queue.length && i<=2;i++){ nxtBox.appendChild(makePieceEl(queue[i],sz)); shown++; }
+  if(!shown) nxtBox.innerHTML='<span style="font-size:11px;color:#5c5c78">—</span>';
+}
+function drawPlaced(p){
+  p.boardEls.forEach(e=>e.remove()); p.boardEls=[];
+  for(const[c,r]of p.cells){
+    const b=makeBlockEl(p.color,p.col+c,p.row+r); b.classList.add('board-piece');
+    b.addEventListener('click',()=>returnPiece(p));
+    board.appendChild(b); p.boardEls.push(b);
+  }
+}
+function renderHUD(){
+  document.getElementById('stgNo').textContent=stage+1;
+  document.getElementById('stgName').textContent=(curBoss?'★BOSS★ ':'')+'「'+curName+'」';
+  document.querySelector('.hud').classList.toggle('boss',curBoss);
+  document.getElementById('retryLeft').textContent='🔁×'+save.retries;
+}
+function renderItems(){
+  const defs=[['hint','💡','ヒント'],['time','⏱','+25s'],['auto','⚡','オート'],['reverse','⏪','リバース']];
+  defs.forEach(([k,ic,lb])=>{
+    const b=document.getElementById('it-'+k);
+    b.querySelector('.cnt').textContent=save.items[k]||0;
+    b.disabled=(save.items[k]||0)<=0;
+  });
+}
+
+/* ---------- drag & drop ---------- */
+function startDrag(e,p){
+  e.preventDefault();
+  const el=e.currentTarget, rect=el.getBoundingClientRect();
+  drag={p, gx:e.clientX-rect.left, gy:e.clientY-rect.top, clone:null, src:el};
+  const clone=makePieceEl(p); clone.classList.add('drag-clone'); document.body.appendChild(clone);
+  drag.clone=clone; el.style.visibility='hidden';
+  moveClone(e.clientX,e.clientY);
+  window.addEventListener('pointermove',onMove);
+  window.addEventListener('pointerup',onUp,{once:true});
+}
+function moveClone(x,y){ if(drag&&drag.clone){drag.clone.style.left=(x-drag.gx)+'px'; drag.clone.style.top=(y-drag.gy)+'px';} }
+function onMove(e){moveClone(e.clientX,e.clientY);}
+function onUp(e){
+  window.removeEventListener('pointermove',onMove);
+  const p=drag.p, cr=drag.clone.getBoundingClientRect(), br=board.getBoundingClientRect();
+  const col=Math.round((cr.left-br.left)/cell), row=Math.round((cr.top-br.top)/cell);
+  drag.clone.remove();
+  tryPlace(p,col,row);
+  drag=null; renderDock();
+}
+function tryPlace(p,col,row){
+  if(p.placed || queue[0]!==p) return false;      // only the NOW piece is placeable
+  const targets=[];
+  for(const[c,r]of p.cells){
+    const g=grid.get(key(col+c,row+r));
+    if(!g||g.filled)return false;
+    targets.push(g);
+  }
+  targets.forEach(g=>g.filled=true);
+  p.placed=true; p.col=col; p.row=row; drawPlaced(p);
+  queue.shift(); placedStack.push(p);
+  renderDock(true);
+  // "キラン" feedback: green sparkle on a good fit; red warning only if it leaves an unfillable gap
+  let full=true; for(const g of grid.values()) if(!g.filled){full=false;break;}
+  if(!full){
+    const dead=placementDeadEnd();
+    sparkle(p, !dead);
+    Sound.s(dead?'bad':'place');
+    if(dead) showToast('⚠ 埋められない隙間ができたよ（タップで戻せます）');
+  }
+  checkWin(); return true;
+}
+function sparkle(p,ok){
+  p.boardEls.forEach(b=>{ b.classList.remove('spark','sparkbad'); void b.offsetWidth; b.classList.add(ok?'spark':'sparkbad'); });
+}
+// cheap, exact dead-end check: any empty region smaller than the smallest remaining piece can never be filled
+function placementDeadEnd(){
+  if(!queue.length) return false;
+  let minP=Infinity; queue.forEach(p=>minP=Math.min(minP,p.cells.length));
+  if(minP<=1) return false;                       // a monomino can fill anything
+  const seen=new Set();
+  for(const g of grid.values()){
+    if(g.filled) continue; const k0=key(g.x,g.y); if(seen.has(k0)) continue;
+    let size=0; const stack=[k0]; seen.add(k0);
+    while(stack.length){
+      const cur=stack.pop(); size++; const [x,y]=cur.split(',').map(Number);
+      for(const[dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nk=key(x+dx,y+dy), ng=grid.get(nk);
+        if(ng&&!ng.filled&&!seen.has(nk)){ seen.add(nk); stack.push(nk); }
+      }
+    }
+    if(size<minP) return true;
+  }
+  return false;
+}
+// return a placed piece to the FRONT of the feed (becomes NOW)
+function returnPiece(p){
+  if(!p.placed)return;
+  for(const[c,r]of p.cells){const g=grid.get(key(p.col+c,p.row+r)); if(g)g.filled=false;}
+  p.boardEls.forEach(e=>e.remove()); p.boardEls=[]; p.placed=false;
+  const si=placedStack.indexOf(p); if(si>=0)placedStack.splice(si,1);
+  queue.unshift(p);
+  renderDock(); Sound.s('ret');
+}
+function rotateSel(){
+  const p=(drag&&drag.p)||queue[0]; if(!p||p.placed)return;
+  Sound.s('rotate');
+  p.cells=rot(p.cells);
+  if(drag&&drag.p===p){
+    const old=drag.clone.getBoundingClientRect(); drag.clone.remove();
+    const c=makePieceEl(p); c.classList.add('drag-clone'); document.body.appendChild(c);
+    c.style.left=old.left+'px'; c.style.top=old.top+'px'; drag.clone=c;
+  } else renderDock();
+}
+document.getElementById('rotBtn').addEventListener('click',rotateSel);
+window.addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault(); rotateSel();} });
+document.getElementById('undoBtn').addEventListener('click',()=>{ if(placedStack.length) returnPiece(placedStack[placedStack.length-1]); });
+document.getElementById('retryBtn').addEventListener('click',()=>{
+  if(!stageRetry()) showToast('リトライ回数なし… ⏮ セーブ地点から戻れます');
+});
+document.getElementById('ckptBtn').addEventListener('click',()=>{
+  if(confirm('セーブ地点（STAGE '+(save.ckpt+1)+'）からやり直します。\nリトライ回数とアイテムは補充されます。よろしいですか？')) savePointRetry();
+});
+
+/* ---------- timer ---------- */
+function startTimer(){ stopTimer(); timerId=setInterval(tick,100); }
+function stopTimer(){ if(timerId)clearInterval(timerId); timerId=null; }
+function tick(){ timeLeft-=0.1; if(timeLeft<=0){ timeLeft=0; updateClock(); stopTimer(); timeUp(); return; } updateClock(); }
+function updateClock(){
+  const s=Math.ceil(timeLeft), mm=Math.floor(s/60), ss=String(s%60).padStart(2,'0');
+  const clk=document.getElementById('clock'); clk.textContent=mm+':'+ss;
+  const r=timeMax? timeLeft/timeMax : 0, low=r<0.25;
+  document.getElementById('tfill').style.width=Math.min(100,r*100)+'%';
+  document.getElementById('tfill').classList.toggle('low',low);
+  clk.classList.toggle('low',low);
+}
+
+/* ---------- boss-clear celebration: neon confetti burst + flash ---------- */
+function celebrate(){
+  const W=window.innerWidth, H=window.innerHeight, dpr=Math.min(2,window.devicePixelRatio||1);
+  const cv=document.createElement('canvas');
+  cv.width=W*dpr; cv.height=H*dpr;
+  cv.style.cssText='position:fixed;inset:0;z-index:150;pointer-events:none;';
+  document.body.appendChild(cv);
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr);
+  const cols=EXPAL.map(c=>'rgb('+c+')');
+  const cx=W/2, cy=H*0.42, P=[];
+  for(let i=0;i<150;i++){
+    const a=Math.random()*Math.PI*2, sp=3+Math.random()*10;
+    P.push({x:cx,y:cy, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp-5, g:0.16+Math.random()*0.14,
+      s:5+Math.random()*8, col:cols[(Math.random()*cols.length)|0], rot:Math.random()*6.3, vr:(Math.random()-.5)*.5});
+  }
+  let start=null;
+  function frame(t){
+    if(start===null)start=t; const el=t-start, alpha=Math.max(0,1-el/1900);
+    ctx.clearRect(0,0,W,H); let alive=false;
+    for(const p of P){
+      p.vy+=p.g; p.x+=p.vx; p.y+=p.vy; p.vx*=0.99; p.rot+=p.vr;
+      if(p.y<H+24 && alpha>0) alive=true;
+      ctx.save(); ctx.globalAlpha=alpha; ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+      ctx.fillStyle=p.col; ctx.shadowColor=p.col; ctx.shadowBlur=10;
+      ctx.fillRect(-p.s/2,-p.s/2,p.s,p.s*0.62);
+      ctx.restore();
+    }
+    if(el<2000 && alive) requestAnimationFrame(frame); else cv.remove();
+  }
+  requestAnimationFrame(frame);
+  const fl=document.createElement('div');
+  fl.style.cssText='position:fixed;inset:0;z-index:149;pointer-events:none;background:#fff;opacity:0;transition:opacity .12s;';
+  document.body.appendChild(fl);
+  requestAnimationFrame(()=>{ fl.style.opacity='.5'; setTimeout(()=>{ fl.style.opacity='0'; setTimeout(()=>fl.remove(),220); },90); });
+  document.getElementById('board').classList.remove('shake'); void board.offsetWidth; document.getElementById('board').classList.add('shake');
+}
+
+/* ---------- win / lose / progression ---------- */
+function checkWin(){
+  for(const g of grid.values()) if(!g.filled) return;
+  stopTimer();
+  for(const g of grid.values()){const el=g.el; if(el){el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash');}}
+  const last = stage>=TOTAL-1;
+  const bonus = Math.ceil(timeLeft);
+  const party = curBoss || last;
+  if(party) celebrate();
+  Sound.s(party?'boss':'clear');
+  let rewardTxt='';
+  if(!last){
+    if(isBoss(stage)){                                    // checkpoint: big bundle + save + snapshot
+      save.ckpt=Math.min(TOTAL-1, stage+1);
+      save.items.hint=(save.items.hint||0)+3;
+      save.items.time=(save.items.time||0)+2;
+      save.items.auto=(save.items.auto||0)+2;
+      save.items.reverse=(save.items.reverse||0)+1;
+      save.retries=RETRY_LIMIT;                           // refill save-point retries at each checkpoint
+      rewardTxt='　🎁 セーブ＆補充（💡+3 ⏱+2 ⚡+2 ⏪+1 🔁回復）';
+    }else{                                                // every normal clear: a hint (+time sometimes)
+      save.items.hint=(save.items.hint||0)+1;
+      if((stage+1)%2===0){ save.items.time=(save.items.time||0)+1; rewardTxt='　🎁 💡+1 ⏱+1'; }
+      else rewardTxt='　🎁 💡+1';
+    }
+    writeSave();
+  }
+  setTimeout(()=>{
+    if(last) showOverlay('ALL CLEAR','全100ステージ制覇！ 🏆 残り時間 +'+bonus, '最初から ▶', ()=>{ save.ckpt=0; save.items=Object.assign({},STARTING_ITEMS); save.retries=RETRY_LIMIT; writeSave(); loadStage(0); }, false);
+    else showOverlay(curBoss?'★ BOSS DOWN ★':'STAGE CLEAR', (curBoss?'「'+curName+'」を倒した！':'「'+curName+'」クリア')+'（残り '+bonus+'秒）'+rewardTxt, '次へ ▶', ()=>loadStage(stage+1), false);
+  }, party?1250:600);
+}
+const ITEM_LABEL={hint:'ヒント',time:'+25秒',auto:'オート配置'};
+function timeUp(){
+  Sound.s('fail');
+  if(save.retries>0){
+    showOverlay('TIME UP','時間切れ…「'+curName+'」に再挑戦（リトライ残 '+save.retries+'）',
+      '🔄 リトライ ▶', ()=>stageRetry(), true,
+      '⏮ セーブ地点から（無制限）', ()=>savePointRetry());
+  }else{
+    gameOver();                                           // out of retries -> GAME OVER
+  }
+}
+function showOverlay(title,text,btn,fn,fail,btn2,fn2){
+  const ov=document.getElementById('overlay');
+  const t=document.getElementById('ovTitle'); t.textContent=title; t.classList.toggle('fail',!!fail);
+  document.getElementById('ovText').textContent=text;
+  const b=document.getElementById('ovBtn'); b.textContent=btn;
+  b.onclick=()=>{ ov.classList.remove('show'); fn(); };
+  const b2=document.getElementById('ovBtn2');
+  if(btn2){ b2.style.display=''; b2.textContent=btn2; b2.onclick=()=>{ ov.classList.remove('show'); fn2(); }; }
+  else b2.style.display='none';
+  ov.classList.add('show');
+}
+
+/* ---------- help items ---------- */
+function flashCells(coords){
+  coords.forEach(([x,y])=>{const g=grid.get(key(x,y)); if(g&&g.el){g.el.classList.remove('hintglow'); void g.el.offsetWidth; g.el.classList.add('hintglow');}});
+}
+function homeOrigin(p){ let mx=Infinity,my=Infinity; p.home.forEach(([x,y])=>{mx=Math.min(mx,x);my=Math.min(my,y);}); return {col:mx,row:my}; }
+function homeBlocked(p){ return p.home.some(([x,y])=>{const g=grid.get(key(x,y)); return g&&g.filled;}); }
+// HINT: always light the piece's absolute-correct slot from the reference solution
+function useHint(){
+  if((save.items.hint||0)<=0 || !queue.length) return;
+  const p=queue[0];
+  p.cells=p.homeShape.map(a=>a.slice());     // face NOW toward its solution orientation
+  renderDock();
+  flashCells(p.home);                         // light the true correct cells (even if occupied)
+  if(homeBlocked(p)) showToast('★ ここが正解！ 別のブロックをどけてね');
+  Sound.s('item'); save.items.hint--; writeSave(); renderItems();
+}
+function useTime(){
+  if((save.items.time||0)<=0) return;
+  timeLeft+=25; save.items.time--; writeSave(); renderItems(); updateClock(); Sound.s('item'); showToast('+25秒');
+}
+// AUTO: drop NOW straight onto its correct slot (needs that slot free)
+function useAuto(){
+  if((save.items.auto||0)<=0 || !queue.length) return;
+  const p=queue[0];
+  if(homeBlocked(p)){ flashCells(p.home); showToast('★ 正解の位置に別ブロックあり。どけてから使ってね'); return; }
+  const {col,row}=homeOrigin(p);
+  p.cells=p.homeShape.map(a=>a.slice());
+  tryPlace(p,col,row);
+  save.items.auto--; writeSave(); renderItems();
+}
+// is a placed piece sitting exactly on its reference-solution home?
+function atHome(p){
+  if(!p.placed) return false;
+  const occ=new Set(p.cells.map(([c,r])=>key(p.col+c,p.row+r)));
+  return occ.size===p.home.length && p.home.every(([x,y])=>occ.has(key(x,y)));
+}
+// REVERSE: remove every wrongly-placed piece, keep the ones already on their correct spot
+function useReverse(){
+  if((save.items.reverse||0)<=0) return;
+  const wrong=pieces.filter(p=>p.placed && !atHome(p));
+  if(!wrong.length){ showToast('除去する間違いブロックはありません'); return; }
+  wrong.forEach(returnPiece);
+  save.items.reverse--; writeSave(); renderItems();
+  Sound.s('item'); showToast('⏪ リバース：間違い '+wrong.length+' 個を除去');
+}
+document.getElementById('it-hint').addEventListener('click',useHint);
+document.getElementById('it-time').addEventListener('click',useTime);
+document.getElementById('it-auto').addEventListener('click',useAuto);
+document.getElementById('it-reverse').addEventListener('click',useReverse);
+
+let toastT=null;
+function showToast(msg){
+  const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),1400);
+}
+
+/* ---------- title / save ---------- */
+// place pieces preferring shapes used least so far -> lots of different colours ("properly assembled")
+function tileBalanced(keys,cap){
+  const rem=new Set(keys), groups=[], use={};
+  const lib=LIB.filter(e=>e.size<=cap);
+  while(rem.size){
+    let bc=null; for(const k of rem){const[x,y]=k.split(',').map(Number); if(!bc||y<bc.y||(y===bc.y&&x<bc.x))bc={x,y};}
+    const cx=bc.x,cy=bc.y, cands=[];
+    for(const e of lib)for(const o of e.os)for(const anc of o){
+      const ox=cx-anc[0],oy=cy-anc[1],abs=[]; let ok=true;
+      for(const[c,r]of o){const kk=key(ox+c,oy+r); if(!rem.has(kk)){ok=false;break;} abs.push([ox+c,oy+r]);}
+      if(ok)cands.push({abs,canon:e.canon,size:e.size});
+    }
+    if(!cands.length){ rem.delete(key(cx,cy)); groups.push([[cx,cy]]); continue; }
+    cands.sort((a,b)=>(use[a.canon]||0)-(use[b.canon]||0)||b.size-a.size||(Math.random()-0.5));
+    const p=cands[0]; use[p.canon]=(use[p.canon]||0)+1;
+    for(const[x,y]of p.abs)rem.delete(key(x,y)); groups.push(p.abs);
+  }
+  return groups;
+}
+// pick the tiling that keeps every colour's total area small (no broad single colour),
+// then maximises distinct colours and piece count -> a busy, well-mixed mosaic
+function tileArt(keys,cap,N){
+  let best=null,bk=null;
+  for(let i=0;i<N;i++){
+    const g=tileBalanced(keys,cap);
+    const mono=g.filter(x=>x.length===1).length;
+    const area={}; g.forEach(gr=>{const c=colorOf(norm(gr)); area[c]=(area[c]||0)+gr.length;});
+    const maxArea=Math.max(...Object.values(area)), distinct=Object.keys(area).length;
+    const k=[mono, maxArea, -distinct, -g.length];
+    if(!bk || k[0]<bk[0]
+       || (k[0]===bk[0] && (k[1]<bk[1]
+       || (k[1]===bk[1] && (k[2]<bk[2]
+       || (k[2]===bk[2] && k[3]<bk[3])))))){ bk=k; best=g; }
+  }
+  return best;
+}
+// emblems built out of many colour-coded blocks (mirror the gameplay); a random one each visit
+const EMBLEMS=[
+  ['..##############..','.################.','##################','##################','.################.','..##############..','...############...','....##########....','.....########.....','......######......','.......####.......','........##........'], // カット・ダイヤ
+  ['......##......','.....####.....','.....####.....','.....####.....','.############.','##############','##############','.############.','.....####.....','.....####.....','.....####.....','......##......'], // 星
+  ['...####...','..######..','.########.','##########','##########','##########','.########.','..######..','...####...'], // 六角
+  ['.###.###.','#########','#########','#########','.#######.','..#####..','...###...'], // ハート
+  ['....##....','....##....','..######..','.########.','##########','##########','.########.','..######..','....##....','....##....'], // クリスタル
+  ['...####...','...####...','##########','##########','##########','##########','...####...','...####...'], // 十字
+];
+function buildTitleArt(){
+  const host=document.getElementById('titleArt'); host.innerHTML='';
+  const rows=EMBLEMS[0];   // ダイヤ固定（星・六角などはEMBLEMSに保持、随時切替可）
+  const cells=ascii(rows);
+  let W=0,H=0; cells.forEach(([x,y])=>{W=Math.max(W,x+1);H=Math.max(H,y+1);});
+  const AS=Math.min(20, Math.floor((Math.min(window.innerWidth,440)-56)/W));
+  const groups=tileArt(cells.map(([x,y])=>key(x,y)), 5, 80);
+  host.style.width=W*AS+'px'; host.style.height=H*AS+'px';
+  groups.forEach(abs=>{
+    let mx=Infinity,my=Infinity; abs.forEach(([x,y])=>{mx=Math.min(mx,x);my=Math.min(my,y);});
+    const c=norm(abs);
+    const el=makePieceEl({cells:c, color:colorOf(c)}, AS);
+    el.style.left=mx*AS+'px'; el.style.top=my*AS+'px';
+    host.appendChild(el);
+  });
+}
+function showTitle(){
+  const t=document.getElementById('title'), r=document.getElementById('btnResume');
+  buildTitleArt();
+  if(save.ckpt>0){ r.style.display=''; r.textContent='続きから ▶ STAGE '+(save.ckpt+1); r.onclick=()=>{ t.classList.remove('show'); savePointRetry(); }; }
+  else r.style.display='none';
+  document.getElementById('btnNew').onclick=()=>{ t.classList.remove('show'); save.ckpt=0; save.items=Object.assign({},STARTING_ITEMS); save.retries=RETRY_LIMIT; writeSave(); loadStage(0); };
+  renderItems(); t.classList.add('show');
+}
+
+/* ---------- responsive ---------- */
+let rzT=null;
+function reflow(){ if(grid){renderBoard(); renderDock();} }
+window.addEventListener('resize',()=>{ clearTimeout(rzT); rzT=setTimeout(reflow,120); });
+window.addEventListener('orientationchange',()=>setTimeout(reflow,300));
+
+/* ---------- audio start + mute ---------- */
+window.addEventListener('pointerdown',()=>Sound.begin());   // every tap resumes audio if it got suspended
+(function(){ const mb=document.getElementById('muteBtn'); mb.textContent=Sound.isMuted()?'🔇':'🔊';
+  mb.addEventListener('click',()=>{ const m=Sound.toggle(); mb.textContent=m?'🔇':'🔊'; }); })();
+(function(){ const hb=document.getElementById('helpBtn'), hv=document.getElementById('help');
+  hb.addEventListener('click',()=>hv.classList.add('show'));
+  document.getElementById('helpClose').addEventListener('click',()=>hv.classList.remove('show'));
+  hv.addEventListener('click',e=>{ if(e.target===hv)hv.classList.remove('show'); }); })();
+
+/* ---------- go ---------- */
+loadSave();
+showTitle();
+</script>
