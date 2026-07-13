@@ -148,3 +148,9 @@ file-finder/data/
 # launchd 登録キット（各PCで pull → bash _launchd/install-launchd.sh）
 !_launchd/
 !_launchd/**
+
+!parking-map/
+!parking-map/**
+# 個人情報（契約者名）を含む静的版・バックアップは公開しない。中身はレントロールxlsxを実行時に読む（README参照）
+parking-map/index.html
+parking-map/index_backup_*.html
