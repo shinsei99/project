@@ -10,7 +10,7 @@ const FTP_USER = 'mw2pqwm3xa';
 const FTP_PASS = 'MgpCRN73#';
 const FTP_ROOT = '/www/htdocs/vr';
 const HTTP_BASE = 'https://daikyocorp.co.jp/vr';
-const PORT = 8519;
+const PORT = 8523;
 const SESSION_TTL = 60 * 60 * 1000; // 1時間（15部屋対応）
 
 const app = express();

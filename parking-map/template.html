@@ -3,13 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>配置図｜角屋(横堤)モータープール</title>
+<title>配置図｜駐車場ビューア</title>
 <style>
   :root{
     --ink:#1a1a1a; --line:#2b2b2b; --grid:#c9ced6; --paper:#fff; --bg:#eef1f5;
     --vacant:#d7f2df; --vacant-bd:#3aa963; --vacant-ink:#1c6b3a;
     --owner:#fdf0cf; --owner-bd:#e6b84e; --owner-ink:#8a5d0a;
     --aozora:#eaf4fd; --aozora-bd:#5b9bd5;
+    --time:#e3e6ea; --time-bd:#9aa3ad;
     --car:#c3ccd6;
   }
   *{box-sizing:border-box}
@@ -17,9 +18,16 @@
        font-family:"Hiragino Mincho ProN","Yu Mincho",serif;padding:22px}
   .sheet{background:var(--paper);max-width:1360px;margin:0 auto;padding:22px 26px 26px;
          border:1px solid #d0d5dd;box-shadow:0 3px 16px rgba(0,0,0,.08)}
+  .switcher{display:flex;gap:8px;margin-bottom:16px;font-family:sans-serif}
+  .switcher button{flex:none;border:1px solid var(--grid);background:#f4f6f9;color:#6b7280;
+        padding:9px 22px;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;
+        transition:background .12s,color .12s,border-color .12s}
+  .switcher button.on{background:#1f3864;border-color:#1f3864;color:#fff}
+  .switcher button:hover:not(.on){background:#e8eef7}
   .titlebar{display:flex;align-items:flex-start;justify-content:space-between;border-bottom:2px solid var(--line);padding-bottom:9px;margin-bottom:4px}
   .titlebar h1{font-size:25px;margin:0;font-weight:700;letter-spacing:.06em;flex:1;text-align:center}
-  .infobox{font-size:12.5px;line-height:1.7;border:1px solid var(--grid);padding:6px 12px;white-space:nowrap;font-family:sans-serif}
+  .infobox{font-size:12.5px;line-height:1.7;border:1px solid var(--grid);padding:6px 12px;white-space:nowrap;font-family:sans-serif;min-width:200px;text-align:right}
+  .infobox:empty{border:none}
   .toolnote{font-family:sans-serif;font-size:11px;color:#8a93a0;text-align:right;margin:4px 0}
   svg{width:100%;height:auto;display:block;font-family:sans-serif}
   .stall{cursor:pointer}
@@ -31,6 +39,7 @@
   .legend .v{background:var(--vacant);border-color:var(--vacant-bd)}
   .legend .o{background:var(--owner);border-color:var(--owner-bd)}
   .legend .a{background:var(--aozora);border-color:var(--aozora-bd)}
+  .legend .t{background:var(--time);border-color:var(--time-bd)}
   .cond{font-family:sans-serif;margin-top:14px;border:1px solid var(--grid);padding:12px 16px;font-size:13px;line-height:1.9;max-width:560px}
   .cond b{display:inline-block;min-width:64px;color:#555}
   .pop{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;font-family:sans-serif;z-index:9}
@@ -48,12 +57,14 @@
 </head>
 <body>
 <div class="sheet">
+  <div class="switcher" id="switcher"></div>
+
   <div class="titlebar">
     <div style="width:200px"></div>
-    <h1>角屋(横堤) モータープール</h1>
-    <div class="infobox">大阪市鶴見区横堤4－14－31<br>高さ制限 ＝ 1,900〜2,300</div>
+    <h1 id="lotTitle"></h1>
+    <div class="infobox" id="lotInfo"></div>
   </div>
-  <div class="toolnote">配置図（車室固定）／空き状況：レントロール一覧（駐車場他）.xlsx ｜ 読込 __UPDATED__</div>
+  <div class="toolnote" id="lotToolnote">配置図（車室固定）／空き状況：<span id="lotSource"></span> ｜ 読込 __UPDATED__</div>
 
   <svg id="plan" viewBox="0 0 1360 620" role="img"></svg>
 
@@ -61,38 +72,38 @@
     <span><i class="v"></i>空き</span>
     <span><i class="o"></i>オーナー使用</span>
     <span><i class="a"></i>青空（屋外）</span>
+    <span><i class="t"></i>時間貸</span>
     <span>白＝契約中</span>
     <span>▯縦置き ／ ▭横置き（車室の向き）</span>
     <span>マスをクリックで詳細</span>
   </div>
 
-  <div class="cond">
-    <div><b>月額</b>普通車 24,000円／青空 15,000円（税別）</div>
-    <div><b>保証金</b>賃料の税込1ヶ月分 ― 満車まで全額返金</div>
-    <div><b>仲介料</b>0円（満車まで）</div>
-  </div>
+  <div class="cond" id="lotCond"></div>
 </div>
 
 <div class="pop" id="pop"><div class="card" id="card"></div></div>
 
 <script>
 const SVGNS="http://www.w3.org/2000/svg";
-// ── 占有データ（サーバーがDropboxのxlsxから毎回差し込み。ここは可変） ──
-const DATA = __DATA_JSON__;
-// ── 青空区画の集合（レイアウト側の固定情報） ──
-const AOZORA_SET=new Set([22,23,24,25,26,27]);
+// ── 占有データ（サーバーがDropboxのxlsxから毎回差し込み。駐車場ごとに分かれている） ──
+const ALL_DATA = __ALL_DATA_JSON__;
+let DATA = {};
+let AOZORA_SET = new Set();
+let TIME_SET = new Set();
 const isAoz=no=>AOZORA_SET.has(no);
+const isTime=no=>TIME_SET.has(no);
 
-const FILL={vacant:'#d7f2df',owner:'#fdf0cf',occ:'#ffffff',aoz:'#eaf4fd'};
-const yen=v=>v==null?'—':'¥'+Number(v).toLocaleString();
+const FILL={vacant:'#d7f2df',owner:'#fdf0cf',occ:'#ffffff',aoz:'#eaf4fd',time:'#e3e6ea'};
+const yen=v=>{if(v==null||v==='')return '—';const n=Number(v);return isNaN(n)?String(v):'¥'+n.toLocaleString();};
 const svg=document.getElementById('plan');
 function el(t,a){const e=document.createElementNS(SVGNS,t);for(const k in a)e.setAttribute(k,a[k]);return e;}
-function fillOf(no){const d=DATA[no]||{};return d.v?FILL.vacant:d.o?FILL.owner:(isAoz(no)?FILL.aoz:FILL.occ);}
+function fillOf(no){const d=DATA[no]||{};return d.v?FILL.vacant:d.o?FILL.owner:(isAoz(no)?FILL.aoz:(isTime(no)?FILL.time:FILL.occ));}
 
 // 車の footprint（向き表現／数字がはみ出ないサイズ）
-function car(cx,cy,vertical){
-  const w=vertical?32:48, h=vertical?46:28;
-  return el('rect',{x:cx-w/2,y:cy-h/2,width:w,height:h,rx:5,
+function car(cx,cy,vertical,scale){
+  scale=scale||1;
+  const w=(vertical?32:48)*scale, h=(vertical?46:28)*scale;
+  return el('rect',{x:cx-w/2,y:cy-h/2,width:w,height:h,rx:5*scale,
     fill:'none',stroke:'#b7c0cb','stroke-width':1.4});
 }
 // 区画（矩形：上段・青空縦横）
@@ -100,9 +111,10 @@ function boxStall(no,x,y,w,h,vertical,strokeCol){
   const g=el('g',{class:'stall'}); g.style.cursor='pointer';
   g.appendChild(el('rect',{x,y,width:w,height:h,fill:fillOf(no),
      stroke:strokeCol||'#2b2b2b','stroke-width':1.4}));
-  g.appendChild(car(x+w/2,y+h/2,vertical));
-  g.appendChild(el('text',{x:x+w/2,y:y+h/2+7,'text-anchor':'middle',
-     class:'num','font-size':vertical?19:17,fill:'#1a1a1a'})).textContent=no;
+  const scale=Math.min(w/72,h/100,1);
+  g.appendChild(car(x+w/2,y+h/2,vertical,scale));
+  g.appendChild(el('text',{x:x+w/2,y:y+h/2+7*scale,'text-anchor':'middle',
+     class:'num','font-size':(vertical?19:17)*Math.max(scale,.72),fill:'#1a1a1a'})).textContent=no;
   g.addEventListener('click',()=>show(no)); svg.appendChild(g); return g;
 }
 // 区画（斜め四角形＝奥列）
@@ -114,67 +126,343 @@ function polyStall(no,pts,cx,cy){
   g.appendChild(el('text',{x:cx,y:cy+7,'text-anchor':'middle',class:'num','font-size':18})).textContent=no;
   g.addEventListener('click',()=>show(no)); svg.appendChild(g); return g;
 }
+// 非クリック（建物・壁など装飾用）の矩形
+function deco(x,y,w,h,fill){
+  svg.appendChild(el('rect',{x,y,width:w,height:h,fill:fill||'#bcd9ea',stroke:'#7ba3bd','stroke-width':1}));
+}
 function dim(x,y,txt){svg.appendChild(el('text',{x,y,'text-anchor':'middle','font-size':10,fill:'#6b7280'})).textContent=txt;}
+function label(x,y,txt,opt){opt=opt||{};svg.appendChild(el('text',{x,y,'text-anchor':opt.anchor||'middle','font-size':opt.size||12,fill:opt.fill||'#6b7280','font-weight':opt.weight||400})).textContent=txt;}
 
-// ── 道路ライン ──
-svg.appendChild(el('line',{x1:40,y1:24,x2:1320,y2:24,stroke:'#b0b7c0','stroke-width':2,'stroke-dasharray':'7 5'}));
+// ══════════════════════════════ 角屋(横堤)モータープール ══════════════════════════════
+function drawYokozutsumi(){
+  AOZORA_SET=new Set([22,23,24,25,26,27]);
+  TIME_SET=new Set();
 
-// ── 上段：縦置き19マス（straight） ──
-const TOP=[1,2,3,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21];
-const tX0=40,tY=34,tW=1280,tH=104,tsw=tW/TOP.length;
-TOP.forEach((no,i)=>boxStall(no,tX0+i*tsw,tY,tsw-1,tH,true));
-dim(tX0+tsw*0.5,tY+tH+14,'2450');dim(tX0+tsw*1.5,tY+tH+14,'2400');
-dim(tX0+tsw*17.5,tY+tH+14,'2400');dim(tX0+tsw*18.5,tY+tH+14,'2450');
+  // ── 道路ライン ──
+  svg.appendChild(el('line',{x1:40,y1:24,x2:1320,y2:24,stroke:'#b0b7c0','stroke-width':2,'stroke-dasharray':'7 5'}));
 
-// ── 奥列：均一の長さ・右下がりの傾き（30–47） ──
-const BACK=[30,31,32,33,34,35,36,37,38,39,40,41,43,44,45,46,47];
-const bX0=160,bW=1160,N=BACK.length,slope=54,hL=112,hR=112,bTop=372;
-function bx(f){return bX0+f*bW;}
-function bTopY(f){return bTop+f*slope;}
-function bH(f){return hL+f*(hR-hL);}
-const backCenters={};
-BACK.forEach((no,i)=>{
-  const fL=i/N, fR=(i+1)/N;
-  const xL=bx(fL),xR=bx(fR),tL=bTopY(fL),tR=bTopY(fR),hLa=bH(fL),hRa=bH(fR);
-  const pts=[[xL,tL],[xR,tR],[xR,tR+hRa],[xL,tL+hLa]];
-  const cx=(xL+xR)/2, cy=(tL+tR)/2+(hLa+hRa)/4;
-  backCenters[no]={cx,topY:(tL+tR)/2};
-  polyStall(no,pts,cx,cy);
-});
-// 入口（区画30の左のスペース＝道路からの出入口）
-svg.appendChild(el('rect',{x:46,y:bTop+6,width:104,height:hL-12,fill:'#fdecea',stroke:'#e6b0aa','stroke-width':1,'stroke-dasharray':'4 3'}));
-svg.appendChild(el('text',{x:98,y:bTop+hL/2+5,'text-anchor':'middle','font-size':13,fill:'#c0392b','font-weight':700})).textContent='入口';
-dim(bx(0.5/N),bTopY(0.5/N)+bH(0.5/N)+16,'2500');
-dim(bx(1.5/N),bTopY(1.5/N)+bH(1.5/N)+16,'2450');
-dim(bx(7.5/N),bTopY(7.5/N)+bH(7.5/N)+16,'2450');
-dim(bx(8.5/N),bTopY(8.5/N)+bH(8.5/N)+16,'2400');
-dim(bx(15.5/N),bTopY(15.5/N)+bH(15.5/N)+16,'2400');
-dim(bx(16.5/N),bTopY(16.5/N)+bH(16.5/N)+16,'2400');
+  // ── 上段：縦置き19マス（straight） ──
+  const TOP=[1,2,3,5,6,7,8,10,11,12,13,14,15,16,17,18,19,20,21];
+  const tX0=40,tY=34,tW=1280,tH=104,tsw=tW/TOP.length;
+  TOP.forEach((no,i)=>boxStall(no,tX0+i*tsw,tY,tsw-1,tH,true));
+  dim(tX0+tsw*0.5,tY+tH+14,'2450');dim(tX0+tsw*1.5,tY+tH+14,'2400');
+  dim(tX0+tsw*17.5,tY+tH+14,'2400');dim(tX0+tsw*18.5,tY+tH+14,'2450');
 
-// ── 青空：奥列の上（横置き=27,26 / 縦置き=25,24,23,22）。全体を左へシフト ──
-const AZ_SHIFT=-34;
-const AZ=[
-  {no:27,over:37,v:false,w:118,h:56,dx:0},
-  {no:26,over:41,v:false,w:118,h:56,dx:0},
-  {no:24,over:43,v:true, w:60, h:104,dx:28},   // 元図に未記入（レントロール準拠・暫定）
-  {no:25,over:44,v:true, w:60, h:104,dx:28},
-  {no:23,over:45,v:true, w:60, h:104,dx:28},
-  {no:22,over:47,v:true, w:60, h:104,dx:28},
-];
-AZ.forEach(a=>{
-  const c=backCenters[a.over]; if(!c)return;
-  const cx=c.cx+(a.dx||0)+AZ_SHIFT, x=cx-a.w/2, y=c.topY-24-a.h;
-  boxStall(a.no,x,y,a.w,a.h,a.v,'#5b9bd5');
-  svg.appendChild(el('text',{x:cx,y:y-5,'text-anchor':'middle','font-size':10,fill:'#1f5b8f','font-weight':700})).textContent='青空';
-});
+  // ── 奥列：均一の長さ・右下がりの傾き（30–47） ──
+  const BACK=[30,31,32,33,34,35,36,37,38,39,40,41,43,44,45,46,47];
+  const bX0=160,bW=1160,N=BACK.length,slope=54,hL=112,hR=112,bTop=372;
+  function bx(f){return bX0+f*bW;}
+  function bTopY(f){return bTop+f*slope;}
+  function bH(f){return hL+f*(hR-hL);}
+  const backCenters={};
+  BACK.forEach((no,i)=>{
+    const fL=i/N, fR=(i+1)/N;
+    const xL=bx(fL),xR=bx(fR),tL=bTopY(fL),tR=bTopY(fR),hLa=bH(fL),hRa=bH(fR);
+    const pts=[[xL,tL],[xR,tR],[xR,tR+hRa],[xL,tL+hLa]];
+    const cx=(xL+xR)/2, cy=(tL+tR)/2+(hLa+hRa)/4;
+    backCenters[no]={cx,topY:(tL+tR)/2};
+    polyStall(no,pts,cx,cy);
+  });
+  // 入口（区画30の左のスペース＝道路からの出入口）
+  svg.appendChild(el('rect',{x:46,y:bTop+6,width:104,height:hL-12,fill:'#fdecea',stroke:'#e6b0aa','stroke-width':1,'stroke-dasharray':'4 3'}));
+  svg.appendChild(el('text',{x:98,y:bTop+hL/2+5,'text-anchor':'middle','font-size':13,fill:'#c0392b','font-weight':700})).textContent='入口';
+  dim(bx(0.5/N),bTopY(0.5/N)+bH(0.5/N)+16,'2500');
+  dim(bx(1.5/N),bTopY(1.5/N)+bH(1.5/N)+16,'2450');
+  dim(bx(7.5/N),bTopY(7.5/N)+bH(7.5/N)+16,'2450');
+  dim(bx(8.5/N),bTopY(8.5/N)+bH(8.5/N)+16,'2400');
+  dim(bx(15.5/N),bTopY(15.5/N)+bH(15.5/N)+16,'2400');
+  dim(bx(16.5/N),bTopY(16.5/N)+bH(16.5/N)+16,'2400');
+
+  // ── 青空：奥列の上（横置き=27,26 / 縦置き=25,24,23,22）。全体を左へシフト ──
+  const AZ_SHIFT=-34;
+  const AZ=[
+    {no:27,over:37,v:false,w:118,h:56,dx:0},
+    {no:26,over:41,v:false,w:118,h:56,dx:0},
+    {no:24,over:43,v:true, w:60, h:104,dx:28},   // 元図に未記入（レントロール準拠・暫定）
+    {no:25,over:44,v:true, w:60, h:104,dx:28},
+    {no:23,over:45,v:true, w:60, h:104,dx:28},
+    {no:22,over:47,v:true, w:60, h:104,dx:28},
+  ];
+  AZ.forEach(a=>{
+    const c=backCenters[a.over]; if(!c)return;
+    const cx=c.cx+(a.dx||0)+AZ_SHIFT, x=cx-a.w/2, y=c.topY-24-a.h;
+    boxStall(a.no,x,y,a.w,a.h,a.v,'#5b9bd5');
+    svg.appendChild(el('text',{x:cx,y:y-5,'text-anchor':'middle','font-size':10,fill:'#1f5b8f','font-weight':700})).textContent='青空';
+  });
+}
+
+// ══════════════════════════════ 大京モータープール ══════════════════════════════
+// 枠サイズ仕様：1〜14番は同一サイズ／15・16番は縦を少し短く／
+//              BOXノーマル(N1-N5)は縦横少し短く／BOXスリム(S1-S4)はBOXノーマルより横を少し短く
+function drawDaikyo(){
+  AOZORA_SET=new Set(); // 青空区画なし
+  TIME_SET=new Set();
+
+  const STD_W=72, STD_H=100;      // 1〜14番の標準サイズ
+  const SHORT_H=80;               // 15・16番（縦を少し短く）
+  const BOXN_W=56, BOXN_H=78;     // BOXノーマル N1-N5（縦横少し短く）
+  const BOXS_W=42, BOXS_H=78;     // BOXスリム S1-S4（ノーマルより横を少し短く、縦は同じ）
+  const GAP=18;
+
+  // ── 上段：10-14(標準) → 15,16(縦短め) → BOX N3,N4,N5(ノーマル) ── ※直線配置
+  const rowATop=40, rowABottom=rowATop+STD_H;
+  let x=40;
+  [10,11,12,13,14].forEach(no=>{ boxStall(no,x,rowATop,STD_W,STD_H,true); x+=STD_W; });
+  [15,16].forEach(no=>{ boxStall(no,x,rowATop,STD_W,SHORT_H,true); x+=STD_W; });
+  x+=GAP-2;
+  ['N3','N4','N5'].forEach(no=>{ boxStall(no,x,rowATop,BOXN_W,BOXN_H,true); x+=BOXN_W; });
+  const rowAWidth=x+40;
+
+  // ── 下段：1-6(標準) → BOX S4,S3,S2,S1(スリム) → BOX N2,N1(ノーマル) ── ※実情に合わせ斜め配置
+  // 枠はあくまで直角の四角形（菱形にはしない）。行全体を一定角度でリジッドに傾け、各区画は
+  // 進行方向ベクトルと、それに直交する方向ベクトルだけで組み立てる（せん断しない）。
+  function diagRow(cells,x0,y0,slopePerPx){
+    const L=Math.sqrt(1+slopePerPx*slopePerPx);
+    const dirX=1/L, dirY=slopePerPx/L;   // 行の進行方向（単位ベクトル）
+    const perpX=-dirY, perpY=dirX;       // 進行方向と直交する方向（奥行き＝高さの向き）
+    let cum=0;
+    cells.forEach(c=>{
+      const xL=x0+dirX*cum,     yL=y0+dirY*cum;
+      const xR=x0+dirX*(cum+c.w), yR=y0+dirY*(cum+c.w);
+      const xL2=xL+perpX*c.h,  yL2=yL+perpY*c.h;
+      const xR2=xR+perpX*c.h,  yR2=yR+perpY*c.h;
+      const pts=[[xL,yL],[xR,yR],[xR2,yR2],[xL2,yL2]];
+      const cx=(xL+xR+xL2+xR2)/4, cy=(yL+yR+yL2+yR2)/4;
+      polyStall(c.no,pts,cx,cy);
+      cum+=c.w;
+    });
+    return cum;
+  }
+  // 元図面どおり、1番の左端から N1 の右端まで「一本の斜め帯」として連続配置
+  // （1〜6も含めて全体が右上がりに傾いている。傾き始めの角＝元図面の「ラインの位置」）
+  const rowBCells=[
+    {no:1,w:STD_W,h:STD_H},{no:2,w:STD_W,h:STD_H},{no:3,w:STD_W,h:STD_H},
+    {no:4,w:STD_W,h:STD_H},{no:5,w:STD_W,h:STD_H},{no:6,w:STD_W,h:STD_H},
+    {no:'S4',w:BOXS_W,h:BOXS_H},{no:'S3',w:BOXS_W,h:BOXS_H},
+    {no:'S2',w:BOXS_W,h:BOXS_H},{no:'S1',w:BOXS_W,h:BOXS_H},
+    {no:'N2',w:BOXN_W,h:BOXN_H},{no:'N1',w:BOXN_W,h:BOXN_H},
+  ];
+  const SLOPE=-0.26; // 負＝右上がり（元図面の傾きに合わせた比率）
+  const rowBTop=rowATop+STD_H+260;
+  const rowBWidthConsumed=diagRow(rowBCells,40,rowBTop,SLOPE);
+  const rowBWidth=40+rowBWidthConsumed+40;
+  const rowBMinY=rowBTop+rowBWidthConsumed*SLOPE-Math.max(BOXS_H,BOXN_H,STD_H);
+
+  svg.setAttribute('viewBox', `0 ${Math.min(0,rowBMinY-20)} ${Math.max(rowAWidth,rowBWidth)} ${rowBTop+STD_H+40-Math.min(0,rowBMinY-20)}`);
+}
+
+// ══════════════════════════════ コーポ・ラ・ベリエール駐車場 ══════════════════════════════
+// 実際は1〜7番の7区画（均等サイズで一列に並ぶシンプルな配置）
+function drawBelliere(){
+  AOZORA_SET=new Set();
+  TIME_SET=new Set();
+  const W=80,H=110;
+  let x=40;
+  for(let no=1;no<=7;no++){ boxStall(no,x,40,W,H,true); x+=W; }
+  svg.setAttribute('viewBox', `0 0 ${x+40} ${40+H+40}`);
+}
+
+// ══════════════════════════════ 本庄西駐車場 ══════════════════════════════
+// 図面上は26台分（1-18は当社管理外）。当社管理の19〜26番のみ横置き一列で表示
+function drawHonjonishi(){
+  AOZORA_SET=new Set();
+  TIME_SET=new Set();
+  const W=110,H=70;
+  let x=40;
+  [26,25,24,23,22,21,20,19].forEach(no=>{ boxStall(no,x,40,W,H,false); x+=W; });
+  svg.setAttribute('viewBox', `0 0 ${x+40} ${40+H+40}`);
+}
+
+// ══════════════════════════════ 十三駐車場 ══════════════════════════════
+// 「十三駐車配置図（アズーム提出用）」準拠：直線3列×22区画（縦置き）
+function drawJuso(){
+  AOZORA_SET=new Set();
+  TIME_SET=new Set([57,58,60,61,62,63,65,66,67,68,70,71,72,73,75,76]); // 時間貸区画
+  const W=42,H=64,GAP=28;
+  const KEI={83:1}; // 軽自動車区画（枠を小さく表示）
+  const rows=[
+    [1,2,3,5,6,7,8,10,11,12,13,15,16,17,18,20,21,22,23,25,26,27],
+    [56,55,53,52,51,50,48,47,46,45,43,41,40,38,37,36,35,33,32,31,30,28],
+    [57,58,60,61,62,63,65,66,67,68,70,71,72,73,75,76,77,78,80,81,82,83],
+  ];
+  let y=40;
+  rows.forEach(row=>{
+    let x=40;
+    row.forEach(no=>{
+      if(KEI[no]){
+        const kw=W*0.72, kh=H*0.78;
+        boxStall(no,x,y,kw,kh,true);
+      }else{
+        boxStall(no,x,y,W,H,true);
+      }
+      x+=W;
+    });
+    y+=H+GAP;
+  });
+  const width=40+rows[0].length*W+40;
+  svg.setAttribute('viewBox', `0 0 ${width} ${y-GAP+40}`);
+}
+
+// ══════════════════════════════ 鴫野東2丁目第2駐車場 ══════════════════════════════
+// _配置図.pdf 準拠：5列の縦列配置に簡略化（実際の敷地は斜めだが論理配置は直線で表現）
+// 左から［25,24,23,22の縦列］（間隔広め）［26単独・縦置き］［1,2,3の1列とその下に4,5,6の1列＝2段グリッド］［7〜14の縦列8台］［15〜21の縦列7台］
+function drawShigino2(){
+  AOZORA_SET=new Set();
+  TIME_SET=new Set();
+  const LONG=88,SHORT=44,GAP=26,WIDE_GAP=54; // 縦2:横1がわかる比率
+  let x=40;
+
+  const col=(nums,vertical,gapAfter)=>{
+    const w=vertical?SHORT:LONG, h=vertical?LONG:SHORT;
+    let y=40;
+    nums.forEach(no=>{ boxStall(no,x,y,w,h,vertical); y+=h; });
+    x+=w+gapAfter;
+    return y;
+  };
+  // 1,2,3が上段の1列、その下に4,5,6が1列（2段グリッド、各セルは縦置き）
+  const grid2=(topRow,bottomRow,gapAfter)=>{
+    topRow.forEach((no,i)=>{ boxStall(no,x+i*SHORT,40,SHORT,LONG,true); });
+    bottomRow.forEach((no,i)=>{ boxStall(no,x+i*SHORT,40+LONG,SHORT,LONG,true); });
+    x+=topRow.length*SHORT+gapAfter;
+    return 40+2*LONG;
+  };
+
+  // グループ1: 25,24,23,22（縦列、上から）
+  const h1=col([25,24,23,22],false,WIDE_GAP);
+  // グループ2: 26単独（縦置き）
+  const h2=col([26],true,GAP);
+  // グループ3: 1,2,3の1列＋その下に4,5,6の1列
+  const h3=grid2([1,2,3],[4,5,6],GAP);
+  // グループ4: 7〜14（縦列8台）
+  const h4=col([7,8,9,10,11,12,13,14],false,GAP);
+  // グループ5: 15〜21（縦列7台）
+  const h5=col([15,16,17,18,19,20,21],false,40);
+
+  const height=Math.max(h1,h2,h3,h4,h5)+40;
+  svg.setAttribute('viewBox', `0 0 ${x} ${height}`);
+}
+
+// ══════════════════════════════ 永和3丁目駐車場 ══════════════════════════════
+// 元は縦長レイアウトだが見やすいよう時計回りに90度回転して配置
+// 左から［1,2＝横置き・縦積み］［3,4,5＝縦置き・横並び］［6,7＝横置き・縦積み・下にズレる］
+function drawEiwa3(){
+  AOZORA_SET=new Set();
+  TIME_SET=new Set();
+  const SHORT=44, LONG=88; // 縦2:横1の比率
+  const SHIFT=LONG; // 6,7は3,4,5の列より下にズレて配置
+  let x=40;
+
+  boxStall(1,x,40,LONG,SHORT,false);
+  boxStall(2,x,40+SHORT,LONG,SHORT,false);
+  x+=LONG;
+
+  [3,4,5].forEach((no,i)=>{ boxStall(no,x+i*SHORT,40,SHORT,LONG,true); });
+  x+=3*SHORT;
+
+  boxStall(6,x,40+SHIFT,LONG,SHORT,false);
+  boxStall(7,x,40+SHIFT+SHORT,LONG,SHORT,false);
+  x+=LONG;
+
+  const height=Math.max(40+SHIFT+2*SHORT, 40+LONG)+40;
+  svg.setAttribute('viewBox', `0 0 ${x+40} ${height}`);
+}
+
+const LOTS_CFG={
+  yokozutsumi:{
+    label:'角屋(横堤)モータープール', title:'角屋(横堤) モータープール',
+    address:'大阪市鶴見区横堤4－14－31', heightLimit:'1,900〜2,300',
+    cond:{monthly:'普通車 24,000円／青空 15,000円（税別）',deposit:'賃料の税込1ヶ月分 ― 満車まで全額返金',brokerage:'0円（満車まで）'},
+    vacantPrice:{normal:'¥24,000',aozora:'¥15,000'},
+    source:'レントロール一覧（駐車場他）.xlsx',
+    viewBox:'0 0 1360 620', draw:drawYokozutsumi
+  },
+  daikyo:{
+    label:'大京モータープール', title:'大京モータープール',
+    address:'', heightLimit:'',
+    cond:null,
+    source:'レントロール一覧（駐車場他）.xlsx',
+    viewBox:'0 0 1000 480', draw:drawDaikyo
+  },
+  belliere:{
+    label:'コーポ・ラ・ベリエール', title:'コーポ・ラ・ベリエール 駐車場',
+    address:'大阪市城東区鴫野東2丁目6番7号', heightLimit:'',
+    cond:null,
+    source:'レントロール一覧（マンション）.xlsx',
+    viewBox:'0 0 740 190', draw:drawBelliere
+  },
+  honjonishi:{
+    label:'本庄西駐車場', title:'本庄西駐車場',
+    address:'', heightLimit:'',
+    cond:null,
+    source:'レントロール一覧（駐車場他）.xlsx',
+    viewBox:'0 0 940 150', draw:drawHonjonishi
+  },
+  juso:{
+    label:'十三駐車場', title:'十三駐車場',
+    address:'大阪市淀川区野中南2丁目11番3号', heightLimit:'',
+    cond:null,
+    source:'レントロール一覧（駐車場他）.xlsx',
+    viewBox:'0 0 1000 340', draw:drawJuso
+  },
+  shigino2:{
+    label:'鴫野東2丁目第2駐車場', title:'鴫野東2丁目第2駐車場',
+    address:'', heightLimit:'',
+    cond:null,
+    source:'レントロール一覧（駐車場他）.xlsx',
+    viewBox:'0 0 570 520', draw:drawShigino2
+  },
+  eiwa3:{
+    label:'永和3丁目駐車場', title:'永和3丁目駐車場',
+    address:'東大阪市永和', heightLimit:'',
+    cond:null,
+    source:'レントロール一覧（駐車場他）.xlsx',
+    viewBox:'0 0 460 260', draw:drawEiwa3
+  }
+};
+const LOT_ORDER=['yokozutsumi','daikyo','belliere','honjonishi','juso','shigino2','eiwa3'];
+let currentLot=LOT_ORDER[0];
+
+function renderSwitcher(){
+  const bar=document.getElementById('switcher');
+  bar.innerHTML='';
+  LOT_ORDER.forEach(id=>{
+    const b=document.createElement('button');
+    b.textContent=LOTS_CFG[id].label;
+    if(id===currentLot) b.classList.add('on');
+    b.onclick=()=>selectLot(id);
+    bar.appendChild(b);
+  });
+}
+
+function selectLot(id){
+  currentLot=id;
+  if(location.hash.slice(1)!==id) history.replaceState(null,'','#'+id);
+  const cfg=LOTS_CFG[id];
+  DATA=ALL_DATA[id]||{};
+  document.getElementById('lotTitle').textContent=cfg.title;
+  document.getElementById('lotInfo').innerHTML=cfg.address?`${cfg.address}`+(cfg.heightLimit?`<br>高さ制限 ＝ ${cfg.heightLimit}`:''):'';
+  document.getElementById('lotSource').textContent=cfg.source||'';
+  const condEl=document.getElementById('lotCond');
+  if(cfg.cond){
+    condEl.style.display='';
+    condEl.innerHTML=`<div><b>月額</b>${cfg.cond.monthly}</div><div><b>保証金</b>${cfg.cond.deposit}</div><div><b>仲介料</b>${cfg.cond.brokerage}</div>`;
+  }else{
+    condEl.style.display='none';
+  }
+  svg.innerHTML='';
+  svg.setAttribute('viewBox',cfg.viewBox);
+  cfg.draw();
+  renderSwitcher();
+}
 
 // ── 詳細ポップ ──
 const pop=document.getElementById('pop'),card=document.getElementById('card');
 function show(no){
   const d=DATA[no]||{}, ao=isAoz(no); let st,body;
   if(d.v){st='<span class="st v">空き（募集中）</span>';
-    body=`<div class="kv"><span>種別</span><b>${ao?'青空（屋外）':'屋根付き'}</b></div>
-          <div class="kv"><span>参考月額</span><b>${ao?'¥15,000':'¥24,000'}（税別）</b></div>`;
+    const vp=LOTS_CFG[currentLot].vacantPrice;
+    body=`<div class="kv"><span>種別</span><b>${ao?'青空（屋外）':'屋根付き'}</b></div>`
+        +(vp?`<div class="kv"><span>参考月額</span><b>${ao?vp.aozora:vp.normal}（税別）</b></div>`:'');
   }else if(d.o){st='<span class="st w">オーナー使用</span>';
     body='<div class="kv"><span>利用</span><b>オーナー様使用</b></div>';
   }else{st='<span class="st o">契約中</span>';
@@ -190,6 +478,13 @@ function show(no){
 function hide(){pop.classList.remove('on')}
 pop.onclick=e=>{if(e.target===pop)hide()};
 addEventListener('keydown',e=>{if(e.key==='Escape')hide()});
+
+addEventListener('hashchange',()=>{
+  const h=location.hash.slice(1);
+  if(LOTS_CFG[h]&&h!==currentLot) selectLot(h);
+});
+const hashLot=location.hash.slice(1);
+selectLot(LOTS_CFG[hashLot]?hashLot:currentLot);
 </script>
 </body>
 </html>

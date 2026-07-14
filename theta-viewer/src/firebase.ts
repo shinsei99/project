@@ -1,7 +1,7 @@
 import type { SpaceNode } from './types';
 
 const HTTP_BASE = 'https://daikyocorp.co.jp/vr';
-const API_BASE  = 'http://localhost:8519';
+const API_BASE  = 'http://localhost:8523';
 
 export const isConfigured = true;
 

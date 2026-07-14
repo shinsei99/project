@@ -1,18 +1,54 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-角屋(横堤)モータープール 配置図ビューア
+駐車場 配置図ビューア（複数駐車場切り替え対応）
  - 車室レイアウトは template.html に固定
  - 空き状況（契約者・賃料等）は起動/再読込の度に Dropbox のレントロールxlsxから取得
 """
-import http.server, socketserver, json, webbrowser, threading, datetime, os
+import http.server, socketserver, json, webbrowser, threading, datetime, os, re, sys
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(BASE, "template.html")
-XLSX = ("/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/"
-        "（★必読★）新共有フォルダ/物件・管理/レントロール一覧（駐車場他）.xlsx")
-SHEET = "角屋（横堤）モータープール"
+DROPBOX_ROOT = ("/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/"
+                "（★必読★）新共有フォルダ/物件・管理/")
+XLSX_PARKING = DROPBOX_ROOT + "レントロール一覧（駐車場他）.xlsx"
+XLSX_MANSION = DROPBOX_ROOT + "レントロール一覧（マンション）.xlsx"
 PORT = 8522
+
+# cols = (No, 現況, 契約者, 区分, 賃料, 保証金, 契約日) の列番号（1始まり）
+LOTS = {
+    "yokozutsumi": {
+        "file": XLSX_PARKING, "sheet": "角屋（横堤）モータープール",
+        "start": 3, "end": None, "cols": (1, 2, 3, 4, 5, 6, 7),
+    },
+    "daikyo": {
+        "file": XLSX_PARKING, "sheet": "大京モータープール(横堤P）",
+        "start": 3, "end": None, "cols": (1, 2, 3, 4, 5, 6, 7),
+    },
+    "belliere": {
+        # 駐車場は1〜7番の7区画（コインパーキング行は当駐車場とは無関係のため除外）
+        "file": XLSX_MANSION, "sheet": "コーポ・ラ・ベリエール",
+        "start": 60, "end": 66, "cols": (1, 2, 3, 4, 5, 9, 10),
+    },
+    "honjonishi": {
+        # 図面上は26台分だが、当社管理は19〜26番の8区画のみ（1〜18番は管理外）
+        "file": XLSX_PARKING, "sheet": "本庄西駐車場",
+        "start": 3, "end": None, "cols": (1, 2, 3, 4, 5, 6, 7),
+    },
+    "juso": {
+        "file": XLSX_PARKING, "sheet": "十三駐車場",
+        "start": 3, "end": None, "cols": (1, 2, 3, 4, 5, 6, 7),
+    },
+    "shigino2": {
+        "file": XLSX_PARKING, "sheet": "A-3476 鴫野東2丁目第2駐車場",
+        "start": 3, "end": None, "cols": (1, 2, 3, 4, 5, 6, 7),
+    },
+    "eiwa3": {
+        # このシートには保証金・契約日の列がない（列8は存在せず常にNoneになる）
+        "file": XLSX_PARKING, "sheet": "E-3482 永和3丁目駐車場",
+        "start": 3, "end": None, "cols": (1, 2, 3, 4, 5, 8, 8),
+    },
+}
 
 
 def _s(v):
@@ -23,26 +59,36 @@ def _s(v):
     return str(v).replace("　", " ").strip()
 
 
-def build_data():
-    """xlsxを毎回読み込み、区画No→占有状況の辞書を作る"""
-    from openpyxl import load_workbook
-    wb = load_workbook(XLSX, data_only=True)
-    ws = wb[SHEET]
+def _no(raw):
+    """区画Noを数値化できれば数値、できなければ文字列（S1/N1等）のまま返す。
+    「81　軽」のように末尾に注記が付く場合は先頭の数字部分だけを採用する。"""
+    try:
+        return int(raw)
+    except (ValueError, TypeError):
+        s = _s(raw)
+        m = re.match(r"^(\d+)", s)
+        return int(m.group(1)) if m else s
+
+
+def build_data(cfg, wb):
+    """指定シートを区画No→占有状況の辞書にする"""
+    ws = wb[cfg["sheet"]]
+    c_no, c_genkyo, c_who, c_kubun, c_chin, c_ho, c_date = cfg["cols"]
+    end = cfg["end"] or ws.max_row
     data = {}
-    for r in range(3, ws.max_row + 1):
-        raw_no = ws.cell(r, 1).value
-        if raw_no is None:
-            continue
-        try:
-            no = int(raw_no)
-        except (ValueError, TypeError):
-            continue
-        genkyo = _s(ws.cell(r, 2).value)
-        who = _s(ws.cell(r, 3).value)
-        kubun = _s(ws.cell(r, 4).value)
-        chin = ws.cell(r, 5).value
-        ho = ws.cell(r, 6).value
-        keiyakubi = _s(ws.cell(r, 7).value)
+    for r in range(cfg["start"], end + 1):
+        raw_no = ws.cell(r, c_no).value
+        who = _s(ws.cell(r, c_who).value)
+        no = _no(raw_no)
+        if no == "":
+            if not who or "blank_no" not in cfg:
+                continue
+            no = cfg["blank_no"]
+        genkyo = _s(ws.cell(r, c_genkyo).value)
+        kubun = _s(ws.cell(r, c_kubun).value)
+        chin = ws.cell(r, c_chin).value
+        ho = ws.cell(r, c_ho).value
+        keiyakubi = _s(ws.cell(r, c_date).value)
         if genkyo == "空室" or not who:
             data[no] = {"v": 1}
         elif "オーナー" in who:
@@ -52,16 +98,28 @@ def build_data():
     return data
 
 
+def build_all_data():
+    from openpyxl import load_workbook
+    wbs = {}
+    all_data = {}
+    for lot_id, cfg in LOTS.items():
+        f = cfg["file"]
+        if f not in wbs:
+            wbs[f] = load_workbook(f, data_only=True)
+        all_data[lot_id] = build_data(cfg, wbs[f])
+    return all_data
+
+
 def render():
     tpl = open(TEMPLATE, encoding="utf-8").read()
     try:
-        data = build_data()
+        all_data = build_all_data()
         note = "自動反映"
     except Exception as e:
-        data = {}
+        all_data = {lot_id: {} for lot_id in LOTS}
         note = "⚠ xlsx読込エラー: %s" % e
     stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
-    html = tpl.replace("__DATA_JSON__", json.dumps(data, ensure_ascii=False))
+    html = tpl.replace("__ALL_DATA_JSON__", json.dumps(all_data, ensure_ascii=False))
     html = html.replace("__UPDATED__", "%s（%s）" % (stamp, note))
     return html
 
@@ -86,11 +144,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     url = "http://localhost:%d" % PORT
-    threading.Timer(0.8, lambda: webbrowser.open(url)).start()
+    if "--daemon" not in sys.argv:
+        threading.Timer(0.8, lambda: webbrowser.open(url)).start()
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("", PORT), Handler) as httpd:
         print("配置図サーバー起動: %s  （Ctrl+Cで終了）" % url)
-        print("レントロール: %s" % XLSX)
+        print("レントロール: %s" % XLSX_PARKING)
+        print("レントロール: %s" % XLSX_MANSION)
         try:
             httpd.serve_forever()
         except KeyboardInterrupt:

@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
-## ★ 最優先事項 — 全アプリ一覧（2026-07-10時点）
+## ★ 最優先事項 — 全アプリ一覧（2026-07-14時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全37本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全38本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（23本）
+### 不動産（24本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
@@ -36,6 +36,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 横断ファイル検索ブラウザ | file-finder | 8520 | ✅ | — |
 | 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅ |
 | 業務マニュアル（Web） | gyomu-manual | 8521 | ✅ | — |
+| 駐車場配置図ビューア | parking-map | 8522 | ✅ | — |
 
 ### ツール（8本）※社内LAN共有なし
 
@@ -65,6 +66,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **大京商事 業務マニュアル（Web）** … 自己完結HTML一枚（22マニュアル）。所在: `gyomu-manual/業務マニュアル.html`（2026-07-10作成）。生成スクリプト: `gyomu-manual/generate.py`（`python3 generate.py` で再生成可）。port無し・ブラウザで直接開く運用。
 
+### parking-map（駐車場配置図ビューア）補足
+
+- 第一号: 角屋(横堤)モータープール（全41区画）。`serve.py` が起動の度にレントロールxlsxを読み最新の空き状況を反映（port 8522）。車室レイアウトは`template.html`に固定、中身のみ動的差し込み。個人情報を含む静的版はgitignore対象。他物件（大京モータープール／本庄西／ベリエール等）は今後同方式で展開予定。launchd登録済み・社内LAN共有済み（2026-07-14、com.shinsei.parking-map、`serve.py --daemon`でブラウザ自動起動を抑制）。
+
+### theta-viewer FTP APIサーバー port修正（2026-07-14）
+
+- 旧: port 8519 → 新: **port 8523**。理由: 8519は`owner-payout-tracker`が既に使用しており実際は起動時にクラッシュしていた（KeepAliveで再起動ループ）。誰かが以前この衝突に気づき未コミットのまま8522に変更していたが、それはparking-map用に予約された番号と衝突するため、最終的に空きポート8523へ変更・再ビルド（`npm run build`→vite preview再起動）して確定。関連ファイル: `theta-viewer/server/server.js`（`const PORT`）、`theta-viewer/src/firebase.ts`（`API_BASE`）。
+
 ### 社内LAN常時起動ポート一覧（launchd / メインMac）
 
 | port | アプリ名 | plist |
@@ -86,6 +95,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8519 | オーナー送金・月次締めマネージャー | com.shinsei.owner-payout-tracker |
 | 8520 | 横断ファイル検索ブラウザ | com.shinsei.file-finder |
 | 8521 | 業務マニュアル（Web） | com.shinsei.gyomu-manual |
+| 8522 | 駐車場配置図ビューア | com.shinsei.parking-map |
+| 8523 | theta-viewer FTP APIサーバー（server.js） | com.shinsei.theta-viewer-api |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 
 ---
