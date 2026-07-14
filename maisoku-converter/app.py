@@ -1098,57 +1098,103 @@ def _feature_max_per_row(col_from: int, col_to: int) -> int:
     return max(1, (col_to - col_from) // 2)
 
 
-def _insert_feature_strip(ws, icon_paths: list,
+def _insert_feature_strip(ws, items: list,
                           col_from: int, col_to: int,
-                          row_from: int, row_to: int,
-                          per_row: int | None = None):
-    """特徴アイコンを矩形(col_from..col_to-1 × row_from..row_to-1)内にグリッド配置。
-    各アイコンは写真と同じ TwoCellAnchor でセル範囲に収める（確実に並ぶ）。
-    per_row 指定時は1行あたりの個数を固定、未指定なら自動で最適化。
+                          row_from: int, row_to: int):
+    """特徴アイコン＋名称ラベルを矩形(col_from..col_to-1 × row_from..row_to-1)内に
+    1行・均一サイズで並べる。items は [(ラベル, アイコンパス), ...]（最大8個想定）。
+    最終行はラベル専用（アイコンより下に小さく中央表示）に確保する。
+
+    アイコンはセル境界ではなくピクセル単位で等幅スロットに分割し、その中に
+    正方形のまま中央配置する（列幅36÷個数は割り切れないことが多く、セル境界基準
+    だとスロット幅が1列分ばらつき、正方形素材の周りの余白が個体差に見えてしまう）。
     """
-    n = len(icon_paths)
+    n = len(items)
     if n == 0:
         return
 
-    ncols_span = col_to - col_from
-    nrows_span = row_to - row_from
+    px_per_char = 7.0
+    def _col_px(c):
+        ltr = get_column_letter(c)
+        cd  = ws.column_dimensions[ltr] if ltr in ws.column_dimensions else None
+        return (cd.width if cd and cd.width else 8.43) * px_per_char
+    def _row_px(r):
+        rd = ws.row_dimensions[r] if r in ws.row_dimensions else None
+        return (rd.height if rd and rd.height else 15.0) * (96 / 72)
+    def _col_anchor(offset_px):
+        c, remaining = col_from, offset_px
+        while remaining >= _col_px(c):
+            remaining -= _col_px(c)
+            c += 1
+        return c - 1, remaining
+    def _row_anchor(offset_px):
+        r, remaining = row_from, offset_px
+        while remaining >= _row_px(r):
+            remaining -= _row_px(r)
+            r += 1
+        return r - 1, remaining
 
-    if per_row and per_row > 0:
-        per = max(1, min(int(per_row), n, ncols_span))
-    else:
-        # 帯のピクセル寸から、アイコンが最大になる行数(1〜3)を選ぶ
-        px_per_char = 7.0
-        def _cpx(c):
-            ltr = get_column_letter(c)
-            cd  = ws.column_dimensions[ltr] if ltr in ws.column_dimensions else None
-            return (cd.width if cd and cd.width else 8.43) * px_per_char
-        def _rpx(r):
-            rd = ws.row_dimensions[r] if r in ws.row_dimensions else None
-            return (rd.height if rd and rd.height else 15.0) * (96 / 72)
-        W = sum(_cpx(c) for c in range(col_from, col_to))
-        H = sum(_rpx(r) for r in range(row_from, row_to))
-        best = None
-        for rr in range(1, 4):
-            pp   = -(-n // rr)
-            size = min(W / pp, H / rr)
-            if best is None or size > best[0]:
-                best = (size, rr, pp)
-        per = best[2]
+    ncols_span  = col_to - col_from
+    label_row   = row_to - 1            # 最終行はラベル専用に確保
+    icon_row_to = max(row_from + 1, label_row)
 
-    rows     = -(-n // per)
-    cols_per = ncols_span / per
-    rows_per = nrows_span / rows
+    # ラベル行に既存の結合セルが残っていると merge_cells が失敗するため先に解除しておく
+    for rng in list(ws.merged_cells.ranges):
+        if rng.min_row <= label_row <= rng.max_row and rng.min_col < col_to and rng.max_col >= col_from:
+            try:
+                ws.unmerge_cells(str(rng))
+            except Exception:
+                pass
 
-    for i, pth in enumerate(icon_paths):
-        gr, gc = divmod(i, per)
-        c1 = col_from + round(gc * cols_per)
-        c2 = col_from + round((gc + 1) * cols_per)
-        r1 = row_from + round(gr * rows_per)
-        r2 = row_from + round((gr + 1) * rows_per)
-        if c2 <= c1: c2 = c1 + 1
-        if r2 <= r1: r2 = r1 + 1
+    label_font  = Font(name="Meiryo UI", size=7)
+    label_align = Alignment(horizontal="center", vertical="center", wrap_text=False)
+
+    W = sum(_col_px(c) for c in range(col_from, col_to))
+    H = sum(_row_px(r) for r in range(row_from, icon_row_to))
+    slot_w = W / n
+    ICON_MARGIN = 0.86  # スロットに対するアイコン最大サイズの比率
+    EMU = 9525          # 1px = 9525 EMU (96dpi)
+
+    for i, (label, pth) in enumerate(items):
+        # ── アイコン：ピクセル単位の等幅スロットに正方形のまま中央配置 ──
         try:
-            _insert_image(ws, Image.open(pth), c1, r1, c2, r2, measure=True)
+            im = Image.open(pth).convert("RGB")
+            box_w, box_h = slot_w * ICON_MARGIN, H * ICON_MARGIN
+            scale = min(box_w / im.width, box_h / im.height)
+            iw, ih = max(1, round(im.width * scale)), max(1, round(im.height * scale))
+            im2 = im.resize((iw, ih), Image.LANCZOS)
+            buf = io.BytesIO()
+            im2.save(buf, "PNG", dpi=(96, 96))
+            buf.seek(0)
+            xl = XLImage(buf)
+            xl.width, xl.height = iw, ih
+
+            off_x = i * slot_w + (slot_w - iw) / 2
+            off_y = (H - ih) / 2
+            c0, coloff = _col_anchor(off_x)
+            r0, rowoff = _row_anchor(off_y)
+            anchor = OneCellAnchor()
+            anchor._from = AnchorMarker(col=c0, colOff=int(coloff * EMU),
+                                        row=r0, rowOff=int(rowoff * EMU))
+            anchor.ext = XDRPositiveSize2D(cx=int(iw * EMU), cy=int(ih * EMU))
+            xl.anchor = anchor
+            ws.add_image(xl)
+        except Exception:
+            pass
+
+        # ── ラベル：従来通りセル結合してテキスト表示 ──
+        c1 = col_from + round(i * ncols_span / n)
+        c2 = col_from + round((i + 1) * ncols_span / n)
+        if c2 <= c1:
+            c2 = c1 + 1
+        try:
+            if c2 - 1 > c1:
+                ws.merge_cells(start_row=label_row, start_column=c1,
+                               end_row=label_row, end_column=c2 - 1)
+            cell = ws.cell(row=label_row, column=c1)
+            cell.value = label
+            cell.font = label_font
+            cell.alignment = label_align
         except Exception:
             pass
 
@@ -1235,8 +1281,7 @@ def create_fudosan_excel(
     company_info: dict,
     catchphrases: list[str],
     image_placements: list[dict],   # [{"img": PIL, "c1": int, "r1": int, "c2": int, "r2": int}, ...]
-    features: list[str] | None = None,       # 選択された特徴ラベル
-    feature_per_row: int | None = None,      # 特徴の1行あたり個数（None=自動）
+    features: list[str] | None = None,       # 選択された特徴ラベル（最大8個）
 ) -> bytes:
     """テンプレート XLS を読み込み、値セル・画像を書き換えて XLSX を返す。"""
     tpl_key  = template_type if template_type in TEMPLATE_XLS else "賃貸"
@@ -1271,12 +1316,12 @@ def create_fudosan_excel(
         except Exception as e:
             pass  # 画像配置失敗は無視して続行
 
-    # 特徴アイコン（写真エリア下部 A-AJ × rows44-51 に帯状配置）
+    # 特徴アイコン（写真エリア下部 A-AJ × rows44-51 に、アイコン＋名称で帯状配置）
     if features:
         cat = {lbl: pth for lbl, pth in FEATURE_CATALOG}
-        paths = [cat[f] for f in features if f in cat]
+        items = [(f, cat[f]) for f in features[:8] if f in cat]
         try:
-            _insert_feature_strip(ws, paths, 1, 37, 45, 52, per_row=feature_per_row)
+            _insert_feature_strip(ws, items, 1, 37, 45, 52)
         except Exception:
             pass
 
@@ -1570,6 +1615,22 @@ with tab_img:
 
     # ── インタラクティブ枠編集（streamlit-drawable-canvas）──────────────────
     st.markdown("**🎯 領域を調整** — 枠をクリック選択 → ドラッグで移動 / 角をドラッグでリサイズ")
+    st.caption("⚠️ 選択中の枠をダブルクリックすると削除されます。消えてしまった場合は下の「＋ 枠を追加」で復元できます。")
+
+    add_c1, add_c2 = st.columns([2, 1])
+    with add_c1:
+        _new_kind = st.selectbox("追加する枠の種類", list(REGION_COLORS.keys()), key="new_region_kind")
+    with add_c2:
+        st.write("")  # ボタンの縦位置をselectboxに揃える
+        if st.button("＋ 枠を追加", key="btn_add_region", use_container_width=True):
+            # ドラッグ中に毎回regionsへ書き戻すとキャンバスの再描画と競合してガタつくため、
+            # 追加の瞬間だけキャッシュ済みの最新座標(_last_canvas_regions)を取り込む
+            base = st.session_state.get("_last_canvas_regions") or regions
+            base = [r.copy() for r in base]
+            base.append({"種類": _new_kind, "x1": 0.30, "y1": 0.30, "x2": 0.70, "y2": 0.70})
+            st.session_state["analysis"]["regions"] = base
+            st.session_state["canvas_regen"] = st.session_state.get("canvas_regen", 0) + 1
+            st.rerun()
 
     try:
         from streamlit_drawable_canvas import st_canvas
@@ -1628,7 +1689,7 @@ with tab_img:
             drawing_mode     = "transform",
             initial_drawing  = init_drawing,
             display_toolbar  = False,
-            key              = "region_canvas",
+            key              = f"region_canvas_{st.session_state.get('canvas_regen', 0)}",
         )
 
         # stroke色 → 種類の逆引き辞書（fabric.jsはnameを保存しないがstroke色は保存する）
@@ -1664,6 +1725,11 @@ with tab_img:
                 r.copy() for r in all_regions
                 if r.get("x2", 0) > r.get("x1", 0) and r.get("y2", 0) > r.get("y1", 0)
             ]
+
+        # キャンバス上の最新座標をキャッシュ（毎回regionsへ書き戻すとキャンバスが再描画と
+        # 競合してリサイズ操作がガタつくため、実際の反映は「＋枠を追加」時のみ行う）
+        if adjusted_regions:
+            st.session_state["_last_canvas_regions"] = [r.copy() for r in adjusted_regions]
 
         # 座標リードアウト
         if adjusted_regions:
@@ -1937,37 +2003,28 @@ with tab_img:
 
     # ── 特徴アイコン選択（写真エリア下部に掲載）──────────────────────────────
     st.divider()
-    st.markdown("**🏷️ 特徴アイコン** — マイソクから自動選択。手動で追加・削除できます（写真エリア下部に掲載）")
-    _feat_default = detected_features if "features_sel" not in st.session_state else None
+    _MAX_FEATURES = 8   # バランスを考慮した掲載上限
+    st.markdown("**🏷️ 特徴アイコン** — マイソクから自動選択。手動で追加・削除できます（写真エリア下部に、アイコン＋名称で掲載）")
+    _feat_default = detected_features[:_MAX_FEATURES] if "features_sel" not in st.session_state else None
     selected_features = st.multiselect(
-        "掲載する特徴を選択",
+        "掲載する特徴を選択（最大8個）",
         FEATURE_LABELS,
         default=_feat_default,
         key="features_sel",
-        help="選ぶと写真エリア下部にアイコンが並びます。多いほど小さく配置されます。",
+        max_selections=_MAX_FEATURES,
+        help=f"バランスを考慮し最大{_MAX_FEATURES}個まで。アイコンの下に名称が小さく入ります。",
     )
-    _MAX_PER_ROW = 18   # 帯(A-AJ=36列)に1行で並ぶ最大個数（1個=2列換算）
     if selected_features:
         _n = len(selected_features)
-        _cap1 = min(_n, _MAX_PER_ROW)
-        st.caption(f"1行に並べられる最大は **{_MAX_PER_ROW}個**（多いほど小さくなります）。"
-                   f"現在 {_n}個 選択中。")
-        feature_per_row = st.slider(
-            "1行あたりのアイコン数", 1, _MAX_PER_ROW,
-            value=_cap1, key="features_per_row",
-            help="この数で折り返します。1行に収めたい場合は選択数（最大18）に設定。",
-        )
+        st.caption(f"{_n} / {_MAX_FEATURES}個 選択中（均一サイズで1行に並びます）。")
         _cat = {l: p for l, p in FEATURE_CATALOG}
-        _pcols = st.columns(min(_n, 12))
+        _pcols = st.columns(_MAX_FEATURES)
         for _i, _f in enumerate(selected_features):
-            with _pcols[_i % len(_pcols)]:
+            with _pcols[_i]:
                 if _f in _cat:
-                    st.image(str(_cat[_f]), use_container_width=True)
+                    st.image(str(_cat[_f]), width=70)
                 st.caption(_f)
-    else:
-        feature_per_row = None
     st.session_state["selected_features"] = selected_features
-    st.session_state["features_per_row_val"] = feature_per_row
 
 # ── Excel 生成 ────────────────────────────────────────────────────────────────
 st.divider()
@@ -1987,7 +2044,6 @@ if st.button("📊 不動産案内書 Excel を作成", type="primary", use_cont
                 catchphrases   = edited_cps,
                 image_placements = placements,
                 features       = st.session_state.get("selected_features", []),
-                feature_per_row = st.session_state.get("features_per_row_val"),
             )
             pname = edited_specs.get("物件名", "物件").replace(" ", "_").replace("/", "_")
             fname = f"{tmpl}案内書_{pname}.xlsx"
