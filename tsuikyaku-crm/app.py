@@ -235,7 +235,7 @@ def filter_ui(key_prefix, default_mine=False):
     with c3:
         size = st.multiselect("希望坪数（規模）", db.SIZE,
                               key=f"{key_prefix}_size")
-        kw = st.text_input("キーワード（会社名・店名・種別・備考）",
+        kw = st.text_input("キーワード（会社名・店名・種別・備考・FAX番号）",
                            key=f"{key_prefix}_kw")
         fax_only = st.checkbox("FAX番号がある先だけ", key=f"{key_prefix}_faxonly")
 
@@ -258,8 +258,8 @@ def filter_ui(key_prefix, default_mine=False):
         where.append("社内担当=?"); params.append(tantou)
     if kw:
         where.append("(会社名 LIKE ? OR 店名 LIKE ? OR 種別 LIKE ? "
-                     "OR 詳細種別 LIKE ? OR 備考 LIKE ?)")
-        params += [f"%{kw}%"] * 5
+                     "OR 詳細種別 LIKE ? OR 備考 LIKE ? OR fax LIKE ? OR fax_dial LIKE ?)")
+        params += [f"%{kw}%"] * 7
     if fax_only:
         where.append("fax_dial<>''")
     rows = fetch_customers("WHERE " + " AND ".join(where), tuple(params))
