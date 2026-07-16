@@ -98,6 +98,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8522 | 駐車場配置図ビューア | com.shinsei.parking-map |
 | 8523 | theta-viewer FTP APIサーバー（server.js） | com.shinsei.theta-viewer-api |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
+| 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
 
 ---
 

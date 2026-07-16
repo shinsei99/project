@@ -15,6 +15,12 @@ st.set_page_config(page_title="間取り図トレーサー", page_icon="🏠", l
 st.title("🏠 間取り図トレーサー")
 st.caption("間取り図をアップロードすると、AI がシンプルな白黒図面に引き直します。")
 
+st.link_button(
+    "🖊️ 手動で間取りを作成・編集する（別タブで開く）",
+    "http://localhost:5175/",
+    help="部品を配置して間取り図をゼロから作成、またはダウンロードした引き直し結果を下敷きにして手動編集できます。",
+)
+
 # ── セッション初期化 ──────────────────────────────────────────────────────────
 for key, default in [
     ("result_bytes", None),
@@ -133,6 +139,7 @@ if source_image:
                 mime="image/jpeg",
                 use_container_width=True,
             )
+            st.caption("壁の位置やパーツ配置を手直ししたい場合は、上部の「手動で間取りを作成・編集する」からエディタを開き、この画像をトレース背景として読み込んでください。")
 
             st.divider()
 

@@ -1,6 +1,35 @@
 # 引き継ぎメモ（別PCで作業を続けるために）
 
-最終更新：2026-07-07
+最終更新：2026-07-16
+
+---
+
+## 2026-07-16 madori-tracer：手動間取りエディタ新規追加＋パーツ大幅拡充 ★本セッションでコミット
+
+対象アプリ：**madori-tracer（間取り図トレーサー）**。既存のStreamlit本体（AI白黒引き直し、port 8511）に加えて、**部品を配置して間取り図を手動作成・編集できるエディタ**を新規追加した。
+
+### やったこと
+1. **未使用のNext.jsスキャフォールド削除**：`madori-tracer/app/`, `components/`, `lib/` 等は失敗したSVGコード生成アプローチの残骸で本番未使用だったため削除。
+2. **`madori-tracer/editor/` 新規追加**：Vite + React 19 + TypeScriptのSPA。**port 5175固定**（`vite.config.ts`の`server.port`/`preview.port`、`host: '0.0.0.0'`でLAN公開）。
+   - パーツパレット全26種：部屋・領域8（洋室/**和室**畳目/**玄関**框段差/**廊下**/収納/テラス・バルコニー/**壁**/**柱**）、建具5（片開き戸/引き戸/**両開き戸**/**折れ戸**/窓）、設備・家具12（トイレ/シャワー/洗面台/**浴槽**/システムキッチン/**冷蔵庫**/**洗濯機**/**ダイニングテーブル**/**ベッド**/**ソファ**/**エアコン**/階段）、テキスト。
+   - ドラッグ移動／四隅リサイズ（回転0度のみ）／90度刻み回転／ダブルクリックでラベル編集(`window.prompt`)／Delete削除。
+   - **トレース背景**：AI引き直し結果のダウンロード画像を手動アップロードし、半透明の下敷きとして表示→その上に部品を配置してなぞれる（自動ベクター化はしていない）。
+3. **Streamlit本体と連携**：`app.py`に`st.link_button`で「🖊️ 手動で間取りを作成・編集する」を追加、別タブでlocalhost:5175を開く（画像受け渡しは手動アップロード方式）。
+4. **launchd常時起動（`run.sh`＋`_launchd`キット方式に統一）**：
+   - `madori-tracer/run.sh`、`madori-tracer/editor/run.sh` を新規作成（他アプリと同じ「初回だけ自動セットアップ→常駐実行」パターン）。
+   - `_launchd/install-launchd.sh` の `APPS` 配列に `com.shinsei.madori-tracer` と `com.shinsei.madori-tracer-editor` を追加。**メインPCの既存の手動plistもこの方式に置き換え済み**（今後は`run.sh`が正）。
+
+### 別PCでのセットアップ（madori-tracer本体＋エディタ）
+```bash
+git pull
+bash ~/_launchd/install-launchd.sh
+# → http://localhost:8511 （本体）
+# → http://localhost:5175 （手動エディタ）
+```
+- ⚠️ **エディタ側はNode.js/npmが必須**（未インストールの場合は`madori-tracer-editor`のみ起動失敗。`brew install node`等で導入後、再度install-launchd.shを実行）。
+- 初回は本体が`.venv`自動作成、エディタが`npm install`→`npm run build`を行うため、ポート(8511/5175)が上がるまで数十秒〜数分かかることがある。
+- `editor/`のコードを改修した場合、`npm run dev`では常駐プロセスに反映されない。`cd madori-tracer/editor && npm run build` → `launchctl kickstart -k gui/$(id -u)/com.shinsei.madori-tracer-editor` で反映させること（本体`app.py`も同様にwatchdog未インストールで自動反映されにくいため、変更後は`launchctl kickstart -k gui/$(id -u)/com.shinsei.madori-tracer`推奨）。
+- 未対応（TODO候補）：壁への自動スナップ、回転後のリサイズ、テキスト編集のprompt()脱却、AI引き直し結果とエディタ間の自動連携（現状は手動アップロード）。
 
 ---
 

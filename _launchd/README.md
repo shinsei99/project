@@ -1,7 +1,12 @@
-# launchd 登録キット（file-finder / owner-payout-tracker）
+# launchd 登録キット（file-finder / owner-payout-tracker / gyomu-manual / madori-tracer / madori-tracer-editor）
 
-社内LAN常時起動（launchd）に **file-finder(8520)** と **owner-payout-tracker(8519)** を
-追加するためのインストーラ。メインPC・サブPC 両方で同じものが使える。
+社内LAN常時起動（launchd）に以下を追加するためのインストーラ。メインPC・サブPC 両方で同じものが使える。
+
+- file-finder (8520)
+- owner-payout-tracker (8519)
+- gyomu-manual (8521)
+- madori-tracer（間取り図トレーサー本体、8511）
+- madori-tracer-editor（手動間取りエディタ、5175。**Node.js/npmが必須**、初回`npm install`＋`npm run build`のため起動まで数分かかることがある）
 
 ## 使い方（メインPCでの引き継ぎ）
 
