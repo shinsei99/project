@@ -15,7 +15,7 @@ import pandas as pd
 import streamlit as st
 
 import db
-from services import fax
+from services import cleaning, fax
 
 st.set_page_config(page_title="顧客追客マネージャー", page_icon="📇", layout="wide")
 db.init_db()
@@ -257,9 +257,15 @@ def filter_ui(key_prefix, default_mine=False):
     elif tantou != "（全員）":
         where.append("社内担当=?"); params.append(tantou)
     if kw:
-        where.append("(会社名 LIKE ? OR 店名 LIKE ? OR 種別 LIKE ? "
-                     "OR 詳細種別 LIKE ? OR 備考 LIKE ? OR fax LIKE ? OR fax_dial LIKE ?)")
-        params += [f"%{kw}%"] * 7
+        conditions = ["会社名 LIKE ?", "店名 LIKE ?", "種別 LIKE ?",
+                      "詳細種別 LIKE ?", "備考 LIKE ?", "fax LIKE ?"]
+        kw_params = [f"%{kw}%"] * 6
+        kw_digits = cleaning.digits(kw)
+        if kw_digits:
+            conditions.append("fax_dial LIKE ?")
+            kw_params.append(f"%{kw_digits}%")
+        where.append("(" + " OR ".join(conditions) + ")")
+        params += kw_params
     if fax_only:
         where.append("fax_dial<>''")
     rows = fetch_customers("WHERE " + " AND ".join(where), tuple(params))
@@ -372,6 +378,16 @@ def render_detail():
     st.subheader(f"[{c['id']}] {c['会社名']}　{c['店名'] or ''}")
     tags = " / ".join(x for x in [c["区分"], c["種別"], c["企業規模"]] if x)
     st.caption(tags)
+
+    with st.expander("⚠️ この顧客を削除"):
+        st.warning("削除すると対応履歴も含めて元に戻せません。")
+        confirm = st.checkbox("削除内容を確認しました", key=f"del_confirm_{cid}")
+        if st.button("🗑 この顧客を削除する", key=f"del_btn_{cid}", disabled=not confirm):
+            delete_customer(cid)
+            st.session_state["show_detail"] = False
+            st.session_state.pop("detail_id", None)
+            st.success(f"[{cid}] {c['会社名']} を削除しました。")
+            st.rerun()
 
     colL, colR = st.columns([1, 1])
 
@@ -639,10 +655,10 @@ elif nav == "👥 顧客一覧・検索":
                 render_pager(npages, page, "top", with_jump=True)
             page_rows = rows[(page - 1) * PAGE: page * PAGE]
 
-            widths = [0.6, 1.1, 0.7, 2.2, 3.0, 1.2, 1.3, 1.7]
+            widths = [0.6, 1.1, 0.7, 2.2, 3.0, 1.2, 1.3, 1.7, 1.3]
             head = st.columns(widths, vertical_alignment="center")
             for col, txt in zip(head, ["ID", "詳細", "重要", "区分/種別",
-                                       "会社名・店名", "状態", "次回追客", "FAX"]):
+                                       "会社名・店名", "状態", "次回追客", "FAX", "削除"]):
                 col.markdown(f"**{txt}**")
             for r in page_rows:
                 c = st.columns(widths, vertical_alignment="center")
@@ -656,6 +672,23 @@ elif nav == "👥 顧客一覧・検索":
                 c[5].write(r["status"] or "")
                 c[6].write(r["次回追客日"] or "")
                 c[7].write(r["fax"] or "")
+                if st.session_state.get("list_pending_del") == r["id"]:
+                    cc1, cc2 = c[8].columns(2)
+                    if cc1.button("✅", key=f"delyes_{r['id']}",
+                                 help="削除を確定", use_container_width=True):
+                        delete_customer(r["id"])
+                        st.session_state.pop("list_pending_del", None)
+                        st.success(f"[{r['id']}] {r['会社名']} を削除しました。")
+                        st.rerun()
+                    if cc2.button("✕", key=f"delno_{r['id']}",
+                                 help="キャンセル", use_container_width=True):
+                        st.session_state.pop("list_pending_del", None)
+                        st.rerun()
+                else:
+                    if c[8].button("🗑 削除", key=f"del_{r['id']}",
+                                   use_container_width=True):
+                        st.session_state["list_pending_del"] = r["id"]
+                        st.rerun()
 
             if npages > 1:
                 st.write("")
