@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>フォトリメイク サポート</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+    line-height: 1.8; color: #1c1c1e; background: #f5f5f7;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { text-align: center; padding: 24px 0 8px; }
+  .icon { font-size: 44px; }
+  h1 { font-size: 1.6rem; margin: 8px 0 4px; }
+  .lead { color: #6e6e73; margin: 0 0 8px; }
+  h2 { font-size: 1.15rem; margin: 32px 0 8px; padding-bottom: 6px; border-bottom: 2px solid #e0322d; display: inline-block; }
+  ul { padding-left: 1.2em; }
+  li { margin: 4px 0; }
+  .card { background: #fff; border-radius: 14px; padding: 18px 20px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  a { color: #e0322d; }
+  .contact a { font-weight: 600; font-size: 1.1rem; }
+  .qa { font-weight: 600; margin-top: 12px; }
+  .qa + p { margin-top: 2px; color: #3a3a3c; }
+  footer { text-align: center; color: #8e8e93; font-size: .85rem; margin-top: 40px; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #f2f2f7; background: #000; }
+    .lead { color: #98989d; }
+    .card { background: #1c1c1e; box-shadow: none; }
+    .qa + p { color: #c7c7cc; }
+    footer { color: #8e8e93; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="icon">🖌️</div>
+    <h1>フォトリメイク サポート</h1>
+    <p class="lead">写真に文字・矢印・モザイクを入れて注釈できるアプリ</p>
+  </header>
+
+  <h2>使い方</h2>
+  <div class="card">
+    <ul>
+      <li><b>写真を選ぶ</b>：起動して「写真を選ぶ」または「撮影する」から画像を読み込みます。</li>
+      <li><b>文字</b>：下部パレットの「文字」で入力画面を開き、行揃えを選んで入力→完了。文字は指で移動・拡大・回転できます。</li>
+      <li><b>矢印</b>：「矢印」を追加し、両端の○をドラッグして向き・長さを調整します。</li>
+      <li><b>モザイク</b>：「モザイク」で表札・番地・ナンバーなどを目隠し。粗さも調整できます。</li>
+      <li><b>調整・切り抜き</b>：明るさ・コントラスト・鮮やかさ・シャープ・ノイズ除去、トリミングができます。</li>
+      <li><b>保存</b>：右上「保存」でフル画質のままカメラロールへ保存します。</li>
+    </ul>
+  </div>
+
+  <h2>よくある質問</h2>
+  <div class="card">
+    <p class="qa">Q. 写真はインターネットに送信されますか？</p>
+    <p>いいえ。すべての加工は端末内で完結し、写真を外部サーバーに送信することはありません。アカウント登録も不要です。</p>
+    <p class="qa">Q. 保存した写真の画質は落ちますか？</p>
+    <p>元のフル解像度のまま書き出します。</p>
+    <p class="qa">Q. iPad でも使えますか？</p>
+    <p>はい。iPhone / iPad（iOS 16 以上）に対応しています。</p>
+    <p class="qa">Q. 入れた文字や矢印をあとから消せますか？</p>
+    <p>要素を選択して「削除」で消せます。左上の「↩︎」で直前の操作を取り消せます。</p>
+  </div>
+
+  <h2>お問い合わせ</h2>
+  <div class="card contact">
+    <p>ご質問・ご要望・不具合のご報告は、下記メールまでお気軽にご連絡ください。</p>
+    <p><a href="mailto:info@shinsei-pm.co.jp">info@shinsei-pm.co.jp</a></p>
+  </div>
+
+  <h2>プライバシー</h2>
+  <div class="card">
+    <p>本アプリはユーザーのデータを収集しません。写真は端末内でのみ処理され、外部に送信・共有されることはありません。トラッキングも行いません。</p>
+  </div>
+
+  <footer>
+    運営：新誠プロパティマネジメント<br>
+    © 2026 新誠プロパティマネジメント
+  </footer>
+</div>
+</body>
+</html>
