@@ -14,11 +14,17 @@ actor ImageProcessor {
         guard let cg = image.cgImage else { return image }
         var ci = CIImage(cgImage: cg)
 
-        // 明るさ・コントラスト・彩度（飽和）
-        if adj.brightness != 0 || adj.contrast != 0 || adj.saturation != 0 {
+        // 明るさ（露出＝乗算ゲイン。colorControls.brightness は加算のため白飛びするだけになるので使わない）
+        if adj.brightness != 0 {
+            let f = CIFilter.exposureAdjust()
+            f.inputImage = ci
+            f.ev = Float(adj.brightness / 100 * 0.9)   // +100 で約1.9倍、-100 で約0.5倍
+            if let out = f.outputImage { ci = out }
+        }
+        // コントラスト・彩度（飽和）。明るさは加算しない（brightness=0 のまま）。
+        if adj.contrast != 0 || adj.saturation != 0 {
             let f = CIFilter.colorControls()
             f.inputImage = ci
-            f.brightness = Float(adj.brightness / 100 * 0.4)
             f.contrast = Float(1 + adj.contrast / 100 * 0.5)
             f.saturation = Float(1 + adj.saturation / 100)
             if let out = f.outputImage { ci = out }

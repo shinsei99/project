@@ -38,8 +38,16 @@ extension Color {
 
 /// 注釈で使うプリセットカラー（参考UIの帯に近い並び）。
 enum PalettePresets {
-    static let colors: [String] = [
-        "#FFFFFF", "#000000", "#FF2D55", "#FF9500", "#FFCC00",
-        "#34C759", "#00C7BE", "#007AFF", "#5856D6", "#AF52DE",
+    /// 1段目：濃い・鮮やかな基本色（11色）。
+    static let row1: [String] = [
+        "#FFFFFF", "#000000", "#FF3B30", "#FF9500", "#FFCC00", "#34C759",
+        "#00C7BE", "#007AFF", "#5856D6", "#AF52DE", "#8B5E3C",
     ]
+    /// 2段目：淡い・パステル寄り（10色）。1段目とはっきり差が出るよう明度を上げた色。
+    static let row2: [String] = [
+        "#8E8E93", "#FF9FA8", "#FFD8A8", "#FFF3B0", "#A8E6A3",
+        "#A0E7E5", "#A9CCE3", "#C3B1E1", "#E5B8E8", "#C9A17A",
+    ]
+    /// 互換用（全色）。
+    static var colors: [String] { row1 + row2 }
 }

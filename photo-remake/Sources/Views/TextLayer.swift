@@ -7,6 +7,7 @@ struct TextLayer: View {
     let fitted: CGRect
     let selected: Bool
     let onSelect: () -> Void
+    let onEdit: () -> Void
     let onDelete: () -> Void
     let onBeginEdit: () -> Void
 
@@ -39,7 +40,21 @@ struct TextLayer: View {
         let brOff = rot(halfW, halfH)     // 右下＝拡大縮小
         let trOff = rot(halfW, -halfH)    // 右上＝回転
 
+        // タップ／移動の判定は文字の実サイズ＋わずかな余白だけに絞る。
+        // 周囲の空白（ハンドル用の 22pt マージン）はキャンバスに抜け、タップで選択解除される。
+        let hitGrab: CGFloat = 8
+
         ZStack(alignment: .topLeading) {
+            // 文字とほぼ同サイズの透明ヒット領域。ジェスチャーはここだけに付ける。
+            Color.clear
+                .frame(width: 2 * (halfW + hitGrab), height: 2 * (halfH + hitGrab))
+                .contentShape(Rectangle())
+                .rotationEffect(annotation.rotation)
+                .position(lc)
+                // 未選択なら選択、選択済みをもう一度タップで文字入力（キャンバス上で直接編集）
+                .onTapGesture { if selected { onEdit() } else { onSelect() } }
+                .gesture(bodyGesture)
+
             StrokeTextLabel(annotation: annotation, fontPt: fontPt)
                 .padding(pad)
                 .allowsHitTesting(false) // UIKit にタッチを消費させない
@@ -64,10 +79,6 @@ struct TextLayer: View {
         }
         .frame(width: bbox.width, height: bbox.height)
         .position(x: bbox.midX, y: bbox.midY)
-        // ジェスチャーを外側のSwiftUIビューに付けることでUILabel競合を回避
-        .contentShape(Rectangle())
-        .onTapGesture { onSelect() }
-        .gesture(bodyGesture)
     }
 
     /// 1本指=移動、2本指ピンチ=拡大のみ（回転はしない）。

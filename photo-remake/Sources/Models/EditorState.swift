@@ -14,6 +14,8 @@ final class EditorState: ObservableObject {
     @Published var adjustments = Adjustments() { didSet { schedulePreview() } }
     @Published var annotations: [Annotation] = []
     @Published var selectedID: UUID?
+    /// キャンバス上でテキスト内容を直接編集中の注釈 ID（nil で編集終了）。
+    @Published var editingTextID: UUID?
 
     /// モザイク用にピクセル化したプレビュー（モザイク領域はこれを切り出して表示）。
     @Published private(set) var mosaicPreview: UIImage?
@@ -81,12 +83,23 @@ final class EditorState: ObservableObject {
         )
     }
 
-    func addText() {
+    /// 入力画面で確定した内容から新規テキストを追加する。
+    func insertText(_ text: String, align: Annotation.Align) {
         pushUndo()
         var a = Annotation.text()
         a.colorHex = "#FFFFFF"
+        a.text = text
+        a.align = align
         annotations.append(a)
         selectedID = a.id
+    }
+
+    /// 既存テキストの内容・行揃えを更新する。
+    func updateText(_ id: UUID, text: String, align: Annotation.Align) {
+        guard let i = annotations.firstIndex(where: { $0.id == id }) else { return }
+        pushUndo()
+        annotations[i].text = text
+        annotations[i].align = align
     }
     func addArrow() {
         pushUndo()
@@ -109,6 +122,7 @@ final class EditorState: ObservableObject {
         pushUndo()
         annotations.removeAll { $0.id == id }
         if selectedID == id { selectedID = nil }
+        if editingTextID == id { editingTextID = nil }
         refreshMosaicPreview()
     }
 

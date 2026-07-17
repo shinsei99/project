@@ -21,13 +21,7 @@ struct AnnotatedImageView: View {
             .frame(width: geo.size.width, height: geo.size.height)
             .contentShape(Rectangle())
             .coordinateSpace(name: "canvas")
-            .onTapGesture {
-                UIApplication.shared.sendAction(
-                    #selector(UIResponder.resignFirstResponder),
-                    to: nil, from: nil, for: nil
-                )
-                state.selectedID = nil
-            }
+            .onTapGesture { state.selectedID = nil }
         }
     }
 
@@ -38,6 +32,7 @@ struct AnnotatedImageView: View {
             case .text:
                 TextLayer(annotation: b, fitted: fitted, selected: a.id == state.selectedID,
                           onSelect: { state.selectedID = a.id },
+                          onEdit: { state.selectedID = a.id; state.editingTextID = a.id },
                           onDelete: { state.delete(a.id) },
                           onBeginEdit: { state.pushUndo() })
             case .arrow:

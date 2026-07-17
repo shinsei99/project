@@ -11,7 +11,7 @@ enum TextRendering {
         var attrs: [NSAttributedString.Key: Any] = [
             .font: font,
             .foregroundColor: UIColor(hex: a.colorHex),
-            .paragraphStyle: centerPara,
+            .paragraphStyle: paragraph(for: a.align),
         ]
         if a.hasOutline {
             attrs[.strokeColor] = UIColor(hex: a.outlineColorHex).withAlphaComponent(a.outlineOpacity)
@@ -21,34 +21,15 @@ enum TextRendering {
         return attrs
     }
 
-    /// 2パス描画 1パス目: 通常描画＋影。影はグリフ外側にも内側にも広がる。
-    static func outlineWithShadowAttributes(_ a: Annotation, fontPt: CGFloat) -> [NSAttributedString.Key: Any] {
-        let font = AnnotationFont.uiFont(name: a.fontName, size: max(4, fontPt), weightIndex: a.fontWeightIndex)
-        var attrs: [NSAttributedString.Key: Any] = [
-            .font: font,
-            .foregroundColor: UIColor(hex: a.colorHex),
-            .paragraphStyle: centerPara,
-        ]
-        if a.hasOutline {
-            attrs[.strokeColor] = UIColor(hex: a.outlineColorHex).withAlphaComponent(a.outlineOpacity)
-            attrs[.strokeWidth] = -Double(a.outlineWidthRatio * 100) // 負値＝塗り＋縁取り（通常と同じ）
-        }
+    /// 通常の塗り／縁取り属性に、はっきり見えるドロップシャドウを付与する。
+    static func dropShadowAttributes(_ a: Annotation, fontPt: CGFloat) -> [NSAttributedString.Key: Any] {
+        var attrs = attributes(a, fontPt: fontPt)
         let sh = NSShadow()
-        sh.shadowColor = UIColor.black.withAlphaComponent(0.55)
-        sh.shadowBlurRadius = fontPt * 0.14
-        sh.shadowOffset = CGSize(width: fontPt * 0.05, height: fontPt * 0.07)
+        sh.shadowColor = UIColor(hex: a.shadowColorHex).withAlphaComponent(0.6)
+        sh.shadowBlurRadius = fontPt * 0.10
+        sh.shadowOffset = CGSize(width: fontPt * 0.10, height: fontPt * 0.12) // 右下にはっきり落とす
         attrs[.shadow] = sh
         return attrs
-    }
-
-    /// 2パス描画 2パス目: 塗りのみ・影なし。1パス目で内側に漏れた影を上書きして消す。
-    static func fillOnlyAttributes(_ a: Annotation, fontPt: CGFloat) -> [NSAttributedString.Key: Any] {
-        let font = AnnotationFont.uiFont(name: a.fontName, size: max(4, fontPt), weightIndex: a.fontWeightIndex)
-        return [
-            .font: font,
-            .foregroundColor: UIColor(hex: a.colorHex),
-            .paragraphStyle: centerPara,
-        ]
     }
 
     static func attributedString(_ a: Annotation, fontPt: CGFloat) -> NSAttributedString {
@@ -63,28 +44,31 @@ enum TextRendering {
             .map(String.init).joined(separator: "\n")
     }
 
-    // MARK: - 2パス描画ヘルパー
+    // MARK: - 影付き描画ヘルパー
 
-    /// 影あり時に2パスで文字列を描く（rect はそのまま使う）。
-    static func drawTwoPass(_ a: Annotation, fontPt: CGFloat, string: String, in rect: CGRect) {
-        let outline = NSAttributedString(string: string, attributes: outlineWithShadowAttributes(a, fontPt: fontPt))
-        let fill    = NSAttributedString(string: string, attributes: fillOnlyAttributes(a, fontPt: fontPt))
-        outline.draw(in: rect)
-        fill.draw(in: rect)
+    /// 影あり時のドロップシャドウ描画。2パスにすることで文字の色は変えずに影だけを後ろに残す。
+    /// 1パス目: 影付きで描く（塗り＋影）／2パス目: 影なしの通常塗りを同位置に重ねて文字を元の色に戻す。
+    static func drawWithShadow(_ a: Annotation, fontPt: CGFloat, string: String, in rect: CGRect) {
+        NSAttributedString(string: string, attributes: dropShadowAttributes(a, fontPt: fontPt)).draw(in: rect)
+        NSAttributedString(string: string, attributes: attributes(a, fontPt: fontPt)).draw(in: rect)
     }
 
     // MARK: - Private
 
-    private static var centerPara: NSParagraphStyle {
+    private static func paragraph(for align: Annotation.Align) -> NSParagraphStyle {
         let p = NSMutableParagraphStyle()
-        p.alignment = .center
+        switch align {
+        case .left: p.alignment = .left
+        case .center: p.alignment = .center
+        case .right: p.alignment = .right
+        }
         return p
     }
 }
 
 // MARK: - プレビュー用ビュー
 
-/// 影あり時に2パスで描く（1パス目: 縁+影, 2パス目: 塗り）ことで縁のみに影を付与する。
+/// 影あり時はドロップシャドウ付きで描く。
 final class TwoPassTextView: UIView {
     var annotation: Annotation = Annotation(kind: .text) {
         didSet { invalidateIntrinsicContentSize(); setNeedsDisplay() }
@@ -105,7 +89,7 @@ final class TwoPassTextView: UIView {
                        width: sz.width, height: sz.height)
 
         if annotation.hasShadow {
-            TextRendering.drawTwoPass(annotation, fontPt: fontPt, string: s, in: r)
+            TextRendering.drawWithShadow(annotation, fontPt: fontPt, string: s, in: r)
         } else {
             NSAttributedString(string: s, attributes: TextRendering.attributes(annotation, fontPt: fontPt)).draw(in: r)
         }

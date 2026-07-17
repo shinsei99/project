@@ -70,8 +70,8 @@ enum ImageExporter {
         let r = CGRect(x: -bounds.width / 2, y: -bounds.height / 2,
                        width: bounds.width, height: bounds.height)
         if a.hasShadow {
-            // 縁のみに影を付与（2パス）
-            TextRendering.drawTwoPass(a, fontPt: pt, string: TextRendering.displayString(a), in: r)
+            // ドロップシャドウを付与
+            TextRendering.drawWithShadow(a, fontPt: pt, string: TextRendering.displayString(a), in: r)
         } else {
             ref.draw(in: r)
         }

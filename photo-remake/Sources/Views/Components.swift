@@ -1,32 +1,45 @@
 import SwiftUI
 
-/// 色プリセットの横スクロール＋カスタムカラーピッカー。
+/// 色プリセットの2段（横スクロール）。1段目＝濃い色、2段目＝淡い色。
+/// 2段目の一番左にカスタムカラー（フリー）ピッカーを置く。
 struct ColorPaletteRow: View {
     @Binding var hex: String
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
-                ForEach(PalettePresets.colors, id: \.self) { c in
-                    Circle()
-                        .fill(Color(hex: c))
-                        .frame(width: 30, height: 30)
-                        .overlay(
-                            Circle().strokeBorder(
-                                hex.uppercased() == c ? Color.accentColor : Color.white.opacity(0.35),
-                                lineWidth: hex.uppercased() == c ? 3 : 1)
-                        )
-                        .onTapGesture { hex = c }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    ForEach(PalettePresets.row1, id: \.self) { swatch($0) }
                 }
-                ColorPicker("", selection: Binding(
-                    get: { Color(hex: hex) },
-                    set: { hex = UIColor($0).hexString }), supportsOpacity: false)
-                    .labelsHidden()
-                    .frame(width: 32, height: 32)
+                HStack(spacing: 8) {
+                    freePicker
+                    ForEach(PalettePresets.row2, id: \.self) { swatch($0) }
+                }
             }
             .padding(.horizontal, 4)
             .padding(.vertical, 2)
         }
+    }
+
+    private func swatch(_ c: String) -> some View {
+        Circle()
+            .fill(Color(hex: c))
+            .frame(width: 24, height: 24)
+            .overlay(
+                Circle().strokeBorder(
+                    hex.uppercased() == c ? Color.accentColor : Color.white.opacity(0.35),
+                    lineWidth: hex.uppercased() == c ? 3 : 1)
+            )
+            .onTapGesture { hex = c }
+    }
+
+    /// カスタムカラー（フリー）ピッカー。
+    private var freePicker: some View {
+        ColorPicker("", selection: Binding(
+            get: { Color(hex: hex) },
+            set: { hex = UIColor($0).hexString }), supportsOpacity: false)
+            .labelsHidden()
+            .frame(width: 24, height: 24)
     }
 }
 

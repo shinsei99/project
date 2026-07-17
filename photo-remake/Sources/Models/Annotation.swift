@@ -4,6 +4,8 @@ import SwiftUI
 /// サイズ・位置はすべて画像に対する正規化値で保持し、プレビューと書き出しを一致させる。
 struct Annotation: Identifiable, Equatable {
     enum Kind: Equatable { case text, arrow, mosaic }
+    /// テキストの行揃え。
+    enum Align: Equatable { case left, center, right }
 
     let id = UUID()
     var kind: Kind
@@ -23,12 +25,14 @@ struct Annotation: Identifiable, Equatable {
     /// フォントサイズ（画像の高さに対する割合）。
     var fontHeightFraction: CGFloat = 0.07
     var isVertical: Bool = false          // 縦書き
+    var align: Align = .left              // 行揃え（複数行時）。既定は左寄せ
     var hasOutline: Bool = true
     var outlineColorHex: String = "#000000"
     /// 縁取り太さ（フォントptに対する割合 0...0.25）。
     var outlineWidthRatio: CGFloat = 0.06
     var outlineOpacity: CGFloat = 1
     var hasShadow: Bool = false
+    var shadowColorHex: String = "#000000"
 
     // ---- 矢印（尾→先端の2点で定義。向き・長さは2点から決まる）----
     var arrowStart: CGPoint = CGPoint(x: 0.38, y: 0.58)   // 尾

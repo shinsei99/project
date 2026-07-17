@@ -25,7 +25,6 @@ struct ArrowStylePanel: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
     }
 
     private func fraction(_ keyPath: WritableKeyPath<Annotation, CGFloat>, mul: Double) -> Binding<Double> {

@@ -26,6 +26,5 @@ struct MosaicStylePanel: View {
             }
         }
         .padding()
-        .background(.ultraThinMaterial)
     }
 }
