@@ -34,6 +34,8 @@ const ACCESS_KEY = "bd_access_code";
 const HISTORY_KEY = "bd_history";
 const HISTORY_MAX = 200;
 const MAX_IMAGES = 10;
+const MAX_REC_SEC = 900; // 録音の上限（15分）。Vercelの本文サイズ/実行時間制限の保険
+const MAX_AUDIO_BYTES = 3.5 * 1024 * 1024; // 送信音声の上限（base64化後もVercel本文上限に収める）
 
 /* ---------- 履歴保存（localStorageのみ。容量超過時は古い写真→古い項目を間引く） ---------- */
 /* 旧フォーマット（感情ログ/ideasがオブジェクト/titleなし）を新形式へ変換 */
@@ -150,6 +152,15 @@ export default function Home() {
   const [text, setText] = useState("");
   const [loadingText, setLoadingText] = useState(false);
 
+  // 音声録音 → 文字起こし
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   const [previews, setPreviews] = useState<string[]>([]);
   const [loadingImage, setLoadingImage] = useState(false);
   const fileCamRef = useRef<HTMLInputElement>(null);
@@ -167,6 +178,14 @@ export default function Home() {
       setAuthed(true);
     }
     setHistory(loadHistory());
+  }, []);
+
+  // 画面を離れる時に録音タイマー・マイクを確実に止める
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      streamRef.current?.getTracks().forEach((t) => t.stop());
+    };
   }, []);
 
   const textEntries = useMemo(
@@ -259,6 +278,130 @@ export default function Home() {
       setError(err instanceof Error ? err.message : "解析に失敗しました");
     } finally {
       setLoadingText(false);
+    }
+  }
+
+  /* ---------- 音声録音 → 文字起こし ---------- */
+  function stopTimer() {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }
+  function cleanupStream() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+  }
+  function pickAudioMime(): string {
+    if (typeof MediaRecorder === "undefined") return "";
+    // mp4(AAC)＝iOS Safari / webm(opus)＝Chrome・Android を優先
+    const cands = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
+    for (const c of cands) {
+      try {
+        if (MediaRecorder.isTypeSupported(c)) return c;
+      } catch {
+        /* 次の候補へ */
+      }
+    }
+    return "";
+  }
+  function blobToDataURL(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(blob);
+    });
+  }
+  function fmtElapsed(s: number): string {
+    const m = Math.floor(s / 60);
+    return `${m}:${String(s % 60).padStart(2, "0")}`;
+  }
+
+  async function startRecording() {
+    setError(null);
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setError("このブラウザは録音に対応していません");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mimeType = pickAudioMime();
+      const rec = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+      chunksRef.current = [];
+      rec.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data);
+      };
+      rec.onstop = () => {
+        void finishRecording();
+      };
+      recorderRef.current = rec;
+      rec.start();
+      setRecording(true);
+      setElapsed(0);
+      timerRef.current = setInterval(() => {
+        setElapsed((s) => {
+          const next = s + 1;
+          if (next >= MAX_REC_SEC) stopRecording();
+          return next;
+        });
+      }, 1000);
+    } catch (err) {
+      cleanupStream();
+      const name = err instanceof DOMException ? err.name : "";
+      setError(
+        name === "NotAllowedError" || name === "SecurityError"
+          ? "マイクの使用が許可されていません（ブラウザ／端末の設定で許可してください）"
+          : "録音を開始できませんでした"
+      );
+    }
+  }
+
+  function stopRecording() {
+    stopTimer();
+    const rec = recorderRef.current;
+    if (rec && rec.state !== "inactive") rec.stop(); // → onstop → finishRecording
+    setRecording(false);
+  }
+
+  async function finishRecording() {
+    cleanupStream();
+    const rec = recorderRef.current;
+    const type = rec?.mimeType || chunksRef.current[0]?.type || "audio/webm";
+    const blob = new Blob(chunksRef.current, { type });
+    chunksRef.current = [];
+    recorderRef.current = null;
+    if (blob.size === 0) {
+      setError("録音が空でした。もう一度お試しください。");
+      return;
+    }
+    if (blob.size > MAX_AUDIO_BYTES) {
+      setError("録音が長すぎます。10分以内を目安に短く録り直してください。");
+      return;
+    }
+    setTranscribing(true);
+    setError(null);
+    try {
+      const dataUrl = await blobToDataURL(blob);
+      const res = await fetch("/api/transcribe", {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ audio: dataUrl }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error ?? "文字起こしに失敗しました");
+      const t = (typeof data?.text === "string" ? data.text : "").trim();
+      if (!t) {
+        setError("音声から文字を認識できませんでした。");
+        return;
+      }
+      // 既存の入力があれば改行して追記（複数回の録音・手入力と併用できる）
+      setText((prev) => (prev.trim() ? `${prev.replace(/\s*$/, "")}\n${t}` : t));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "文字起こしに失敗しました");
+    } finally {
+      setTranscribing(false);
     }
   }
 
@@ -365,9 +508,36 @@ export default function Home() {
               placeholder="今、頭の中にあることを全部ここに殴り書き…"
               className="w-full resize-none rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-[15px] leading-relaxed outline-none focus:border-indigo-500"
             />
+
+            {/* 音声録音 → 文字起こし（上のテキスト欄に反映） */}
+            <div className="mt-2">
+              {recording ? (
+                <button
+                  onClick={stopRecording}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 py-3 text-sm font-semibold active:scale-[0.98]"
+                >
+                  <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-white" />
+                  録音中 {fmtElapsed(elapsed)}／タップで停止
+                </button>
+              ) : (
+                <button
+                  onClick={startRecording}
+                  disabled={transcribing || loadingText}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-zinc-700 bg-zinc-900/60 py-3 text-sm font-medium text-zinc-200 disabled:opacity-40 active:scale-[0.98]"
+                >
+                  {transcribing ? "📝 文字起こし中…" : "🎙️ 録音して文字起こし"}
+                </button>
+              )}
+              {!recording && !transcribing && (
+                <p className="mt-1 text-center text-[11px] text-zinc-600">
+                  話した内容が上の欄に文字で入ります（最長15分）
+                </p>
+              )}
+            </div>
+
             <button
               onClick={analyzeText}
-              disabled={loadingText || !text.trim()}
+              disabled={loadingText || recording || transcribing || !text.trim()}
               className="mt-3 w-full rounded-2xl bg-indigo-600 py-3.5 font-semibold disabled:opacity-40 active:scale-[0.98]"
             >
               {loadingText ? "整理中…" : "🧹 脳を空っぽにする（タスク/アイデア/ビジネス/その他に分類）"}
