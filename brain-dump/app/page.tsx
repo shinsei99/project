@@ -106,6 +106,10 @@ function fmtDuration(s: number): string {
   const m = Math.floor(s / 60);
   return `${m}:${String(s % 60).padStart(2, "0")}`;
 }
+/** 文字列配列を trim して空行を除く（編集の保存時に使う）。 */
+function cleanArr(a: string[]): string[] {
+  return a.map((s) => s.trim()).filter(Boolean);
+}
 function entryText(e: HistoryEntry): string {
   if (e.kind === "text") {
     return [
@@ -303,6 +307,22 @@ export default function Home() {
     if (audioIds.length) void deleteAudio(audioIds);
     setHistory([]);
     persistHistory([]);
+  }
+  // メモ（テキスト項目）の本文を編集・保存
+  function saveMemo(id: string, result: AnalyzeResult) {
+    setHistory((prev) => {
+      const next = prev.map((e) => (e.id === id && e.kind === "text" ? { ...e, result } : e));
+      persistHistory(next);
+      return next;
+    });
+  }
+  // 写真スクラップの本文を編集・保存
+  function saveScrap(id: string, result: ImageResult) {
+    setHistory((prev) => {
+      const next = prev.map((e) => (e.id === id && e.kind === "image" ? { ...e, result } : e));
+      persistHistory(next);
+      return next;
+    });
   }
   function setEntryTasks(id: string, tasks: Task[]) {
     setHistory((prev) => {
@@ -621,7 +641,14 @@ export default function Home() {
       )}
 
       {view === "history" ? (
-        <HistoryView history={history} onDelete={deleteEntry} onClear={clearAll} onViewImage={setLightbox} />
+        <HistoryView
+          history={history}
+          onDelete={deleteEntry}
+          onClear={clearAll}
+          onViewImage={setLightbox}
+          onSaveMemo={saveMemo}
+          onSaveScrap={saveScrap}
+        />
       ) : (
         <>
           {/* 入力 */}
@@ -681,7 +708,7 @@ export default function Home() {
               <h2 className="mb-2 text-sm font-semibold text-zinc-300">📝 メモ</h2>
               <div className="flex flex-col gap-2">
                 {textEntries.map((e) => (
-                  <MemoRow key={e.id} entry={e} onDelete={deleteEntry} />
+                  <MemoRow key={e.id} entry={e} onDelete={deleteEntry} onSave={saveMemo} />
                 ))}
               </div>
             </section>
@@ -733,7 +760,7 @@ export default function Home() {
             {imageEntries.length > 0 && (
               <div className="mt-5 flex flex-col gap-2">
                 {imageEntries.map((e) => (
-                  <ScrapRow key={e.id} entry={e} onViewImage={setLightbox} onDelete={deleteEntry} />
+                  <ScrapRow key={e.id} entry={e} onViewImage={setLightbox} onDelete={deleteEntry} onSave={saveScrap} />
                 ))}
               </div>
             )}
@@ -804,11 +831,15 @@ function HistoryView({
   onDelete,
   onClear,
   onViewImage,
+  onSaveMemo,
+  onSaveScrap,
 }: {
   history: HistoryEntry[];
   onDelete: (id: string) => void;
   onClear: () => void;
   onViewImage: (src: string) => void;
+  onSaveMemo: (id: string, result: AnalyzeResult) => void;
+  onSaveScrap: (id: string, result: ImageResult) => void;
 }) {
   const [query, setQuery] = useState("");
   if (history.length === 0) {
@@ -834,9 +865,9 @@ function HistoryView({
       ) : (
         filtered.map((e) =>
           e.kind === "text" ? (
-            <MemoRow key={e.id} entry={e} onDelete={onDelete} />
+            <MemoRow key={e.id} entry={e} onDelete={onDelete} onSave={onSaveMemo} />
           ) : (
-            <ScrapRow key={e.id} entry={e} onViewImage={onViewImage} onDelete={onDelete} />
+            <ScrapRow key={e.id} entry={e} onViewImage={onViewImage} onDelete={onDelete} onSave={onSaveScrap} />
           )
         )
       )}
@@ -845,11 +876,21 @@ function HistoryView({
 }
 
 /* ---------- メモ行（タイトル＋タップで詳細） ---------- */
-function MemoRow({ entry, onDelete }: { entry: TextEntry; onDelete?: (id: string) => void }) {
+function MemoRow({
+  entry,
+  onDelete,
+  onSave,
+}: {
+  entry: TextEntry;
+  onDelete?: (id: string) => void;
+  onSave?: (id: string, result: AnalyzeResult) => void;
+}) {
   const r = entry.result;
   const title = r.title || entry.input.slice(0, 24) || "無題";
   const clips = entry.audio ?? [];
   const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<AnalyzeResult>(r);
   return (
     <details
       onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
@@ -878,7 +919,38 @@ function MemoRow({ entry, onDelete }: { entry: TextEntry; onDelete?: (id: string
         </span>
       </summary>
       <div className="px-3 pb-3">
-        <MemoDetail result={r} />
+        {editing ? (
+          <MemoEditor
+            draft={draft}
+            setDraft={setDraft}
+            onCancel={() => setEditing(false)}
+            onSave={() => {
+              onSave?.(entry.id, {
+                title: draft.title.trim(),
+                tasks: draft.tasks,
+                ideas: cleanArr(draft.ideas),
+                business: cleanArr(draft.business),
+                others: cleanArr(draft.others),
+              });
+              setEditing(false);
+            }}
+          />
+        ) : (
+          <>
+            <MemoDetail result={r} />
+            {onSave && (
+              <button
+                onClick={() => {
+                  setDraft(r);
+                  setEditing(true);
+                }}
+                className="mt-3 text-xs text-zinc-500 active:text-zinc-200"
+              >
+                ✏️ 文字を編集
+              </button>
+            )}
+          </>
+        )}
         {clips.length > 0 && open && <AudioClipsPlayer clips={clips} />}
       </div>
     </details>
@@ -906,6 +978,177 @@ function MemoDetail({ result }: { result: AnalyzeResult }) {
           </ul>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ---------- 編集用：文字列リスト（1項目=1入力・行の追加削除可） ---------- */
+const EDIT_INPUT = "w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm outline-none focus:border-indigo-500";
+
+function EditList({
+  label,
+  items,
+  onChange,
+}: {
+  label: string;
+  items: string[];
+  onChange: (items: string[]) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-xs font-semibold text-zinc-400">{label}</p>
+      <div className="flex flex-col gap-1.5">
+        {items.map((it, i) => (
+          <div key={i} className="flex items-start gap-1.5">
+            <textarea
+              value={it}
+              rows={1}
+              onChange={(e) => onChange(items.map((x, j) => (j === i ? e.target.value : x)))}
+              className={`${EDIT_INPUT} resize-none`}
+            />
+            <button
+              onClick={() => onChange(items.filter((_, j) => j !== i))}
+              className="mt-1.5 shrink-0 text-zinc-500 active:text-red-400"
+              aria-label="この行を削除"
+            >
+              🗑
+            </button>
+          </div>
+        ))}
+        <button
+          onClick={() => onChange([...items, ""])}
+          className="self-start text-xs text-zinc-500 active:text-zinc-200"
+        >
+          ＋ 行を追加
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- メモの本文編集フォーム ---------- */
+function MemoEditor({
+  draft,
+  setDraft,
+  onSave,
+  onCancel,
+}: {
+  draft: AnalyzeResult;
+  setDraft: (r: AnalyzeResult) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <p className="mb-1 text-xs font-semibold text-zinc-400">タイトル</p>
+        <input
+          value={draft.title}
+          onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+          placeholder="タイトル"
+          className={EDIT_INPUT}
+        />
+      </div>
+      <EditList label="💡 アイデア" items={draft.ideas} onChange={(ideas) => setDraft({ ...draft, ideas })} />
+      <EditList label="💼 ビジネス" items={draft.business} onChange={(business) => setDraft({ ...draft, business })} />
+      <EditList label="🗒 その他" items={draft.others} onChange={(others) => setDraft({ ...draft, others })} />
+      <p className="text-[11px] text-zinc-600">※ タスクは上の「📋 タスク」から編集できます</p>
+      <div className="flex gap-2">
+        <button onClick={onSave} className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold active:scale-95">
+          保存
+        </button>
+        <button onClick={onCancel} className="rounded-lg bg-zinc-700 px-4 py-1.5 text-xs active:scale-95">
+          キャンセル
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- 写真スクラップの本文編集フォーム ---------- */
+function ScrapEditor({
+  draft,
+  setDraft,
+  onSave,
+  onCancel,
+}: {
+  draft: ImageResult;
+  setDraft: (r: ImageResult) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const details = draft.details ?? [];
+  return (
+    <div className="flex flex-col gap-3">
+      <div>
+        <p className="mb-1 text-xs font-semibold text-zinc-400">タイトル</p>
+        <input
+          value={draft.title}
+          onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+          placeholder="タイトル"
+          className={EDIT_INPUT}
+        />
+      </div>
+
+      <EditList label="📝 要点" items={draft.summary} onChange={(summary) => setDraft({ ...draft, summary })} />
+
+      <div>
+        <p className="mb-1 text-xs font-semibold text-zinc-400">📌 記録事項（項目名・内容）</p>
+        <div className="flex flex-col gap-1.5">
+          {details.map((d, i) => (
+            <div key={i} className="flex items-start gap-1.5">
+              <input
+                value={d.label}
+                onChange={(e) =>
+                  setDraft({ ...draft, details: details.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)) })
+                }
+                placeholder="項目名"
+                className={`${EDIT_INPUT} w-1/3`}
+              />
+              <input
+                value={d.value}
+                onChange={(e) =>
+                  setDraft({ ...draft, details: details.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)) })
+                }
+                placeholder="内容"
+                className={EDIT_INPUT}
+              />
+              <button
+                onClick={() => setDraft({ ...draft, details: details.filter((_, j) => j !== i) })}
+                className="mt-1.5 shrink-0 text-zinc-500 active:text-red-400"
+                aria-label="この行を削除"
+              >
+                🗑
+              </button>
+            </div>
+          ))}
+          <button
+            onClick={() => setDraft({ ...draft, details: [...details, { label: "", value: "" }] })}
+            className="self-start text-xs text-zinc-500 active:text-zinc-200"
+          >
+            ＋ 行を追加
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <p className="mb-1 text-xs font-semibold text-zinc-400">💪 次の行動</p>
+        <textarea
+          value={draft.nextAction}
+          rows={2}
+          onChange={(e) => setDraft({ ...draft, nextAction: e.target.value })}
+          className={`${EDIT_INPUT} resize-none`}
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <button onClick={onSave} className="rounded-lg bg-indigo-600 px-4 py-1.5 text-xs font-semibold active:scale-95">
+          保存
+        </button>
+        <button onClick={onCancel} className="rounded-lg bg-zinc-700 px-4 py-1.5 text-xs active:scale-95">
+          キャンセル
+        </button>
+      </div>
     </div>
   );
 }
@@ -976,12 +1219,16 @@ function ScrapRow({
   entry,
   onViewImage,
   onDelete,
+  onSave,
 }: {
   entry: ImageEntry;
   onViewImage: (src: string) => void;
   onDelete?: (id: string) => void;
+  onSave?: (id: string, result: ImageResult) => void;
 }) {
   const r = entry.result;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<ImageResult>(r);
   return (
     <details className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40">
       <summary className="flex cursor-pointer select-none items-center justify-between gap-2 p-3">
@@ -1007,22 +1254,54 @@ function ScrapRow({
         </span>
       </summary>
       <div className="px-3 pb-3">
-        {r.details && r.details.length > 0 && (
-          <dl className="mb-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg bg-zinc-950/60 p-3 text-sm">
-            {r.details.map((d, i) => (
-              <div key={i} className="contents">
-                <dt className="text-zinc-500">{d.label}</dt>
-                <dd className="font-medium text-zinc-100">{d.value}</dd>
-              </div>
-            ))}
-          </dl>
+        {editing ? (
+          <ScrapEditor
+            draft={draft}
+            setDraft={setDraft}
+            onCancel={() => setEditing(false)}
+            onSave={() => {
+              onSave?.(entry.id, {
+                title: draft.title.trim(),
+                summary: cleanArr(draft.summary),
+                details: (draft.details ?? [])
+                  .map((d) => ({ label: d.label.trim(), value: d.value.trim() }))
+                  .filter((d) => d.label || d.value),
+                nextAction: draft.nextAction.trim(),
+              });
+              setEditing(false);
+            }}
+          />
+        ) : (
+          <>
+            {r.details && r.details.length > 0 && (
+              <dl className="mb-3 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg bg-zinc-950/60 p-3 text-sm">
+                {r.details.map((d, i) => (
+                  <div key={i} className="contents">
+                    <dt className="text-zinc-500">{d.label}</dt>
+                    <dd className="font-medium text-zinc-100">{d.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+            <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-300">
+              {r.summary.map((s, i) => (
+                <li key={i}>{s}</li>
+              ))}
+            </ul>
+            <p className="mt-3 rounded-lg bg-emerald-950/50 p-3 text-sm text-emerald-300">💪 {r.nextAction}</p>
+            {onSave && (
+              <button
+                onClick={() => {
+                  setDraft(r);
+                  setEditing(true);
+                }}
+                className="mt-3 text-xs text-zinc-500 active:text-zinc-200"
+              >
+                ✏️ 文字を編集
+              </button>
+            )}
+          </>
         )}
-        <ul className="list-disc space-y-1 pl-5 text-sm text-zinc-300">
-          {r.summary.map((s, i) => (
-            <li key={i}>{s}</li>
-          ))}
-        </ul>
-        <p className="mt-3 rounded-lg bg-emerald-950/50 p-3 text-sm text-emerald-300">💪 {r.nextAction}</p>
         {entry.images && entry.images.length > 0 && (
           <div className="mt-3">
             <p className="mb-1.5 text-xs text-zinc-500">元の写真（タップで拡大）</p>
@@ -1109,7 +1388,13 @@ function TaskMaster({
               >
                 ✏️
               </button>
-              <button onClick={() => onDelete(entryId, idx)} className="text-zinc-500 active:text-red-400" aria-label="削除">
+              <button
+                onClick={() => {
+                  if (confirm("このタスクを削除しますか？")) onDelete(entryId, idx);
+                }}
+                className="text-zinc-500 active:text-red-400"
+                aria-label="削除"
+              >
                 🗑
               </button>
             </div>
