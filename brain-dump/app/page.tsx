@@ -176,6 +176,13 @@ export default function Home() {
   const fileCamRef = useRef<HTMLInputElement>(null);
   const fileLibRef = useRef<HTMLInputElement>(null);
 
+  // 無音カメラ（アプリ内カメラ：OSのシャッター音が鳴らない）
+  const [camOpen, setCamOpen] = useState(false);
+  const [facing, setFacing] = useState<"environment" | "user">("environment");
+  const [flash, setFlash] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const camStreamRef = useRef<MediaStream | null>(null);
+
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -197,6 +204,43 @@ export default function Home() {
       streamRef.current?.getTracks().forEach((t) => t.stop());
     };
   }, []);
+
+  // 無音カメラ：開いている間だけカメラ映像を流す（facing切替で入れ直し）
+  useEffect(() => {
+    if (!camOpen) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: facing, width: { ideal: 2560 }, height: { ideal: 1440 } },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
+        camStreamRef.current = stream;
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play().catch(() => {});
+        }
+      } catch (err) {
+        if (cancelled) return;
+        const name = err instanceof DOMException ? err.name : "";
+        setError(
+          name === "NotAllowedError" || name === "SecurityError"
+            ? "カメラの使用が許可されていません（ブラウザ／端末の設定で許可してください）"
+            : "カメラを起動できませんでした"
+        );
+        setCamOpen(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      camStreamRef.current?.getTracks().forEach((t) => t.stop());
+      camStreamRef.current = null;
+    };
+  }, [camOpen, facing]);
 
   const textEntries = useMemo(
     () => history.filter((e): e is TextEntry => e.kind === "text"),
@@ -229,6 +273,7 @@ export default function Home() {
     setCode("");
     setPreviews([]);
     pendingAudioRef.current = []; // 未紐付けの録音は破棄
+    setCamOpen(false); // カメラが開いていれば閉じる
   }
 
   /* ---------- 履歴操作 ---------- */
@@ -443,6 +488,48 @@ export default function Home() {
     }
   }
 
+  /* ---------- 無音カメラ（アプリ内カメラでシャッター音なし撮影） ---------- */
+  function openSilentCamera() {
+    setError(null);
+    if (previews.length >= MAX_IMAGES) {
+      setError(`画像は最大${MAX_IMAGES}枚までです`);
+      return;
+    }
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setError("このブラウザはカメラに対応していません");
+      return;
+    }
+    setCamOpen(true); // 実際のストリーム開始は useEffect で
+  }
+  function closeSilentCamera() {
+    setCamOpen(false); // useEffect のクリーンアップでストリーム停止
+  }
+  function captureSilent() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
+    if (previews.length >= MAX_IMAGES) {
+      setError(`画像は最大${MAX_IMAGES}枚までです`);
+      return;
+    }
+    // 既存の写真と同じ圧縮基準（長辺1100px / JPEG品質0.62）で取り込む
+    const maxSize = 1100;
+    const quality = 0.62;
+    const scale = Math.min(1, maxSize / Math.max(video.videoWidth, video.videoHeight));
+    const w = Math.round(video.videoWidth * scale);
+    const h = Math.round(video.videoHeight * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, w, h);
+    const dataUrl = canvas.toDataURL("image/jpeg", quality);
+    setPreviews((prev) => [...prev, dataUrl].slice(0, MAX_IMAGES));
+    // 音の代わりに一瞬フラッシュして撮れたことを知らせる
+    setFlash(true);
+    setTimeout(() => setFlash(false), 130);
+  }
+
   async function onPickImages(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     e.target.value = "";
@@ -606,11 +693,16 @@ export default function Home() {
             <p className="mb-3 text-xs text-zinc-600">最大{MAX_IMAGES}枚。複数ページをまとめて1つに整理します。</p>
             <input ref={fileCamRef} type="file" accept="image/*" capture="environment" onChange={onPickImages} className="hidden" />
             <input ref={fileLibRef} type="file" accept="image/*" multiple onChange={onPickImages} className="hidden" />
-            <div className="flex gap-2">
-              <button onClick={() => fileCamRef.current?.click()} disabled={previews.length >= MAX_IMAGES} className="flex-1 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 py-4 text-sm text-zinc-300 disabled:opacity-40 active:scale-[0.98]">
-                📷 撮影
-              </button>
-              <button onClick={() => fileLibRef.current?.click()} disabled={previews.length >= MAX_IMAGES} className="flex-1 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 py-4 text-sm text-zinc-300 disabled:opacity-40 active:scale-[0.98]">
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
+                <button onClick={() => fileCamRef.current?.click()} disabled={previews.length >= MAX_IMAGES} className="flex-1 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 py-4 text-sm text-zinc-300 disabled:opacity-40 active:scale-[0.98]">
+                  📷 撮影
+                </button>
+                <button onClick={openSilentCamera} disabled={previews.length >= MAX_IMAGES} className="flex-1 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 py-4 text-sm text-zinc-300 disabled:opacity-40 active:scale-[0.98]">
+                  📷 撮影S <span className="text-[11px] text-zinc-500">🔇無音</span>
+                </button>
+              </div>
+              <button onClick={() => fileLibRef.current?.click()} disabled={previews.length >= MAX_IMAGES} className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 py-4 text-sm text-zinc-300 disabled:opacity-40 active:scale-[0.98]">
                 🖼 アルバムから選ぶ
               </button>
             </div>
@@ -655,6 +747,51 @@ export default function Home() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={lightbox} alt="原本" className="max-h-full max-w-full rounded-lg object-contain" />
           <span className="absolute right-4 top-4 text-sm text-zinc-400">タップで閉じる ✕</span>
+        </div>
+      )}
+
+      {/* 無音カメラ（アプリ内カメラ・シャッター音なし） */}
+      {camOpen && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black">
+          <video ref={videoRef} autoPlay playsInline muted className="min-h-0 w-full flex-1 object-contain" />
+
+          {/* 撮影時の白フラッシュ（音の代わり） */}
+          {flash && <div className="pointer-events-none absolute inset-0 bg-white transition-opacity" />}
+
+          {/* 上部：閉じる・枚数・カメラ切替 */}
+          <button
+            onClick={closeSilentCamera}
+            className="absolute left-4 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-lg text-white active:bg-black/70"
+            aria-label="閉じる"
+          >
+            ✕
+          </button>
+          <span className="absolute left-1/2 top-6 -translate-x-1/2 text-sm text-white/90">
+            {previews.length} / {MAX_IMAGES}枚
+          </span>
+          <button
+            onClick={() => setFacing((f) => (f === "environment" ? "user" : "environment"))}
+            className="absolute right-4 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-lg active:bg-black/70"
+            aria-label="カメラ切替"
+          >
+            🔄
+          </button>
+
+          {/* 下部：シャッター・完了 */}
+          <div className="relative flex items-center justify-center bg-black py-6">
+            <button
+              onClick={captureSilent}
+              disabled={previews.length >= MAX_IMAGES}
+              aria-label="撮影（無音）"
+              className="h-[68px] w-[68px] rounded-full border-[5px] border-white bg-white/25 active:bg-white/50 disabled:opacity-40"
+            />
+            <button
+              onClick={closeSilentCamera}
+              className="absolute right-6 rounded-xl bg-white/15 px-4 py-2 text-sm text-white active:bg-white/30"
+            >
+              完了{previews.length ? `（${previews.length}）` : ""}
+            </button>
+          </div>
         </div>
       )}
     </main>
