@@ -1,0 +1,16 @@
+{
+  "name": "scrapmemo",
+  "version": "1.0.0",
+  "description": "スクラップメモ（ペタペタ貼るスクラップメモ）iOS アプリ",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build:web": "rm -rf www && mkdir -p www && cp index.html www/index.html && cp -R assets www/assets",
+    "sync": "npm run build:web && cap sync"
+  },
+  "dependencies": {
+    "@capacitor/cli": "^8.4.1",
+    "@capacitor/core": "^8.4.1",
+    "@capacitor/ios": "^8.4.1"
+  }
+}
