@@ -655,7 +655,12 @@ export default function Home() {
           <button onClick={() => setView(view === "home" ? "history" : "home")} className="text-xs text-zinc-400 active:text-zinc-200">
             {view === "home" ? `🕘 履歴${historyCount ? `(${historyCount})` : ""}` : "← もどる"}
           </button>
-          <button onClick={logout} className="text-xs text-zinc-500 active:text-zinc-300">
+          <button
+            onClick={() => {
+              if (confirm("ロックしますか？（もう一度アクセスコードが必要になります）")) logout();
+            }}
+            className="text-xs text-zinc-500 active:text-zinc-300"
+          >
             ロック
           </button>
         </div>
@@ -686,30 +691,52 @@ export default function Home() {
               className="w-full resize-none rounded-2xl border border-zinc-800 bg-zinc-900 p-4 text-[15px] leading-relaxed outline-none focus:border-indigo-500"
             />
 
-            {/* 音声録音 → 文字起こし（上のテキスト欄に反映） */}
-            <div className="mt-2">
+            {/* 入力ボタン1行：録音 / 撮影 / 撮影S / フォト */}
+            <input ref={fileCamRef} type="file" accept="image/*" capture="environment" onChange={onPickImages} className="hidden" />
+            <input ref={fileLibRef} type="file" accept="image/*" multiple onChange={onPickImages} className="hidden" />
+            <div className="mt-2 grid grid-cols-4 gap-2">
               {recording ? (
                 <button
                   onClick={stopRecording}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 py-3 text-sm font-semibold active:scale-[0.98]"
+                  className="flex flex-col items-center justify-center gap-0.5 rounded-2xl bg-red-600 py-2.5 text-[11px] font-semibold active:scale-[0.98]"
                 >
-                  <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-white" />
-                  録音中 {fmtDuration(elapsed)}／タップで停止
+                  <span className="text-lg leading-none">⏹</span>
+                  {fmtDuration(elapsed)}
                 </button>
               ) : (
                 <button
                   onClick={startRecording}
                   disabled={transcribing || loadingText}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-zinc-700 bg-zinc-900/60 py-3 text-sm font-medium text-zinc-200 disabled:opacity-40 active:scale-[0.98]"
+                  className="flex flex-col items-center justify-center gap-0.5 rounded-2xl border border-zinc-700 bg-zinc-900/60 py-2.5 text-[11px] text-zinc-200 disabled:opacity-40 active:scale-[0.98]"
                 >
-                  {transcribing ? "📝 文字起こし中…" : "🎙️ 録音して文字起こし"}
+                  <span className="text-lg leading-none">{transcribing ? "⏳" : "🎙️"}</span>
+                  {transcribing ? "変換中" : "録音"}
                 </button>
               )}
-              {!recording && !transcribing && (
-                <p className="mt-1 text-center text-[11px] text-zinc-600">
-                  話した内容が上の欄に文字で入ります（最長15分）
-                </p>
-              )}
+              <button
+                onClick={() => fileCamRef.current?.click()}
+                disabled={previews.length >= MAX_IMAGES}
+                className="flex flex-col items-center justify-center gap-0.5 rounded-2xl border border-zinc-700 bg-zinc-900/60 py-2.5 text-[11px] text-zinc-200 disabled:opacity-40 active:scale-[0.98]"
+              >
+                <span className="text-lg leading-none">📷</span>
+                撮影
+              </button>
+              <button
+                onClick={openSilentCamera}
+                disabled={previews.length >= MAX_IMAGES}
+                className="flex flex-col items-center justify-center gap-0.5 rounded-2xl border border-zinc-700 bg-zinc-900/60 py-2.5 text-[11px] text-zinc-200 disabled:opacity-40 active:scale-[0.98]"
+              >
+                <span className="text-lg leading-none">🔇</span>
+                撮影S
+              </button>
+              <button
+                onClick={() => fileLibRef.current?.click()}
+                disabled={previews.length >= MAX_IMAGES}
+                className="flex flex-col items-center justify-center gap-0.5 rounded-2xl border border-zinc-700 bg-zinc-900/60 py-2.5 text-[11px] text-zinc-200 disabled:opacity-40 active:scale-[0.98]"
+              >
+                <span className="text-lg leading-none">🖼</span>
+                フォト
+              </button>
             </div>
 
             <button
@@ -717,50 +744,12 @@ export default function Home() {
               disabled={loadingText || recording || transcribing || !text.trim()}
               className="mt-3 w-full rounded-2xl bg-indigo-600 py-3.5 font-semibold disabled:opacity-40 active:scale-[0.98]"
             >
-              {loadingText ? "整理中…" : "🧹 脳を空っぽにする（タスク/アイデア/ビジネス/その他に分類）"}
+              {loadingText ? "整理中…" : "🧹 脳を空っぽにする"}
             </button>
-          </section>
 
-          {/* タスク（全件トップに常時表示・編集削除可） */}
-          <section className="mb-6">
-            <h2 className="mb-2 text-sm font-semibold text-zinc-300">📋 タスク</h2>
-            <TaskMaster items={taskItems} onUpdate={updateTask} onDelete={deleteTask} />
-          </section>
-
-          {/* メモ（タイトルのみ・タップで詳細） */}
-          {memoEntries.length > 0 && (
-            <section className="mb-6">
-              <h2 className="mb-2 text-sm font-semibold text-zinc-300">📝 メモ</h2>
-              <div className="flex flex-col gap-2">
-                {memoEntries.map((e) => (
-                  <MemoRow key={e.id} entry={e} onDelete={deleteEntry} onSave={saveMemo} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* スクラップ */}
-          <section className="border-t border-zinc-800 pt-6">
-            <h2 className="mb-1 text-sm font-semibold text-zinc-300">📷 写真スクラップ</h2>
-            <p className="mb-3 text-xs text-zinc-600">最大{MAX_IMAGES}枚。複数ページをまとめて1つに整理します。</p>
-            <input ref={fileCamRef} type="file" accept="image/*" capture="environment" onChange={onPickImages} className="hidden" />
-            <input ref={fileLibRef} type="file" accept="image/*" multiple onChange={onPickImages} className="hidden" />
-            <div className="flex flex-col gap-2">
-              <div className="flex gap-2">
-                <button onClick={() => fileCamRef.current?.click()} disabled={previews.length >= MAX_IMAGES} className="flex-1 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 py-4 text-sm text-zinc-300 disabled:opacity-40 active:scale-[0.98]">
-                  📷 撮影
-                </button>
-                <button onClick={openSilentCamera} disabled={previews.length >= MAX_IMAGES} className="flex-1 rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 py-4 text-sm text-zinc-300 disabled:opacity-40 active:scale-[0.98]">
-                  📷 撮影S <span className="text-[11px] text-zinc-500">🔇無音</span>
-                </button>
-              </div>
-              <button onClick={() => fileLibRef.current?.click()} disabled={previews.length >= MAX_IMAGES} className="rounded-2xl border border-dashed border-zinc-700 bg-zinc-900/50 py-4 text-sm text-zinc-300 disabled:opacity-40 active:scale-[0.98]">
-                🖼 アルバムから選ぶ
-              </button>
-            </div>
-
+            {/* 選択した写真のプレビュー＋まとめて解析 */}
             {previews.length > 0 && (
-              <div className="mt-4">
+              <div className="mt-3">
                 <div className="mb-2 flex items-center justify-between">
                   <span className="text-xs text-zinc-500">{previews.length} / {MAX_IMAGES}枚</span>
                   <button onClick={() => setPreviews([])} className="text-xs text-zinc-500 active:text-red-400">クリア</button>
@@ -781,15 +770,37 @@ export default function Home() {
                 </button>
               </div>
             )}
+          </section>
 
-            {imageEntries.length > 0 && (
-              <div className="mt-5 flex flex-col gap-2">
+          {/* タスク（全件トップに常時表示・編集削除可） */}
+          <section className="mb-6">
+            <h2 className="mb-2 text-sm font-semibold text-zinc-300">📋 タスク</h2>
+            <TaskMaster items={taskItems} onUpdate={updateTask} onDelete={deleteTask} />
+          </section>
+
+          {/* メモ（タイトルのみ・タップで詳細） */}
+          {memoEntries.length > 0 && (
+            <section className="mb-6">
+              <h2 className="mb-2 text-sm font-semibold text-zinc-300">📝 メモ</h2>
+              <div className="flex flex-col gap-2">
+                {memoEntries.map((e) => (
+                  <MemoRow key={e.id} entry={e} onDelete={deleteEntry} onSave={saveMemo} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* 写真スクラップ（結果一覧） */}
+          {imageEntries.length > 0 && (
+            <section className="mb-6">
+              <h2 className="mb-2 text-sm font-semibold text-zinc-300">📷 写真スクラップ</h2>
+              <div className="flex flex-col gap-2">
                 {imageEntries.map((e) => (
                   <ScrapRow key={e.id} entry={e} onViewImage={setLightbox} onDelete={deleteEntry} onSave={saveScrap} />
                 ))}
               </div>
-            )}
-          </section>
+            </section>
+          )}
         </>
       )}
 
