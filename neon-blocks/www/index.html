@@ -46,9 +46,10 @@
 
   .hud{position:relative; z-index:2; max-width:560px; margin:6px auto 2px; padding:0 16px;}
   .hud-top{display:flex; align-items:baseline; justify-content:space-between; gap:12px;}
-  .stg{font-size:15px; font-weight:800; letter-spacing:.05em;}
+  .stg{font-size:15px; font-weight:800; letter-spacing:.05em; flex-shrink:0;}
   .stg b{color:#00f0ff; font-size:18px;}
-  .stgname{font-size:13px; color:#9a9ab8; letter-spacing:.12em;}
+  .stgname{font-size:13px; color:#9a9ab8; letter-spacing:.12em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; text-align:right;}
   .retrybadge{font-size:13px; font-weight:800; color:#ffd60a; white-space:nowrap;}
   .clock{font-size:16px; font-weight:800; font-variant-numeric:tabular-nums; letter-spacing:.05em; color:#39ff14;}
   .clock.low{color:#ff3b5c;}
@@ -82,7 +83,7 @@
     100%{box-shadow:inset 0 0 10px rgba(0,0,0,.45);}
   }
 
-  .piece{position:absolute;}
+  .piece{position:absolute; touch-action:none;}
   .block{
     position:absolute; border-radius:9px;
     background:
@@ -109,14 +110,14 @@
   .cur .piece, .nxt .piece{position:relative;}
   .cur .piece.pop{animation:pop .38s cubic-bezier(.2,1.5,.4,1);}
   @keyframes pop{0%{transform:scale(.2) rotate(-16deg);opacity:0;}100%{transform:scale(1);opacity:1;}}
-  .drag-clone{position:fixed; z-index:9999; pointer-events:none; filter:drop-shadow(0 12px 18px rgba(0,0,0,.5));}
+  .drag-clone{position:fixed; z-index:9999; pointer-events:none; touch-action:none; filter:drop-shadow(0 12px 18px rgba(0,0,0,.5));}
   .board-piece{cursor:pointer;}
   .block.spark{animation:spark .6s ease;}
   @keyframes spark{0%{filter:brightness(2.5) drop-shadow(0 0 12px #fff);}60%{filter:brightness(1.4) drop-shadow(0 0 8px #fff);}100%{filter:none;}}
   .block.sparkbad{animation:sparkbad .6s ease;}
   @keyframes sparkbad{0%,100%{filter:none;}25%,75%{filter:brightness(1.2) drop-shadow(0 0 9px #ff3b5c);}}
 
-  .controls{position:relative; z-index:2; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:6px 0 2px;}
+  .actionbar{position:relative; z-index:2; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; max-width:400px; margin:6px auto 2px;}
   button.btn{
     font:inherit; font-size:13px; letter-spacing:.05em; color:#e9e9f5;
     padding:8px 13px; border-radius:11px; cursor:pointer;
@@ -129,7 +130,6 @@
 
   .hud.boss .stg b{color:#ff2d95;}
   .hud.boss .tfill:not(.low){background:linear-gradient(90deg,#ff2d95,#ffd60a);}
-  .items{position:relative; z-index:2; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:2px 0 2px;}
   .btn.item{position:relative; font-size:12px; padding:7px 11px;}
   .btn.item .cnt{display:inline-block; min-width:18px; margin-left:4px; padding:0 5px; border-radius:9px;
     background:rgba(0,240,255,.22); color:#bff8ff; font-weight:700;}
@@ -194,14 +194,11 @@
   <div class="slotbox"><span class="lbl">NEXT</span><div id="nxt" class="nxt"></div></div>
 </div>
 
-<div class="controls">
+<div class="actionbar">
   <button class="btn key" id="rotBtn">⟳ 回転 <kbd>Space</kbd></button>
   <button class="btn" id="undoBtn">↩ 戻す</button>
   <button class="btn" id="retryBtn">🔄 リトライ</button>
   <button class="btn" id="ckptBtn">⏮ セーブ地点</button>
-</div>
-
-<div class="items">
   <button class="btn item" id="it-hint">💡 ヒント <span class="cnt">0</span></button>
   <button class="btn item" id="it-time">⏱ +25s <span class="cnt">0</span></button>
   <button class="btn item" id="it-auto">⚡ オート <span class="cnt">0</span></button>
@@ -886,7 +883,7 @@ function buildTitleArt(){
   const rows=EMBLEMS[0];   // ダイヤ固定（星・六角などはEMBLEMSに保持、随時切替可）
   const cells=ascii(rows);
   let W=0,H=0; cells.forEach(([x,y])=>{W=Math.max(W,x+1);H=Math.max(H,y+1);});
-  const AS=Math.min(20, Math.floor((Math.min(window.innerWidth,440)-56)/W));
+  const AS=Math.min(20, Math.floor((window.innerWidth*0.88-76)/W));
   const groups=tileArt(cells.map(([x,y])=>key(x,y)), 5, 80);
   host.style.width=W*AS+'px'; host.style.height=H*AS+'px';
   groups.forEach(abs=>{
