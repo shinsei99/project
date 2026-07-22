@@ -4,6 +4,7 @@
 # Explicitly track these paths
 !.gitignore
 !CLAUDE.md
+!ios-build-guard.sh
 !handwriting-ocr/
 !handwriting-ocr/**
 !swim-tracker-react/

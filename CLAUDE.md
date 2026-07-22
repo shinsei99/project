@@ -49,7 +49,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages |
 | ママカウンター | mom-counter | — | GitHub Pages / App Store ✅ v1.0.1 |
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
-| フォトリメイク | photo-remake | — | iOS App Store申請前 |
+| フォトリメイク | photo-remake | — | iOS App Store配信済み ✅ |
 
 ### ゲーム（6本）※社内LAN共有なし
 
@@ -60,7 +60,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | サイボーグ防衛軍 | cyborg-defense | GitHub Pages |
 | にゃんこ大脱出 | neko-escape | GitHub Pages |
 | にゃんこのアイス屋さん | nyanko-ice | iOS App Store申請中 |
-| ネオンブロック | neon-blocks | iOS App Store申請予定（メインPCで作業） |
+| ネオンブロック | neon-blocks | iOS App Store配信済み ✅ |
 
 ### 業務マニュアル（Web）補足 ※不動産カテゴリに計上
 
@@ -99,6 +99,25 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8523 | theta-viewer FTP APIサーバー（server.js） | com.shinsei.theta-viewer-api |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
+
+---
+
+## ★ iOS App Store 再配信ルール（再発防止・必読）
+
+**修正版を再アップロードするときは、必ずビルド番号（`CURRENT_PROJECT_VERSION`）を +1 する。**
+
+> 2026-07-22の事故：photo-remake / neon-blocks とも、修正版を **build 1 のまま** 再アーカイブしていた。App Store Connect は「build 1 は既存」で新ビルドを受け付けず、**古い（修正前の）build 1 がそのまま審査を通り配信**されていた。ユーザーには「直したはずの不具合が残っている」状態に見えた。→ 両アプリを **1.0.1 / build 2** に繰り上げて解決。
+
+### 再配信チェックリスト（Archive前に必ず）
+
+1. `CURRENT_PROJECT_VERSION`（ビルド番号）を **既存の全アーカイブより大きい値**に +1 する
+   - ネイティブ: `<app>.xcodeproj/project.pbxproj`（Debug/Release両方）＋ `project.yml`（xcodegen運用時）
+   - Capacitor: `ios/App/App.xcodeproj/project.pbxproj`（※`ios/`はgitignore。`cap sync`しても番号は保持されるが、`cap add ios`でやり直すと1に戻る）
+2. 必要なら `MARKETING_VERSION`（表示バージョン）も上げる（例 1.0.0 → 1.0.1）
+3. **衝突チェック**: `./ios-build-guard.sh <app-folder>` を実行し「衝突なし」を確認（`--bump`で自動+1も可）
+4. Capacitorは `npx cap sync` を実行してからArchive（`.xcworkspace`を開く）
+5. Archive → Upload → App Store Connectで **今上げたbuild番号** が選択肢に出ることを確認してから提出
+6. 配信物のソースは必ずコミット＆push（修正が手元だけに残ると同じ事故が再発する）
 
 ---
 
