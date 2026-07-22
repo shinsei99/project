@@ -22,7 +22,8 @@ type ImageResult = {
   nextAction: string;
 };
 
-type TextEntry = { id: string; ts: number; kind: "text"; input: string; result: AnalyzeResult; audio?: AudioClip[] };
+/** tasksOnly=true は「メモは削除済みだがタスクだけ残す」状態（メモ一覧・履歴には出さない）。 */
+type TextEntry = { id: string; ts: number; kind: "text"; input: string; result: AnalyzeResult; audio?: AudioClip[]; tasksOnly?: boolean };
 type ImageEntry = {
   id: string;
   ts: number;
@@ -250,6 +251,13 @@ export default function Home() {
     () => history.filter((e): e is TextEntry => e.kind === "text"),
     [history]
   );
+  // メモ一覧に出すのは「メモ本文が残っている」もの（タスクだけ残した削除済みは除外）
+  const memoEntries = useMemo(() => textEntries.filter((e) => !e.tasksOnly), [textEntries]);
+  // 履歴カウント（tasksOnlyの削除済みメモは数えない）
+  const historyCount = useMemo(
+    () => history.filter((e) => !(e.kind === "text" && e.tasksOnly)).length,
+    [history]
+  );
   const imageEntries = useMemo(
     () => history.filter((e): e is ImageEntry => e.kind === "image"),
     [history]
@@ -290,9 +298,24 @@ export default function Home() {
   }
   function deleteEntry(id: string) {
     const target = history.find((e) => e.id === id);
+    // メモに紐付く元音声はどちらの場合も削除
     if (target?.kind === "text" && target.audio?.length) {
-      void deleteAudio(target.audio.map((a) => a.id)); // 紐付く元音声も削除
+      void deleteAudio(target.audio.map((a) => a.id));
     }
+    // タスクを持つメモは、メモ本文だけ消してタスクは残す（tasksOnly化）
+    if (target?.kind === "text" && target.result.tasks.length > 0) {
+      setHistory((prev) => {
+        const next = prev.map((e) =>
+          e.id === id && e.kind === "text"
+            ? { ...e, tasksOnly: true, audio: undefined, result: { ...e.result, ideas: [], business: [], others: [] } }
+            : e
+        );
+        persistHistory(next);
+        return next;
+      });
+      return;
+    }
+    // それ以外（タスクなしメモ・写真スクラップ）は従来どおり完全削除
     setHistory((prev) => {
       const next = prev.filter((e) => e.id !== id);
       persistHistory(next);
@@ -326,9 +349,11 @@ export default function Home() {
   }
   function setEntryTasks(id: string, tasks: Task[]) {
     setHistory((prev) => {
-      const next = prev.map((e) =>
+      const mapped = prev.map((e) =>
         e.id === id && e.kind === "text" ? { ...e, result: { ...e.result, tasks } } : e
       );
+      // メモ削除済み(tasksOnly)でタスクも全部消えたエントリは掃除する
+      const next = mapped.filter((e) => !(e.kind === "text" && e.tasksOnly && e.result.tasks.length === 0));
       persistHistory(next);
       return next;
     });
@@ -628,7 +653,7 @@ export default function Home() {
         <h1 className="text-lg font-bold">🧠 Brain Dump</h1>
         <div className="flex items-center gap-3">
           <button onClick={() => setView(view === "home" ? "history" : "home")} className="text-xs text-zinc-400 active:text-zinc-200">
-            {view === "home" ? `🕘 履歴${history.length ? `(${history.length})` : ""}` : "← もどる"}
+            {view === "home" ? `🕘 履歴${historyCount ? `(${historyCount})` : ""}` : "← もどる"}
           </button>
           <button onClick={logout} className="text-xs text-zinc-500 active:text-zinc-300">
             ロック
@@ -703,11 +728,11 @@ export default function Home() {
           </section>
 
           {/* メモ（タイトルのみ・タップで詳細） */}
-          {textEntries.length > 0 && (
+          {memoEntries.length > 0 && (
             <section className="mb-6">
               <h2 className="mb-2 text-sm font-semibold text-zinc-300">📝 メモ</h2>
               <div className="flex flex-col gap-2">
-                {textEntries.map((e) => (
+                {memoEntries.map((e) => (
                   <MemoRow key={e.id} entry={e} onDelete={deleteEntry} onSave={saveMemo} />
                 ))}
               </div>
@@ -842,11 +867,13 @@ function HistoryView({
   onSaveScrap: (id: string, result: ImageResult) => void;
 }) {
   const [query, setQuery] = useState("");
-  if (history.length === 0) {
+  // タスクだけ残した削除済みメモ(tasksOnly)は履歴には出さない
+  const visible = history.filter((e) => !(e.kind === "text" && e.tasksOnly));
+  if (visible.length === 0) {
     return <div className="mt-16 text-center text-sm text-zinc-600">まだ履歴はありません。<br />整理すると、ここに保存されます。</div>;
   }
   const q = query.trim().toLowerCase();
-  const filtered = q ? history.filter((e) => entryText(e).toLowerCase().includes(q)) : history;
+  const filtered = q ? visible.filter((e) => entryText(e).toLowerCase().includes(q)) : visible;
   return (
     <div className="flex flex-col gap-2">
       <input
@@ -857,7 +884,7 @@ function HistoryView({
         className="w-full rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm outline-none focus:border-indigo-500"
       />
       <div className="mb-1 flex items-center justify-between">
-        <p className="text-xs text-zinc-500">{q ? `${filtered.length} / ${history.length}件` : `${history.length}件`}</p>
+        <p className="text-xs text-zinc-500">{q ? `${filtered.length} / ${visible.length}件` : `${visible.length}件`}</p>
         <button onClick={onClear} className="text-xs text-red-400 active:text-red-300">すべて消去</button>
       </div>
       {filtered.length === 0 ? (
