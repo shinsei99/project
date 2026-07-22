@@ -1,0 +1,9 @@
+{
+  "appId": "com.shinsei99.scrapmemo",
+  "appName": "スクラップメモ",
+  "webDir": "www",
+  "ios": {
+    "scrollEnabled": false,
+    "contentInset": "never"
+  }
+}
