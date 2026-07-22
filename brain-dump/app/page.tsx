@@ -594,7 +594,7 @@ export default function Home() {
               <h2 className="mb-2 text-sm font-semibold text-zinc-300">📝 メモ</h2>
               <div className="flex flex-col gap-2">
                 {textEntries.map((e) => (
-                  <MemoRow key={e.id} entry={e} />
+                  <MemoRow key={e.id} entry={e} onDelete={deleteEntry} />
                 ))}
               </div>
             </section>
@@ -641,7 +641,7 @@ export default function Home() {
             {imageEntries.length > 0 && (
               <div className="mt-5 flex flex-col gap-2">
                 {imageEntries.map((e) => (
-                  <ScrapRow key={e.id} entry={e} onViewImage={setLightbox} />
+                  <ScrapRow key={e.id} entry={e} onViewImage={setLightbox} onDelete={deleteEntry} />
                 ))}
               </div>
             )}
@@ -723,16 +723,26 @@ function MemoRow({ entry, onDelete }: { entry: TextEntry; onDelete?: (id: string
           📝 {title}
           {clips.length > 0 && <span className="ml-1 text-xs text-zinc-500">🎙️</span>}
         </span>
-        <span className="shrink-0 text-xs text-zinc-600">{formatDate(entry.ts)}</span>
+        <span className="flex shrink-0 items-center gap-2">
+          <span className="text-xs text-zinc-600">{formatDate(entry.ts)}</span>
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (confirm("このメモを削除しますか？（録音があれば一緒に消えます）")) onDelete(entry.id);
+              }}
+              className="text-sm text-zinc-600 active:text-red-400"
+              aria-label="このメモを削除"
+            >
+              🗑
+            </button>
+          )}
+        </span>
       </summary>
       <div className="px-3 pb-3">
         <MemoDetail result={r} />
         {clips.length > 0 && open && <AudioClipsPlayer clips={clips} />}
-        {onDelete && (
-          <button onClick={() => onDelete(entry.id)} className="mt-3 text-xs text-zinc-600 active:text-red-400">
-            🗑 この項目を削除
-          </button>
-        )}
       </div>
     </details>
   );
@@ -842,7 +852,22 @@ function ScrapRow({
           📷 {r.title || "スクラップ"}
           {entry.count && entry.count > 1 ? `（${entry.count}枚）` : ""}
         </span>
-        <span className="shrink-0 text-xs text-zinc-600">{formatDate(entry.ts)}</span>
+        <span className="flex shrink-0 items-center gap-2">
+          <span className="text-xs text-zinc-600">{formatDate(entry.ts)}</span>
+          {onDelete && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (confirm("このスクラップを削除しますか？")) onDelete(entry.id);
+              }}
+              className="text-sm text-zinc-600 active:text-red-400"
+              aria-label="このスクラップを削除"
+            >
+              🗑
+            </button>
+          )}
+        </span>
       </summary>
       <div className="px-3 pb-3">
         {r.details && r.details.length > 0 && (
@@ -871,11 +896,6 @@ function ScrapRow({
               ))}
             </div>
           </div>
-        )}
-        {onDelete && (
-          <button onClick={() => onDelete(entry.id)} className="mt-3 text-xs text-zinc-600 active:text-red-400">
-            🗑 この項目を削除
-          </button>
         )}
       </div>
     </details>
