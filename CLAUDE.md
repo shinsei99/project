@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-07-14時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全38本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全39本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（24本）
+### 不動産（25本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
@@ -37,6 +37,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅ |
 | 業務マニュアル（Web） | gyomu-manual | 8521 | ✅ | — |
 | 駐車場配置図ビューア | parking-map | 8522 | ✅ | — |
+| 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
 
 ### ツール（8本）※社内LAN共有なし
 
@@ -97,6 +98,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8521 | 業務マニュアル（Web） | com.shinsei.gyomu-manual |
 | 8522 | 駐車場配置図ビューア | com.shinsei.parking-map |
 | 8523 | theta-viewer FTP APIサーバー（server.js） | com.shinsei.theta-viewer-api |
+| 8524 | 覚書・合意書ジェネレーター | com.shinsei.memorandum-generator |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
 

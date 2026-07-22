@@ -133,7 +133,16 @@ def _memo_frame(title, prop, preamble, body_paragraphs, signatories,
     if kishou:
         _p(doc, kishou, align="center", space_after=8)
     for bp in body_paragraphs:
-        _p(doc, bp.get("text", ""), indent=bp.get("indent"), space_after=bp.get("space_after", 6))
+        text = bp.get("text", "")
+        # 「以上」は右寄せの独立段落にする（ビジネス文書の作法）
+        if "\n以上" in text:
+            main, _tail = text.rsplit("\n以上", 1)
+            _p(doc, main, indent=bp.get("indent"), space_after=2)
+            _p(doc, "以上", align="right", space_after=6)
+        elif text == "以上":
+            _p(doc, "以上", align="right", space_after=6)
+        else:
+            _p(doc, text, indent=bp.get("indent"), space_after=bp.get("space_after", 6))
     _p(doc, space_after=6)
     _p(doc, _era_line(era), space_after=8)
     _signatures(doc, signatories, witness=witness, witness_rep=witness_rep)

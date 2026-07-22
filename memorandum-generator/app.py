@@ -8,9 +8,9 @@ import datetime
 import streamlit as st
 import docgen
 
-st.set_page_config(page_title="覚書ジェネレーター", page_icon="📝", layout="centered")
+st.set_page_config(page_title="覚書・合意書ジェネレーター", page_icon="📝", layout="centered")
 
-st.title("📝 覚書・同居申請ジェネレーター")
+st.title("📝 覚書・合意書ジェネレーター")
 st.caption("フォームに入力 → 覚書・合意書・各種申請書の Word(.docx) を自動作成します。"
            "日付・押印欄は空欄で出力されるので、印刷して手書き・捺印してください。")
 
