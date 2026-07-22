@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { putAudio, getAudio, deleteAudio } from "@/lib/audioStore";
 
 /* ---------- 型 ---------- */
-type Task = { summary: string; nextAction: string };
+type Task = { summary: string; nextAction: string; id: string };
 /** 録音した元音声への参照。本体は IndexedDB(bd_audio) に id で保存。 */
 type AudioClip = { id: string; sec: number; mimeType: string };
 type AnalyzeResult = {
@@ -36,6 +36,7 @@ type HistoryEntry = TextEntry | ImageEntry;
 
 const ACCESS_KEY = "bd_access_code";
 const HISTORY_KEY = "bd_history";
+const TASK_ORDER_KEY = "bd_task_order";
 const HISTORY_MAX = 200;
 const MAX_IMAGES = 10;
 const MAX_REC_SEC = 900; // 録音の上限（15分）。Vercelの本文サイズ/実行時間制限の保険
@@ -57,7 +58,9 @@ function normalize(e: HistoryEntry): HistoryEntry {
       ...e,
       result: {
         title: (typeof r.title === "string" && r.title) || (e.input ? e.input.slice(0, 24) : "メモ"),
-        tasks: Array.isArray(r.tasks) ? (r.tasks as Task[]) : [],
+        tasks: Array.isArray(r.tasks)
+          ? (r.tasks as Task[]).map((t) => ({ ...t, id: t.id || newId() })) // 並べ替え用に安定IDを付与
+          : [],
         ideas: arr(r.ideas),
         business: arr(r.business),
         others: Array.isArray(r.others) ? arr(r.others) : emotions, // 旧emotionsはその他へ
@@ -156,6 +159,137 @@ async function fileToCompressedDataURL(file: File, maxSize = 1100, quality = 0.6
   return canvas.toDataURL("image/jpeg", quality);
 }
 
+/* ---------- 長押しドラッグで並べ替えできるリスト ---------- */
+function ReorderList({
+  keys,
+  onReorder,
+  renderRow,
+  className = "flex flex-col gap-2",
+}: {
+  keys: string[];
+  onReorder: (next: string[]) => void;
+  renderRow: (key: string) => React.ReactNode;
+  className?: string;
+}) {
+  const [order, setOrder] = useState<string[]>(keys);
+  const orderRef = useRef<string[]>(keys);
+  const [dragKey, setDragKey] = useState<string | null>(null);
+  const lpTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const startPt = useRef<{ x: number; y: number } | null>(null);
+  const dragging = useRef(false);
+  const moved = useRef(false);
+  const justDragged = useRef(false);
+
+  useEffect(() => {
+    orderRef.current = order;
+  }, [order]);
+  // 親の並び（追加・削除・整理結果）をドラッグ中でなければ取り込む
+  useEffect(() => {
+    if (!dragging.current) setOrder(keys);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [keys.join("|")]);
+
+  function clearLP() {
+    if (lpTimer.current) {
+      clearTimeout(lpTimer.current);
+      lpTimer.current = null;
+    }
+  }
+  function onDown(e: React.PointerEvent, key: string) {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    // 入力・ボタン等の操作中はドラッグを開始しない
+    if ((e.target as HTMLElement).closest("input,textarea,button,select,audio,a,[contenteditable]")) return;
+    startPt.current = { x: e.clientX, y: e.clientY };
+    moved.current = false;
+    const el = e.currentTarget as HTMLElement;
+    const pid = e.pointerId;
+    clearLP();
+    lpTimer.current = setTimeout(() => {
+      dragging.current = true;
+      setDragKey(key);
+      try {
+        el.setPointerCapture(pid);
+      } catch {
+        /* 無視 */
+      }
+      if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+        try {
+          navigator.vibrate?.(12);
+        } catch {
+          /* 無視 */
+        }
+      }
+    }, 320);
+  }
+  function onMove(e: React.PointerEvent) {
+    if (!dragging.current) {
+      const sp = startPt.current;
+      if (sp && Math.hypot(e.clientX - sp.x, e.clientY - sp.y) > 8) clearLP(); // 動いたら長押し不成立
+      return;
+    }
+    e.preventDefault();
+    moved.current = true;
+    const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
+    const row = under?.closest("[data-rk]") as HTMLElement | null;
+    const overKey = row?.getAttribute("data-rk");
+    if (!overKey || overKey === dragKey) return;
+    setOrder((prev) => {
+      const from = prev.indexOf(dragKey!);
+      const to = prev.indexOf(overKey);
+      if (from < 0 || to < 0 || from === to) return prev;
+      const next = prev.slice();
+      const [it] = next.splice(from, 1);
+      next.splice(to, 0, it);
+      return next;
+    });
+  }
+  function onUp(e: React.PointerEvent) {
+    clearLP();
+    startPt.current = null;
+    if (dragging.current) {
+      dragging.current = false;
+      setDragKey(null);
+      if (moved.current) {
+        justDragged.current = true;
+        e.preventDefault();
+        onReorder(orderRef.current);
+        setTimeout(() => {
+          justDragged.current = false;
+        }, 0);
+      }
+    }
+  }
+
+  return (
+    <div className={className}>
+      {order.map((key) => (
+        <div
+          key={key}
+          data-rk={key}
+          onPointerDown={(e) => onDown(e, key)}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={onUp}
+          onClickCapture={(e) => {
+            if (justDragged.current) {
+              e.preventDefault();
+              e.stopPropagation();
+            }
+          }}
+          className={dragKey === key ? "scale-[0.99] opacity-60" : ""}
+          style={{
+            touchAction: dragKey ? "none" : "pan-y",
+            WebkitTouchCallout: "none",
+            WebkitUserSelect: dragKey ? "none" : "auto",
+          }}
+        >
+          {renderRow(key)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Home() {
   const [code, setCode] = useState("");
   const [authed, setAuthed] = useState(false);
@@ -189,6 +323,7 @@ export default function Home() {
   const camStreamRef = useRef<MediaStream | null>(null);
 
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [taskOrder, setTaskOrder] = useState<string[]>([]); // タスクの手動並べ替え順（task.id）
   const [lightbox, setLightbox] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -200,6 +335,12 @@ export default function Home() {
       setAuthed(true);
     }
     setHistory(loadHistory());
+    try {
+      const raw = localStorage.getItem(TASK_ORDER_KEY);
+      if (raw) setTaskOrder(JSON.parse(raw) as string[]);
+    } catch {
+      /* 無視 */
+    }
   }, []);
 
   // 画面を離れる時に録音タイマー・マイクを確実に止める
@@ -268,6 +409,14 @@ export default function Home() {
     for (const e of textEntries) e.result.tasks.forEach((task, idx) => out.push({ entryId: e.id, idx, task, ts: e.ts }));
     return out;
   }, [textEntries]);
+  // 手動並べ替え順を反映（未登録＝新規タスクは先頭に自然順で置く）
+  const orderedTaskItems = useMemo(() => {
+    const pos = new Map(taskOrder.map((id, i) => [id, i]));
+    const known = taskItems.filter((t) => pos.has(t.task.id));
+    const unknown = taskItems.filter((t) => !pos.has(t.task.id));
+    known.sort((a, b) => pos.get(a.task.id)! - pos.get(b.task.id)!);
+    return [...unknown, ...known];
+  }, [taskItems, taskOrder]);
 
   function authHeaders(): HeadersInit {
     return { "Content-Type": "application/json", "x-access-code": code };
@@ -331,6 +480,38 @@ export default function Home() {
     setHistory([]);
     persistHistory([]);
   }
+  // 並べ替え：指定 kind のエントリだけを新しい順序で元の位置に並べ直す
+  function reorderEntries(ids: string[], isTarget: (e: HistoryEntry) => boolean) {
+    setHistory((prev) => {
+      const byId = new Map(prev.map((e) => [e.id, e]));
+      const reordered = ids.map((id) => byId.get(id)).filter((e): e is HistoryEntry => !!e);
+      const slots: number[] = [];
+      prev.forEach((e, i) => {
+        if (isTarget(e)) slots.push(i);
+      });
+      const next = prev.slice();
+      slots.forEach((pos, i) => {
+        if (reordered[i]) next[pos] = reordered[i];
+      });
+      persistHistory(next);
+      return next;
+    });
+  }
+  function reorderMemos(ids: string[]) {
+    reorderEntries(ids, (e) => e.kind === "text" && !e.tasksOnly);
+  }
+  function reorderScraps(ids: string[]) {
+    reorderEntries(ids, (e) => e.kind === "image");
+  }
+  function reorderTasks(ids: string[]) {
+    setTaskOrder(ids);
+    try {
+      localStorage.setItem(TASK_ORDER_KEY, JSON.stringify(ids));
+    } catch {
+      /* 無視 */
+    }
+  }
+
   // メモ（テキスト項目）の本文を編集・保存
   function saveMemo(id: string, result: AnalyzeResult) {
     setHistory((prev) => {
@@ -381,6 +562,10 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "解析に失敗しました");
+      // タスクに安定IDを付与（並べ替え用）
+      if (Array.isArray(data?.tasks)) {
+        data.tasks = data.tasks.map((t: Task) => ({ ...t, id: newId() }));
+      }
       // 保留中の録音を IndexedDB に保存し、このメモへ元データとして紐付ける
       const clips: AudioClip[] = [];
       const pending = pendingAudioRef.current;
@@ -774,31 +959,37 @@ export default function Home() {
 
           {/* タスク（全件トップに常時表示・編集削除可） */}
           <section className="mb-6">
-            <h2 className="mb-2 text-sm font-semibold text-zinc-300">📋 タスク</h2>
-            <TaskMaster items={taskItems} onUpdate={updateTask} onDelete={deleteTask} />
+            <h2 className="mb-2 text-sm font-semibold text-zinc-300">📋 タスク<span className="ml-1 text-[11px] font-normal text-zinc-600">（長押しで並べ替え）</span></h2>
+            <TaskMaster items={orderedTaskItems} onUpdate={updateTask} onDelete={deleteTask} onReorder={reorderTasks} />
           </section>
 
           {/* メモ（タイトルのみ・タップで詳細） */}
           {memoEntries.length > 0 && (
             <section className="mb-6">
-              <h2 className="mb-2 text-sm font-semibold text-zinc-300">📝 メモ</h2>
-              <div className="flex flex-col gap-2">
-                {memoEntries.map((e) => (
-                  <MemoRow key={e.id} entry={e} onDelete={deleteEntry} onSave={saveMemo} />
-                ))}
-              </div>
+              <h2 className="mb-2 text-sm font-semibold text-zinc-300">📝 メモ<span className="ml-1 text-[11px] font-normal text-zinc-600">（長押しで並べ替え）</span></h2>
+              <ReorderList
+                keys={memoEntries.map((e) => e.id)}
+                onReorder={reorderMemos}
+                renderRow={(id) => {
+                  const e = memoEntries.find((m) => m.id === id);
+                  return e ? <MemoRow entry={e} onDelete={deleteEntry} onSave={saveMemo} /> : null;
+                }}
+              />
             </section>
           )}
 
           {/* 写真スクラップ（結果一覧） */}
           {imageEntries.length > 0 && (
             <section className="mb-6">
-              <h2 className="mb-2 text-sm font-semibold text-zinc-300">📷 写真スクラップ</h2>
-              <div className="flex flex-col gap-2">
-                {imageEntries.map((e) => (
-                  <ScrapRow key={e.id} entry={e} onViewImage={setLightbox} onDelete={deleteEntry} onSave={saveScrap} />
-                ))}
-              </div>
+              <h2 className="mb-2 text-sm font-semibold text-zinc-300">📷 写真スクラップ<span className="ml-1 text-[11px] font-normal text-zinc-600">（長押しで並べ替え）</span></h2>
+              <ReorderList
+                keys={imageEntries.map((e) => e.id)}
+                onReorder={reorderScraps}
+                renderRow={(id) => {
+                  const e = imageEntries.find((m) => m.id === id);
+                  return e ? <ScrapRow entry={e} onViewImage={setLightbox} onDelete={deleteEntry} onSave={saveScrap} /> : null;
+                }}
+              />
             </section>
           )}
         </>
@@ -1361,84 +1552,86 @@ function TaskMaster({
   items,
   onUpdate,
   onDelete,
+  onReorder,
 }: {
   items: { entryId: string; idx: number; task: Task; ts: number }[];
   onUpdate: (entryId: string, idx: number, t: Task) => void;
   onDelete: (entryId: string, idx: number) => void;
+  onReorder: (ids: string[]) => void;
 }) {
-  const [editKey, setEditKey] = useState<string | null>(null);
-  const [draft, setDraft] = useState<Task>({ summary: "", nextAction: "" });
+  const [editId, setEditId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<Task>({ summary: "", nextAction: "", id: "" });
 
   if (items.length === 0) {
     return <p className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4 text-xs text-zinc-600">タスクはありません</p>;
   }
 
-  return (
-    <ul className="flex flex-col gap-2">
-      {items.map(({ entryId, idx, task }) => {
-        const key = `${entryId}:${idx}`;
-        if (editKey === key) {
-          return (
-            <li key={key} className="rounded-xl bg-zinc-900 p-3">
-              <input
-                value={draft.summary}
-                onChange={(e) => setDraft((d) => ({ ...d, summary: e.target.value }))}
-                placeholder="タスク内容"
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
-              />
-              <input
-                value={draft.nextAction}
-                onChange={(e) => setDraft((d) => ({ ...d, nextAction: e.target.value }))}
-                placeholder="次の一歩"
-                className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-emerald-300 outline-none focus:border-indigo-500"
-              />
-              <div className="mt-2 flex gap-2">
-                <button
-                  onClick={() => {
-                    onUpdate(entryId, idx, draft);
-                    setEditKey(null);
-                  }}
-                  className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold active:scale-95"
-                >
-                  保存
-                </button>
-                <button onClick={() => setEditKey(null)} className="rounded-lg bg-zinc-700 px-3 py-1 text-xs active:scale-95">
-                  キャンセル
-                </button>
-              </div>
-            </li>
-          );
-        }
-        return (
-          <li key={key} className="flex items-start gap-2 rounded-xl bg-zinc-900 p-3">
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">{task.summary}</p>
-              {task.nextAction && <p className="mt-1 text-sm text-emerald-400">→ {task.nextAction}</p>}
-            </div>
-            <div className="flex shrink-0 gap-1.5 text-xs">
-              <button
-                onClick={() => {
-                  setDraft({ ...task });
-                  setEditKey(key);
-                }}
-                className="text-zinc-500 active:text-zinc-200"
-                aria-label="編集"
-              >
-                ✏️
-              </button>
-              <button
-                onClick={() => {
-                  if (confirm("このタスクを削除しますか？")) onDelete(entryId, idx);
-                }}
-                className="text-zinc-500 active:text-red-400"
-                aria-label="削除"
-              >
-                🗑
-              </button>
-            </div>
-          </li>
-        );
-      })}
-    </ul>
-  );
+  const renderTask = (id: string) => {
+    const item = items.find((t) => t.task.id === id);
+    if (!item) return null;
+    const { entryId, idx, task } = item;
+    if (editId === id) {
+      return (
+        <div className="rounded-xl bg-zinc-900 p-3">
+          <input
+            value={draft.summary}
+            onChange={(e) => setDraft((d) => ({ ...d, summary: e.target.value }))}
+            placeholder="タスク内容"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm outline-none focus:border-indigo-500"
+          />
+          <input
+            value={draft.nextAction}
+            onChange={(e) => setDraft((d) => ({ ...d, nextAction: e.target.value }))}
+            placeholder="次の一歩"
+            className="mt-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-1.5 text-sm text-emerald-300 outline-none focus:border-indigo-500"
+          />
+          <div className="mt-2 flex gap-2">
+            <button
+              onClick={() => {
+                onUpdate(entryId, idx, draft);
+                setEditId(null);
+              }}
+              className="rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold active:scale-95"
+            >
+              保存
+            </button>
+            <button onClick={() => setEditId(null)} className="rounded-lg bg-zinc-700 px-3 py-1 text-xs active:scale-95">
+              キャンセル
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-start gap-2 rounded-xl bg-zinc-900 p-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-medium">{task.summary}</p>
+          {task.nextAction && <p className="mt-1 text-sm text-emerald-400">→ {task.nextAction}</p>}
+        </div>
+        <div className="flex shrink-0 gap-1.5 text-xs">
+          <button
+            onClick={() => {
+              setDraft({ ...task });
+              setEditId(id);
+            }}
+            className="text-zinc-500 active:text-zinc-200"
+            aria-label="編集"
+          >
+            ✏️
+          </button>
+          <button
+            onClick={() => {
+              if (confirm("このタスクを削除しますか？")) onDelete(entryId, idx);
+            }}
+            className="text-zinc-500 active:text-red-400"
+            aria-label="削除"
+          >
+            🗑
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  return <ReorderList keys={items.map((t) => t.task.id)} onReorder={onReorder} renderRow={renderTask} />;
 }
