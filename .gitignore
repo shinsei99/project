@@ -155,3 +155,8 @@ file-finder/data/
 # 個人情報（契約者名）を含む静的版・バックアップは公開しない。中身はレントロールxlsxを実行時に読む（README参照）
 parking-map/index.html
 parking-map/index_backup_*.html
+
+!memorandum-generator/
+!memorandum-generator/**
+# 生成した書類(.docx)は個人情報を含むため公開しない
+memorandum-generator/*.docx
