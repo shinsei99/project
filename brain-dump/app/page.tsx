@@ -1,9 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { putAudio, getAudio, deleteAudio } from "@/lib/audioStore";
 
 /* ---------- 型 ---------- */
 type Task = { summary: string; nextAction: string };
+/** 録音した元音声への参照。本体は IndexedDB(bd_audio) に id で保存。 */
+type AudioClip = { id: string; sec: number; mimeType: string };
 type AnalyzeResult = {
   title: string;
   tasks: Task[];
@@ -19,7 +22,7 @@ type ImageResult = {
   nextAction: string;
 };
 
-type TextEntry = { id: string; ts: number; kind: "text"; input: string; result: AnalyzeResult };
+type TextEntry = { id: string; ts: number; kind: "text"; input: string; result: AnalyzeResult; audio?: AudioClip[] };
 type ImageEntry = {
   id: string;
   ts: number;
@@ -99,6 +102,10 @@ function formatDate(ts: number): string {
   const p = (n: number) => String(n).padStart(2, "0");
   return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
+function fmtDuration(s: number): string {
+  const m = Math.floor(s / 60);
+  return `${m}:${String(s % 60).padStart(2, "0")}`;
+}
 function entryText(e: HistoryEntry): string {
   if (e.kind === "text") {
     return [
@@ -160,6 +167,9 @@ export default function Home() {
   const chunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedRef = useRef(0); // 停止時の録音秒数を確実に取るための実値
+  // 整理(analyze)されるまで音声を一時保持し、作られたメモに元データとして紐付ける
+  const pendingAudioRef = useRef<{ blob: Blob; sec: number }[]>([]);
 
   const [previews, setPreviews] = useState<string[]>([]);
   const [loadingImage, setLoadingImage] = useState(false);
@@ -218,6 +228,7 @@ export default function Home() {
     setAuthed(false);
     setCode("");
     setPreviews([]);
+    pendingAudioRef.current = []; // 未紐付けの録音は破棄
   }
 
   /* ---------- 履歴操作 ---------- */
@@ -229,6 +240,10 @@ export default function Home() {
     });
   }
   function deleteEntry(id: string) {
+    const target = history.find((e) => e.id === id);
+    if (target?.kind === "text" && target.audio?.length) {
+      void deleteAudio(target.audio.map((a) => a.id)); // 紐付く元音声も削除
+    }
     setHistory((prev) => {
       const next = prev.filter((e) => e.id !== id);
       persistHistory(next);
@@ -236,7 +251,11 @@ export default function Home() {
     });
   }
   function clearAll() {
-    if (!confirm("すべての履歴を削除しますか？（この端末から消えます。タスクも消えます）")) return;
+    if (!confirm("すべての履歴を削除しますか？（この端末から消えます。タスク・録音も消えます）")) return;
+    const audioIds = history.flatMap((e) =>
+      e.kind === "text" && e.audio ? e.audio.map((a) => a.id) : []
+    );
+    if (audioIds.length) void deleteAudio(audioIds);
     setHistory([]);
     persistHistory([]);
   }
@@ -272,7 +291,27 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error ?? "解析に失敗しました");
-      addEntry({ id: newId(), ts: Date.now(), kind: "text", input: text.trim(), result: data });
+      // 保留中の録音を IndexedDB に保存し、このメモへ元データとして紐付ける
+      const clips: AudioClip[] = [];
+      const pending = pendingAudioRef.current;
+      pendingAudioRef.current = [];
+      for (const p of pending) {
+        try {
+          const aid = newId();
+          await putAudio(aid, await p.blob.arrayBuffer());
+          clips.push({ id: aid, sec: p.sec, mimeType: p.blob.type || "audio/webm" });
+        } catch {
+          /* 音声保存に失敗してもメモ本体は残す */
+        }
+      }
+      addEntry({
+        id: newId(),
+        ts: Date.now(),
+        kind: "text",
+        input: text.trim(),
+        result: data,
+        audio: clips.length ? clips : undefined,
+      });
       setText(""); // 反映されたら入力欄を白紙に
     } catch (err) {
       setError(err instanceof Error ? err.message : "解析に失敗しました");
@@ -313,11 +352,6 @@ export default function Home() {
       r.readAsDataURL(blob);
     });
   }
-  function fmtElapsed(s: number): string {
-    const m = Math.floor(s / 60);
-    return `${m}:${String(s % 60).padStart(2, "0")}`;
-  }
-
   async function startRecording() {
     setError(null);
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
@@ -340,9 +374,11 @@ export default function Home() {
       rec.start();
       setRecording(true);
       setElapsed(0);
+      elapsedRef.current = 0;
       timerRef.current = setInterval(() => {
         setElapsed((s) => {
           const next = s + 1;
+          elapsedRef.current = next;
           if (next >= MAX_REC_SEC) stopRecording();
           return next;
         });
@@ -396,6 +432,8 @@ export default function Home() {
         setError("音声から文字を認識できませんでした。");
         return;
       }
+      // 元音声を一時保持（次に「整理」して作られるメモに紐付ける）
+      pendingAudioRef.current.push({ blob, sec: elapsedRef.current });
       // 既存の入力があれば改行して追記（複数回の録音・手入力と併用できる）
       setText((prev) => (prev.trim() ? `${prev.replace(/\s*$/, "")}\n${t}` : t));
     } catch (err) {
@@ -517,7 +555,7 @@ export default function Home() {
                   className="flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 py-3 text-sm font-semibold active:scale-[0.98]"
                 >
                   <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-white" />
-                  録音中 {fmtElapsed(elapsed)}／タップで停止
+                  録音中 {fmtDuration(elapsed)}／タップで停止
                 </button>
               ) : (
                 <button
@@ -673,14 +711,23 @@ function HistoryView({
 function MemoRow({ entry, onDelete }: { entry: TextEntry; onDelete?: (id: string) => void }) {
   const r = entry.result;
   const title = r.title || entry.input.slice(0, 24) || "無題";
+  const clips = entry.audio ?? [];
+  const [open, setOpen] = useState(false);
   return (
-    <details className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40">
+    <details
+      onToggle={(e) => setOpen((e.currentTarget as HTMLDetailsElement).open)}
+      className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/40"
+    >
       <summary className="flex cursor-pointer select-none items-center justify-between gap-2 p-3">
-        <span className="min-w-0 flex-1 truncate text-sm">📝 {title}</span>
+        <span className="min-w-0 flex-1 truncate text-sm">
+          📝 {title}
+          {clips.length > 0 && <span className="ml-1 text-xs text-zinc-500">🎙️</span>}
+        </span>
         <span className="shrink-0 text-xs text-zinc-600">{formatDate(entry.ts)}</span>
       </summary>
       <div className="px-3 pb-3">
         <MemoDetail result={r} />
+        {clips.length > 0 && open && <AudioClipsPlayer clips={clips} />}
         {onDelete && (
           <button onClick={() => onDelete(entry.id)} className="mt-3 text-xs text-zinc-600 active:text-red-400">
             🗑 この項目を削除
@@ -712,6 +759,67 @@ function MemoDetail({ result }: { result: AnalyzeResult }) {
           </ul>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ---------- 録音した元音声の再生（IndexedDBから読み出し） ---------- */
+function AudioClipsPlayer({ clips }: { clips: AudioClip[] }) {
+  // undefined=読み込み中 / string=再生URL / null=見つからず
+  const [urls, setUrls] = useState<Record<string, string | null>>({});
+  const createdRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const out: Record<string, string | null> = {};
+      for (const c of clips) {
+        try {
+          const buf = await getAudio(c.id);
+          if (buf) {
+            const url = URL.createObjectURL(new Blob([buf], { type: c.mimeType }));
+            out[c.id] = url;
+            createdRef.current.push(url);
+          } else {
+            out[c.id] = null;
+          }
+        } catch {
+          out[c.id] = null;
+        }
+      }
+      if (alive) setUrls(out);
+    })();
+    return () => {
+      alive = false;
+      createdRef.current.forEach((u) => URL.revokeObjectURL(u));
+      createdRef.current = [];
+    };
+  }, [clips]);
+
+  return (
+    <div className="mt-3">
+      <p className="mb-1.5 text-xs text-zinc-500">🎙️ 録音（元データ）</p>
+      <div className="flex flex-col gap-2">
+        {clips.map((c) => {
+          const u = urls[c.id];
+          return (
+            <div key={c.id} className="rounded-lg bg-zinc-900 p-2">
+              {u === undefined ? (
+                <p className="px-1 py-1.5 text-xs text-zinc-600">読み込み中…</p>
+              ) : u ? (
+                <>
+                  <audio controls preload="none" src={u} className="w-full" />
+                  <p className="mt-1 px-1 text-[11px] text-zinc-600">長さ {fmtDuration(c.sec)}</p>
+                </>
+              ) : (
+                <p className="px-1 py-1.5 text-xs text-zinc-600">
+                  音声が見つかりません（この端末に保存されていません）
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
