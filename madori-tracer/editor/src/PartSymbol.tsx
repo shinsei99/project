@@ -1,16 +1,20 @@
 import type { Part } from './types'
+import { TATAMI_LAYOUTS, DEFAULT_WALL_WIDTH, DEFAULT_FONT_SIZE, FONT_STACK_DEFAULT } from './constants'
 
 // 各パーツをローカル座標(0,0)-(w,h)で描画する。回転・移動は呼び出し側のtransformで行う。
 export function PartSymbol({ part }: { part: Part }) {
-  const { id, type, w, h, label } = part
+  const { id, type, w, h, label, tatamiJou } = part
+  const ww = part.wallWidth ?? DEFAULT_WALL_WIDTH[type] ?? 2
+  const fs = part.fontSize ?? DEFAULT_FONT_SIZE[type] ?? 12
+  const ff = part.fontFamily ?? FONT_STACK_DEFAULT
 
   switch (type) {
     case 'room':
       return (
         <>
-          <rect x={0} y={0} width={w} height={h} fill="none" stroke="black" strokeWidth={3} />
+          <rect x={0} y={0} width={w} height={h} fill="none" stroke="black" strokeWidth={ww} />
           {label && (
-            <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="black">
+            <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={fs} fontFamily={ff} fontWeight="bold" fill="black">
               {label}
             </text>
           )}
@@ -18,28 +22,54 @@ export function PartSymbol({ part }: { part: Part }) {
       )
 
     case 'washitsu': {
-      const cols = Math.max(1, Math.round(w / 40))
-      const rows = Math.max(1, Math.round(h / 40))
-      const cw = w / cols
-      const rh = h / rows
-      const dividers = []
-      for (let r = 0; r < rows; r++) {
-        const offset = r % 2 === 1 ? cw / 2 : 0
-        for (let c = 0; c <= cols; c++) {
-          const x = offset + c * cw
-          if (x <= 0 || x >= w) continue
-          dividers.push(<line key={`v${r}-${c}`} x1={x} y1={r * rh} x2={x} y2={(r + 1) * rh} stroke="black" strokeWidth={0.75} />)
+      const layout = tatamiJou ? TATAMI_LAYOUTS[tatamiJou] : null
+      let dividers
+      if (layout) {
+        const cw = w / layout.cols
+        const rh = h / layout.rows
+        dividers = [
+          ...layout.mats.map((m, i) => (
+            <rect key={`m${i}`} x={m.x * cw} y={m.y * rh} width={m.w * cw} height={m.h * rh} fill="none" stroke="black" strokeWidth={1} />
+          )),
+          ...(layout.halfMat
+            ? [
+                <rect
+                  key="half"
+                  x={layout.halfMat.x * cw}
+                  y={layout.halfMat.y * rh}
+                  width={cw}
+                  height={rh}
+                  fill="none"
+                  stroke="black"
+                  strokeWidth={1}
+                />,
+              ]
+            : []),
+        ]
+      } else {
+        const cols = Math.max(1, Math.round(w / 40))
+        const rows = Math.max(1, Math.round(h / 40))
+        const cw = w / cols
+        const rh = h / rows
+        dividers = []
+        for (let r = 0; r < rows; r++) {
+          const offset = r % 2 === 1 ? cw / 2 : 0
+          for (let c = 0; c <= cols; c++) {
+            const x = offset + c * cw
+            if (x <= 0 || x >= w) continue
+            dividers.push(<line key={`v${r}-${c}`} x1={x} y1={r * rh} x2={x} y2={(r + 1) * rh} stroke="black" strokeWidth={0.75} />)
+          }
         }
-      }
-      for (let r = 1; r < rows; r++) {
-        dividers.push(<line key={`h${r}`} x1={0} y1={r * rh} x2={w} y2={r * rh} stroke="black" strokeWidth={0.75} />)
+        for (let r = 1; r < rows; r++) {
+          dividers.push(<line key={`h${r}`} x1={0} y1={r * rh} x2={w} y2={r * rh} stroke="black" strokeWidth={0.75} />)
+        }
       }
       return (
         <>
-          <rect x={0} y={0} width={w} height={h} fill="none" stroke="black" strokeWidth={3} />
+          <rect x={0} y={0} width={w} height={h} fill="none" stroke="black" strokeWidth={ww} />
           {dividers}
           {label && (
-            <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={13} fill="black" stroke="white" strokeWidth={3} paintOrder="stroke">
+            <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={fs} fontFamily={ff} fontWeight="bold" fill="black" stroke="white" strokeWidth={3} paintOrder="stroke">
               {label}
             </text>
           )}
@@ -53,7 +83,7 @@ export function PartSymbol({ part }: { part: Part }) {
       const hatchCount = Math.ceil((w + stepY) / 8)
       return (
         <>
-          <rect x={0} y={0} width={w} height={h} fill="none" stroke="black" strokeWidth={3} />
+          <rect x={0} y={0} width={w} height={h} fill="none" stroke="black" strokeWidth={ww} />
           <defs>
             <clipPath id={clipId}>
               <rect x={0} y={0} width={w} height={stepY} />
@@ -67,7 +97,7 @@ export function PartSymbol({ part }: { part: Part }) {
           </g>
           <line x1={0} y1={stepY} x2={w} y2={stepY} stroke="black" strokeWidth={1.5} />
           {label && (
-            <text x={w / 2} y={(stepY + h) / 2} textAnchor="middle" dominantBaseline="middle" fontSize={12} fill="black">
+            <text x={w / 2} y={(stepY + h) / 2} textAnchor="middle" dominantBaseline="middle" fontSize={fs} fontFamily={ff} fontWeight="bold" fill="black">
               {label}
             </text>
           )}
@@ -78,9 +108,9 @@ export function PartSymbol({ part }: { part: Part }) {
     case 'hallway':
       return (
         <>
-          <rect x={0} y={0} width={w} height={h} fill="none" stroke="black" strokeWidth={2} />
+          <rect x={0} y={0} width={w} height={h} fill="none" stroke="black" strokeWidth={ww} />
           {label && (
-            <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={11} fill="black">
+            <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={fs} fontFamily={ff} fontWeight="bold" fill="black">
               {label}
             </text>
           )}
@@ -96,11 +126,11 @@ export function PartSymbol({ part }: { part: Part }) {
     case 'storage':
       return (
         <>
-          <rect x={0} y={0} width={w} height={h} fill="white" stroke="black" strokeWidth={1.5} />
-          <line x1={0} y1={0} x2={w} y2={h} stroke="black" strokeWidth={1} />
-          <line x1={w} y1={0} x2={0} y2={h} stroke="black" strokeWidth={1} />
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="black" strokeWidth={ww} />
+          <line x1={0} y1={0} x2={w} y2={h} stroke="black" strokeWidth={1.2} />
+          <line x1={w} y1={0} x2={0} y2={h} stroke="black" strokeWidth={1.2} />
           {label && (
-            <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={10} fill="black">
+            <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={fs} fontFamily={ff} fontWeight="bold" fill="black">
               {label}
             </text>
           )}
@@ -110,10 +140,10 @@ export function PartSymbol({ part }: { part: Part }) {
     case 'terrace':
       return (
         <>
-          <rect x={0} y={0} width={w} height={h} fill="none" stroke="black" strokeWidth={2} />
+          <rect x={0} y={0} width={w} height={h} fill="none" stroke="black" strokeWidth={ww} />
           <rect x={4} y={4} width={Math.max(w - 8, 0)} height={Math.max(h - 8, 0)} fill="none" stroke="black" strokeWidth={1} />
           {label && (
-            <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={11} fill="black">
+            <text x={w / 2} y={h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={fs} fontFamily={ff} fontWeight="bold" fill="black">
               {label}
             </text>
           )}
@@ -124,6 +154,7 @@ export function PartSymbol({ part }: { part: Part }) {
       const r = Math.min(w, h) || 1
       return (
         <>
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="none" />
           <line x1={0} y1={h} x2={w} y2={h} stroke="black" strokeWidth={2} />
           <line x1={0} y1={h} x2={0} y2={Math.max(h - r, 0)} stroke="black" strokeWidth={1.5} />
           <path d={`M 0 ${Math.max(h - r, 0)} A ${r} ${r} 0 0 1 ${w} ${h}`} fill="none" stroke="black" strokeWidth={1} strokeDasharray="3,2" />
@@ -132,11 +163,12 @@ export function PartSymbol({ part }: { part: Part }) {
     }
 
     case 'door-sliding':
+      // 引違い戸: 2枚のパネルが重なりながら引き違うことを示す2本の平行線。
       return (
         <>
-          <line x1={0} y1={h} x2={w} y2={h} stroke="black" strokeWidth={2} />
-          <rect x={w * 0.05} y={0} width={w * 0.42} height={Math.max(h, 3)} fill="none" stroke="black" strokeWidth={1.2} />
-          <rect x={w * 0.53} y={0} width={w * 0.42} height={Math.max(h, 3)} fill="none" stroke="black" strokeWidth={1.2} />
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="none" />
+          <line x1={0} y1={h * 0.32} x2={w} y2={h * 0.32} stroke="black" strokeWidth={1.2} />
+          <line x1={0} y1={h * 0.68} x2={w} y2={h * 0.68} stroke="black" strokeWidth={1.2} />
         </>
       )
 
@@ -145,6 +177,7 @@ export function PartSymbol({ part }: { part: Part }) {
       const r = Math.min(half, h) || 1
       return (
         <>
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="none" />
           <line x1={0} y1={h} x2={w} y2={h} stroke="black" strokeWidth={2} />
           <line x1={0} y1={h} x2={0} y2={Math.max(h - r, 0)} stroke="black" strokeWidth={1.5} />
           <path d={`M 0 ${Math.max(h - r, 0)} A ${r} ${r} 0 0 1 ${half} ${h}`} fill="none" stroke="black" strokeWidth={1} strokeDasharray="3,2" />
@@ -154,9 +187,69 @@ export function PartSymbol({ part }: { part: Part }) {
       )
     }
 
+    case 'door-parent-child': {
+      // 親子扉: 大きい方の扉(親)と小さい方の扉(子)が非対称の位置で開く両開き戸。
+      const split = w * 0.72
+      const rBig = Math.min(split, h) || 1
+      const rSmall = Math.min(w - split, h) || 1
+      return (
+        <>
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="none" />
+          <line x1={0} y1={h} x2={w} y2={h} stroke="black" strokeWidth={2} />
+          <line x1={0} y1={h} x2={0} y2={Math.max(h - rBig, 0)} stroke="black" strokeWidth={1.5} />
+          <path d={`M 0 ${Math.max(h - rBig, 0)} A ${rBig} ${rBig} 0 0 1 ${split} ${h}`} fill="none" stroke="black" strokeWidth={1} strokeDasharray="3,2" />
+          <line x1={w} y1={h} x2={w} y2={Math.max(h - rSmall, 0)} stroke="black" strokeWidth={1.5} />
+          <path d={`M ${w} ${Math.max(h - rSmall, 0)} A ${rSmall} ${rSmall} 0 0 0 ${split} ${h}`} fill="none" stroke="black" strokeWidth={1} strokeDasharray="3,2" />
+        </>
+      )
+    }
+
+    case 'door-sliding-single':
+      // 片引き戸: 片側だけがスライドする戸（引違い戸と同じ2本線を、パネルのある片側だけに描く）。
+      return (
+        <>
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="none" />
+          <line x1={w * 0.4} y1={h * 0.32} x2={w} y2={h * 0.32} stroke="black" strokeWidth={1.2} />
+          <line x1={w * 0.4} y1={h * 0.68} x2={w} y2={h * 0.68} stroke="black" strokeWidth={1.2} />
+        </>
+      )
+
+    case 'door-pocket':
+      // 引込み戸: 壁の中に戸が引き込まれるため、パネル部分を破線で表現。
+      return (
+        <>
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="none" />
+          <line x1={w * 0.08} y1={h * 0.32} x2={w} y2={h * 0.32} stroke="black" strokeWidth={1} strokeDasharray="4,2" />
+          <line x1={w * 0.08} y1={h * 0.68} x2={w} y2={h * 0.68} stroke="black" strokeWidth={1} strokeDasharray="4,2" />
+          <line x1={w * 0.08} y1={0} x2={w * 0.08} y2={h} stroke="black" strokeWidth={1.5} />
+        </>
+      )
+
+    case 'door-accordion': {
+      // アコーディオンカーテン: 蛇腹状の格子(トラス)パターン。
+      const segments = Math.max(5, Math.round(w / 12))
+      const segW = w / segments
+      const crosses = []
+      for (let i = 0; i < segments; i++) {
+        const x0 = i * segW
+        const x1 = x0 + segW
+        crosses.push(<line key={`a${i}`} x1={x0} y1={0} x2={x1} y2={h} stroke="black" strokeWidth={0.6} />)
+        crosses.push(<line key={`b${i}`} x1={x0} y1={h} x2={x1} y2={0} stroke="black" strokeWidth={0.6} />)
+      }
+      return (
+        <>
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="none" />
+          <line x1={0} y1={0} x2={w} y2={0} stroke="black" strokeWidth={1} />
+          <line x1={0} y1={h} x2={w} y2={h} stroke="black" strokeWidth={2} />
+          {crosses}
+        </>
+      )
+    }
+
     case 'door-bifold':
       return (
         <>
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="none" />
           <line x1={0} y1={h} x2={w} y2={h} stroke="black" strokeWidth={2} />
           <path
             d={`M 0 ${h} L ${w * 0.25} ${0} L ${w * 0.5} ${h} L ${w * 0.75} 0 L ${w} ${h}`}
@@ -167,9 +260,33 @@ export function PartSymbol({ part }: { part: Part }) {
         </>
       )
 
+    case 'door-bifold-double': {
+      // 2枚折戸: 折れ戸2セット分を左右に並べたもの。
+      const half = w / 2
+      return (
+        <>
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="none" />
+          <line x1={0} y1={h} x2={w} y2={h} stroke="black" strokeWidth={2} />
+          <path
+            d={`M 0 ${h} L ${half * 0.25} 0 L ${half * 0.5} ${h} L ${half * 0.75} 0 L ${half} ${h}`}
+            fill="none"
+            stroke="black"
+            strokeWidth={1.2}
+          />
+          <path
+            d={`M ${half} ${h} L ${half + half * 0.25} 0 L ${half + half * 0.5} ${h} L ${half + half * 0.75} 0 L ${w} ${h}`}
+            fill="none"
+            stroke="black"
+            strokeWidth={1.2}
+          />
+        </>
+      )
+    }
+
     case 'window':
       return (
         <>
+          <rect x={0} y={0} width={w} height={h} fill="white" stroke="none" />
           <line x1={0} y1={h * 0.25} x2={w} y2={h * 0.25} stroke="black" strokeWidth={1.5} />
           <line x1={0} y1={h * 0.75} x2={w} y2={h * 0.75} stroke="black" strokeWidth={1.5} />
         </>
@@ -304,7 +421,7 @@ export function PartSymbol({ part }: { part: Part }) {
 
     case 'text':
       return (
-        <text x={0} y={h * 0.8} fontSize={16} fill="black">
+        <text x={0} y={h * 0.8} fontSize={fs} fontFamily={ff} fontWeight="bold" fill="black">
           {label}
         </text>
       )

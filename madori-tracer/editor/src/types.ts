@@ -12,7 +12,12 @@ export type PartType =
   | 'door-hinged'
   | 'door-sliding'
   | 'door-double'
+  | 'door-parent-child'
+  | 'door-sliding-single'
+  | 'door-pocket'
+  | 'door-accordion'
   | 'door-bifold'
+  | 'door-bifold-double'
   | 'window'
   | 'toilet'
   | 'shower'
@@ -28,6 +33,8 @@ export type PartType =
   | 'stairs'
   | 'text'
 
+export type TatamiJou = '4.5' | '6-h' | '6-v' | '8' | '10'
+
 export interface Part {
   id: string
   type: PartType
@@ -37,6 +44,10 @@ export interface Part {
   h: number
   rotation: 0 | 90 | 180 | 270
   label: string
+  tatamiJou?: TatamiJou
+  wallWidth?: number
+  fontSize?: number
+  fontFamily?: string
 }
 
 export interface BgImage {

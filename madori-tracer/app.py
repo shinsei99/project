@@ -1,7 +1,10 @@
 """間取り図トレーサー — Gemini image-to-image で白黒図面に引き直す。"""
 from __future__ import annotations
 
+import hashlib
 import io
+from pathlib import Path
+from urllib.parse import quote
 
 import streamlit as st
 from PIL import Image
@@ -12,12 +15,25 @@ from pdf_extractor import extract_floor_plan_from_pdf
 
 st.set_page_config(page_title="間取り図トレーサー", page_icon="🏠", layout="wide")
 
+
+def _editor_host() -> str:
+    """エディタへのリンク生成用に、ブラウザが実際にアクセスしているホスト名を取得する。"""
+    try:
+        host_header = st.context.headers.get("host", "localhost:8511")
+    except Exception:
+        host_header = "localhost:8511"
+    return host_header.split(":")[0]
+
+
+_HOST = _editor_host()
+_STATIC_DIR = Path(__file__).parent / "static"
+
 st.title("🏠 間取り図トレーサー")
 st.caption("間取り図をアップロードすると、AI がシンプルな白黒図面に引き直します。")
 
 st.link_button(
     "🖊️ 手動で間取りを作成・編集する（別タブで開く）",
-    "http://localhost:5175/",
+    f"http://{_HOST}:5175/",
     help="部品を配置して間取り図をゼロから作成、またはダウンロードした引き直し結果を下敷きにして手動編集できます。",
 )
 
@@ -139,7 +155,19 @@ if source_image:
                 mime="image/jpeg",
                 use_container_width=True,
             )
-            st.caption("壁の位置やパーツ配置を手直ししたい場合は、上部の「手動で間取りを作成・編集する」からエディタを開き、この画像をトレース背景として読み込んでください。")
+
+            _STATIC_DIR.mkdir(exist_ok=True)
+            (_STATIC_DIR / "handoff.jpg").write_bytes(st.session_state.result_bytes)
+            _version = hashlib.md5(st.session_state.result_bytes).hexdigest()[:8]
+            _bg_url = f"http://{_HOST}:8511/app/static/handoff.jpg?v={_version}"
+            _editor_url = f"http://{_HOST}:5175/?bg={quote(_bg_url, safe='')}"
+
+            st.link_button(
+                "🖊️ この画像を編集に送る（別タブで開く）",
+                _editor_url,
+                use_container_width=True,
+                help="この引き直し結果をトレース背景として読み込んだ状態でエディタを開きます。",
+            )
 
             st.divider()
 

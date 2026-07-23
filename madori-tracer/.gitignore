@@ -47,3 +47,6 @@ __pycache__/
 
 # logs
 logs/
+
+# handoff image to editor (transient, regenerated each send)
+static/
