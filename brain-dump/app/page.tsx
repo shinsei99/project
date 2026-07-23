@@ -134,7 +134,7 @@ function entryText(e: HistoryEntry): string {
 }
 
 /* ---------- 画像をクライアント側で縮小して dataURL 化 ---------- */
-async function fileToCompressedDataURL(file: File, maxSize = 1100, quality = 0.62): Promise<string> {
+async function fileToCompressedDataURL(file: File, maxSize = 2000, quality = 0.82): Promise<string> {
   const dataUrl = await new Promise<string>((resolve, reject) => {
     const r = new FileReader();
     r.onload = () => resolve(r.result as string);
@@ -293,6 +293,8 @@ function ReorderList({
 export default function Home() {
   const [code, setCode] = useState("");
   const [authed, setAuthed] = useState(false);
+  const [showCode, setShowCode] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
   const [view, setView] = useState<"home" | "history">("home");
 
   const [text, setText] = useState("");
@@ -330,10 +332,23 @@ export default function Home() {
   useEffect(() => {
     const saved = localStorage.getItem(ACCESS_KEY);
     if (saved) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setCode(saved);
-      setAuthed(true);
+      // 保存済みコードをサーバーで検証。古い/無効なコードなら破棄してログイン画面へ
+      fetch("/api/auth", { headers: { "x-access-code": saved } })
+        .then((res) => {
+          if (res.ok) {
+            setCode(saved);
+            setAuthed(true);
+          } else {
+            localStorage.removeItem(ACCESS_KEY);
+          }
+        })
+        .catch(() => {
+          // オフライン等は暫定で通す（AI実行時に改めて判定される）
+          setCode(saved);
+          setAuthed(true);
+        });
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHistory(loadHistory());
     try {
       const raw = localStorage.getItem(TASK_ORDER_KEY);
@@ -358,7 +373,8 @@ export default function Home() {
     (async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facing, width: { ideal: 2560 }, height: { ideal: 1440 } },
+          // 端末が対応する最大解像度を要求（実際に返る値は端末依存）
+          video: { facingMode: facing, width: { ideal: 3840 }, height: { ideal: 2160 } },
           audio: false,
         });
         if (cancelled) {
@@ -421,12 +437,27 @@ export default function Home() {
   function authHeaders(): HeadersInit {
     return { "Content-Type": "application/json", "x-access-code": code };
   }
-  function login(e: React.FormEvent) {
+  async function login(e: React.FormEvent) {
     e.preventDefault();
-    if (!code.trim()) return;
-    localStorage.setItem(ACCESS_KEY, code.trim());
-    setAuthed(true);
+    const c = code.trim();
+    if (!c || loggingIn) return;
     setError(null);
+    setLoggingIn(true);
+    try {
+      // サーバーでコードを検証。正しい時だけ入室（間違いは即エラー）
+      const res = await fetch("/api/auth", { headers: { "x-access-code": c } });
+      if (!res.ok) {
+        setError("アクセスコードが違います");
+        return;
+      }
+      localStorage.setItem(ACCESS_KEY, c);
+      setCode(c);
+      setAuthed(true);
+    } catch {
+      setError("通信に失敗しました。電波の良い場所で再度お試しください。");
+    } finally {
+      setLoggingIn(false);
+    }
   }
   function logout() {
     localStorage.removeItem(ACCESS_KEY);
@@ -741,9 +772,9 @@ export default function Home() {
       setError(`画像は最大${MAX_IMAGES}枚までです`);
       return;
     }
-    // 既存の写真と同じ圧縮基準（長辺1100px / JPEG品質0.62）で取り込む
-    const maxSize = 1100;
-    const quality = 0.62;
+    // 無音カメラは映像が画質の上限なので、縮小・圧縮を緩めて極力そのまま取り込む（長辺2400px / JPEG0.9）
+    const maxSize = 2400;
+    const quality = 0.9;
     const scale = Math.min(1, maxSize / Math.max(video.videoWidth, video.videoHeight));
     const w = Math.round(video.videoWidth * scale);
     const h = Math.round(video.videoHeight * scale);
@@ -813,17 +844,35 @@ export default function Home() {
           <p className="mt-1 text-sm text-zinc-400">頭の中を空っぽにして、AIに整理してもらう</p>
         </div>
         <form onSubmit={login} className="flex w-full flex-col gap-3">
-          <input
-            type="password"
-            inputMode="text"
-            autoComplete="off"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            placeholder="アクセスコード"
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 text-center text-lg tracking-widest outline-none focus:border-indigo-500"
-          />
-          <button type="submit" className="w-full rounded-xl bg-indigo-600 py-3 font-semibold active:scale-[0.98]">
-            はじめる
+          <div className="relative">
+            <input
+              type={showCode ? "text" : "password"}
+              inputMode="text"
+              autoComplete="off"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="アクセスコード"
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-3 pr-12 text-center text-lg tracking-widest outline-none focus:border-indigo-500"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCode((s) => !s)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-lg"
+              aria-label={showCode ? "コードを隠す" : "コードを表示"}
+            >
+              {showCode ? "🙈" : "👁"}
+            </button>
+          </div>
+          {error && <p className="text-center text-sm text-red-400">{error}</p>}
+          <button
+            type="submit"
+            disabled={loggingIn || !code.trim()}
+            className="w-full rounded-xl bg-indigo-600 py-3 font-semibold disabled:opacity-40 active:scale-[0.98]"
+          >
+            {loggingIn ? "確認中…" : "はじめる"}
           </button>
           <p className="text-center text-xs text-zinc-600">一度入れれば次回から自動でログインします</p>
         </form>
