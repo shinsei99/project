@@ -22,6 +22,10 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>撮影した写真をメモに貼り付けるためにカメラを使用します。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>写真をメモに貼り付けるためにフォトライブラリにアクセスします。</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
