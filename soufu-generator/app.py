@@ -164,11 +164,11 @@ def _style_run(run, size_pt: float, bold: bool = False):
 
 
 def _add_para(doc, text: str, size_pt: float, align, bold: bool = False,
-              space_after: float = 4):
+              space_after: float = 4, space_before: float = 0):
     p = doc.add_paragraph()
     p.alignment = align
     pf = p.paragraph_format
-    pf.space_before = Pt(0)
+    pf.space_before = Pt(space_before)
     pf.space_after  = Pt(space_after)
     pf.line_spacing = 1.15
     _style_run(p.add_run(text), size_pt, bold)
@@ -226,10 +226,11 @@ def create_docx(recipient: str, doc_date: date, body: str, sender: dict) -> io.B
     for line in PREAMBLE.split("\n"):                               # 前文（中央）
         _add_para(doc, line, 12, C, space_after=2)
 
-    _add_para(doc, "記", 13, C, bold=True, space_after=8)           # 記（中央）
+    # 敬具 → 記 → 本文 の間に行間を空ける
+    _add_para(doc, "記", 13, C, bold=True, space_before=18, space_after=16)
 
-    for line in [l for l in body.split("\n") if l.strip()]:         # 本文（左）
-        _add_para(doc, line, 12, L, space_after=4)
+    for line in [l for l in body.split("\n") if l.strip()]:         # 本文（左・やや大きめ）
+        _add_para(doc, line, 13, L, space_after=6)
 
     out = io.BytesIO()
     doc.save(out)
