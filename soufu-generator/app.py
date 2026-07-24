@@ -3,6 +3,7 @@ import subprocess
 import json
 import os
 import io
+import re
 import copy
 import zipfile
 import html as html_mod
@@ -63,7 +64,6 @@ PREAMBLE = (
 _FW  = str.maketrans("0123456789", "０１２３４５６７８９")
 _W   = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
 _SPC = '{http://www.w3.org/XML/1998/namespace}space'
-_ADDR_INDENT = "　" * 38   # 大京テンプレートの住所インデント
 
 
 # ── Persistence ───────────────────────────────────────────────────────────────
@@ -133,7 +133,7 @@ def _sender_lines(sender: dict) -> list:
     return [
         sender.get("company", ""),
         tn,
-        _ADDR_INDENT + sender["address"] if sender.get("address") else "",
+        sender.get("address", ""),          # 段落側で右寄せ（jc=right）するため手動インデント不要
         "",
         f"ＴＥＬ　　{sender['tel']}" if sender.get("tel") else "",
         f"ＦＡＸ　　{sender['fax']}" if sender.get("fax") else "",
@@ -168,15 +168,25 @@ def _apply_rpr(p_elem, ref_rpr):
         r.insert(0, new)
 
 
+def _dehyphenate(local: str) -> str:
+    """ハイフン表記 → OOXML の camelCase（first-line→firstLine, sz-cs→szCs）。"""
+    return re.sub(r'-([a-z])', lambda m: m.group(1).upper(), local)
+
+
 def _sanitize_ooxml(tree):
     """document.xml を Word が受理する正規形に整える。
-    このテンプレは変換ツール由来で非標準要素を含み、そのままだと
-    Word が『破損 → 開いて修復』を要求するため出力時に正規化する。
-    - 無効要素名 w:sz-cs → w:szCs
-    - w:pPr の子順序 ind を jc より前へ（CT_PPr のシーケンス順）"""
+    このテンプレは変換ツール由来で、OOXML の camelCase 名を全てハイフン表記
+    （w:sz-cs / w:first-line 等）で出力しており、そのままだと Word が
+    『破損 → 開いて修復』を要求する。要素名・属性名を正規化し、
+    w:pPr の子順序も CT_PPr のシーケンス順（ind → jc）に揃える。"""
     for el in tree.iter():
-        if etree.QName(el).localname == 'sz-cs':
-            el.tag = f'{{{_W}}}szCs'
+        q = etree.QName(el)
+        if q.namespace == _W and '-' in q.localname:
+            el.tag = f'{{{_W}}}{_dehyphenate(q.localname)}'
+        for an in list(el.attrib):
+            qn = etree.QName(an)
+            if qn.namespace == _W and '-' in qn.localname:
+                el.set(f'{{{_W}}}{_dehyphenate(qn.localname)}', el.attrib.pop(an))
     for pPr in tree.iter(f'{{{_W}}}pPr'):
         jc  = pPr.find(f'{{{_W}}}jc')
         ind = pPr.find(f'{{{_W}}}ind')
