@@ -3,17 +3,17 @@ import subprocess
 import json
 import os
 import io
-import re
-import copy
-import zipfile
 import html as html_mod
 from datetime import date
-from lxml import etree
+from docx import Document
+from docx.shared import Pt, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
 
 CLAUDE_BIN = "/opt/homebrew/bin/claude"
 CLAUDE_TIMEOUT = 120
 SENDERS_FILE  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "senders.json")
-TEMPLATE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "template.docx")
 
 DEFAULT_SENDERS = [
     {
@@ -62,8 +62,15 @@ PREAMBLE = (
 )
 
 _FW  = str.maketrans("0123456789", "０１２３４５６７８９")
-_W   = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
-_SPC = '{http://www.w3.org/XML/1998/namespace}space'
+# 全角数字・記号 → 半角（TEL/FAX 表示用）
+_HALF = str.maketrans("０１２３４５６７８９－（）　", "0123456789-() ")
+
+_ASCII_FONT = "Times New Roman"   # 英数字フォント
+_JP_FONT    = "ＭＳ 明朝"           # 日本語フォント（Windows標準の明朝）
+
+
+def to_halfwidth(s: str) -> str:
+    return (s or "").translate(_HALF)
 
 
 # ── Persistence ───────────────────────────────────────────────────────────────
@@ -125,127 +132,107 @@ def generate_body(recipient: str, memo: str, sender: dict) -> str:
     return result.get("result", "").strip()
 
 
-# ── Word Document（zip + lxml 直接差し込み）──────────────────────────────────
+# ── Word Document（python-docx でゼロから生成 = 常に正当な OOXML）──────────────
+# 旧実装は変換ツール由来の非標準テンプレート(template.docx)を差し込む方式で、
+# 不正な要素/属性名により Word が「破損 → 開いて修復」を要求していた。
+# python-docx で新規生成すれば styles.xml 等を含む正当なパッケージになり破損しない。
+# レイアウトは完成イメージプレビュー（render_preview）に合わせている。
+
 def _sender_lines(sender: dict) -> list:
-    """テンプレート送付者6行分 [会社, 役職+氏名, 住所, ビル(空欄), TEL, FAX]"""
-    tn = f"{sender['title']}　　{sender['name']}" if sender.get("title") and sender.get("name") \
-         else sender.get("name", "")
-    return [
-        sender.get("company", ""),
-        tn,
-        sender.get("address", ""),          # 段落側で右寄せ（jc=right）するため手動インデント不要
-        "",
-        f"ＴＥＬ　　{sender['tel']}" if sender.get("tel") else "",
-        f"ＦＡＸ　　{sender['fax']}" if sender.get("fax") else "",
-    ]
+    """プレビューと同一の送付者行 [(テキスト, 太字), ...]（TEL/FAXは半角）。"""
+    lines = []
+    if sender.get("company"):
+        lines.append((sender["company"], True))
+    tn = "　".join(filter(None, [sender.get("title", ""), sender.get("name", "")]))
+    if tn:
+        lines.append((tn, False))
+    if sender.get("address"):
+        lines.append((sender["address"], False))
+    if sender.get("tel"):
+        lines.append((f"TEL  {to_halfwidth(sender['tel'])}", False))
+    if sender.get("fax"):
+        lines.append((f"FAX  {to_halfwidth(sender['fax'])}", False))
+    return lines
 
 
-def _wt_set(p_elem, text: str):
-    """w:p 内の w:t テキストノードだけ書き換える。構造・書式は一切変更しない。"""
-    ts = p_elem.findall(f'.//{{{_W}}}t')
-    if not ts:
-        return
-    ts[0].text = text
-    ts[0].set(_SPC, 'preserve')
-    for t in ts[1:]:
-        t.text = ''
+def _style_run(run, size_pt: float, bold: bool = False):
+    run.font.size = Pt(size_pt)
+    run.font.name = _ASCII_FONT
+    run.font.bold = bold
+    rpr = run._element.get_or_add_rPr()
+    rpr.get_or_add_rFonts().set(qn("w:eastAsia"), _JP_FONT)
 
 
-def _apply_rpr(p_elem, ref_rpr):
-    """段落先頭ランの書式(rPr)を基準書式で上書きする。
-    テンプレの本文空段落は書式が不揃い（sz=22/Times New Romanが混在）なため、
-    本文各行を必ず基準段落と同一書式に揃えて出力の崩れを防ぐ。"""
-    if ref_rpr is None:
-        return
-    r = p_elem.find(f'{{{_W}}}r')
-    if r is None:
-        return
-    new = copy.deepcopy(ref_rpr)
-    existing = r.find(f'{{{_W}}}rPr')
-    if existing is not None:
-        r.replace(existing, new)
-    else:
-        r.insert(0, new)
+def _add_para(doc, text: str, size_pt: float, align, bold: bool = False,
+              space_after: float = 4):
+    p = doc.add_paragraph()
+    p.alignment = align
+    pf = p.paragraph_format
+    pf.space_before = Pt(0)
+    pf.space_after  = Pt(space_after)
+    pf.line_spacing = 1.15
+    _style_run(p.add_run(text), size_pt, bold)
+    return p
 
 
-def _dehyphenate(local: str) -> str:
-    """ハイフン表記 → OOXML の camelCase（first-line→firstLine, sz-cs→szCs）。"""
-    return re.sub(r'-([a-z])', lambda m: m.group(1).upper(), local)
-
-
-def _sanitize_ooxml(tree):
-    """document.xml を Word が受理する正規形に整える。
-    このテンプレは変換ツール由来で、OOXML の camelCase 名を全てハイフン表記
-    （w:sz-cs / w:first-line 等）で出力しており、そのままだと Word が
-    『破損 → 開いて修復』を要求する。要素名・属性名を正規化し、
-    w:pPr の子順序も CT_PPr のシーケンス順（ind → jc）に揃える。"""
-    for el in tree.iter():
-        q = etree.QName(el)
-        if q.namespace == _W and '-' in q.localname:
-            el.tag = f'{{{_W}}}{_dehyphenate(q.localname)}'
-        for an in list(el.attrib):
-            qn = etree.QName(an)
-            if qn.namespace == _W and '-' in qn.localname:
-                el.set(f'{{{_W}}}{_dehyphenate(qn.localname)}', el.attrib.pop(an))
-    for pPr in tree.iter(f'{{{_W}}}pPr'):
-        jc  = pPr.find(f'{{{_W}}}jc')
-        ind = pPr.find(f'{{{_W}}}ind')
-        if jc is not None and ind is not None and \
-           list(pPr).index(ind) > list(pPr).index(jc):
-            pPr.remove(ind)
-            pPr.insert(list(pPr).index(jc), ind)
+def _add_rule_borders(p):
+    """段落の上下に罫線（「書類送付の件」の囲み枠を再現）。"""
+    pPr = p._p.get_or_add_pPr()
+    pbdr = OxmlElement("w:pBdr")
+    for edge in ("top", "bottom"):
+        e = OxmlElement(f"w:{edge}")
+        e.set(qn("w:val"), "single")
+        e.set(qn("w:sz"), "6")
+        e.set(qn("w:space"), "4")
+        e.set(qn("w:color"), "555555")
+        pbdr.append(e)
+    pPr.append(pbdr)
 
 
 def create_docx(recipient: str, doc_date: date, body: str, sender: dict) -> io.BytesIO:
-    """テンプレートを zip のまま複製し、document.xml の w:t だけ差し込んで返す。
-    ページ設定・余白・フォント・行間など一切変更しない。"""
+    """完成イメージプレビュー準拠の送付状を python-docx で新規生成して返す。"""
+    R = WD_ALIGN_PARAGRAPH.RIGHT
+    L = WD_ALIGN_PARAGRAPH.LEFT
+    C = WD_ALIGN_PARAGRAPH.CENTER
 
-    with open(TEMPLATE_FILE, 'rb') as f:
-        tmpl = f.read()
+    doc = Document()
+
+    # ページ設定（Letter 8.5×11 / 余白 上下1" 左右1.25"）
+    sec = doc.sections[0]
+    sec.page_width   = Inches(8.5)
+    sec.page_height  = Inches(11)
+    sec.top_margin   = Inches(1)
+    sec.bottom_margin = Inches(1)
+    sec.left_margin  = Inches(1.25)
+    sec.right_margin = Inches(1.25)
+
+    # 既定フォント（Normal スタイル）にも日本語フォントを設定
+    normal = doc.styles["Normal"]
+    normal.font.name = _ASCII_FONT
+    normal.font.size = Pt(12)
+    normal.element.get_or_add_rPr().get_or_add_rFonts().set(qn("w:eastAsia"), _JP_FONT)
+
+    _add_para(doc, to_reiwa(doc_date), 12, R)                       # 日付（右）
+    _add_para(doc, f"{recipient}　様", 16, L, bold=True, space_after=10)  # 宛名（左・大）
+
+    for text, bold in _sender_lines(sender):                        # 送付者（右寄せ）
+        _add_para(doc, text, 12, R, bold=bold, space_after=2)
+
+    _add_para(doc, "", 12, L, space_after=8)                        # 余白
+
+    title = _add_para(doc, "書 類　送　付 の 件", 14, C, bold=True, space_after=12)
+    _add_rule_borders(title)                                        # 上下罫線
+
+    for line in PREAMBLE.split("\n"):                               # 前文（中央）
+        _add_para(doc, line, 12, C, space_after=2)
+
+    _add_para(doc, "記", 13, C, bold=True, space_after=8)           # 記（中央）
+
+    for line in [l for l in body.split("\n") if l.strip()]:         # 本文（左）
+        _add_para(doc, line, 12, L, space_after=4)
 
     out = io.BytesIO()
-    with zipfile.ZipFile(io.BytesIO(tmpl), 'r') as zin, \
-         zipfile.ZipFile(out, 'w') as zout:
-
-        for item in zin.infolist():
-            data = zin.read(item.filename)
-
-            if item.filename == 'word/document.xml':
-                tree      = etree.fromstring(data)
-                body_elem = tree.find(f'{{{_W}}}body')
-                paras     = body_elem.findall(f'{{{_W}}}p')
-
-                _wt_set(paras[0], to_reiwa(doc_date))          # 日付
-                _wt_set(paras[1], f"{recipient}　様")           # 宛名
-                for i, line in enumerate(_sender_lines(sender)):# 送付者6行
-                    _wt_set(paras[2 + i], line)
-
-                body_start = 17
-                # 基準書式（本文1行目 p17 の rPr = sz24/Times）を控える
-                ref_run = paras[body_start].find(f'.//{{{_W}}}r')
-                ref_rpr = ref_run.find(f'{{{_W}}}rPr') if ref_run is not None else None
-                ref_rpr = copy.deepcopy(ref_rpr) if ref_rpr is not None else None
-
-                body_lines = [l for l in body.split('\n') if l.strip()]
-                for i in range(body_start, len(paras)):         # 本文欄クリア
-                    _wt_set(paras[i], '')
-                for i, line in enumerate(body_lines):           # 本文差し込み
-                    if body_start + i < len(paras):
-                        _wt_set(paras[body_start + i], line)
-                        _apply_rpr(paras[body_start + i], ref_rpr)  # 書式を基準に統一
-
-                _sanitize_ooxml(tree)  # Word破損防止（無効要素名・子順序を正規化）
-
-                data = etree.tostring(tree, xml_declaration=True,
-                                      encoding='UTF-8', standalone=True)
-                # lxml は宣言をシングルクォートで出力するが Word はダブルクォートを要求するため修正
-                data = data.replace(
-                    b"<?xml version='1.0' encoding='UTF-8' standalone='yes'?>",
-                    b'<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-                )
-
-            zout.writestr(item, data, compress_type=item.compress_type)
-
+    doc.save(out)
     out.seek(0)
     return out
 
@@ -263,9 +250,9 @@ def render_preview(recipient: str, doc_date: date, body: str, sender: dict):
     if sender.get("address"):
         s_lines.append(e(sender["address"]))
     if sender.get("tel"):
-        s_lines.append(f"ＴＥＬ　　{e(sender['tel'])}")
+        s_lines.append(f"TEL&nbsp;&nbsp;{e(to_halfwidth(sender['tel']))}")
     if sender.get("fax"):
-        s_lines.append(f"ＦＡＸ　　{e(sender['fax'])}")
+        s_lines.append(f"FAX&nbsp;&nbsp;{e(to_halfwidth(sender['fax']))}")
 
     st.markdown(
         f"""
