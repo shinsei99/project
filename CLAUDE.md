@@ -40,7 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
 | 送付書メーカー | soufu-maker | 8525 | —（launchd未登録） | — |
 
-### ツール（8本）※社内LAN共有なし
+### ツール（9本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
@@ -52,6 +52,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | ママカウンター | mom-counter | — | GitHub Pages / App Store ✅ v1.0.1 |
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
 | フォトリメイク | photo-remake | — | iOS App Store配信済み ✅ |
+| 買取DMジェネレーター | kaitori-dm-maker | 8526 | — |
 
 ### ゲーム（6本）※社内LAN共有なし
 
@@ -71,6 +72,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### parking-map（駐車場配置図ビューア）補足
 
 - 第一号: 角屋(横堤)モータープール（全41区画）。`serve.py` が起動の度にレントロールxlsxを読み最新の空き状況を反映（port 8522）。車室レイアウトは`template.html`に固定、中身のみ動的差し込み。個人情報を含む静的版はgitignore対象。他物件（大京モータープール／本庄西／ベリエール等）は今後同方式で展開予定。launchd登録済み・社内LAN共有済み（2026-07-14、com.shinsei.parking-map、`serve.py --daemon`でブラウザ自動起動を抑制）。
+
+### 買取DMジェネレーター（kaitori-dm-maker）補足 ※ツール・port 8526
+
+- 所有者台帳（確定15列・1物件1行：`NO/市/所在/地番/地目/地積・㎡/建物種類/建物構造/床面積・㎡/登記名義人/持分/郵便番号/現住所/電話番号/備考`）から、未活用地・空き家の**買取DM（Word）を差し込み量産**。文面は「建物買取DM横書き_改良版」準拠（ネイビー見出し・4メリット・約40万円囲みボックス・新誠/大京署名切替）。Streamlit+python-docx。
+- **謄本PDF取込**：サイドバー「台帳更新」から謄本を複数（5件程度）アップ→AI読取→台帳に行追加。読取は**同リポジトリの`baikai-generator/services/registry_parser.py`を再利用**（`claude` CLIビジョン、パスは`shutil.which`で解決）。市/所在の分離・地目/地積・建物種類/構造/床面積・登記名義人/現住所を自動抽出。「1ファイル=1物件」/「全ファイル=1物件に統合」を選択可。
+- **差出人**はサイドバーで追加・編集・削除（`senders.json`に保存。無ければコード内`DEFAULT_SENDERS`から生成）。DM一覧は各行チェックで送付先選択（既定全選択）、結合docx/個別ZIP出力。
+- `senders.json`は個人情報を含むため**gitignore**（公開リポジトリに出さない）。メインPCへはコード内`DEFAULT_SENDERS`が既定として引き継がれる。launchd未登録（ツール分類のため社内LAN共有なし）。
 
 ### theta-viewer FTP APIサーバー port修正（2026-07-14）
 

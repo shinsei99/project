@@ -101,6 +101,10 @@ soufu-generator/logs/
 !soufu-maker/**
 soufu-maker/tantou.json
 soufu-maker/logs/
+!kaitori-dm-maker/
+!kaitori-dm-maker/**
+kaitori-dm-maker/senders.json
+kaitori-dm-maker/__pycache__/
 !baikai-generator/
 !baikai-generator/**
 baikai-generator/.venv/

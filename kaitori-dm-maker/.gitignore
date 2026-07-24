@@ -1,0 +1,12 @@
+# 差出人マスタ（会社住所・氏名・メール等の個人情報を含む）。公開リポジトリに含めない。
+# 既定の差出人はコード内 DEFAULT_SENDERS から生成される。
+senders.json
+
+# アップロード/生成物・一時ファイル
+*.docx
+*.xlsx
+*.xls
+*.pdf
+__pycache__/
+*.pyc
+.DS_Store
