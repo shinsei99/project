@@ -97,6 +97,10 @@ tokuyaku-generator/.venv/
 !soufu-generator/
 !soufu-generator/**
 soufu-generator/logs/
+!soufu-maker/
+!soufu-maker/**
+soufu-maker/tantou.json
+soufu-maker/logs/
 !baikai-generator/
 !baikai-generator/**
 baikai-generator/.venv/

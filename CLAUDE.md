@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-07-14時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全39本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全40本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（25本）
+### 不動産（26本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
@@ -38,6 +38,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 業務マニュアル（Web） | gyomu-manual | 8521 | ✅ | — |
 | 駐車場配置図ビューア | parking-map | 8522 | ✅ | — |
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
+| 送付書メーカー | soufu-maker | 8525 | —（launchd未登録） | — |
 
 ### ツール（8本）※社内LAN共有なし
 
