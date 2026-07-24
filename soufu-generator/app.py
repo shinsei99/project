@@ -3,6 +3,7 @@ import subprocess
 import json
 import os
 import io
+import copy
 import zipfile
 import html as html_mod
 from datetime import date
@@ -150,6 +151,23 @@ def _wt_set(p_elem, text: str):
         t.text = ''
 
 
+def _apply_rpr(p_elem, ref_rpr):
+    """段落先頭ランの書式(rPr)を基準書式で上書きする。
+    テンプレの本文空段落は書式が不揃い（sz=22/Times New Romanが混在）なため、
+    本文各行を必ず基準段落と同一書式に揃えて出力の崩れを防ぐ。"""
+    if ref_rpr is None:
+        return
+    r = p_elem.find(f'{{{_W}}}r')
+    if r is None:
+        return
+    new = copy.deepcopy(ref_rpr)
+    existing = r.find(f'{{{_W}}}rPr')
+    if existing is not None:
+        r.replace(existing, new)
+    else:
+        r.insert(0, new)
+
+
 def create_docx(recipient: str, doc_date: date, body: str, sender: dict) -> io.BytesIO:
     """テンプレートを zip のまま複製し、document.xml の w:t だけ差し込んで返す。
     ページ設定・余白・フォント・行間など一切変更しない。"""
@@ -175,12 +193,18 @@ def create_docx(recipient: str, doc_date: date, body: str, sender: dict) -> io.B
                     _wt_set(paras[2 + i], line)
 
                 body_start = 17
+                # 基準書式（本文1行目 p17 の rPr = sz24/Times）を控える
+                ref_run = paras[body_start].find(f'.//{{{_W}}}r')
+                ref_rpr = ref_run.find(f'{{{_W}}}rPr') if ref_run is not None else None
+                ref_rpr = copy.deepcopy(ref_rpr) if ref_rpr is not None else None
+
                 body_lines = [l for l in body.split('\n') if l.strip()]
                 for i in range(body_start, len(paras)):         # 本文欄クリア
                     _wt_set(paras[i], '')
                 for i, line in enumerate(body_lines):           # 本文差し込み
                     if body_start + i < len(paras):
                         _wt_set(paras[body_start + i], line)
+                        _apply_rpr(paras[body_start + i], ref_rpr)  # 書式を基準に統一
 
                 data = etree.tostring(tree, xml_declaration=True,
                                       encoding='UTF-8', standalone=True)
