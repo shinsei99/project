@@ -220,7 +220,8 @@ def create_docx(recipient: str, doc_date: date, body: str, sender: dict) -> io.B
 
     _add_para(doc, "", 12, L, space_after=8)                        # 余白
 
-    title = _add_para(doc, "書 類　送　付 の 件", 14, C, bold=True, space_after=12)
+    # 「書類送付の件」を全角スペースで等間隔に区切り中央寄せ
+    title = _add_para(doc, "　".join("書類送付の件"), 14, C, bold=True, space_after=12)
     _add_rule_borders(title)                                        # 上下罫線
 
     for line in PREAMBLE.split("\n"):                               # 前文（中央）
@@ -266,9 +267,9 @@ def render_preview(recipient: str, doc_date: date, body: str, sender: dict):
   <div style="text-align:right;margin-bottom:10px;">{e(to_reiwa(doc_date))}</div>
   <div style="margin-bottom:6px;font-size:17px;font-weight:bold;">{e(recipient)}　様</div>
   <div style="margin-bottom:16px;line-height:1.9;text-align:right;">{"<br>".join(s_lines)}</div>
-  <div style="text-align:center;font-size:15px;font-weight:bold;letter-spacing:3px;
+  <div style="text-align:center;font-size:15px;font-weight:bold;letter-spacing:2px;
       border-top:1px solid #555;border-bottom:1px solid #555;
-      padding:6px 0;margin-bottom:14px;">書 類　送　付 の 件</div>
+      padding:6px 0;margin-bottom:14px;">{"　".join("書類送付の件")}</div>
   <div style="margin-bottom:14px;text-align:center;">{e(PREAMBLE).replace(chr(10),"<br>")}</div>
   <div style="text-align:center;font-size:14px;font-weight:bold;margin:14px 0 10px;">記</div>
   <div style="margin-bottom:20px;">{e(body).replace(chr(10),"<br>")}</div>
