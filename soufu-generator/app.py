@@ -168,6 +168,24 @@ def _apply_rpr(p_elem, ref_rpr):
         r.insert(0, new)
 
 
+def _sanitize_ooxml(tree):
+    """document.xml を Word が受理する正規形に整える。
+    このテンプレは変換ツール由来で非標準要素を含み、そのままだと
+    Word が『破損 → 開いて修復』を要求するため出力時に正規化する。
+    - 無効要素名 w:sz-cs → w:szCs
+    - w:pPr の子順序 ind を jc より前へ（CT_PPr のシーケンス順）"""
+    for el in tree.iter():
+        if etree.QName(el).localname == 'sz-cs':
+            el.tag = f'{{{_W}}}szCs'
+    for pPr in tree.iter(f'{{{_W}}}pPr'):
+        jc  = pPr.find(f'{{{_W}}}jc')
+        ind = pPr.find(f'{{{_W}}}ind')
+        if jc is not None and ind is not None and \
+           list(pPr).index(ind) > list(pPr).index(jc):
+            pPr.remove(ind)
+            pPr.insert(list(pPr).index(jc), ind)
+
+
 def create_docx(recipient: str, doc_date: date, body: str, sender: dict) -> io.BytesIO:
     """テンプレートを zip のまま複製し、document.xml の w:t だけ差し込んで返す。
     ページ設定・余白・フォント・行間など一切変更しない。"""
@@ -205,6 +223,8 @@ def create_docx(recipient: str, doc_date: date, body: str, sender: dict) -> io.B
                     if body_start + i < len(paras):
                         _wt_set(paras[body_start + i], line)
                         _apply_rpr(paras[body_start + i], ref_rpr)  # 書式を基準に統一
+
+                _sanitize_ooxml(tree)  # Word破損防止（無効要素名・子順序を正規化）
 
                 data = etree.tostring(tree, xml_declaration=True,
                                       encoding='UTF-8', standalone=True)
@@ -247,7 +267,7 @@ def render_preview(recipient: str, doc_date: date, body: str, sender: dict):
     line-height:2;font-size:13px;">
   <div style="text-align:right;margin-bottom:10px;">{e(to_reiwa(doc_date))}</div>
   <div style="margin-bottom:6px;font-size:17px;font-weight:bold;">{e(recipient)}　様</div>
-  <div style="margin-bottom:16px;line-height:1.9;">{"<br>".join(s_lines)}</div>
+  <div style="margin-bottom:16px;line-height:1.9;text-align:right;">{"<br>".join(s_lines)}</div>
   <div style="text-align:center;font-size:15px;font-weight:bold;letter-spacing:3px;
       border-top:1px solid #555;border-bottom:1px solid #555;
       padding:6px 0;margin-bottom:14px;">書 類　送　付 の 件</div>
