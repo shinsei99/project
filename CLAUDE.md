@@ -38,7 +38,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 業務マニュアル（Web） | gyomu-manual | 8521 | ✅ | — |
 | 駐車場配置図ビューア | parking-map | 8522 | ✅ | — |
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
-| 送付書メーカー | soufu-maker | 8525 | —（launchd未登録） | — |
+| 送付書メーカー | soufu-maker | 8525 | ✅ | — |
 
 ### ツール（9本）※社内LAN共有なし
 
@@ -108,6 +108,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8522 | 駐車場配置図ビューア | com.shinsei.parking-map |
 | 8523 | theta-viewer FTP APIサーバー（server.js） | com.shinsei.theta-viewer-api |
 | 8524 | 覚書・合意書ジェネレーター | com.shinsei.memorandum-generator |
+| 8525 | 送付書メーカー | com.shinsei.soufu-maker |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
 
