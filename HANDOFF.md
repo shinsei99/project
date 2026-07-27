@@ -29,7 +29,7 @@ bash ~/_launchd/install-launchd.sh   # 冪等。run.sh が無いアプリは自�
 - 初回は各アプリが `.venv` 作成／`npm install`→`build` を行うためポートが上がるまで数十秒〜数分。
 
 ### ⚠️ 未解決（この2本は別リポジトリの穴・要判断）
-- **quote-generator（8503）**：フォルダ内に独自の `.git`（別リポジトリ `shinsei99/quote-generator.git`）。メインリポジトリの `git pull` では入らない。run.sh はこの独立リポジトリ側へコミットが必要。別PCでは `git clone https://github.com/shinsei99/quote-generator.git` で個別取得する運用。
+- **quote-generator（8503）**：フォルダ内に独自の `.git`（別リポジトリ `shinsei99/quote-generator.git`）。メインリポジトリの `git pull` では入らない。**この独立リポは既に自前のデプロイキット（`deploy/install-service.sh` + `deploy/run-quote-generator.sh`）を持つ**ので、別PCでは `git clone https://github.com/shinsei99/quote-generator.git` → そのdeploy/キットで起動する運用（メインリポの`install-launchd.sh`の対象外）。※メインPCにはローカルに`run.sh`（未追跡）も置いてあり、install-launchd.sh実行時はそちらで8503を起動できる。なお2026-07-27時点、メインPCのquote-generator作業ツリーには未コミットのWIP（app.py等5ファイル）とリモート未取得コミット2本(pdf_orient.py等)があり、pull前に要整理。
 - **payment-reconciler（8514）**：メインリポジトリに未コミット（root `.gitignore` の `*` で全除外・ホワイトリスト未登録）。`name_mapping.csv`（氏名・部屋番号109件のPII）を含むため公開リポジトリへの追加は要注意。取り込むなら inner `.gitignore` で `name_mapping.csv`/`logs/`/`.venv/`/`data/` を除外してからホワイトリスト登録すること。
 - ⚠️ **メインPCの手書きplistは今回まだ置き換えていない**（`install-launchd.sh` の実行は未）。実行すると15本が一斉に venv/Node方式へ切り替わり初回ビルドで一時的にダウンする。切替タイミングは要判断。
 

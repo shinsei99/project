@@ -13,7 +13,7 @@ mkdir -p "$LA" "$LOGS"
 
 # 対象: "ラベル|アプリフォルダ名"（CLAUDE.md の社内LAN常時起動ポート一覧と1対1対応）
 APPS=(
-  "com.shinsei.quote-generator|quote-generator"                 # 8503
+  "com.shinsei.quote-generator|quote-generator"                 # 8503 ※別リポ shinsei99/quote-generator（独自deploy/キット有・main pullには含まれない。別PCは個別clone）
   "com.shinsei.property-notice-generator|property-notice-generator" # 8504
   "com.shinsei.maisoku-converter|maisoku-converter"             # 8505
   "com.shinsei.realestate-calc|realestate-calc"                 # 8507 (静的PWA/npx serve)
