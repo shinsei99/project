@@ -106,6 +106,7 @@ soufu-maker/.venv/
 !kaitori-dm-maker/**
 kaitori-dm-maker/senders.json
 kaitori-dm-maker/__pycache__/
+kaitori-dm-maker/.venv/
 !baikai-generator/
 !baikai-generator/**
 baikai-generator/.venv/
