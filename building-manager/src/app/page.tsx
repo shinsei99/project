@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { AddBuildingButton } from "@/components/AddBuildingButton";
+import { SyncButton } from "@/components/SyncButton";
 import { HandlingBadge } from "@/components/HandlingBadge";
 import { detailLabel, unitsLabel } from "@/lib/labels";
 import { BUILDING_TYPES, BuildingType } from "@/types";
@@ -64,7 +65,10 @@ export default async function DashboardPage(props: PageProps<"/">) {
             </Link>
           ))}
         </div>
-        <AddBuildingButton type={activeType} />
+        <div className="flex items-center gap-2">
+          <SyncButton />
+          <AddBuildingButton type={activeType} />
+        </div>
       </div>
 
       {/* 物件ごとのカード */}
