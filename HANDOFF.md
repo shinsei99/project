@@ -1,6 +1,37 @@
 # 引き継ぎメモ（別PCで作業を続けるために）
 
-最終更新：2026-07-16
+最終更新：2026-07-27
+
+---
+
+## 2026-07-27 launchd起動キットを全アプリ化＋サブPC作成の新2本を取り込み ★本セッション
+
+サブPCで作られた新2本（**soufu-maker** 送付書メーカー port 8525／**kaitori-dm-maker** 買取DMジェネレーター port 8526）を `git pull` でメインPCへ取り込み済み。あわせて `_launchd/install-launchd.sh` を **6本 → 社内LAN常時起動アプリ全登録** に拡充した。
+
+### やったこと
+1. **`_launchd/install-launchd.sh` の `APPS` 配列を全登録化**（CLAUDE.mdの社内LAN常時起動ポート一覧と1対1対応）。これまで手書きplist（メインPC限定・グローバルpython/streamlit依存）で動かしていた15本＋新規soufu-makerを、`run.sh`（各アプリ`.venv`／Nodeは`npm install`→`build`）方式に統一。
+2. **各アプリに `run.sh` を新規作成**（計17本）。パターン別：
+   - **Streamlit venv型**：quote-generator/property-notice-generator/maisoku-converter/restoration-calculator/realestate-valuation/settlement-creator/tokuyaku-generator/payment-reconciler/image-resizer/tsuikyaku-crm/baikai-generator/soufu-maker → `.venv/bin/streamlit run app.py --server.port <PORT> --server.address 0.0.0.0 --server.headless true`
+   - **FastAPI(uvicorn)**：ai-ticket-counter(8600) → `.venv/bin/uvicorn app:app --host 0.0.0.0 --port 8600`
+   - **Python http daemon**：parking-map(8522) → `.venv/bin/python serve.py --daemon`（openpyxl使用のためvenv化）
+   - **静的PWA(node)**：realestate-calc(8507) → `npx -y serve -s . -l 8507`
+   - **Vite(node)**：theta-viewer(8512) → `npm install`→`build`→`vite preview`
+   - **Express(node)**：theta-viewer/server(8523) → `node server.js`
+   - Node系はlaunchdの最小PATH対策で `run.sh` 内に `export PATH="/usr/local/bin:/opt/homebrew/bin:$PATH"` を明示。
+3. **payment-reconciler の `requirements.txt` を新規作成**（streamlit / openpyxl。従来は無かった）。
+
+### 別PCでのセットアップ
+```bash
+git pull
+bash ~/_launchd/install-launchd.sh   # 冪等。run.sh が無いアプリは自動スキップ
+```
+- Node系（realestate-calc / theta-viewer / theta-viewer-api / madori-tracer-editor）は **Node.js/npm 必須**。未導入なら該当のみ失敗するので `brew install node` 後に再実行。
+- 初回は各アプリが `.venv` 作成／`npm install`→`build` を行うためポートが上がるまで数十秒〜数分。
+
+### ⚠️ 未解決（この2本は別リポジトリの穴・要判断）
+- **quote-generator（8503）**：フォルダ内に独自の `.git`（別リポジトリ `shinsei99/quote-generator.git`）。メインリポジトリの `git pull` では入らない。run.sh はこの独立リポジトリ側へコミットが必要。別PCでは `git clone https://github.com/shinsei99/quote-generator.git` で個別取得する運用。
+- **payment-reconciler（8514）**：メインリポジトリに未コミット（root `.gitignore` の `*` で全除外・ホワイトリスト未登録）。`name_mapping.csv`（氏名・部屋番号109件のPII）を含むため公開リポジトリへの追加は要注意。取り込むなら inner `.gitignore` で `name_mapping.csv`/`logs/`/`.venv/`/`data/` を除外してからホワイトリスト登録すること。
+- ⚠️ **メインPCの手書きplistは今回まだ置き換えていない**（`install-launchd.sh` の実行は未）。実行すると15本が一斉に venv/Node方式へ切り替わり初回ビルドで一時的にダウンする。切替タイミングは要判断。
 
 ---
 
