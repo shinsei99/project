@@ -168,3 +168,11 @@ parking-map/index_backup_*.html
 !memorandum-generator/**
 # 生成した書類(.docx)は個人情報を含むため公開しない
 memorandum-generator/*.docx
+
+!payment-reconciler/
+!payment-reconciler/**
+# 個人情報（氏名・銀行カナ・部屋番号の対応表109件）は公開しない。各PCでローカル管理（README参照）
+payment-reconciler/name_mapping.csv
+payment-reconciler/logs/
+payment-reconciler/.venv/
+payment-reconciler/__pycache__/
