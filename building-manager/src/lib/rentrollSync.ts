@@ -194,10 +194,14 @@ async function syncRentRoll(fileName: string, buildingType: string, report: Sync
       deposit: col(/保証金|敷金/),
       contract: col(/契約日/),
       note: col(/備考/),
+      total: col(/合計/),
     };
 
     const buildingId = await upsertBuildingByName(buildingName, { type: buildingType }, report.buildings);
 
+    // セクション状態（1枚のシートに 居室→車庫→建物車庫 と縦に並ぶため）
+    let currentSection: string | null = null; // null=居室（先頭セクション）
+    let currentUnitType = "居室";
     let seq = 0;
     for (const r of rows.slice(headerIndex + 1)) {
       const at = (i: number) => (i >= 0 ? S(r[i]) : "");
@@ -206,11 +210,26 @@ async function syncRentRoll(fileName: string, buildingType: string, report: Sync
       const statusText = at(c.status);
 
       if (/^合計/.test(roomNo) || /^合計/.test(tenantName)) continue; // 合計行
+
+      // セクション見出し行の検出（例: 「マンション下車庫」「建物Ⅱ（車庫）」）。
+      // 号室セルにラベルがあり、賃料/合計セルが見出し語（"賃料"/"合計"）＝再ヘッダの行。
+      const looksLikeGarage = /車庫|駐車|ガレージ|バイク|倉庫|物置/.test(roomNo);
+      const isReHeader = /賃料|家賃/.test(at(c.rent)) || /合計/.test(at(c.total));
+      if (roomNo && !tenantName && (looksLikeGarage || isReHeader)) {
+        currentSection = roomNo;
+        currentUnitType = looksLikeGarage ? "車庫" : "居室";
+        seq = 0;
+        continue; // 見出し行自体はデータではない
+      }
+
       // 空行（部屋番号も契約者も無い）は無視
       if (!roomNo && !tenantName) continue;
       // 部屋番号が空でも契約者がいる場合（例: 枚方招堤南町）は連番を振る
       if (!roomNo) roomNo = String(++seq);
       else seq++;
+
+      // 車庫等サブセクションは番号が居室や別セクションと衝突するのでセクション名で名前空間化
+      const storedRoomNo = currentSection ? `${currentSection}-${roomNo}` : roomNo;
 
       // ステータス: 現況列があれば従う。無いビルは契約者有無で判定
       let status = "募集中";
@@ -220,16 +239,18 @@ async function syncRentRoll(fileName: string, buildingType: string, report: Sync
       const rent = toInt(at(c.rent));
       const note = at(c.note) || undefined;
       const room = await prisma.room.upsert({
-        where: { buildingId_roomNumber: { buildingId, roomNumber: roomNo } },
-        update: { status, rent: rent ?? undefined, floor: deriveFloor(roomNo), note },
+        where: { buildingId_roomNumber: { buildingId, roomNumber: storedRoomNo } },
+        update: { status, rent: rent ?? undefined, floor: deriveFloor(roomNo), note, unitType: currentUnitType, section: currentSection },
         create: {
           buildingId,
-          roomNumber: roomNo,
+          roomNumber: storedRoomNo,
           floor: deriveFloor(roomNo),
           layout: "—",
           status,
           rent: rent ?? undefined,
           note,
+          unitType: currentUnitType,
+          section: currentSection,
         },
         select: { id: true },
       });

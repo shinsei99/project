@@ -89,6 +89,8 @@ model Room {
   squareMeters Float?
   rent         Int?
   note         String?  // 備考（レントロール由来：口座振替 / ペット可 等）
+  unitType     String   @default("居室") // 居室 / 車庫（マンション内の車庫セクション判別）
+  section      String?  // レントロール内のセクション名（例: マンション下車庫 / 建物Ⅱ（車庫））
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

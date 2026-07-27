@@ -13,13 +13,14 @@ const TYPE_ICON: Record<BuildingType, string> = {
   その他: "📦",
 };
 
-// 部屋群からステータス別件数を集計（全体・建物ごと共通で使う）
-function roomStats(rooms: { status: string }[]) {
+// 部屋群からステータス別件数を集計（居室のみ。車庫はカウントに含めない）
+function roomStats(rooms: { status: string; unitType?: string }[]) {
+  const rooms居室 = rooms.filter((r) => (r.unitType ?? "居室") === "居室");
   return {
-    total: rooms.length,
-    occupied: rooms.filter((r) => r.status === "入居中").length,
-    vacant: rooms.filter((r) => r.status === "募集中").length,
-    renovating: rooms.filter((r) => r.status === "リフォーム中").length,
+    total: rooms居室.length,
+    occupied: rooms居室.filter((r) => r.status === "入居中").length,
+    vacant: rooms居室.filter((r) => r.status === "募集中").length,
+    renovating: rooms居室.filter((r) => r.status === "リフォーム中").length,
   };
 }
 
@@ -39,7 +40,7 @@ export default async function DashboardPage(props: PageProps<"/">) {
     where: { type: activeType },
     include: {
       rooms: {
-        select: { id: true, roomNumber: true, floor: true, layout: true, rent: true, status: true },
+        select: { id: true, roomNumber: true, floor: true, layout: true, rent: true, status: true, unitType: true },
         orderBy: [{ floor: "asc" }, { roomNumber: "asc" }],
       },
     },
@@ -80,7 +81,7 @@ export default async function DashboardPage(props: PageProps<"/">) {
       ) : (
         buildings.map((building) => {
           const stats = roomStats(building.rooms);
-          const vacantRooms = building.rooms.filter((r) => r.status === "募集中");
+          const vacantRooms = building.rooms.filter((r) => r.status === "募集中" && (r.unitType ?? "居室") === "居室");
           return (
           <div key={building.id} className="bg-white rounded-xl shadow overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b bg-slate-50 gap-4 flex-wrap">
