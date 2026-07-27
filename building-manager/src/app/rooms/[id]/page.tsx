@@ -3,12 +3,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/StatusBadge";
 import { InvoiceBadge } from "@/components/InvoiceBadge";
-import { StatusForm } from "./StatusForm";
-import { TenantForm } from "./TenantForm";
-import { SecurityForm } from "./SecurityForm";
-import { RepairForm } from "./RepairForm";
-import { InvoiceForm } from "./InvoiceForm";
-import { AiExtractButton } from "./AiExtractButton";
 import { AiRepairButton } from "./AiRepairButton";
 
 export default async function RoomDetailPage(props: PageProps<"/rooms/[id]">) {
@@ -53,8 +47,7 @@ export default async function RoomDetailPage(props: PageProps<"/rooms/[id]">) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <AiExtractButton roomId={room.id} />
-          <StatusForm roomId={room.id} currentStatus={room.status} />
+          <StatusBadge status={room.status} />
         </div>
       </div>
 
@@ -224,7 +217,6 @@ export default async function RoomDetailPage(props: PageProps<"/rooms/[id]">) {
           ) : (
             <p className="text-sm text-slate-400">入居者情報なし</p>
           )}
-          <TenantForm roomId={room.id} tenant={room.tenant} rent={room.rent} />
         </section>
 
         {/* セキュリティ情報 */}
@@ -240,7 +232,6 @@ export default async function RoomDetailPage(props: PageProps<"/rooms/[id]">) {
           ) : (
             <p className="text-sm text-slate-400">セキュリティ情報なし</p>
           )}
-          <SecurityForm roomId={room.id} security={room.security} />
         </section>
       </div>
 
@@ -264,7 +255,6 @@ export default async function RoomDetailPage(props: PageProps<"/rooms/[id]">) {
                 <span>📥</span> Excel出力
               </a>
             )}
-            <RepairForm roomId={room.id} />
           </div>
         </div>
 
@@ -312,13 +302,6 @@ export default async function RoomDetailPage(props: PageProps<"/rooms/[id]">) {
                                 📥 {repair.invoice.fileName ?? "修繕詳細.xlsx"}
                               </a>
                             )}
-                            <InvoiceForm
-                              invoiceId={repair.invoice.id}
-                              roomId={room.id}
-                              currentStatus={repair.invoice.status}
-                              currentFileUrl={repair.invoice.fileUrl ?? ""}
-                              currentFileName={repair.invoice.fileName ?? ""}
-                            />
                           </>
                         )}
                       </div>

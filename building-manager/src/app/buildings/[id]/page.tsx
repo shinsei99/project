@@ -1,12 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
-import { EditBuildingButton } from "./EditBuildingButton";
-import { EditBuildingInfoButton } from "./EditBuildingInfoButton";
-import { AiBuildingExtractButton } from "./AiBuildingExtractButton";
-import { DeleteBuildingButton } from "./DeleteBuildingButton";
-import { HandlingSelect } from "./HandlingSelect";
-import { OwnerCard } from "./OwnerCard";
+import { HandlingBadge } from "@/components/HandlingBadge";
 import { BuildingInfoPanel } from "@/components/BuildingInfoPanel";
 import { unitsLabel } from "@/lib/labels";
 
@@ -21,11 +16,6 @@ export default async function BuildingDetailPage(props: PageProps<"/buildings/[i
   });
   if (!building) notFound();
 
-  const allOwners = await prisma.owner.findMany({
-    select: { id: true, company: true, name: true },
-    orderBy: { createdAt: "asc" },
-  });
-
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -37,15 +27,9 @@ export default async function BuildingDetailPage(props: PageProps<"/buildings/[i
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-slate-800">{building.name}</h1>
-            <HandlingSelect buildingId={building.id} value={building.handling} />
+            <HandlingBadge handling={building.handling} />
           </div>
           {building.address && <p className="text-sm text-slate-400 mt-1">{building.address}</p>}
-        </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          <AiBuildingExtractButton buildingId={building.id} buildingType={building.type} />
-          <EditBuildingInfoButton buildingId={building.id} buildingType={building.type} values={building} />
-          <EditBuildingButton buildingId={building.id} name={building.name} type={building.type} address={building.address} />
-          <DeleteBuildingButton buildingId={building.id} buildingName={building.name} />
         </div>
       </div>
 
@@ -65,25 +49,50 @@ export default async function BuildingDetailPage(props: PageProps<"/buildings/[i
 
       <BuildingInfoPanel buildingType={building.type} values={building} />
 
-      <OwnerCard
-        buildingId={building.id}
-        allOwners={allOwners}
-        owner={
-          building.owner
-            ? {
-                id: building.owner.id,
-                company: building.owner.company,
-                name: building.owner.name,
-                address: building.owner.address,
-                phone: building.owner.phone,
-                fax: building.owner.fax,
-                email: building.owner.email,
-                note: building.owner.note,
-                buildingCount: building.owner._count.buildings,
-              }
-            : null
-        }
-      />
+      {/* オーナー情報（取り込みデータの表示のみ） */}
+      <section className="bg-white rounded-xl shadow p-5 space-y-3">
+        <h2 className="font-semibold text-slate-700 border-b pb-2">オーナー</h2>
+        {building.owner ? (
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+            {building.owner.company && (
+              <>
+                <dt className="text-slate-500">法人名</dt>
+                <dd className="font-medium">{building.owner.company}</dd>
+              </>
+            )}
+            <dt className="text-slate-500">氏名</dt>
+            <dd className="font-medium">{building.owner.name}</dd>
+            {building.owner.address && (
+              <>
+                <dt className="text-slate-500">住所</dt>
+                <dd>{building.owner.address}</dd>
+              </>
+            )}
+            {building.owner.phone && (
+              <>
+                <dt className="text-slate-500">TEL</dt>
+                <dd>{building.owner.phone}</dd>
+              </>
+            )}
+            {building.owner.email && (
+              <>
+                <dt className="text-slate-500">メール</dt>
+                <dd>{building.owner.email}</dd>
+              </>
+            )}
+            {building.owner.note && (
+              <>
+                <dt className="text-slate-500">備考</dt>
+                <dd>{building.owner.note}</dd>
+              </>
+            )}
+            <dt className="text-slate-500">所有物件数</dt>
+            <dd>{building.owner._count.buildings}件</dd>
+          </dl>
+        ) : (
+          <p className="text-sm text-slate-400">オーナー情報なし</p>
+        )}
+      </section>
     </div>
   );
 }

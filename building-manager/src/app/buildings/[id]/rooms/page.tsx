@@ -2,8 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { StatusBadge } from "@/components/StatusBadge";
-import { AddRoomButton } from "../AddRoomButton";
-import { DeleteRoomButton } from "../DeleteRoomButton";
 import { unitsLabel } from "@/lib/labels";
 
 // レントロール（Excel）のシートに合わせた表示。カテゴリ・セクション（居室／車庫）ごとに列を変える。
@@ -104,7 +102,6 @@ export default async function BuildingRoomsPage(props: PageProps<"/buildings/[id
                 [...garageSections].map(([n, r]) => `${n} ${r.length}台`).join(" ／ ")}
           </p>
         </div>
-        <AddRoomButton buildingId={building.id} />
       </div>
 
       {sections.map((sec) => (
@@ -126,7 +123,6 @@ export default async function BuildingRoomsPage(props: PageProps<"/buildings/[id
                       {c.label}
                     </th>
                   ))}
-                  <th className="px-4 py-3"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -146,14 +142,11 @@ export default async function BuildingRoomsPage(props: PageProps<"/buildings/[id
                         {c.cell(room)}
                       </td>
                     ))}
-                    <td className="px-4 py-3">
-                      <DeleteRoomButton roomId={room.id} buildingId={building.id} roomNumber={room.roomNumber} />
-                    </td>
                   </tr>
                 ))}
                 {sec.rows.length === 0 && (
                   <tr>
-                    <td colSpan={sec.cols.length + 2} className="px-4 py-12 text-center text-slate-400">
+                    <td colSpan={sec.cols.length + 1} className="px-4 py-12 text-center text-slate-400">
                       データがありません。
                     </td>
                   </tr>
