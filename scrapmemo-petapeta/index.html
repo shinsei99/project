@@ -503,8 +503,8 @@ body.ed-light .img-vis-btn.hidden{background:rgba(180,60,60,.1);border-color:rgb
 .dp-tapepin{display:flex;gap:10px;}
 .dp-group{display:flex;flex-direction:column;gap:5px;flex:1;}
 .dp-label{font-size:11px;color:rgba(200,170,120,.6);flex-shrink:0;}
-.dp-swatches{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;}
-.dp-swatch{width:22px;height:22px;border-radius:3px;border:2px solid transparent;cursor:pointer;position:relative;flex-shrink:0;}
+.dp-swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;}
+.dp-swatch{width:100%;aspect-ratio:1;max-width:30px;border-radius:3px;border:2px solid transparent;cursor:pointer;position:relative;}
 .dp-swatch.round{border-radius:50%;}
 .dp-swatch.sel{border-color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.4);}
 /* font picker in deco panel */
@@ -983,10 +983,10 @@ const FONTS = {
 };
 let baseFont = 'georgia';
 const TAPE_COLORS = [
-  '#FFE87C','#FFBA80','#FF9898','#FFB5C2','#90E8B8','#A0D8E8','#90C4FF','#D5B5FF'
+  '#FFE87C','#FFBA80','#FF9898','#90E8B8','#90C4FF','#D5B5FF'
 ];
 const PIN_COLORS  = [
-  '#E03030','#E06020','#D0C010','#30A030','#20B0C0','#3070D0','#7030B0','#606060'
+  '#E03030','#E06020','#D0C010','#30A030','#3070D0','#7030B0'
 ];
 const randRot = () => memoRotMode==='straight' ? 0 : (Math.floor(Math.random()*7)-3);
 function randDeco() {
@@ -2007,21 +2007,7 @@ function saveMemo() {
   editEl.blocks=newBlocks;
   editEl.sourceUrl=document.getElementById('memo-url-input')?.value?.trim()||editEl.sourceUrl||'';
   const dom=document.querySelector(`[data-id="${editEl.id}"]`);
-  if (dom) {
-    // Cards rotate around their center, but are anchored by top-left (x/y).
-    // If the content height changes on save, a rotated card's pinned top-center
-    // visually jumps. Compensate x/y by the height delta so it stays put.
-    const hBefore=dom.offsetHeight;
-    rebuildPreview(dom, editEl);
-    const dH=dom.offsetHeight-hBefore;
-    if (dH) {
-      const rot=(editEl.rot||0)*Math.PI/180;
-      editEl.x=(editEl.x||0)-dH/2*Math.sin(rot);
-      editEl.y=(editEl.y||0)-dH/2*(1-Math.cos(rot));
-      dom.style.left=editEl.x+'px';
-      dom.style.top=editEl.y+'px';
-    }
-  }
+  if (dom) rebuildPreview(dom, editEl);
   touchPage(); save(); closeMemo(); toast('保存しました ✓');
 }
 
@@ -2548,6 +2534,14 @@ const savedEd = localStorage.getItem('snb6ed');
 if (savedEd==='light') document.body.classList.add('ed-light');
 const savedFont = localStorage.getItem('snb6f');
 if (savedFont && FONTS[savedFont]) { baseFont=savedFont; if (savedFont!=='georgia') document.body.classList.add('font-'+savedFont); }
+// Keep the board pinned. html,body are overflow:hidden but still
+// programmatically scrollable, so the on-screen keyboard / textarea focus
+// (scrollIntoView + iOS WKWebView auto-scroll) can scroll the root and leave
+// the whole board shifted up after editing. Snap the root back to 0.
+addEventListener('scroll', () => {
+  if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
+}, true);
+
 if (!load()) pages=mkData();
 renderPage();
 </script>
