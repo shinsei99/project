@@ -576,7 +576,7 @@ body.ed-light .dp-font-btn.sel{border-color:#a07030;color:#a07030;background:rgb
 
 /* ── DECO PANEL (collapsible) ── */
 #deco-panel{overflow:hidden;max-height:0;transition:max-height .25s ease;flex-shrink:0;}
-#deco-panel.open{max-height:200px;}
+#deco-panel.open{max-height:320px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .deco-toggle{background:none;border:none;color:rgba(200,170,120,.65);font-size:18px;
   cursor:pointer;padding:5px 7px;border-radius:8px;line-height:1;transition:color .15s;}
 .deco-toggle:active,.deco-toggle.on{color:var(--gold);}
@@ -983,12 +983,10 @@ const FONTS = {
 };
 let baseFont = 'georgia';
 const TAPE_COLORS = [
-  '#FFE87C','#FFD080','#FFBA80','#FFB5C2','#FF9898','#FF80B0','#F0A0D0','#D5A0D5',
-  '#B5FFD0','#90E8B8','#A0D8E8','#B5D5FF','#90C4FF','#C0B8FF','#D5B5FF','#F0D5FF'
+  '#FFE87C','#FFBA80','#FF9898','#FFB5C2','#90E8B8','#A0D8E8','#90C4FF','#D5B5FF'
 ];
 const PIN_COLORS  = [
-  '#E03030','#E06020','#E09020','#D0C010','#80C020','#30A030','#20A070','#20B0C0',
-  '#3070D0','#4050C0','#7030B0','#9020A0','#C020A0','#D04080','#904020','#606060'
+  '#E03030','#E06020','#D0C010','#30A030','#20B0C0','#3070D0','#7030B0','#606060'
 ];
 const randRot = () => memoRotMode==='straight' ? 0 : (Math.floor(Math.random()*7)-3);
 function randDeco() {
