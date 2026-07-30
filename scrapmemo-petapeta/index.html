@@ -30,7 +30,8 @@ body.font-shippori{--font-body:'Shippori Mincho',serif;}
 body.font-yomogi{--font-body:'Yomogi',cursive;}
 body.font-zen{--font-body:'Zen Maru Gothic',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-html,body{height:100%;overflow:hidden;font-family:var(--font-body);}
+html,body{position:fixed;inset:0;width:100%;height:100%;overflow:hidden;font-family:var(--font-body);
+  -webkit-overflow-scrolling:auto;overscroll-behavior:none;}
 
 /* ══════════════════════════════════════════
    THEMES
@@ -1905,7 +1906,14 @@ function makeBlockDOM(b) {
     const ta=document.createElement('textarea'); ta.className='block-textarea';
     ta.placeholder='テキストを入力…'; ta.value=b.content||'';
     ta.addEventListener('input',()=>{ updateCharCount(); });
-    ta.addEventListener('focus',()=>{ setTimeout(()=>{ ta.scrollIntoView({block:'nearest',behavior:'smooth'}); },300); });
+    ta.addEventListener('focus',()=>{ setTimeout(()=>{
+      // Scroll ONLY inside the editor container — never scrollIntoView, which
+      // scrolls the WKWebView/root and shifts the whole board up.
+      const ed=document.getElementById('memo-editor'); if(!ed) return;
+      const edr=ed.getBoundingClientRect(), tar=ta.getBoundingClientRect();
+      if (tar.bottom>edr.bottom)      ed.scrollTop += tar.bottom-edr.bottom+8;
+      else if (tar.top<edr.top)       ed.scrollTop -= edr.top-tar.top+8;
+    },300); });
     ta.addEventListener('contextmenu',e=>{ e.preventDefault(); document.getElementById('fi-block').click(); });
     wrap.appendChild(ta); wrap.appendChild(del);
   } else if (b.type==='checkbox') {
