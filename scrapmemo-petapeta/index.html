@@ -2009,7 +2009,21 @@ function saveMemo() {
   editEl.blocks=newBlocks;
   editEl.sourceUrl=document.getElementById('memo-url-input')?.value?.trim()||editEl.sourceUrl||'';
   const dom=document.querySelector(`[data-id="${editEl.id}"]`);
-  if (dom) rebuildPreview(dom, editEl);
+  if (dom) {
+    // Cards rotate around their center, but are anchored by top-left (x/y).
+    // If the content height changes on save, a rotated card's pinned top-center
+    // visually jumps. Compensate x/y by the height delta so it stays put.
+    const hBefore=dom.offsetHeight;
+    rebuildPreview(dom, editEl);
+    const dH=dom.offsetHeight-hBefore;
+    if (dH) {
+      const rot=(editEl.rot||0)*Math.PI/180;
+      editEl.x=(editEl.x||0)-dH/2*Math.sin(rot);
+      editEl.y=(editEl.y||0)-dH/2*(1-Math.cos(rot));
+      dom.style.left=editEl.x+'px';
+      dom.style.top=editEl.y+'px';
+    }
+  }
   touchPage(); save(); closeMemo(); toast('保存しました ✓');
 }
 
