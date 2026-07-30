@@ -1182,7 +1182,7 @@ function openTodo(el) {
   }
   setTimeout(()=>{
     const inp=document.querySelector('#todo-editor .block-check-text');
-    if (inp) inp.focus();
+    if (inp) inp.focus({preventScroll:true});
   },360);
 }
 function closeTodo() {
@@ -1226,7 +1226,7 @@ function addTodoItem() {
   const ed=document.getElementById('todo-editor');
   const dom=makeTodoItemDOM(it); ed.appendChild(dom);
   const inp=dom.querySelector('.block-check-text');
-  if (inp) setTimeout(()=>inp.focus(),50);
+  if (inp) setTimeout(()=>inp.focus({preventScroll:true}),50);
 }
 function saveTodo() {
   if (!editTodoEl) return;
@@ -1651,7 +1651,7 @@ function addNewPage() {
   const input = document.getElementById('page-add-input');
   input.value = `ページ ${pages.length+1}`;
   document.getElementById('page-add').style.display='flex';
-  setTimeout(()=>{ input.focus(); input.select(); }, 80);
+  setTimeout(()=>{ input.focus({preventScroll:true}); input.select(); }, 80);
 }
 function hideAddPageDialog() {
   document.getElementById('page-add').style.display='none';
@@ -1859,7 +1859,7 @@ function openMemo(el) {
   }
   setTimeout(() => {
     const ta = document.querySelector('#memo-editor .block-textarea');
-    if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); }
+    if (ta) { ta.focus({preventScroll:true}); ta.setSelectionRange(ta.value.length, ta.value.length); }
   }, 360);
 }
 function rotMemo(delta) {
@@ -1962,7 +1962,7 @@ function addTextBlock() {
   const ed=document.getElementById('memo-editor');
   const dom=makeBlockDOM(b); ed.appendChild(dom);
   const ta=dom.querySelector('.block-textarea');
-  if (ta) setTimeout(()=>{ ta.focus(); autoSize(ta); },50);
+  if (ta) setTimeout(()=>{ ta.focus({preventScroll:true}); autoSize(ta); },50);
 }
 function addCheckBlock() {
   if (!editEl) return;
@@ -1971,7 +1971,7 @@ function addCheckBlock() {
   const ed=document.getElementById('memo-editor');
   const dom=makeBlockDOM(b); ed.appendChild(dom);
   const ta=dom.querySelector('.block-check-text');
-  if (ta) setTimeout(()=>{ ta.focus(); autoSize(ta); },50);
+  if (ta) setTimeout(()=>{ ta.focus({preventScroll:true}); autoSize(ta); },50);
 }
 
 function addImageBlock(ev) {
@@ -2038,7 +2038,7 @@ function openWCSheet() {
   document.getElementById('wc-loading').style.display='none';
   document.getElementById('wc-scrap-btn').disabled=true;
   document.getElementById('wc-sheet').classList.add('open');
-  setTimeout(()=>document.getElementById('wc-url-input').focus(),360);
+  setTimeout(()=>document.getElementById('wc-url-input').focus({preventScroll:true}),360);
 }
 function closeWCSheet() { document.getElementById('wc-sheet').classList.remove('open'); wcData=null; }
 
@@ -2133,7 +2133,7 @@ function placeWebClip() {
 // ══════════════════════════════════════════
 //  TITLE SHEET
 // ══════════════════════════════════════════
-function openTitleSheet() { document.getElementById('title-in').value=pages[curIdx].title; document.getElementById('title-sheet').classList.add('open'); setTimeout(()=>document.getElementById('title-in').focus(),300); }
+function openTitleSheet() { document.getElementById('title-in').value=pages[curIdx].title; document.getElementById('title-sheet').classList.add('open'); setTimeout(()=>document.getElementById('title-in').focus({preventScroll:true}),300); }
 function closeTitle() { document.getElementById('title-sheet').classList.remove('open'); }
 function confirmTitle() { const v=document.getElementById('title-in').value.trim(); if(v) pages[curIdx].title=v; closeTitle(); touchPage(); save(); updateUI(); }
 
@@ -2162,7 +2162,7 @@ function openSearch() {
   document.getElementById('search-input').value='';
   document.getElementById('search-results').innerHTML='<div class="sr-empty">キーワードを入力してください</div>';
   document.getElementById('search-sheet').classList.add('open');
-  setTimeout(()=>document.getElementById('search-input').focus(),300);
+  setTimeout(()=>document.getElementById('search-input').focus({preventScroll:true}),300);
 }
 function closeSearch() { document.getElementById('search-sheet').classList.remove('open'); }
 function doSearch(q) {
@@ -2503,7 +2503,7 @@ document.getElementById('title-in').addEventListener('keydown',e=>{ if(e.key==='
 document.getElementById('page-add-input').addEventListener('keydown',e=>{ if(e.key==='Enter') doAddNewPage(); });
 document.getElementById('wc-url-input').addEventListener('keydown',e=>{ if(e.key==='Enter') doFetchOGP(); });
 document.getElementById('todo-title-in').addEventListener('keydown',e=>{
-  if(e.key==='Enter'){ e.preventDefault(); const inp=document.querySelector('#todo-editor .block-check-text'); if(inp) inp.focus(); }
+  if(e.key==='Enter'){ e.preventDefault(); const inp=document.querySelector('#todo-editor .block-check-text'); if(inp) inp.focus({preventScroll:true}); }
 });
 
 document.getElementById('page-wrap').addEventListener('pointerdown',e=>{
@@ -2542,10 +2542,10 @@ const savedEd = localStorage.getItem('snb6ed');
 if (savedEd==='light') document.body.classList.add('ed-light');
 const savedFont = localStorage.getItem('snb6f');
 if (savedFont && FONTS[savedFont]) { baseFont=savedFont; if (savedFont!=='georgia') document.body.classList.add('font-'+savedFont); }
-// Keep the board pinned. html,body are overflow:hidden but still
-// programmatically scrollable, so the on-screen keyboard / textarea focus
-// (scrollIntoView + iOS WKWebView auto-scroll) can scroll the root and leave
-// the whole board shifted up after editing. Snap the root back to 0.
+// Belt-and-suspenders: if anything ever scrolls the root, snap it back.
+// The real fix for the "whole board shifts up after editing" bug is
+// focus({preventScroll:true}) on every input + position:fixed body — the
+// WKWebView was scrolling to the focused textarea and staying there.
 addEventListener('scroll', () => {
   if (window.scrollX || window.scrollY) window.scrollTo(0, 0);
 }, true);
