@@ -3,7 +3,7 @@
   "appName": "スクラップメモ",
   "webDir": "www",
   "ios": {
-    "scrollEnabled": false,
+    "scrollEnabled": true,
     "contentInset": "never"
   }
 }
