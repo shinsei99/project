@@ -139,12 +139,6 @@
     0%,100%{box-shadow:inset 0 0 10px rgba(0,0,0,.45);}
     30%,70%{box-shadow:inset 0 0 26px rgba(255,255,255,.95),0 0 24px rgba(255,214,10,1);}
   }
-  /* persistent "start here next" glow on the top-left-most empty cell */
-  .slot.anchor{ border-color:rgba(0,240,255,.55)!important; animation:anchorg 1.8s ease-in-out infinite; }
-  @keyframes anchorg{
-    0%,100%{box-shadow:inset 0 0 10px rgba(0,0,0,.45);}
-    50%{box-shadow:inset 0 0 20px rgba(0,240,255,.55),0 0 16px rgba(0,240,255,.65);}
-  }
   /* stage-start solution reveal: full colour-coded partition, flashed then faded */
   .revealLayer{position:absolute; inset:0; z-index:6; pointer-events:none; opacity:0; transition:opacity .35s ease;}
   .revealLayer .block{animation:none;}
@@ -234,7 +228,7 @@
     <h4>操作</h4>
     <p><b>NOW</b> のピースを盤面へ<b>ドラッグ</b>して配置。<kbd>Space</kbd>／「⟳回転」で回転。盤上のピースは<b>タップで戻せます</b>。正しく置くと<b style="color:#ffd60a">キラッ</b>と光ります。</p>
     <h4>スタート地点ガイド</h4>
-    <p>面のはじめに<b>正解の区割り</b>が一瞬光ります（覚えてね）。<b style="color:#00f0ff">青く光る角</b>＝次に埋める起点。<b>最初の1手</b>はそこにピッタリはまるピースが来ます。</p>
+    <p>面のはじめに<b>正解の区割り</b>が一瞬光ります（覚えてね）。<b>最初の1手</b>は<b style="color:#00f0ff">左上から</b>埋めるピースが来ます。</p>
     <h4>ボス＆セーブ</h4>
     <p><b>5面ごと</b>に動物ボス＝<b>セーブポイント</b>。撃破するとセーブされ、お助けアイテムが補充されます。</p>
     <h4>お助けアイテム</h4>
@@ -502,7 +496,7 @@ function loadStage(n){
     // home = this piece's slot in the reference solution (used by hint/auto)
     pieces.push({id:i, cells:c, color:colorOf(c), home:abs.map(a=>a.slice()), homeShape:norm(abs), placed:false, boardEls:[]});
   });
-  // only the FIRST piece is order-fixed (fits the lit top-left anchor) => obvious opening move; the rest are random
+  // only the FIRST piece is order-fixed (fits the top-left-most empty cell) => obvious opening move; the rest are random
   queue=pieces.length ? [pieces[0], ...shuffle(pieces.slice(1))] : [];
 
   // time limit scales with cell count, tighter later; bosses get extra
@@ -516,17 +510,9 @@ function loadStage(n){
 let curName='';
 
 /* ---------- readability aids: anchor glow + stage-start solution reveal ---------- */
-// light the top-left-most still-empty cell = the "fill from here next" frontier (the opening piece fits it exactly)
+// 起点グロー（左上の空きマスを青く光らせる演出）は廃止。呼び出し元は残置し、念のため既存クラスだけ掃除する
 function updateAnchor(){
-  if(!grid) return;
   document.querySelectorAll('.slot.anchor').forEach(s=>s.classList.remove('anchor'));
-  if(!queue.length) return;
-  let best=null;
-  for(const g of grid.values()){
-    if(g.filled) continue;
-    if(!best || g.y<best.y || (g.y===best.y && g.x<best.x)) best=g;
-  }
-  if(best && best.el) best.el.classList.add('anchor');
 }
 // briefly show the whole colour-coded dissection so the player can memorise the cut lines, then fade
 function revealSolution(done){
