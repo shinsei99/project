@@ -7,6 +7,8 @@ struct CropView: View {
 
     @State private var rect = CGRect(x: 0, y: 0, width: 1, height: 1)
     @State private var moveStart: CGRect?
+    /// 比率プリセット選択時にロックされる縦横比（正規化rectの width/height）。nil＝自由変形。
+    @State private var lockedAspect: CGFloat?
 
     private enum Corner { case tl, tr, bl, br }
     private let presets: [(String, CGFloat?)] = [
@@ -143,6 +145,11 @@ struct CropView: View {
     }
 
     private func resize(_ corner: Corner, to n: CGPoint) {
+        // 比率ロック中は対角を固定して縦横比を保ったまま拡縮する。
+        if let ratio = lockedAspect {
+            resizeLocked(corner, to: n, ratio: ratio)
+            return
+        }
         var minX = rect.minX, minY = rect.minY, maxX = rect.maxX, maxY = rect.maxY
         switch corner {
         case .tl: minX = n.x; minY = n.y
@@ -157,8 +164,38 @@ struct CropView: View {
         rect = CGRect(x: minX, y: minY, width: maxX - minX, height: maxY - minY)
     }
 
+    /// 縦横比 `ratio`（=width/height）を維持したまま四隅で拡縮。対角の隅を固定点にする。
+    private func resizeLocked(_ corner: Corner, to n: CGPoint, ratio: CGFloat) {
+        // ドラッグ隅の対角（固定点）と、固定点から見た伸びる向き。
+        let anchor: CGPoint
+        switch corner {
+        case .tl: anchor = CGPoint(x: rect.maxX, y: rect.maxY)
+        case .tr: anchor = CGPoint(x: rect.minX, y: rect.maxY)
+        case .bl: anchor = CGPoint(x: rect.maxX, y: rect.minY)
+        case .br: anchor = CGPoint(x: rect.minX, y: rect.minY)
+        }
+        let dirX: CGFloat = (corner == .tr || corner == .br) ? 1 : -1
+        let dirY: CGFloat = (corner == .bl || corner == .br) ? 1 : -1
+
+        // ドラッグ量から幅を決め、比率で高さを確定（大きい方の動きを優先＝操作が素直）。
+        var w = max(abs(n.x - anchor.x), abs(n.y - anchor.y) * ratio)
+        // 画面端（0〜1）に収まる最大幅と、最小サイズで両端をクランプ。
+        let availX = dirX > 0 ? (1 - anchor.x) : anchor.x
+        let availY = dirY > 0 ? (1 - anchor.y) : anchor.y
+        let maxW = min(availX, availY * ratio)
+        let minSize: CGFloat = 0.08
+        let minW = max(minSize, minSize * ratio)
+        w = min(max(w, minW), max(maxW, minW))
+        let h = w / ratio
+
+        let x0 = dirX > 0 ? anchor.x : anchor.x - w
+        let y0 = dirY > 0 ? anchor.y : anchor.y - h
+        rect = CGRect(x: x0, y: y0, width: w, height: h)
+    }
+
     private func applyPreset(_ aspect: CGFloat?) {
         guard let a = aspect else {
+            lockedAspect = nil          // 「全体」は自由変形に戻す
             rect = CGRect(x: 0, y: 0, width: 1, height: 1)
             return
         }
@@ -167,6 +204,7 @@ struct CropView: View {
         let rr = a * img.height / img.width
         var nw: CGFloat = 1, nh: CGFloat = 1
         if rr >= 1 { nw = 1; nh = 1 / rr } else { nh = 1; nw = rr }
+        lockedAspect = rr               // 以降の四隅ドラッグはこの比率を維持
         rect = CGRect(x: (1 - nw) / 2, y: (1 - nh) / 2, width: nw, height: nh)
     }
 }
