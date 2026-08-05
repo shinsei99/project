@@ -21,6 +21,7 @@ PSA「My Collection」のCSVエクスポートを読み込み、**保有カー�
 | `data/collection.csv` | PSA My Collection のエクスポートCSV（そのまま） |
 | `data/storage_notes.json` | 保管場所・メモ（証明書番号がキー） |
 | `data/images/<証明書番号>.jpg` | カード画像（`_back.jpg` は裏面） |
+| `data/thumbs/<証明書番号>.jpg` | 一覧表示用サムネイル（初回表示時に自動生成） |
 | `data/image_urls.json` | PSA側の画像URL（ローカル保存に失敗した場合の直リンク用） |
 | `data/image_state.json` | API呼び出しの当日カウント・取得失敗記録 |
 | `data/psa_api.json` | PSA APIトークン |
@@ -36,7 +37,34 @@ PSA「My Collection」のCSVエクスポートを読み込み、**保有カー�
 
 「どれを保有しているか」を絵で確認するための機能。画像は**証明書番号ごとにローカルへ永久キャッシュ**され、一度取得したものは再取得しません。
 
-### PSA公開APIから自動取得（推奨）
+**取得済み: 871枚（保有381＋売却済490）／ 443MB。** 下の「app.collectors.com から取得」の方法で全件揃っています。
+
+### app.collectors.com から取得（実際に使えた方法）
+
+PSA公開APIは承認制で403になるため、**ログイン済みブラウザのセッションでPSAサイト内部のAPIを叩く**のがこのアプリの取得ルート。承認も回数制限も不要で、871枚を数分で取得できる。
+
+1. Safari設定 > 詳細 > 「Webデベロッパ用の機能を表示」→ 開発メニュー > 「Apple EventsからのJavaScriptを許可」
+2. https://app.collectors.com/collection/ を開いてログイン
+3. `harvest_collectors.js` をページに流し込む（手順はファイル冒頭のコメント参照）
+4. 集めた結果をJSONLにして `python3 import_from_web.py <file.jsonl>`
+
+内部APIの構造:
+
+| 呼び出し | 役割 |
+|---|---|
+| `collection.list` | カード一覧。`cursor`=ページ番号、`pageSize`=件数、`totalItems`=総数。**画像URLはnull** |
+| `collection.images` | listの結果を渡すと `collectibleId` をキーに `original/large/medium/small/thumbnail` を返す |
+
+入力は `{"0": "<JSONを16進エンコードした文字列>"}` という形式。画像実体は `d1htnxwo4o0jhw.cloudfront.net` にあり**認証不要**で落とせる。
+
+一覧表示用のサムネイル（幅420px）は初回表示時に `data/thumbs/` へ自動生成される。
+
+### PSA公開APIから自動取得（※現状は使えない）
+
+> **2026-08-05時点で403。** トークンは正しく発行・認識される（無効トークンなら429、有効だと403）が、
+> `{"Message":"Access to this API is limited to approved customers."}` が返り、アカウントの利用承認が必要。
+> 申請窓口はページ上に無く `collectors-apis@collectors.com` のみ（依頼文の下書きは `api_access_request.md`）。
+> 承認が下りればコード変更なしで下記がそのまま動く。
 
 1. https://www.psacard.com/publicapi でPSAアカウントにログインし、**APIトークンを無料発行**
 2. サイドバー「🖼 カード画像の取得」にトークンを貼る（`data/psa_api.json` に保存）
@@ -56,7 +84,8 @@ PSA「My Collection」のCSVエクスポートを読み込み、**保有カー�
 
 **🖼 ギャラリータブ**
 - カード画像をグリッド表示。グレード・金額・カード名・保管場所を添えて、見た目で保有カードを確認
-- 1行の枚数／1ページの枚数／ページ送りを調整可。裏面は折りたたみで表示
+- **並べ替え**（PSA推定額／年／グレード／セット／カード名、売却済なら売却日・売却額も）
+- 1行の枚数／1ページの枚数／ページ送りを調整可。「拡大」で原寸表示
 - 絞り込みの「カード画像」で「画像ありのみ / 画像なしのみ」に切替（未取得の洗い出しに使う）
 
 **サイドバー（絞り込み）**
@@ -81,3 +110,27 @@ PSA「My Collection」のCSVエクスポートを読み込み、**保有カー�
   そのため損益は「売却額 − 手数料 = 手取り」までしか出せず、仕入値ベースの利益は算出できません。
 - `Year` に `1998-99` 形式が混じる（ANCIENT MEW 4件）。先頭4桁を数値の年として扱っています。
 - 売却済カードは `Vault Status` が空欄。Vault集計は保有中が対象です。
+
+## 別PCへの引き継ぎ
+
+**画像443MBを運ぶ必要はありません。** CloudFrontの画像URLは認証不要なので、URLリストさえあれば落とし直せます。
+
+引き継ぐファイル（`data/` 配下、合計約330KB）:
+
+| ファイル | 中身 |
+|---|---|
+| `collection.csv` | PSA My Collection エクスポート |
+| `image_urls.json` | 871枚ぶんの画像URL ← **これが画像の実体を兼ねる** |
+| `storage_notes.json` | 保管場所メモ |
+
+受け取り側の手順:
+
+```bash
+git pull                            # アプリ本体
+# 上記3ファイルを psa-collection/data/ に置く
+cd psa-collection
+python3 import_from_web.py          # 871枚をCloudFrontから自動ダウンロード
+./run.sh                            # http://localhost:8527
+```
+
+サムネイル（`data/thumbs/`）は初回表示時に自動生成されるので運ぶ必要はありません。

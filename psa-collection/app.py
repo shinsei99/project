@@ -71,6 +71,7 @@ def load_collection(path: Path, mtime: float) -> pd.DataFrame:
     df["Year"] = df["Year"].fillna("")
     # 「1998-99」のような表記があるため、先頭4桁を数値の年として別に持つ
     df["year_num"] = pd.to_numeric(df["Year"].str.extract(r"(\d{4})")[0], errors="coerce")
+    df["grade_num"] = pd.to_numeric(df["Grade"], errors="coerce")
     df["cert_url"] = "https://www.psacard.com/cert/" + df["Cert Number"].astype(str)
     return df
 
@@ -324,6 +325,32 @@ else:
 st.divider()
 
 
+# ---------------------------------------------------------------- 並べ替え
+
+SORT_MAP = {
+    "PSA推定額が高い順": ("PSA Estimate", False),
+    "PSA推定額が安い順": ("PSA Estimate", True),
+    "年が新しい順": ("year_num", False),
+    "年が古い順": ("year_num", True),
+    "グレードが高い順": ("grade_num", False),
+    "セット順": ("Set", True),
+    "カード名順": ("Subject", True),
+    "売却日が新しい順": ("Sold Date", False),
+    "売却額が高い順": ("Sold Price", False),
+}
+SOLD_ONLY_SORTS = {"売却日が新しい順", "売却額が高い順"}
+
+
+def sort_options() -> list:
+    """売却済ビューのときだけ売却関連の並べ替えも出す。"""
+    return [k for k in SORT_MAP if is_sold_view or k not in SOLD_ONLY_SORTS]
+
+
+def apply_sort(frame: pd.DataFrame, key: str) -> pd.DataFrame:
+    by, asc = SORT_MAP[key]
+    return frame.sort_values(by, ascending=asc, na_position="last")
+
+
 # ---------------------------------------------------------------- タブ
 
 tab_gallery, tab_list, tab_place, tab_stats = st.tabs(
@@ -334,15 +361,16 @@ with tab_gallery:
     if view.empty:
         st.info("条件に合うカードがありません。絞り込みを緩めてください。")
     else:
-        top_bar = st.columns([2, 2, 3])
-        per_row = top_bar[0].select_slider("1行の枚数", [3, 4, 5, 6, 8], value=5)
-        page_size = top_bar[1].select_slider("1ページの枚数", [20, 40, 60, 100], value=40)
+        top_bar = st.columns([3, 2, 2, 2])
+        g_sort = top_bar[0].selectbox("並べ替え", sort_options(), key="gallery_sort")
+        per_row = top_bar[1].select_slider("1行の枚数", [3, 4, 5, 6, 8], value=5)
+        page_size = top_bar[2].select_slider("1ページの枚数", [20, 40, 60, 100], value=40)
         n_pages = max(1, -(-len(view) // page_size))
-        page = top_bar[2].number_input(
+        page = top_bar[3].number_input(
             f"ページ（全{n_pages}）", 1, n_pages, 1, key="gallery_page"
         )
 
-        page_df = view.iloc[(page - 1) * page_size : page * page_size]
+        page_df = apply_sort(view, g_sort).iloc[(page - 1) * page_size : page * page_size]
         n_missing = (~page_df["画像"]).sum()
         if n_missing:
             st.caption(
@@ -355,7 +383,7 @@ with tab_gallery:
             for col, (_, card) in zip(st.columns(per_row), chunk.iterrows()):
                 cert = str(card["Cert Number"])
                 with col:
-                    img = store.source(cert)
+                    img = store.thumb(cert)
                     if img:
                         st.image(img, width="stretch")
                     else:
@@ -377,6 +405,10 @@ with tab_gallery:
                         f"[証明書 {cert}]({card['cert_url']})",
                         unsafe_allow_html=True,
                     )
+                    full = store.source(cert)
+                    if full:
+                        with st.expander("拡大"):
+                            st.image(full, width="stretch")
                     back = store.source(cert, back=True)
                     if back:
                         with st.expander("裏面"):
@@ -396,24 +428,8 @@ with tab_list:
         )
         cols += ["Cert Number", "cert_url"]
 
-        sort_key = st.selectbox(
-            "並べ替え",
-            ["PSA推定額が高い順", "PSA推定額が安い順", "年が新しい順", "年が古い順",
-             "セット順", "カード名順"]
-            + (["売却日が新しい順", "売却額が高い順"] if is_sold_view else []),
-        )
-        sort_map = {
-            "PSA推定額が高い順": ("PSA Estimate", False),
-            "PSA推定額が安い順": ("PSA Estimate", True),
-            "年が新しい順": ("year_num", False),
-            "年が古い順": ("year_num", True),
-            "セット順": ("Set", True),
-            "カード名順": ("Subject", True),
-            "売却日が新しい順": ("Sold Date", False),
-            "売却額が高い順": ("Sold Price", False),
-        }
-        by, asc = sort_map[sort_key]
-        shown = view.sort_values(by, ascending=asc, na_position="last")[cols]
+        sort_key = st.selectbox("並べ替え", sort_options(), key="list_sort")
+        shown = apply_sort(view, sort_key)[cols]
 
         st.dataframe(
             shown,

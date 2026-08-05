@@ -85,8 +85,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - PSA「My Collection」エクスポートCSV（`data/collection.csv`）を読み、**保有カードの検索・絞り込み・保管場所記録**を行う在庫管理Streamlit。初回取込は871件（保有381 / 売却済490、PSA10=541、ほぼポケカ日本語版＋ワンピースTCG）。
 - 保管場所・メモは`data/storage_notes.json`に**証明書番号キー**で別管理。CSVを丸ごと差し替えても消えない設計（サイドバー「データ更新」でアップロード差し替え）。一覧の`PSA`列は`psacard.com/cert/<番号>`へのリンク。
-- **カード画像**（🖼ギャラリータブ）: PSA公開API `GET /publicapi/cert/GetImagesByCertNumber/<cert>`（`Authorization: bearer <token>`、トークンは psacard.com/publicapi で無料発行）から取得し`data/images/<cert>[_back].jpg`に**永久キャッシュ**。**無料枠1日100件**のため上限で自動停止→翌日続きから（381枚なら4日で完了）。当日カウントは`data/image_state.json`。DL失敗時は画像URLを`data/image_urls.json`に控えてブラウザ直リンク表示にフォールバック。手動アップロード（ファイル名＝証明書番号）にも対応。実装は`psa_images.py`。
-- **psacard.comの証明書ページはCloudflareで403**。サーバー側スクレイピング不可なので画像の自動取得は公開API経由のみ（この結論は再調査不要）。
+- **カード画像**（🖼ギャラリータブ）: **871枚取得済み**（保有381＋売却済490・443MB）。`data/images/<cert>.jpg`に永久キャッシュ、一覧用サムネは`data/thumbs/`に初回自動生成。
+- **画像の取得ルート（重要・再調査不要）**: PSA公開APIは**承認制で403**（`Access to this API is limited to approved customers`）。トークン自体は有効（無効トークンなら429、有効だと403に変わる）だがアカウント承認が必要で、申請窓口はページ上に無く`collectors-apis@collectors.com`のみ。→ **実際に使えたのは`app.collectors.com`のサイト内部API**。ログイン済みSafariで`do JavaScript`（設定: 詳細>Webデベロッパ用の機能を表示 → 開発>Apple EventsからのJavaScriptを許可）し、`collection.list`（`cursor`=ページ番号/`pageSize`/`totalItems`、画像URLはnull）→ `collection.images`（listのitemsを渡すと`collectibleId`キーで`original/large/medium/small/thumbnail`）の2段。入力は`{"0":"<JSONの16進エンコード>"}`形式。画像実体は`d1htnxwo4o0jhw.cloudfront.net`で**認証不要**。スクリプトは`harvest_collectors.js`＋`import_from_web.py`。**承認・回数制限とも不要**。
+- **psacard.comの証明書ページはCloudflareで403**。サーバー側スクレイピングは不可。
 - `data/`は保有明細と資産額を含むため**gitignore**（公開リポジトリに出さない）。他PCではCSVを`data/collection.csv`に置いて起動。launchd未登録（ツール分類のため社内LAN共有なし）。
 - 元データの制約: `My Cost`/`My Value`/`Date Acquired`/`Source`/`My Notes`はPSA側で全件空欄 → **仕入値ベースの利益は算出不可**（売却額−手数料=手取り まで）。`Year`に`1998-99`形式が4件混在するため先頭4桁を数値年として扱う。
 

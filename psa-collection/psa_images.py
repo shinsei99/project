@@ -30,6 +30,7 @@ class ImageStore:
         self.dir.mkdir(parents=True, exist_ok=True)
         self.state_path = data_dir / "image_state.json"
         self.urls_path = data_dir / "image_urls.json"
+        self.thumb_dir = data_dir / "thumbs"
 
     # ------------------------------------------------------------ ファイル
 
@@ -83,6 +84,32 @@ class ImageStore:
         if p.exists():
             return str(p)
         return self.url(cert, back)
+
+    # ------------------------------------------------------------ サムネイル
+    # 原寸は1枚あたり0.5MB前後あり、一覧に数十枚並べると重い。
+    # 初回アクセス時に縮小版を作って以降はそれを使う。
+
+    def thumb(self, cert: str, max_width: int = 420):
+        """一覧表示用の縮小版のパス。無ければ作る。作れなければ原寸にフォールバック。"""
+        src = self.path(cert)
+        if not src.exists():
+            return self.url(cert)
+
+        dst = self.thumb_dir / f"{cert}.jpg"
+        if dst.exists():
+            return str(dst)
+
+        try:
+            from PIL import Image
+
+            self.thumb_dir.mkdir(parents=True, exist_ok=True)
+            with Image.open(src) as im:
+                im = im.convert("RGB")
+                im.thumbnail((max_width, max_width * 3), Image.LANCZOS)
+                im.save(dst, "JPEG", quality=82, optimize=True)
+            return str(dst)
+        except Exception:
+            return str(src)
 
     # ------------------------------------------------------------ 取得状態
 
@@ -183,6 +210,9 @@ def fetch_one(cert: str, token: str, store: ImageStore) -> tuple[bool, str]:
 
     if r.status_code == 429:
         return False, "QUOTA"  # 呼び出し側で打ち切る合図
+    if r.status_code == 403 and "approved" in r.text.lower():
+        # トークンは有効だが、PSA側でAPI利用が承認されていない
+        return False, "NOT_APPROVED"
     if r.status_code in (401, 403):
         return False, "AUTH"
     if r.status_code != 200:
@@ -231,6 +261,14 @@ def fetch_many(certs, token: str, store: ImageStore, progress=None) -> dict:
         else:
             if msg == "QUOTA":
                 result["stopped"] = "PSA側の日次上限に達しました。明日また実行してください。"
+                break
+            if msg == "NOT_APPROVED":
+                result["stopped"] = (
+                    "トークンは有効ですが、PSA側でAPI利用が承認されていません"
+                    "（403 Access to this API is limited to approved customers）。"
+                    "psacard.com/publicapi で利用規約への同意・アクセス申請を確認するか、"
+                    "collectors-apis@collectors.com に承認を依頼してください。"
+                )
                 break
             if msg == "AUTH":
                 result["stopped"] = "トークンが無効です。PSAの開発者ページで再発行してください。"
