@@ -178,3 +178,10 @@ payment-reconciler/name_mapping.csv
 payment-reconciler/logs/
 payment-reconciler/.venv/
 payment-reconciler/__pycache__/
+
+!psa-collection/
+!psa-collection/**
+# 保有カード明細・資産額を含むため公開しない（CSVは各PCで data/ に配置。README参照）
+psa-collection/data/
+psa-collection/.venv/
+psa-collection/__pycache__/

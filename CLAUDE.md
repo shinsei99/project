@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-07-14時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全40本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全41本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
 ### 不動産（26本）
@@ -40,7 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
 | 送付書メーカー | soufu-maker | 8525 | ✅ | — |
 
-### ツール（9本）※社内LAN共有なし
+### ツール（10本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
@@ -53,6 +53,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
 | フォトリメイク | photo-remake | — | iOS App Store配信済み ✅ |
 | 買取DMジェネレーター | kaitori-dm-maker | 8526 | — |
+| PSA保有カード管理 | psa-collection | 8527 | — |
 
 ### ゲーム（6本）※社内LAN共有なし
 
@@ -79,6 +80,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **謄本PDF取込**：サイドバー「台帳更新」から謄本を複数（5件程度）アップ→AI読取→台帳に行追加。読取は**同リポジトリの`baikai-generator/services/registry_parser.py`を再利用**（`claude` CLIビジョン、パスは`shutil.which`で解決）。市/所在の分離・地目/地積・建物種類/構造/床面積・登記名義人/現住所を自動抽出。「1ファイル=1物件」/「全ファイル=1物件に統合」を選択可。
 - **差出人**はサイドバーで追加・編集・削除（`senders.json`に保存。無ければコード内`DEFAULT_SENDERS`から生成）。DM一覧は各行チェックで送付先選択（既定全選択）、結合docx/個別ZIP出力。
 - `senders.json`は個人情報を含むため**gitignore**（公開リポジトリに出さない）。メインPCへはコード内`DEFAULT_SENDERS`が既定として引き継がれる。launchd未登録（ツール分類のため社内LAN共有なし）。
+
+### PSA保有カード管理（psa-collection）補足 ※ツール・port 8527
+
+- PSA「My Collection」エクスポートCSV（`data/collection.csv`）を読み、**保有カードの検索・絞り込み・保管場所記録**を行う在庫管理Streamlit。初回取込は871件（保有381 / 売却済490、PSA10=541、ほぼポケカ日本語版＋ワンピースTCG）。
+- 保管場所・メモは`data/storage_notes.json`に**証明書番号キー**で別管理。CSVを丸ごと差し替えても消えない設計（サイドバー「データ更新」でアップロード差し替え）。一覧の`PSA`列は`psacard.com/cert/<番号>`へのリンク。
+- **カード画像**（🖼ギャラリータブ）: PSA公開API `GET /publicapi/cert/GetImagesByCertNumber/<cert>`（`Authorization: bearer <token>`、トークンは psacard.com/publicapi で無料発行）から取得し`data/images/<cert>[_back].jpg`に**永久キャッシュ**。**無料枠1日100件**のため上限で自動停止→翌日続きから（381枚なら4日で完了）。当日カウントは`data/image_state.json`。DL失敗時は画像URLを`data/image_urls.json`に控えてブラウザ直リンク表示にフォールバック。手動アップロード（ファイル名＝証明書番号）にも対応。実装は`psa_images.py`。
+- **psacard.comの証明書ページはCloudflareで403**。サーバー側スクレイピング不可なので画像の自動取得は公開API経由のみ（この結論は再調査不要）。
+- `data/`は保有明細と資産額を含むため**gitignore**（公開リポジトリに出さない）。他PCではCSVを`data/collection.csv`に置いて起動。launchd未登録（ツール分類のため社内LAN共有なし）。
+- 元データの制約: `My Cost`/`My Value`/`Date Acquired`/`Source`/`My Notes`はPSA側で全件空欄 → **仕入値ベースの利益は算出不可**（売却額−手数料=手取り まで）。`Year`に`1998-99`形式が4件混在するため先頭4桁を数値年として扱う。
 
 ### theta-viewer FTP APIサーバー port修正（2026-07-14）
 
