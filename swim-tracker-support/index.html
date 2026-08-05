@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>水泳記録トラッカー サポート</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+    line-height: 1.9; color: #1c1c1e; background: #f5f5f7;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { text-align: center; padding: 16px 0 8px; }
+  .icon { font-size: 3rem; }
+  h1 { font-size: 1.5rem; margin: 8px 0 4px; }
+  .lead { color: #6b7280; }
+  h2 { font-size: 1.1rem; margin: 28px 0 6px; }
+  .card { background: #fff; border-radius: 14px; padding: 18px 20px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .card ul { margin: 0; padding-left: 1.2em; }
+  a { color: #2563eb; }
+  p { margin: 8px 0; }
+  .qa { font-weight: 700; margin-top: 14px; }
+  footer { text-align: center; color: #8e8e93; font-size: .85rem; margin-top: 40px; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #f2f2f7; background: #000; }
+    .lead { color: #98989d; }
+    .card { background: #1c1c1e; box-shadow: none; }
+    .qa + p { color: #c7c7cc; }
+    footer { color: #8e8e93; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="icon">🏊</div>
+    <h1>水泳記録トラッカー サポート</h1>
+    <p class="lead">競泳のタイム・ラップ・目標を記録して伸びを見える化するアプリ</p>
+  </header>
+
+  <h2>使い方</h2>
+  <div class="card">
+    <ul>
+      <li><b>選手を登録</b>：左のパネルから選手（ユーザー）を追加し、生年月日を入力すると年齢区分が自動判定されます。プロフィール写真も設定できます。</li>
+      <li><b>記録入力</b>：種目・距離を選び、50mごとの通過タイムを入力するとラップと合計タイムを自動計算します。</li>
+      <li><b>履歴・分析</b>：過去の記録を一覧・グラフで確認し、種目でしぼり込めます。CSV / Excel への書き出しにも対応。</li>
+      <li><b>ベスト</b>：種目ごとの自己ベストと標準記録との差を表示します。</li>
+      <li><b>目標</b>：目標タイムと期限を設定し、達成状況を管理できます。</li>
+    </ul>
+  </div>
+
+  <h2>よくある質問</h2>
+  <div class="card">
+    <p class="qa">Q. 記録はインターネットに送信されますか？</p>
+    <p>いいえ。すべてのデータは端末内にのみ保存され、外部サーバーに送信することはありません。アカウント登録も不要です。</p>
+    <p class="qa">Q. iPad でも使えますか？</p>
+    <p>はい。iPhone / iPad の両方に対応しています。</p>
+    <p class="qa">Q. 複数の選手を管理できますか？</p>
+    <p>はい。選手を何人でも登録し、切り替えて記録できます。</p>
+    <p class="qa">Q. データのバックアップはできますか？</p>
+    <p>履歴画面から CSV / Excel に書き出して保存できます。</p>
+    <p class="qa">Q. アプリを削除するとデータはどうなりますか？</p>
+    <p>データは端末内に保存されているため、アプリを削除すると記録も消えます。必要な記録は事前に書き出してください。</p>
+  </div>
+
+  <h2>お問い合わせ</h2>
+  <div class="card">
+    <p>ご質問・ご要望・不具合のご報告は、下記メールまでお気軽にご連絡ください。</p>
+    <p><a href="mailto:info@shinsei-pm.co.jp">info@shinsei-pm.co.jp</a></p>
+  </div>
+
+  <h2>プライバシー</h2>
+  <div class="card">
+    <p>本アプリはユーザーのデータを収集しません。記録・写真はすべて端末内でのみ処理され、外部に送信・共有されることはありません。トラッキングも行いません。詳しくは <a href="./privacy.html">プライバシーポリシー</a> をご覧ください。</p>
+  </div>
+
+  <footer>
+    運営：新誠プロパティマネジメント<br>
+    © 2026 新誠プロパティマネジメント
+  </footer>
+</div>
+</body>
+</html>
