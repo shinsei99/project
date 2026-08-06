@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-07-14時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全41本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全42本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
 ### 不動産（26本）
@@ -40,7 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
 | 送付書メーカー | soufu-maker | 8525 | ✅ | — |
 
-### ツール（10本）※社内LAN共有なし
+### ツール（11本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
@@ -54,6 +54,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | フォトリメイク | photo-remake | — | iOS App Store配信済み ✅ |
 | 買取DMジェネレーター | kaitori-dm-maker | 8526 | — |
 | PSA保有カード管理 | psa-collection | 8527 | — |
+| パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
 
 ### ゲーム（6本）※社内LAN共有なし
 

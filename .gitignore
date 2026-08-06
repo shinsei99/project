@@ -64,6 +64,11 @@ nyanko-ice/android/
 !brain-dump/
 !brain-dump/**
 brain-dump/.vercel/
+!pasha-calo/
+!pasha-calo/**
+pasha-calo/.vercel/
+pasha-calo/node_modules/
+pasha-calo/.next/
 !restoration-calculator/
 !restoration-calculator/**
 restoration-calculator/.venv/
