@@ -5,4 +5,5 @@ if [ ! -d .venv ]; then
   .venv/bin/pip install -q --upgrade pip
   .venv/bin/pip install -q -r requirements.txt
 fi
-exec .venv/bin/streamlit run app.py --server.port 8527 --server.headless true --server.address 0.0.0.0
+# ツール分類（社内LAN共有なし）＝ localhost バインド（--server.address 指定なし）
+exec .venv/bin/streamlit run app.py --server.port 8527 --server.headless true
