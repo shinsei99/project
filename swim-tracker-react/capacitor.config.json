@@ -1,0 +1,8 @@
+{
+  "appId": "com.shinsei99.swimtracker",
+  "appName": "水泳記録トラッカー",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never"
+  }
+}

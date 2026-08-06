@@ -1,4 +1,10 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  /* 横方向は固定（縦スクロールのみ許可） */
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: #f4f8fb;
@@ -8,4 +14,4 @@ body {
 }
 button { cursor: pointer; font-family: inherit; }
 input, select, textarea { font-family: inherit; }
-#root { min-height: 100vh; }
+#root { min-height: 100vh; max-width: 100%; overflow-x: hidden; }
