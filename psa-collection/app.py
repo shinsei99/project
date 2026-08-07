@@ -332,7 +332,7 @@ def render_album(df, store):
         if not current:
             st.info("まだカードがありません。「➕ カードを追加」から入れてください。")
         else:
-            st.success("🔀 並べ替えは **ボタン式（v2）** です：カード下の「つかむ」→ 移動先の「ここへ」。ドラッグではありません。 🟩HOME ／ 🟦VAULT")
+            st.caption("並べ替え：カード下の **「つかむ」→ 移動先の「ここへ」**。 🟩HOME ／ 🟦VAULT")
 
             pick = st.session_state.get("album_pick")
             if pick and pick not in current:
@@ -376,7 +376,12 @@ def render_album(df, store):
                         else:
                             if st.button("ここへ", key=f"here_{cert}", type="primary", width="stretch"):
                                 lst = [c for c in current if c != pick]
-                                lst.insert(lst.index(cert), pick)
+                                at = lst.index(cert)
+                                # つかんだカードを先に抜くと後ろが1つ詰まるので、
+                                # 前方（右方向）へ動かす時は+1して「押した位置」へ正しく入れる
+                                if current.index(pick) < current.index(cert):
+                                    at += 1
+                                lst.insert(at, pick)
                                 albums[sel] = lst
                                 save_albums(albums)
                                 st.session_state["album_pick"] = None
