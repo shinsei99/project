@@ -337,7 +337,7 @@ def render_album(df, store):
         if not current:
             st.info("まだカードがありません。「➕ カードを追加」から入れてください。")
         else:
-            st.caption("カードを **ドラッグして並べ替え** できます（4列）。 🟩HOME ／ 🟦VAULT")
+            st.caption("並べ替え：**動かすカードをタップ → 移動先をタップ**（4列）。 🟩HOME ／ 🟦VAULT")
             payload = []
             for cert in current:
                 row = df[df["Cert Number"].astype(str) == cert]

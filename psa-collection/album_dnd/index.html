@@ -4,17 +4,29 @@
 <meta charset="utf-8">
 <style>
   html, body { margin: 0; padding: 0; font-family: -apple-system, "Hiragino Sans", sans-serif; background: transparent; }
+  #hint {
+    display: none; margin: 0 6px 8px; padding: 8px 12px; border-radius: 8px;
+    background: #eff6ff; color: #1e40af; font-size: 12px; font-weight: 600;
+    border: 1px solid #bfdbfe;
+  }
+  #hint.on { display: block; }
   #grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 6px; }
   .pocket {
     position: relative; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
-    padding: 6px; cursor: grab; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,.06);
-    -webkit-user-drag: none;
+    padding: 6px; cursor: pointer; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    transition: outline .1s, box-shadow .1s, transform .1s;
   }
-  .pocket.placeholder { opacity: .28; }
-  .pocket img {
-    width: 100%; border-radius: 5px; display: block; pointer-events: none;
-    -webkit-user-drag: none; user-drag: none;
+  .pocket:hover { box-shadow: 0 3px 10px rgba(0,0,0,.14); }
+  .pocket.selected {
+    outline: 3px solid #2563eb; outline-offset: 2px;
+    box-shadow: 0 10px 26px rgba(37,99,235,.35); transform: translateY(-2px);
   }
+  body.picking .pocket:not(.selected):hover::after {
+    content: "ここへ移動"; position: absolute; inset: 0; border-radius: 8px;
+    background: rgba(37,99,235,.14); color: #1e40af; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pocket img { width: 100%; border-radius: 5px; display: block; pointer-events: none; -webkit-user-drag: none; }
   .cap { font-size: 11px; line-height: 1.25; margin-top: 4px; color: #334155; pointer-events: none; }
   .badge {
     position: absolute; top: 8px; left: 8px; font-size: 10px; font-weight: 700;
@@ -23,15 +35,10 @@
   .badge.home { background: #16a34a; }
   .badge.vault { background: #2563eb; }
   .empty { color: #94a3b8; font-size: 12px; text-align: center; padding: 30px 0; }
-  /* カーソル追従クローン */
-  .clone {
-    position: fixed; z-index: 9999; pointer-events: none; margin: 0;
-    box-shadow: 0 14px 34px rgba(0,0,0,.32); transform: rotate(-2deg) scale(1.04);
-    opacity: .96; cursor: grabbing;
-  }
 </style>
 </head>
 <body>
+<div id="hint"></div>
 <div id="grid"></div>
 <script>
 function send(type, extra) {
@@ -41,11 +48,44 @@ function setHeight() {
   send("streamlit:setFrameHeight", { height: document.documentElement.scrollHeight + 8 });
 }
 const grid = document.getElementById("grid");
+const hint = document.getElementById("hint");
 function currentOrder() {
   return Array.from(grid.querySelectorAll(".pocket")).map(function (el) { return el.dataset.cert; });
 }
 
+let selected = null;
+
+function setHint(on) {
+  document.body.classList.toggle("picking", on);
+  hint.classList.toggle("on", on);
+  hint.textContent = on ? "移動するカードを選びました。➡ 移動先のカードをタップしてください（もう一度同じカードで取消）" : "";
+}
+
+function clearSelection() {
+  if (selected) selected.classList.remove("selected");
+  selected = null; setHint(false);
+}
+
+function onClick(e) {
+  const pocket = e.target && e.target.closest ? e.target.closest(".pocket") : null;
+  if (!pocket || pocket.parentNode !== grid) return;
+  if (!selected) {
+    selected = pocket; pocket.classList.add("selected"); setHint(true);
+    return;
+  }
+  if (pocket === selected) { clearSelection(); return; }
+  // 移動：前方への移動なら対象の後ろへ、後方なら対象の前へ挿入
+  const kids = Array.from(grid.children);
+  const forward = kids.indexOf(selected) < kids.indexOf(pocket);
+  grid.insertBefore(selected, forward ? pocket.nextSibling : pocket);
+  clearSelection();
+  send("streamlit:setComponentValue", { value: currentOrder(), dataType: "json" });
+}
+grid.addEventListener("click", onClick);
+document.addEventListener("dragstart", function (e) { e.preventDefault(); });
+
 function build(cards) {
+  clearSelection();
   grid.innerHTML = "";
   if (!cards || !cards.length) {
     grid.innerHTML = "<div class='empty'>まだカードがありません。「➕ カードを追加」から入れてください。</div>";
@@ -65,68 +105,6 @@ function build(cards) {
   });
   setHeight();
 }
-
-// ----- クローン追従式ドラッグ並べ替え -----
-let dragging = null, clone = null, offX = 0, offY = 0, lastSwap = 0;
-
-function moveClone(x, y) { clone.style.left = (x - offX) + "px"; clone.style.top = (y - offY) + "px"; }
-
-function onMove(e) {
-  if (!dragging) return;
-  const p = e.touches ? e.touches[0] : e;
-  moveClone(p.clientX, p.clientY);
-  // クローンとプレースホルダを避けて、真下のポケットを判定
-  clone.style.display = "none";
-  dragging.style.pointerEvents = "none";
-  const el = document.elementFromPoint(p.clientX, p.clientY);
-  dragging.style.pointerEvents = "";
-  clone.style.display = "";
-  const target = (el && el.closest) ? el.closest(".pocket") : null;
-  if (target && target !== dragging && target.parentNode === grid && !target.classList.contains("clone")) {
-    const kids = Array.from(grid.children);
-    const forward = kids.indexOf(dragging) < kids.indexOf(target);
-    grid.insertBefore(dragging, forward ? target.nextSibling : target);
-  }
-  if (e.cancelable) e.preventDefault();
-}
-
-function onUp() {
-  if (!dragging) return;
-  if (clone) { clone.remove(); clone = null; }
-  dragging.classList.remove("placeholder");
-  window.removeEventListener("mousemove", onMove);
-  window.removeEventListener("mouseup", onUp);
-  window.removeEventListener("touchmove", onMove);
-  window.removeEventListener("touchend", onUp);
-  send("streamlit:setComponentValue", { value: currentOrder(), dataType: "json" });
-  dragging = null;
-}
-
-function startDrag(e) {
-  const p = e.touches ? e.touches[0] : e;
-  const t = p.target || e.target;
-  const pocket = (t && t.closest) ? t.closest(".pocket") : null;
-  if (!pocket) return;
-  dragging = pocket;
-  const r = pocket.getBoundingClientRect();
-  offX = p.clientX - r.left;
-  offY = p.clientY - r.top;
-  clone = pocket.cloneNode(true);
-  clone.classList.add("clone");
-  clone.style.width = r.width + "px";
-  moveClone(p.clientX, p.clientY);
-  document.body.appendChild(clone);
-  pocket.classList.add("placeholder");
-  window.addEventListener("mousemove", onMove);
-  window.addEventListener("mouseup", onUp);
-  window.addEventListener("touchmove", onMove, { passive: false });
-  window.addEventListener("touchend", onUp);
-  if (e.cancelable) e.preventDefault();
-}
-grid.addEventListener("mousedown", startDrag);
-grid.addEventListener("touchstart", startDrag, { passive: false });
-// Safari のネイティブ画像/要素ドラッグを完全に無効化（こちらのポインタ処理を優先）
-document.addEventListener("dragstart", function (e) { e.preventDefault(); });
 
 window.addEventListener("message", function (e) {
   if (!e.data || e.data.type !== "streamlit:render") return;
