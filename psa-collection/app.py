@@ -332,14 +332,14 @@ def render_album(df, store):
         if not current:
             st.info("まだカードがありません。「➕ カードを追加」から入れてください。")
         else:
-            st.caption("並べ替え：カード下の **「つかむ」→ 移動先の「ここへ」**。 🟩HOME ／ 🟦VAULT")
+            st.caption("並べ替え：**カードをクリックで選択（青枠）→ 移動先のカードをクリック**。 🟩HOME ／ 🟦VAULT")
 
             pick = st.session_state.get("album_pick")
             if pick and pick not in current:
                 pick = st.session_state["album_pick"] = None
             if pick:
                 pc1, pc2 = st.columns([4, 1])
-                pc1.info(f"移動中：{album_label(df, pick)} — 置きたい位置の「ここへ」を押してください。")
+                pc1.info(f"選択中：{album_label(df, pick)} — 移動先のカードをクリック（同じカードで解除）")
                 if pc2.button("選択解除", key="album_unpick", width="stretch"):
                     st.session_state["album_pick"] = None
                     st.rerun()
@@ -349,43 +349,58 @@ def render_album(df, store):
             page = st.number_input(f"ページ（全{n_pages}・40枚/ページ）", 1, n_pages, 1, key="album_view_page")
             page_certs = current[(page - 1) * per_page: page * per_page]
 
+            # 各カードのボタンを「クリックできるカード画像」に見せるCSS（バッジは写真の上に重ねる）
+            css = [
+                "<style>",
+                '[class*="st-key-pcard_"] button{position:relative;aspect-ratio:5/7;width:100%;min-height:0;'
+                "padding:0;border-radius:8px;background-size:cover;background-position:center;"
+                "color:transparent;overflow:hidden;}",
+            ]
+            for cert in page_certs:
+                row = df[df["Cert Number"].astype(str) == cert]
+                loc = album_location(row.iloc[0]["Vault Status"]) if len(row) else "Home"
+                edge = (
+                    "border:3px solid #2563eb!important;box-shadow:0 8px 22px rgba(37,99,235,.4);"
+                    if cert == pick else "border:1px solid #e2e8f0;"
+                )
+                uri = _data_uri(store.thumb(cert))
+                bg = f"background-image:url('{uri}');" if uri else "background:#f1f5f9;"
+                bcolor = "#2563eb" if loc == "Vault" else "#16a34a"
+                btext = "VAULT" if loc == "Vault" else "HOME"
+                css.append(f".st-key-pcard_{cert} button{{{bg}{edge}}}")
+                css.append(
+                    f".st-key-pcard_{cert} button::before{{content:'{btext}';position:absolute;top:6px;left:6px;"
+                    f"background:{bcolor};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;}}"
+                )
+            css.append("</style>")
+            st.markdown("\n".join(css), unsafe_allow_html=True)
+
             for i in range(0, len(page_certs), 4):
                 cols = st.columns(4)
                 for col, cert in zip(cols, page_certs[i:i + 4]):
                     row = df[df["Cert Number"].astype(str) == cert]
                     rr = row.iloc[0] if len(row) else None
-                    loc = album_location(rr["Vault Status"]) if rr is not None else "Home"
-                    badge = "🟦VAULT" if loc == "Vault" else "🟩HOME"
-                    uri = _data_uri(store.thumb(cert))
                     with col:
-                        if uri:
-                            ring = "outline:3px solid #2563eb;outline-offset:2px;" if cert == pick else ""
-                            st.markdown(
-                                f"<img src='{uri}' style='width:100%;border-radius:6px;{ring}'>",
-                                unsafe_allow_html=True,
-                            )
-                        gr = rr["Grade"] if rr is not None else ""
-                        nm = ((rr["Subject"] if rr is not None else "") or "")[:16]
-                        st.caption(f"{badge}・PSA {gr} {nm}")
-                        if pick is None:
-                            if st.button("つかむ", key=f"grab_{cert}", width="stretch"):
+                        card = st.container(key=f"pcard_{cert}")
+                        if card.button("　", key=f"pbtn_{cert}", width="stretch"):
+                            if not pick:
                                 st.session_state["album_pick"] = cert
-                                st.rerun()
-                        elif cert == pick:
-                            st.button("● 選択中", key=f"picked_{cert}", width="stretch", disabled=True)
-                        else:
-                            if st.button("ここへ", key=f"here_{cert}", type="primary", width="stretch"):
+                            elif cert == pick:
+                                st.session_state["album_pick"] = None
+                            else:
                                 lst = [c for c in current if c != pick]
                                 at = lst.index(cert)
-                                # つかんだカードを先に抜くと後ろが1つ詰まるので、
-                                # 前方（右方向）へ動かす時は+1して「押した位置」へ正しく入れる
+                                # つかんだカードを先に抜くと後ろが1つ詰まるので前方移動は+1補正
                                 if current.index(pick) < current.index(cert):
                                     at += 1
                                 lst.insert(at, pick)
                                 albums[sel] = lst
                                 save_albums(albums)
                                 st.session_state["album_pick"] = None
-                                st.rerun()
+                            st.rerun()
+                        gr = rr["Grade"] if rr is not None else ""
+                        nm = ((rr["Subject"] if rr is not None else "") or "")[:16]
+                        card.caption(f"PSA {gr} {nm}")
 
             rem = st.multiselect(
                 "アルバムから外すカード", current,
