@@ -8,10 +8,13 @@
   .pocket {
     position: relative; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
     padding: 6px; cursor: grab; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,.06);
-    transition: box-shadow .1s;
+    -webkit-user-drag: none;
   }
-  .pocket.dragging { opacity: .55; cursor: grabbing; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
-  .pocket img { width: 100%; border-radius: 5px; display: block; pointer-events: none; }
+  .pocket.placeholder { opacity: .28; }
+  .pocket img {
+    width: 100%; border-radius: 5px; display: block; pointer-events: none;
+    -webkit-user-drag: none; user-drag: none;
+  }
   .cap { font-size: 11px; line-height: 1.25; margin-top: 4px; color: #334155; pointer-events: none; }
   .badge {
     position: absolute; top: 8px; left: 8px; font-size: 10px; font-weight: 700;
@@ -20,6 +23,12 @@
   .badge.home { background: #16a34a; }
   .badge.vault { background: #2563eb; }
   .empty { color: #94a3b8; font-size: 12px; text-align: center; padding: 30px 0; }
+  /* カーソル追従クローン */
+  .clone {
+    position: fixed; z-index: 9999; pointer-events: none; margin: 0;
+    box-shadow: 0 14px 34px rgba(0,0,0,.32); transform: rotate(-2deg) scale(1.04);
+    opacity: .96; cursor: grabbing;
+  }
 </style>
 </head>
 <body>
@@ -57,21 +66,23 @@ function build(cards) {
   setHeight();
 }
 
-// ----- ポインタ（マウス/タッチ）ベースのドラッグ並べ替え -----
-let dragging = null;
+// ----- クローン追従式ドラッグ並べ替え -----
+let dragging = null, clone = null, offX = 0, offY = 0, lastSwap = 0;
 
-function pointAt(x, y) {
-  dragging.style.pointerEvents = "none";
-  const el = document.elementFromPoint(x, y);
-  dragging.style.pointerEvents = "";
-  return el && el.closest ? el.closest(".pocket") : null;
-}
+function moveClone(x, y) { clone.style.left = (x - offX) + "px"; clone.style.top = (y - offY) + "px"; }
 
 function onMove(e) {
   if (!dragging) return;
   const p = e.touches ? e.touches[0] : e;
-  const target = pointAt(p.clientX, p.clientY);
-  if (target && target !== dragging && target.parentNode === grid) {
+  moveClone(p.clientX, p.clientY);
+  // クローンとプレースホルダを避けて、真下のポケットを判定
+  clone.style.display = "none";
+  dragging.style.pointerEvents = "none";
+  const el = document.elementFromPoint(p.clientX, p.clientY);
+  dragging.style.pointerEvents = "";
+  clone.style.display = "";
+  const target = (el && el.closest) ? el.closest(".pocket") : null;
+  if (target && target !== dragging && target.parentNode === grid && !target.classList.contains("clone")) {
     const kids = Array.from(grid.children);
     const forward = kids.indexOf(dragging) < kids.indexOf(target);
     grid.insertBefore(dragging, forward ? target.nextSibling : target);
@@ -81,7 +92,8 @@ function onMove(e) {
 
 function onUp() {
   if (!dragging) return;
-  dragging.classList.remove("dragging");
+  if (clone) { clone.remove(); clone = null; }
+  dragging.classList.remove("placeholder");
   window.removeEventListener("mousemove", onMove);
   window.removeEventListener("mouseup", onUp);
   window.removeEventListener("touchmove", onMove);
@@ -91,11 +103,20 @@ function onUp() {
 }
 
 function startDrag(e) {
-  const t = (e.touches ? e.touches[0].target : e.target);
-  const pocket = t && t.closest ? t.closest(".pocket") : null;
+  const p = e.touches ? e.touches[0] : e;
+  const t = p.target || e.target;
+  const pocket = (t && t.closest) ? t.closest(".pocket") : null;
   if (!pocket) return;
   dragging = pocket;
-  pocket.classList.add("dragging");
+  const r = pocket.getBoundingClientRect();
+  offX = p.clientX - r.left;
+  offY = p.clientY - r.top;
+  clone = pocket.cloneNode(true);
+  clone.classList.add("clone");
+  clone.style.width = r.width + "px";
+  moveClone(p.clientX, p.clientY);
+  document.body.appendChild(clone);
+  pocket.classList.add("placeholder");
   window.addEventListener("mousemove", onMove);
   window.addEventListener("mouseup", onUp);
   window.addEventListener("touchmove", onMove, { passive: false });
@@ -104,6 +125,8 @@ function startDrag(e) {
 }
 grid.addEventListener("mousedown", startDrag);
 grid.addEventListener("touchstart", startDrag, { passive: false });
+// Safari のネイティブ画像/要素ドラッグを完全に無効化（こちらのポインタ処理を優先）
+document.addEventListener("dragstart", function (e) { e.preventDefault(); });
 
 window.addEventListener("message", function (e) {
   if (!e.data || e.data.type !== "streamlit:render") return;
