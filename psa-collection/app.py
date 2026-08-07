@@ -340,10 +340,10 @@ def album_label(df, cert) -> str:
 
 # 並べ替え定義（ギャラリー／一覧とアルバム追加タブで共用するため関数定義より前に置く）
 SORT_MAP = {
-    "PSA推定額が高い順": ("PSA Estimate", False),
-    "PSA推定額が安い順": ("PSA Estimate", True),
     "鑑定番号が小さい順": ("cert_num", True),
     "鑑定番号が大きい順": ("cert_num", False),
+    "PSA推定額が高い順": ("PSA Estimate", False),
+    "PSA推定額が安い順": ("PSA Estimate", True),
     "年が新しい順": ("year_num", False),
     "年が古い順": ("year_num", True),
     "グレードが高い順": ("grade_num", False),
