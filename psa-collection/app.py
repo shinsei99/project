@@ -734,28 +734,6 @@ with st.sidebar.expander("📥 データ更新"):
 # ---------------------------------------------------------------- KPI
 
 is_sold_view = status == "売却済"
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("該当枚数", f"{len(view):,} 枚", f"全{len(df):,}枚中")
-
-if is_sold_view:
-    sold_total = view["Sold Price"].sum()
-    est_total = view["PSA Estimate"].sum()
-    c2.metric("売却額 合計", yen(sold_total))
-    c3.metric("手取り 合計", yen(view["Sold Proceeds"].sum()))
-    c4.metric("現在推定額 合計", yen(est_total), f"売却比 {yen(est_total - sold_total)}")
-    fees = view["Sold Fees"].sum()
-    rate = fees / sold_total * 100 if sold_total else 0
-    st.caption(
-        f"手数料 合計 {yen(fees)}（売却額の{rate:.1f}%）"
-        "　／　現在推定額はCSVエクスポート時点のPSA推定値"
-    )
-else:
-    c2.metric("PSA推定額 合計", yen(view["PSA Estimate"].sum()))
-    c3.metric("1枚あたり平均", yen(view["PSA Estimate"].mean()))
-    n10 = (view["Grade"] == "10").sum()
-    c4.metric("PSA10", f"{n10:,} 枚", f"{n10 / len(view) * 100:.0f}%" if len(view) else "—")
-
-st.divider()
 
 
 # ---------------------------------------------------------------- 並べ替え
@@ -785,6 +763,15 @@ def apply_sort(frame: pd.DataFrame, key: str) -> pd.DataFrame:
 
 
 # ---------------------------------------------------------------- タブ
+
+# タブ（ギャラリー等）と同じ行の右端に該当枚数を表示する
+st.markdown(
+    "<style>div[data-baseweb='tab-list']::after{"
+    f"content:'該当 {len(view):,}枚 ／ 全{len(df):,}枚';"
+    "margin-left:auto;align-self:center;color:#64748b;font-size:0.85rem;"
+    "font-weight:600;white-space:nowrap;padding-right:6px;}</style>",
+    unsafe_allow_html=True,
+)
 
 tab_gallery, tab_list, tab_place, tab_stats = st.tabs(
     ["🖼 ギャラリー", "📋 一覧", "📦 保管場所", "📊 集計"]
