@@ -516,10 +516,10 @@ def render_album(df, store):
             "並べ替え", [k for k in SORT_MAP if k not in SOLD_ONLY_SORTS], key="album_add_sort",
         )
         a_per_row = add_bar[1].select_slider(
-            "1行の枚数", [3, 4, 5, 6, 8], value=5, key="album_add_perrow",
+            "1行の枚数", [3, 4, 5, 6, 8], value=8, key="album_add_perrow",
         )
         add_per_page = add_bar[2].select_slider(
-            "1ページの枚数", [20, 40, 60, 100], value=40, key="album_add_pagesize",
+            "1ページの枚数", [20, 40, 60, 100], value=100, key="album_add_pagesize",
         )
 
         cand = apply_sort(cand, a_sort)
@@ -900,8 +900,8 @@ with tab_gallery:
     else:
         top_bar = st.columns([3, 2, 2, 2])
         g_sort = top_bar[0].selectbox("並べ替え", sort_options(), key="gallery_sort")
-        per_row = top_bar[1].select_slider("1行の枚数", [3, 4, 5, 6, 8], value=5)
-        page_size = top_bar[2].select_slider("1ページの枚数", [20, 40, 60, 100], value=40)
+        per_row = top_bar[1].select_slider("1行の枚数", [3, 4, 5, 6, 8], value=8)
+        page_size = top_bar[2].select_slider("1ページの枚数", [20, 40, 60, 100], value=100)
         n_pages = max(1, -(-len(view) // page_size))
         page = top_bar[3].number_input(
             f"ページ（全{n_pages}）", 1, n_pages, 1, key="gallery_page"
