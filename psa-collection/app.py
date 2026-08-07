@@ -367,19 +367,18 @@ def render_album(df, store):
             # 各カードのボタンを「クリックできるカード画像」に見せるCSS（バッジは写真の上に重ねる）
             css = [
                 "<style>",
-                '[class*="st-key-pcard_"] button{position:relative;aspect-ratio:5/8;width:100%;min-height:0;'
+                '[class*="st-key-pimg_"] button{position:relative;aspect-ratio:5/8;width:100%;min-height:0;'
                 "padding:0;border-radius:8px;background-size:contain;background-repeat:no-repeat;"
                 "background-position:center;background-color:#f8fafc;color:transparent;overflow:hidden;}",
                 '[class*="st-key-pcard_"]{position:relative;}',
-                '[class*="st-key-pdel_"]{position:absolute!important;top:5px;right:5px;z-index:6;'
-                "width:26px!important;min-width:0!important;}",
-                '[class*="st-key-pdel_"] button{width:26px!important;height:26px!important;min-height:26px!important;'
-                "padding:0!important;border-radius:50%!important;background:#ef4444!important;"
-                "border:2px solid #fff!important;box-shadow:0 1px 4px rgba(0,0,0,.35);"
-                "display:flex!important;align-items:center;justify-content:center;}",
+                '[class*="st-key-pdel_"]{position:absolute!important;top:6px;right:6px;z-index:6;'
+                "width:auto!important;min-width:0!important;}",
+                '[class*="st-key-pdel_"] button{min-height:0!important;height:auto!important;'
+                "padding:2px 6px!important;border-radius:6px!important;background:#ef4444!important;"
+                "border:none!important;box-shadow:0 1px 3px rgba(0,0,0,.25);}",
                 '[class*="st-key-pdel_"] button p,[class*="st-key-pdel_"] button div{'
-                "margin:0!important;padding:0!important;color:#fff!important;font-size:13px!important;"
-                "font-weight:700!important;line-height:1!important;}",
+                "margin:0!important;padding:0!important;color:#fff!important;font-size:10px!important;"
+                "font-weight:700!important;line-height:1.2!important;}",
             ]
             for cert in page_certs:
                 row = df[df["Cert Number"].astype(str) == cert]
@@ -392,10 +391,10 @@ def render_album(df, store):
                 bg = f"background-image:url('{uri}');" if uri else "background:#f1f5f9;"
                 bcolor = "#2563eb" if loc == "Vault" else "#16a34a"
                 btext = "VAULT" if loc == "Vault" else "HOME"
-                css.append(f".st-key-pcard_{cert} button{{{bg}{edge}}}")
+                css.append(f".st-key-pimg_{cert} button{{{bg}{edge}}}")
                 css.append(
-                    f".st-key-pcard_{cert} button::before{{content:'{btext}';position:absolute;top:6px;left:6px;"
-                    f"background:{bcolor};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;}}"
+                    f".st-key-pimg_{cert} button::before{{content:'{btext}';position:absolute;top:6px;left:6px;"
+                    f"background:{bcolor};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;z-index:2;}}"
                 )
             css.append("</style>")
             st.markdown("\n".join(css), unsafe_allow_html=True)
@@ -407,7 +406,8 @@ def render_album(df, store):
                     rr = row.iloc[0] if len(row) else None
                     with col:
                         card = st.container(key=f"pcard_{cert}")
-                        if card.button("　", key=f"pbtn_{cert}", width="stretch"):
+                        imgc = card.container(key=f"pimg_{cert}")
+                        if imgc.button("　", key=f"pbtn_{cert}", width="stretch"):
                             if not pick:
                                 st.session_state["album_pick"] = cert
                             elif cert == pick:
