@@ -42,7 +42,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ー（自分専用・localhost） | — |
 | 書類キャビネット スマホ用（撮影→Dropbox取込） | shorui-mobile | — | ー（Vercel・pass保護） | Vercel（shorui-mobile.vercel.app） |
 
-### ツール（11本）※社内LAN共有なし
+### ツール（12本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
@@ -57,6 +57,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 買取DMジェネレーター | kaitori-dm-maker | 8526 | — |
 | PSA保有カード管理 | psa-collection | 8527 | — |
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
+| PDF書類オーガナイザー（スキャンPDFの分割・分類・リネーム） | pdf-organizer | ー（CLI） | — |
 
 ### ゲーム（6本）※社内LAN共有なし
 
@@ -99,6 +100,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **鑑定中タブ（グレーディング申請中）**: `data/orders.json`（gitignore）を読み、進行中オーダーの**個別カードを画像・カード名・cert番号・現在工程つきで一覧**。取得は`./update_orders.sh`→`harvest_orders.js`をログイン済みSafariで実行。**psacard.comのtRPC API**を2段で叩く（画像取得のapp.collectors.comとは別サイト・入力は**base64**）: `orders.list`（申請一覧、status=Processing/Shipped/Completed）→ 進行中各件で`orders.get`（入力`{submissionNumber,orderNumber}`。返り`specReviewResults[]`=カード明細/`images{certID->[{imageSide:1表/2裏,thumbnail…}]}`/`orderProgressSteps[]`。現在工程=最初の未完了step）。画像は`d1htnxwo4o0jhw.cloudfront.net`（認証不要）。前提: Safari「開発>Apple EventsからのJavaScriptを許可」ON＋psacard.comログイン。
 - **Vaultをオーダー（提出）別に絞り込み＋鑑定番号ソート（2026-08-07）**: Vaultビューのサイドバーに「オーダー（提出）」selectboxを追加。各カードがどの提出オーダー由来かは `orders.json` の **`certOrders`（cert番号→オーダー情報）** で判定。**重要・再調査不要**: `orders.get` は **進行中(Processing)は `specReviewResults[]`（`certNo`）だが、完了・発送済(Completed/Shipped)は空 → 代わりに `psaCerts[]`（`certNumber`）にカード明細が入る**（`trackingNumber:"Shipped to Vault"`でVault確認可）。`harvest_orders.js` は全オーダーで `orders.get` を叩き両方から `certOrders` を構築（鑑定中タブ用 `cards` は従来どおり進行中のみ）。全オーダー処理で20秒超えるため `update_orders.sh` のポーリングは60秒。並べ替えに「鑑定番号が小さい/大きい順」を追加（`cert_num`＝Cert Numberの数値列。桁数差があるため文字列ソート不可）。
 - **CSVアップロードと同時に画像自動取得（2026-08-07）**: 「📥 データ更新」の「画像も自動取得」チェック（既定ON）で、差し替え後に不足cert分だけ `fetch_new_images.sh`（`harvest_collectors.js`→`import_from_web.py`）をSafari経由で実行。画像はCSVに含まれず `data/images/<cert>.jpg` の別キャッシュのため、CSV差し替え単体では新カードの画像は出ない。未ログイン時は更新のみ成功しフォールバック案内。
+
+### PDF書類オーガナイザー（pdf-organizer）補足 ※ツール・CLI・portなし
+
+- **クリアフォルダ1冊をまとめてスキャンした1つのPDF**を読み、中の書類を1件ずつに**分割**＋**分類**＋**リネーム**して `output_docs/<種類>/YYYY-MM-DD_種類_タイトル.pdf` に出力するCLI。`input_docs/` に放り込んで `python organize_docs.py`。**最初は必ず `--dry-run`**。
+- **shorui-cabinet との役割分担**: shorui-cabinet=**紙の原本**の所在を「棚1-14」粒度で管理 / pdf-organizer=**PDF化したデータ**を書類1件単位で整理。紙をPDF化しても原本は捨てられないので両方要る。
+- AI: 既定は**ローカルの `claude` CLI**（APIキー不要）。テキスト層あり→sonnet、スキャン画像→**opus**（画像経路でsonnetは固有名詞を推測置換する実測があるため）。`--backend api` で Anthropic API（`claude-opus-5`・プロンプトキャッシュ＋構造化出力）も選べる。**OpenAIは使っていない。**
+- **長いPDFはウィンドウ分割**（テキスト30ページ／画像8ページずつ）して判定し、`continues_from_previous` で書類がウィンドウを跨いだ場合に結合する。実測: 6ページを `--window 2`（3回に分割）にしても p1-3 の契約書は1件に正しく統合された。
+- **ページの取りこぼし防止**（`_fill_gaps`）: AIが範囲を飛ばす／重複させても、1〜N全ページが必ずどれか1件に1回だけ入るよう後処理で補正。抜けは直前の書類に吸収、先頭の抜けは「その他」で拾う。**出力からページが消えることはない。**
+- 和暦→西暦はプロンプトで指示＋コード側でも `_wareki_to_seireki` で保険（令和元年=2019、平成31年4月30日=2019-04-30）。日付不明は `0000-00-00`。同名は `_2` 連番で**上書きしない**。
+- `input_docs/` `output_docs/` `.state.json` は個人情報を含むため**gitignore**（ルート .gitignore は「`*` で全無視＋アプリごとに `!` で許可」方式なので、そちらにも許可行の追加が必要）。処理済みはSHA1で `.state.json` に記録し二度処理しない（`--force` で無視）。入力ファイルは削除も変更もしない。
 
 ### theta-viewer FTP APIサーバー port修正（2026-07-14）
 

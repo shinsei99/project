@@ -21,6 +21,8 @@ import streamlit as st
 
 import ai_reader
 import db
+import inbox
+import pdf_split
 
 st.set_page_config(page_title="書類キャビネット", page_icon="🗄", layout="wide")
 
@@ -115,8 +117,8 @@ if not ai_reader.claude_available():
 
 _inbox_n = len(list_inbox_batches())
 _inbox_label = f"📁 取込（{_inbox_n}）" if _inbox_n else "📁 取込"
-tab_add, tab_inbox, tab_find, tab_loc, tab_conf = st.tabs(
-    ["📥 ファイルを登録", _inbox_label, "🔍 さがす", "🗄 保管場所", "⚙️ 設定"]
+tab_add, tab_inbox, tab_find, tab_pdf, tab_loc, tab_conf = st.tabs(
+    ["📥 ファイルを登録", _inbox_label, "🔍 さがす", "📄 PDFを整理", "🗄 保管場所", "⚙️ 設定"]
 )
 
 
@@ -129,6 +131,162 @@ with tab_add:
     )
 
     draft = st.session_state.setdefault("draft", draft_default())
+
+    # --- 倉庫でスマホから送った写真を、フォルダ単位で拾う ---
+    with st.container(border=True):
+        h1, h2 = st.columns([4, 1])
+        h1.markdown("**📥 スマホから送った写真を読む**")
+        if h2.button("🔄 更新", use_container_width=True,
+                     help="スマホから送った直後はこれを押してください"):
+            st.rerun()
+        st.caption(
+            "倉庫でスマホから、クリアファイルの名前のフォルダ（例: `経理2014-1`）を作って"
+            "中身の写真を入れておくと、ここに出ます。**フォルダ名がそのまま見出しになります。**"
+        )
+        root = st.text_input(
+            "取り込みフォルダ", db.get_setting("inbox", inbox.default_root()),
+            help="DropboxやiCloud Driveの中を指定すると、スマホから入れたものがMacに同期されます。",
+        )
+        if root != db.get_setting("inbox", inbox.default_root()):
+            db.set_setting("inbox", root)
+
+        if not os.path.isdir(root):
+            e1, e2 = st.columns([3, 1])
+            e1.info("このフォルダはまだありません。作ると、スマホから入れた写真をここで拾えます。")
+            if e2.button("フォルダを作る", use_container_width=True):
+                try:
+                    os.makedirs(root, exist_ok=True)
+                    st.rerun()
+                except OSError as e:
+                    st.error(f"作れませんでした: {e}")
+        else:
+            entries = inbox.list_folders(root)
+            if not entries:
+                st.caption(
+                    "いま待っているものはありません。"
+                    "スマホでこの中にフォルダを作り、中身の写真を入れてください。"
+                )
+            else:
+                sel = []
+                for i, ent in enumerate(entries):
+                    if st.checkbox(f"📁 **{ent['name']}** — {len(ent['files'])} 枚",
+                                   value=True, key=f"inbox{i}"):
+                        sel.append(ent)
+                n1, n2 = st.columns([1, 2])
+                if n1.button(f"🤖 選んだ {len(sel)} 冊を読み取る", type="primary",
+                             disabled=not sel or not ai_reader.claude_available(),
+                             use_container_width=True):
+                    batch = st.session_state.get("inbox_batch") or []
+                    bar = st.progress(0.0, text="読み取り中…")
+                    for i, ent in enumerate(sel):
+                        bar.progress(i / len(sel),
+                                     text=f"{ent['name']}（{i + 1}/{len(sel)}冊目）を読み取り中…")
+                        msgs: list = []
+                        uploads = inbox.read_files(ent)
+                        got = ai_reader.read_file_contents(uploads, note=msgs.append)
+                        if not got:
+                            st.error(f"{ent['name']}: 読み取れませんでした（撮り直してください）")
+                            continue
+                        # スマホで付けた名前を見出しにする（AIの案より人が付けた名前を優先）
+                        got["label"] = ent["name"]
+                        thumb = f"file_{abs(hash(ent['name'] + str(len(uploads))))}.jpg"
+                        if not ai_reader.make_thumb(uploads[0][0], uploads[0][1],
+                                                    os.path.join(db.THUMB_DIR, thumb)):
+                            thumb = ""
+                        batch.append({"name": ent["name"], "path": ent["path"],
+                                      "draft": got, "thumb": thumb})
+                    bar.empty()
+                    st.session_state["inbox_batch"] = batch
+                    st.rerun()
+                n2.caption(
+                    "1冊あたり1〜2分かかります。10冊なら15分ほど見てください"
+                    "（読み取り中はこの画面のまま待ちます）"
+                )
+
+    # --- 読み取り済みをまとめて登録する ---
+    batch = st.session_state.get("inbox_batch") or []
+    if batch:
+        with st.container(border=True):
+            st.markdown(f"**📋 読み取り済み {len(batch)} 冊 — まとめて登録**")
+            st.caption(
+                "保管場所を選んで「まとめて登録」を押すと、一度に台帳へ入ります。"
+                "見出しと場所は表の上で直せます。"
+            )
+            ids, labels = location_options()
+            m1, m2 = st.columns([2, 2])
+            common = m1.selectbox(
+                "保管場所（全部まとめて）", ids, format_func=lambda x: labels[x],
+                key="batchloc", help="ここで選ぶと下の表の全行に入ります。行ごとに変えられます。",
+            )
+            common_spot = m2.text_input("場所の中の位置（全部まとめて）", key="batchspot",
+                                        placeholder="例: 上から2段目 左端")
+
+            rows = st.data_editor(
+                pd.DataFrame([{
+                    "登録": True,
+                    "見出し": it["draft"].get("label", it["name"]),
+                    "保管場所": labels[common],
+                    "位置": common_spot,
+                    "種別": "、".join(it["draft"].get("doc_types", [])),
+                    "年": f'{it["draft"].get("year_from", "")}〜{it["draft"].get("year_to", "")}',
+                    "確度": CONF_LABEL.get(it["draft"].get("confidence", ""), ""),
+                } for it in batch]),
+                key=f"batched{len(batch)}", hide_index=True, use_container_width=True,
+                disabled=["種別", "年", "確度"],
+                column_config={
+                    "登録": st.column_config.CheckboxColumn(width="small"),
+                    "保管場所": st.column_config.SelectboxColumn(
+                        options=[labels[i] for i in ids], width="medium"),
+                    "見出し": st.column_config.TextColumn(width="large"),
+                },
+            )
+            if any(it["draft"].get("confidence") == "low" for it in batch):
+                st.warning("確度の低い読み取りがあります。物件名は登録前に確認してください。")
+
+            with st.expander("読み取った中身を確認する"):
+                for it in batch:
+                    st.markdown(f"**{it['draft'].get('label', it['name'])}**")
+                    st.caption("、".join(it["draft"].get("properties", [])) or "（物件名なし）")
+                    st.text("\n".join(it["draft"].get("contents", [])))
+                    st.divider()
+
+            r1, r2 = st.columns([1, 3])
+            if r1.button("✅ まとめて登録する", type="primary", use_container_width=True):
+                name_to_id = {labels[i]: i for i in ids}
+                done, kept = 0, []
+                for it, (_, row) in zip(batch, rows.iterrows()):
+                    if not row["登録"]:
+                        kept.append(it)     # チェックを外した分は残しておく
+                        continue
+                    d = it["draft"]
+                    db.add_file({
+                        "label": str(row["見出し"] or it["name"]),
+                        "kind": db.KINDS[0],
+                        "location_id": name_to_id.get(str(row["保管場所"])),
+                        "spot": str(row["位置"] or ""),
+                        "properties": "\n".join(d.get("properties", [])),
+                        "doc_types": ",".join(d.get("doc_types", [])),
+                        "year_from": d.get("year_from", ""),
+                        "year_to": d.get("year_to", ""),
+                        "item_count": "",
+                        "contents": "\n".join(d.get("contents", [])),
+                        "summary": d.get("summary", ""),
+                        "thumb": it.get("thumb", ""),
+                    })
+                    for p in d.get("properties", []):
+                        db.add_property(p)
+                    # 登録できてから初めてフォルダを退避する（消さずに移すだけ）
+                    try:
+                        inbox.archive({"name": it["name"], "path": it["path"]})
+                    except OSError:
+                        pass
+                    done += 1
+                st.session_state["inbox_batch"] = kept
+                st.success(f"{done} 冊を登録しました。")
+                st.rerun()
+            if r2.button("読み取り結果を捨てる"):
+                st.session_state["inbox_batch"] = []
+                st.rerun()
 
     with st.container(border=True):
         st.markdown("**① 中身を撮って読み取る**（任意・手入力だけでも登録できます）")
@@ -533,10 +691,192 @@ with tab_find:
         )
 
 
+# ================= PDFを整理 =================
+with tab_pdf:
+    st.subheader("PDFを書類ごとに整理する")
+    st.caption(
+        "クリアフォルダ1冊分をまとめてスキャンしたPDFを読み、中に入っている書類を"
+        "1件ずつに切り分けて、種類・日付・正式なタイトルを付けます。"
+    )
+
+    if not pdf_split.available():
+        st.error(
+            "この機能には claude CLI と PyMuPDF が必要です。"
+            "`./run.sh` で起動していれば依存は入っています。"
+        )
+
+    with st.container(border=True):
+        ups = st.file_uploader(
+            "スキャン済みPDF（複数可）", type=["pdf"],
+            accept_multiple_files=True, key="pdfups",
+        )
+        c1, c2 = st.columns([1, 3])
+        do_split = c2.checkbox(
+            "1つのPDFに複数の書類が入っている前提で分割する", value=True,
+            help="外すと「1PDF＝1書類」として扱い、種類と名前を付けるだけになります。",
+        )
+        if c1.button("🤖 中身を判定する", type="primary",
+                     disabled=not ups or not pdf_split.available(),
+                     use_container_width=True):
+            items = [(f.name, f.getvalue()) for f in ups]
+            jobs, msgs = [], []
+            if items:
+                bar = st.progress(0.0, text="判定中…")
+                for i, (name, data) in enumerate(items):
+                    bar.progress(i / len(items), text=f"{name} を判定中…")
+                    try:
+                        segs = pdf_split.analyse(data, split=do_split, note=msgs.append)
+                    except pdf_split.SplitError as e:
+                        st.error(f"{name}: {e}")
+                        continue
+                    jobs.append({"name": name, "data": data, "segs": segs})
+                bar.empty()
+                st.session_state["pdfmsgs"] = msgs[-6:]
+                st.session_state["pdfjobs"] = jobs
+                st.rerun()
+        c2.caption(
+            "枚数によりますが1〜数分かかります"
+            "（写真・スキャン画像は誤読を避けるため正確さ優先の上位モデルを使います）"
+        )
+
+    for m in st.session_state.get("pdfmsgs", []):
+        st.caption(m)
+
+    jobs = st.session_state.get("pdfjobs") or []
+    for ji, job in enumerate(jobs):
+        segs = job["segs"]
+        with st.container(border=True):
+            st.markdown(
+                f"**📄 {job['name']}** — 全{pdf_split.page_count(job['data'])}ページ / "
+                f"**{len(segs)} 件の書類**を検出"
+            )
+            if any(s["confidence"] == "low" for s in segs):
+                st.warning("確度の低い判定があります。物件名と日付は目視で確認してください。")
+            st.caption("内容はこの表で直せます。直してから下のボタンを押してください。")
+
+            edited = st.data_editor(
+                pd.DataFrame([{
+                    "ページ": f"{s['start_page']}-{s['end_page']}",
+                    "種類": s["doc_type"],
+                    "日付": s["date"],
+                    "タイトル": s["title"],
+                    "物件": s["property"],
+                    "確度": CONF_LABEL.get(s["confidence"], ""),
+                } for s in segs]),
+                key=f"pdfed{ji}", hide_index=True, use_container_width=True,
+                disabled=["ページ", "確度"],
+                column_config={
+                    "種類": st.column_config.SelectboxColumn(
+                        options=db.DEFAULT_DOC_TYPES, width="medium", required=True),
+                    "日付": st.column_config.TextColumn(
+                        help="YYYY-MM-DD。分からなければ空のままでよい", width="small"),
+                    "タイトル": st.column_config.TextColumn(width="large"),
+                },
+            )
+
+            # 表の編集内容を判定結果に反映する（ページ範囲と確度は編集不可）
+            fixed = []
+            for s, (_, row) in zip(segs, edited.iterrows()):
+                d = dict(s)
+                d["doc_type"] = str(row["種類"] or pdf_split.UNCLASSIFIED)
+                d["date"] = pdf_split.normalise_date(str(row["日付"] or ""))
+                d["title"] = str(row["タイトル"] or "")
+                d["property"] = str(row["物件"] or "")
+                fixed.append(d)
+
+            if fixed:
+                st.caption("ファイル名の例: " + pdf_split.build_name(fixed[0], job["name"]))
+
+            g1, g2, g3 = st.columns([2, 2, 1])
+            if g1.button("🗜 分割したPDFを作る", key=f"mkzip{ji}", use_container_width=True):
+                with st.spinner("分割中…"):
+                    st.session_state[f"pdfzip{ji}"] = pdf_split.make_zip(
+                        job["data"], fixed, job["name"])
+                st.rerun()
+
+            blob = st.session_state.get(f"pdfzip{ji}")
+            if blob:
+                g1.download_button(
+                    "⬇️ ZIPをダウンロード", blob,
+                    file_name=os.path.splitext(job["name"])[0] + "_整理済み.zip",
+                    mime="application/zip", key=f"dlzip{ji}", use_container_width=True,
+                )
+
+            if g2.button("📥 この内容を台帳に送る", key=f"toreg{ji}", use_container_width=True):
+                years = sorted({d["date"][:4] for d in fixed
+                                if d["date"][:4].isdigit() and d["date"][:4] != "0000"})
+                types: list = []
+                for d in fixed:
+                    if d["doc_type"] not in types:
+                        types.append(d["doc_type"])
+                st.session_state["draft"] = {
+                    "label": os.path.splitext(job["name"])[0],
+                    "properties": sorted({d["property"] for d in fixed if d["property"]}),
+                    "doc_types": types,
+                    "year_from": years[0] if years else "",
+                    "year_to": years[-1] if years else "",
+                    "contents": pdf_split.to_contents_lines(fixed),
+                    "summary": f"{len(fixed)}件の書類（PDFの整理から）",
+                    "confidence": "low" if any(d["confidence"] == "low" for d in fixed) else "high",
+                }
+                st.success(
+                    "「📥 ファイルを登録」タブに送りました。"
+                    "保管場所を選んで登録してください。"
+                )
+
+            if g3.button("消す", key=f"delpdf{ji}", use_container_width=True):
+                st.session_state["pdfjobs"] = [j for k, j in enumerate(jobs) if k != ji]
+                st.session_state.pop(f"pdfzip{ji}", None)
+                st.rerun()
+
+
 # ================= 保管場所 =================
 with tab_loc:
     st.subheader("保管場所")
     st.caption("「本社3F 書庫A / 棚2」のように、探しに行ける粒度で登録してください。")
+
+    # --- 棚番号を後回しにして登録した分を、あとでまとめて割り当てる ---
+    unplaced = db.list_unplaced()
+    if unplaced:
+        with st.container(border=True):
+            st.markdown(f"**📦 場所がまだ決まっていないファイル — {len(unplaced)} 冊**")
+            st.caption(
+                "登録のときに場所を決めなくても構いません。"
+                "棚に戻すときに、ここでまとめて割り当ててください。"
+            )
+            uids, ulabels = location_options()
+            real_ids = [i for i in uids if i]
+            if not real_ids:
+                st.info("先に下の欄で保管場所を1つ登録してください。")
+            else:
+                w1, w2 = st.columns([2, 2])
+                to_loc = w1.selectbox("この場所に入れる", real_ids,
+                                      format_func=lambda x: ulabels[x], key="uploc")
+                to_spot = w2.text_input("場所の中の位置", key="upspot",
+                                        placeholder="例: 上から2段目 左端")
+                picked = st.data_editor(
+                    pd.DataFrame([{
+                        "割当": False,
+                        "見出し": r["label"],
+                        "物件": r["properties"].replace("\n", "、"),
+                        "種別": r["doc_types"].replace(",", "、"),
+                        "年": f'{r["year_from"]}〜{r["year_to"]}',
+                    } for r in unplaced]),
+                    key="unplaced_ed", hide_index=True, use_container_width=True,
+                    disabled=["見出し", "物件", "種別", "年"],
+                    column_config={"割当": st.column_config.CheckboxColumn(width="small")},
+                )
+                chosen = [r["id"] for r, (_, row) in zip(unplaced, picked.iterrows())
+                          if row["割当"]]
+                v1, v2 = st.columns([1, 3])
+                if v1.button(f"📍 {len(chosen)} 冊をここに置く", type="primary",
+                             disabled=not chosen, use_container_width=True):
+                    n = db.set_location(chosen, to_loc, to_spot)
+                    st.success(f"{n} 冊を「{ulabels[to_loc]}」にしました。")
+                    st.rerun()
+                if v2.button("すべて選ぶ / すべて外す"):
+                    st.session_state.pop("unplaced_ed", None)
+                    st.rerun()
 
     with st.form("add_loc"):
         a1, a2, a3 = st.columns([2, 3, 1])

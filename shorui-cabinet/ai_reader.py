@@ -22,6 +22,14 @@ import tempfile
 
 import pdf_orient
 
+# iPhone既定のHEICをPillowで開けるようにする（倉庫でスマホ撮影した写真がこの形式）。
+# 一度登録すればプロセス全体で効くので、画像を扱う入口であるここで済ませる。
+try:
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+except ImportError:
+    pass  # 無ければJPEG/PNGのみ。「設定＞カメラ＞フォーマット＞互換性優先」でも回避できる
+
 TEXT_MODEL = "sonnet"     # テキストPDFは sonnet で十分な精度が出る
 # 画像読み取りは sonnet だと固有名詞を推測で埋めることがあった（実測で2回に1回程度）ため、
 # 誤登録を避けて opus を使う。速度より正確さを優先する場面なので割に合う。

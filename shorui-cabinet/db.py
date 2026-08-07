@@ -99,6 +99,12 @@ def init_db() -> None:
 
             CREATE INDEX IF NOT EXISTS idx_files_location ON files(location_id);
             CREATE INDEX IF NOT EXISTS idx_files_label    ON files(label);
+
+            -- 取り込みフォルダのパスなど、アプリの設定を1つずつ入れておく
+            CREATE TABLE IF NOT EXISTS settings (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL DEFAULT ''
+            );
             """
         )
 
@@ -129,6 +135,23 @@ def init_db() -> None:
 
 def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+# ---------- 設定 ----------
+
+def get_setting(key: str, default: str = "") -> str:
+    with _connect() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+    return row["value"] if row else default
+
+
+def set_setting(key: str, value: str) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "INSERT INTO settings (key, value) VALUES (?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, value or ""),
+        )
 
 
 # ---------- 保管場所 ----------
@@ -259,6 +282,27 @@ def update_file(file_id: int, d: dict) -> None:
                 file_id,
             ),
         )
+
+
+def list_unplaced() -> list:
+    """保管場所が未設定のファイル。棚番号を後回しにして登録した分がここに溜まる。"""
+    with _connect() as conn:
+        return conn.execute(
+            "SELECT * FROM files WHERE location_id IS NULL ORDER BY created_at DESC, label"
+        ).fetchall()
+
+
+def set_location(file_ids: list, location_id, spot: str = "") -> int:
+    """複数ファイルの保管場所をまとめて設定する。設定できた件数を返す。"""
+    ids = [int(i) for i in file_ids if i]
+    if not ids:
+        return 0
+    with _connect() as conn:
+        conn.executemany(
+            "UPDATE files SET location_id=?, spot=?, updated_at=? WHERE id=?",
+            [(location_id, (spot or "").strip(), _now(), i) for i in ids],
+        )
+    return len(ids)
 
 
 def delete_file(file_id: int) -> None:
