@@ -132,6 +132,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
 
+### バインド先のルール（2026-08-07整合・必読）
+
+**Streamlitは `--server.address` を省略すると既定が `0.0.0.0`（＝LANに公開）。「指定しなければlocalhost」ではない。** 実際にpsa-collection / kaitori-dm-makerが「localhostバインド」とコメントしながらLANへ公開されていた（保有明細・資産額を含むため要注意）。各`run.sh`は必ず明示すること。
+
+| 分類 | バインド | 対象 |
+|---|---|---|
+| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の18本 |
+| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection |
+
+確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
+
 ---
 
 ## ★ iOS App Store 再配信ルール（再発防止・必読）
