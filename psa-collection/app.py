@@ -338,6 +338,28 @@ def album_label(df, cert) -> str:
     return str(cert)
 
 
+# 並べ替え定義（ギャラリー／一覧とアルバム追加タブで共用するため関数定義より前に置く）
+SORT_MAP = {
+    "PSA推定額が高い順": ("PSA Estimate", False),
+    "PSA推定額が安い順": ("PSA Estimate", True),
+    "鑑定番号が小さい順": ("cert_num", True),
+    "鑑定番号が大きい順": ("cert_num", False),
+    "年が新しい順": ("year_num", False),
+    "年が古い順": ("year_num", True),
+    "グレードが高い順": ("grade_num", False),
+    "セット順": ("Set", True),
+    "カード名順": ("Subject", True),
+    "売却日が新しい順": ("Sold Date", False),
+    "売却額が高い順": ("Sold Price", False),
+}
+SOLD_ONLY_SORTS = {"売却日が新しい順", "売却額が高い順"}
+
+
+def apply_sort(frame: pd.DataFrame, key: str) -> pd.DataFrame:
+    by, asc = SORT_MAP[key]
+    return frame.sort_values(by, ascending=asc, na_position="last")
+
+
 def render_album(df, store):
     """「アルバム」ビュー：保有中(Home/Vault)から選び、4列バインダーをドラッグで並べ替え。"""
     st.subheader("📔 コレクションアルバム")
@@ -497,6 +519,19 @@ def render_album(df, store):
             )
             cand = cand[hay.str.contains(q.strip(), case=False, na=False)]
 
+        # 保有中ギャラリーと同じ操作バー（並べ替え・1行枚数・1ページ枚数）
+        add_bar = st.columns([3, 2, 2])
+        a_sort = add_bar[0].selectbox(
+            "並べ替え", [k for k in SORT_MAP if k not in SOLD_ONLY_SORTS], key="album_add_sort",
+        )
+        a_per_row = add_bar[1].select_slider(
+            "1行の枚数", [3, 4, 5, 6, 8], value=5, key="album_add_perrow",
+        )
+        add_per_page = add_bar[2].select_slider(
+            "1ページの枚数", [20, 40, 60, 100], value=40, key="album_add_pagesize",
+        )
+
+        cand = apply_sort(cand, a_sort)
         cand_certs = cand["Cert Number"].astype(str).tolist()
         st.caption(f"**カードをクリック → 確認して「{sel}」に追加**。候補 {len(cand_certs)} 枚（保有中で未追加）。 🟩HOME ／ 🟦VAULT")
 
@@ -514,9 +549,8 @@ def render_album(df, store):
             if ac2.button("キャンセル", width="stretch", key="album_add_no"):
                 st.rerun()
 
-        add_per_page = 40
         a_pages = max(1, -(-len(cand_certs) // add_per_page))
-        a_page = st.number_input(f"ページ（全{a_pages}・40枚/ページ）", 1, a_pages, 1, key="album_add_page")
+        a_page = st.number_input(f"ページ（全{a_pages}・{add_per_page}枚/ページ）", 1, a_pages, 1, key="album_add_page")
         a_slice = cand_certs[(a_page - 1) * add_per_page: a_page * add_per_page]
 
         acss = [
@@ -543,9 +577,9 @@ def render_album(df, store):
 
         if not a_slice:
             st.info("追加できるカードがありません（条件を変えるか、検索を消してください）。")
-        for i in range(0, len(a_slice), 4):
-            cols = st.columns(4)
-            for col, cert in zip(cols, a_slice[i:i + 4]):
+        for i in range(0, len(a_slice), a_per_row):
+            cols = st.columns(a_per_row)
+            for col, cert in zip(cols, a_slice[i:i + a_per_row]):
                 r2 = df[df["Cert Number"].astype(str) == cert]
                 rr2 = r2.iloc[0] if len(r2) else None
                 with col:
@@ -849,30 +883,9 @@ is_sold_view = status == "売却済"
 
 # ---------------------------------------------------------------- 並べ替え
 
-SORT_MAP = {
-    "PSA推定額が高い順": ("PSA Estimate", False),
-    "PSA推定額が安い順": ("PSA Estimate", True),
-    "鑑定番号が小さい順": ("cert_num", True),
-    "鑑定番号が大きい順": ("cert_num", False),
-    "年が新しい順": ("year_num", False),
-    "年が古い順": ("year_num", True),
-    "グレードが高い順": ("grade_num", False),
-    "セット順": ("Set", True),
-    "カード名順": ("Subject", True),
-    "売却日が新しい順": ("Sold Date", False),
-    "売却額が高い順": ("Sold Price", False),
-}
-SOLD_ONLY_SORTS = {"売却日が新しい順", "売却額が高い順"}
-
-
 def sort_options() -> list:
     """売却済ビューのときだけ売却関連の並べ替えも出す。"""
     return [k for k in SORT_MAP if is_sold_view or k not in SOLD_ONLY_SORTS]
-
-
-def apply_sort(frame: pd.DataFrame, key: str) -> pd.DataFrame:
-    by, asc = SORT_MAP[key]
-    return frame.sort_values(by, ascending=asc, na_position="last")
 
 
 # ---------------------------------------------------------------- タブ
