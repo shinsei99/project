@@ -11,7 +11,6 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-import streamlit.components.v1 as components
 
 from psa_images import DAILY_LIMIT, ImageStore, fetch_many
 
@@ -22,10 +21,6 @@ NOTES_PATH = DATA_DIR / "storage_notes.json"
 TOKEN_PATH = DATA_DIR / "psa_api.json"
 ORDERS_PATH = DATA_DIR / "orders.json"
 ALBUMS_PATH = DATA_DIR / "albums.json"
-
-# アルバム用ドラッグ&ドロップ・コンポーネント（4列グリッド・画像を掴んで並べ替え）
-_ALBUM_DND = components.declare_component("album_dnd", path=str(BASE_DIR / "album_dnd"))
-
 
 def album_location(vault_status: str) -> str:
     """Vault Status を Home / Vault に分類。"""
@@ -337,26 +332,55 @@ def render_album(df, store):
         if not current:
             st.info("まだカードがありません。「➕ カードを追加」から入れてください。")
         else:
-            st.caption("並べ替え：**動かすカードをタップ → 移動先をタップ**（4列）。 🟩HOME ／ 🟦VAULT")
-            payload = []
-            for cert in current:
-                row = df[df["Cert Number"].astype(str) == cert]
-                rr = row.iloc[0] if len(row) else None
-                payload.append({
-                    "cert": cert,
-                    "img": _data_uri(store.thumb(cert)) or "",
-                    "grade": (rr["Grade"] if rr is not None else ""),
-                    "name": ((rr["Subject"] or "")[:22] if rr is not None else ""),
-                    "loc": album_location(rr["Vault Status"]) if rr is not None else "Home",
-                })
-            new_order = _ALBUM_DND(cards=payload, key=f"album_dnd_{sel}", default=None)
-            if new_order:
-                new_order = [str(x) for x in new_order]
-                # 同じ顔ぶれで並びだけ変わったら保存（無限ループ防止）
-                if set(new_order) == set(current) and new_order != current:
-                    albums[sel] = new_order
-                    save_albums(albums)
+            st.caption("並べ替え：**「つかむ」を押す → 移動先の「ここへ」を押す**（4列×10行/ページ）。 🟩HOME ／ 🟦VAULT")
+
+            pick = st.session_state.get("album_pick")
+            if pick and pick not in current:
+                pick = st.session_state["album_pick"] = None
+            if pick:
+                pc1, pc2 = st.columns([4, 1])
+                pc1.info(f"移動中：{album_label(df, pick)} — 置きたい位置の「ここへ」を押してください。")
+                if pc2.button("選択解除", key="album_unpick", width="stretch"):
+                    st.session_state["album_pick"] = None
                     st.rerun()
+
+            per_page = 40  # 4列×10行
+            n_pages = max(1, -(-len(current) // per_page))
+            page = st.number_input(f"ページ（全{n_pages}・40枚/ページ）", 1, n_pages, 1, key="album_view_page")
+            page_certs = current[(page - 1) * per_page: page * per_page]
+
+            for i in range(0, len(page_certs), 4):
+                cols = st.columns(4)
+                for col, cert in zip(cols, page_certs[i:i + 4]):
+                    row = df[df["Cert Number"].astype(str) == cert]
+                    rr = row.iloc[0] if len(row) else None
+                    loc = album_location(rr["Vault Status"]) if rr is not None else "Home"
+                    badge = "🟦VAULT" if loc == "Vault" else "🟩HOME"
+                    uri = _data_uri(store.thumb(cert))
+                    with col:
+                        if uri:
+                            ring = "outline:3px solid #2563eb;outline-offset:2px;" if cert == pick else ""
+                            st.markdown(
+                                f"<img src='{uri}' style='width:100%;border-radius:6px;{ring}'>",
+                                unsafe_allow_html=True,
+                            )
+                        gr = rr["Grade"] if rr is not None else ""
+                        nm = ((rr["Subject"] if rr is not None else "") or "")[:16]
+                        st.caption(f"{badge}・PSA {gr} {nm}")
+                        if pick is None:
+                            if st.button("つかむ", key=f"grab_{cert}", width="stretch"):
+                                st.session_state["album_pick"] = cert
+                                st.rerun()
+                        elif cert == pick:
+                            st.button("● 選択中", key=f"picked_{cert}", width="stretch", disabled=True)
+                        else:
+                            if st.button("ここへ", key=f"here_{cert}", type="primary", width="stretch"):
+                                lst = [c for c in current if c != pick]
+                                lst.insert(lst.index(cert), pick)
+                                albums[sel] = lst
+                                save_albums(albums)
+                                st.session_state["album_pick"] = None
+                                st.rerun()
 
             rem = st.multiselect(
                 "アルバムから外すカード", current,
