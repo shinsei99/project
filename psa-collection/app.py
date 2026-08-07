@@ -270,8 +270,10 @@ def save_albums(albums: dict) -> None:
     ALBUMS_PATH.write_text(json.dumps(albums, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
+@st.cache_data(show_spinner=False)
 def _data_uri(path):
-    """ローカル画像を base64 data URI に。st.image のメディアID失効を回避（バインダー用）。"""
+    """ローカル画像を base64 data URI に。st.image のメディアID失効を回避（バインダー用）。
+    キャッシュして再描画（並べ替え・削除）ごとの再エンコードを避け、体感を速くする。"""
     if not path:
         return None
     try:
@@ -339,25 +341,16 @@ def render_album(df, store):
                 st.write(f"**{album_label(df, cert)}**\n\nをこのアルバムから外しますか？（カード自体は削除されません）")
                 dc1, dc2 = st.columns(2)
                 if dc1.button("外す", type="primary", width="stretch", key="album_del_yes"):
-                    albums[sel] = [c for c in current if c != cert]
-                    save_albums(albums)
-                    st.session_state["album_del"] = None
+                    a = load_albums()
+                    a[sel] = [c for c in a.get(sel, []) if str(c) != str(cert)]
+                    save_albums(a)
                     st.rerun()
                 if dc2.button("キャンセル", width="stretch", key="album_del_no"):
-                    st.session_state["album_del"] = None
                     st.rerun()
-
-            _pending = st.session_state.get("album_del")
-            if _pending and _pending in current:
-                _confirm_delete(_pending)
 
             pick = st.session_state.get("album_pick")
             if pick and pick not in current:
                 pick = st.session_state["album_pick"] = None
-            if pick:
-                if st.button("選択解除", key="album_unpick"):
-                    st.session_state["album_pick"] = None
-                    st.rerun()
 
             per_page = 40  # 4列×10行
             n_pages = max(1, -(-len(current) // per_page))
@@ -370,12 +363,14 @@ def render_album(df, store):
                 '[class*="st-key-pimg_"] button{position:relative;aspect-ratio:5/8;width:100%;min-height:0;'
                 "padding:0;border-radius:8px;background-size:contain;background-repeat:no-repeat;"
                 "background-position:center;background-color:#f8fafc;color:transparent;overflow:hidden;}",
-                '[class*="st-key-pcard_"]{position:relative;}',
-                '[class*="st-key-pdel_"]{position:absolute!important;top:6px;right:6px;z-index:6;'
-                "width:auto!important;min-width:0!important;}",
+                '[class*="st-key-pcard_"]{position:relative;gap:0.15rem!important;}',
+                '[class*="st-key-pdel_"]{position:absolute!important;top:4px;right:5px;z-index:6;'
+                "width:auto!important;min-width:0!important;padding:0!important;margin:0!important;}",
+                '[class*="st-key-pdel_"] *{margin:0!important;}',
                 '[class*="st-key-pdel_"] button{min-height:0!important;height:auto!important;'
                 "padding:2px 6px!important;border-radius:6px!important;background:#ef4444!important;"
-                "border:none!important;box-shadow:0 1px 3px rgba(0,0,0,.25);}",
+                "border:none!important;box-shadow:0 1px 3px rgba(0,0,0,.25);"
+                "display:flex!important;align-items:center;justify-content:center;line-height:1!important;}",
                 '[class*="st-key-pdel_"] button p,[class*="st-key-pdel_"] button div{'
                 "margin:0!important;padding:0!important;color:#fff!important;font-size:10px!important;"
                 "font-weight:700!important;line-height:1.2!important;}",
@@ -401,7 +396,8 @@ def render_album(df, store):
 
             for i in range(0, len(page_certs), 4):
                 cols = st.columns(4)
-                for col, cert in zip(cols, page_certs[i:i + 4]):
+                for j, (col, cert) in enumerate(zip(cols, page_certs[i:i + 4])):
+                    no = (page - 1) * per_page + i + j + 1
                     row = df[df["Cert Number"].astype(str) == cert]
                     rr = row.iloc[0] if len(row) else None
                     with col:
@@ -425,11 +421,10 @@ def render_album(df, store):
                             st.rerun()
                         delc = card.container(key=f"pdel_{cert}")
                         if delc.button("✕", key=f"pdelbtn_{cert}"):
-                            st.session_state["album_del"] = cert
-                            st.rerun()
+                            _confirm_delete(cert)
                         gr = rr["Grade"] if rr is not None else ""
                         nm = ((rr["Subject"] if rr is not None else "") or "")[:16]
-                        card.caption(f"PSA {gr} {nm}")
+                        card.caption(f"**No.{no}**　PSA {gr} {nm}")
 
             rem = st.multiselect(
                 "アルバムから外すカード", current,
