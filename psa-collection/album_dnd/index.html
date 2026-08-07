@@ -65,6 +65,8 @@ function build(cards) {
     d.addEventListener("dragstart", function (e) {
       dragCert = c.cert; d.classList.add("dragging");
       e.dataTransfer.effectAllowed = "move";
+      // Safari はこれが無いとドラッグ自体が開始しない
+      e.dataTransfer.setData("text/plain", c.cert);
     });
     d.addEventListener("dragend", function () {
       d.classList.remove("dragging");
@@ -73,12 +75,14 @@ function build(cards) {
     });
     d.addEventListener("dragover", function (e) {
       e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
       const dragEl = document.querySelector(".pocket.dragging");
       if (!dragEl || dragEl === d) return;
       const rect = d.getBoundingClientRect();
       const after = (e.clientY - rect.top) > rect.height / 2 || (e.clientX - rect.left) > rect.width / 2;
       d.parentNode.insertBefore(dragEl, after ? d.nextSibling : d);
     });
+    d.addEventListener("drop", function (e) { e.preventDefault(); });
     grid.appendChild(d);
   });
   setHeight();
