@@ -332,15 +332,30 @@ def render_album(df, store):
         if not current:
             st.info("まだカードがありません。「➕ カードを追加」から入れてください。")
         else:
-            st.caption("並べ替え：**カードをクリックで選択（青枠）→ 移動先のカードをクリック**。 🟩HOME ／ 🟦VAULT")
+            st.caption("並べ替え：**カードをクリックで選択（青枠）→ 移動先のカードをクリック**。右上の ✕ で削除。 🟩HOME ／ 🟦VAULT")
+
+            @st.dialog("カードを外す")
+            def _confirm_delete(cert):
+                st.write(f"**{album_label(df, cert)}**\n\nをこのアルバムから外しますか？（カード自体は削除されません）")
+                dc1, dc2 = st.columns(2)
+                if dc1.button("外す", type="primary", width="stretch", key="album_del_yes"):
+                    albums[sel] = [c for c in current if c != cert]
+                    save_albums(albums)
+                    st.session_state["album_del"] = None
+                    st.rerun()
+                if dc2.button("キャンセル", width="stretch", key="album_del_no"):
+                    st.session_state["album_del"] = None
+                    st.rerun()
+
+            _pending = st.session_state.get("album_del")
+            if _pending and _pending in current:
+                _confirm_delete(_pending)
 
             pick = st.session_state.get("album_pick")
             if pick and pick not in current:
                 pick = st.session_state["album_pick"] = None
             if pick:
-                pc1, pc2 = st.columns([4, 1])
-                pc1.info(f"選択中：{album_label(df, pick)} — 移動先のカードをクリック（同じカードで解除）")
-                if pc2.button("選択解除", key="album_unpick", width="stretch"):
+                if st.button("選択解除", key="album_unpick"):
                     st.session_state["album_pick"] = None
                     st.rerun()
 
@@ -355,6 +370,16 @@ def render_album(df, store):
                 '[class*="st-key-pcard_"] button{position:relative;aspect-ratio:5/8;width:100%;min-height:0;'
                 "padding:0;border-radius:8px;background-size:contain;background-repeat:no-repeat;"
                 "background-position:center;background-color:#f8fafc;color:transparent;overflow:hidden;}",
+                '[class*="st-key-pcard_"]{position:relative;}',
+                '[class*="st-key-pdel_"]{position:absolute!important;top:5px;right:5px;z-index:6;'
+                "width:26px!important;min-width:0!important;}",
+                '[class*="st-key-pdel_"] button{width:26px!important;height:26px!important;min-height:26px!important;'
+                "padding:0!important;border-radius:50%!important;background:#ef4444!important;"
+                "border:2px solid #fff!important;box-shadow:0 1px 4px rgba(0,0,0,.35);"
+                "display:flex!important;align-items:center;justify-content:center;}",
+                '[class*="st-key-pdel_"] button p,[class*="st-key-pdel_"] button div{'
+                "margin:0!important;padding:0!important;color:#fff!important;font-size:13px!important;"
+                "font-weight:700!important;line-height:1!important;}",
             ]
             for cert in page_certs:
                 row = df[df["Cert Number"].astype(str) == cert]
@@ -397,6 +422,10 @@ def render_album(df, store):
                                 albums[sel] = lst
                                 save_albums(albums)
                                 st.session_state["album_pick"] = None
+                            st.rerun()
+                        delc = card.container(key=f"pdel_{cert}")
+                        if delc.button("✕", key=f"pdelbtn_{cert}"):
+                            st.session_state["album_del"] = cert
                             st.rerun()
                         gr = rr["Grade"] if rr is not None else ""
                         nm = ((rr["Subject"] if rr is not None else "") or "")[:16]
