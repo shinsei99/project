@@ -4,22 +4,18 @@
 <meta charset="utf-8">
 <style>
   html, body { margin: 0; padding: 0; font-family: -apple-system, "Hiragino Sans", sans-serif; background: transparent; }
-  #grid {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 6px;
-  }
+  #grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 6px; }
   .pocket {
     position: relative; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
     padding: 6px; cursor: grab; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,.06);
-    transition: box-shadow .12s, transform .12s;
+    transition: box-shadow .1s;
   }
-  .pocket:active { cursor: grabbing; }
-  .pocket.dragging { opacity: .4; }
-  .pocket.over { outline: 2px dashed #2563eb; outline-offset: 2px; }
+  .pocket.dragging { opacity: .55; cursor: grabbing; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
   .pocket img { width: 100%; border-radius: 5px; display: block; pointer-events: none; }
-  .cap { font-size: 11px; line-height: 1.25; margin-top: 4px; color: #334155; }
+  .cap { font-size: 11px; line-height: 1.25; margin-top: 4px; color: #334155; pointer-events: none; }
   .badge {
     position: absolute; top: 8px; left: 8px; font-size: 10px; font-weight: 700;
-    color: #fff; padding: 2px 6px; border-radius: 6px;
+    color: #fff; padding: 2px 6px; border-radius: 6px; pointer-events: none;
   }
   .badge.home { background: #16a34a; }
   .badge.vault { background: #2563eb; }
@@ -29,64 +25,85 @@
 <body>
 <div id="grid"></div>
 <script>
-let CARDS = [];
-
 function send(type, extra) {
   window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, extra || {}), "*");
 }
 function setHeight() {
   send("streamlit:setFrameHeight", { height: document.documentElement.scrollHeight + 8 });
 }
+const grid = document.getElementById("grid");
 function currentOrder() {
-  return Array.from(document.querySelectorAll(".pocket")).map(function (el) { return el.dataset.cert; });
+  return Array.from(grid.querySelectorAll(".pocket")).map(function (el) { return el.dataset.cert; });
 }
 
-let dragCert = null;
 function build(cards) {
-  CARDS = cards || [];
-  const grid = document.getElementById("grid");
   grid.innerHTML = "";
-  if (!CARDS.length) {
+  if (!cards || !cards.length) {
     grid.innerHTML = "<div class='empty'>まだカードがありません。「➕ カードを追加」から入れてください。</div>";
     setHeight(); return;
   }
-  CARDS.forEach(function (c) {
+  cards.forEach(function (c) {
     const d = document.createElement("div");
     d.className = "pocket";
-    d.draggable = true;
     d.dataset.cert = c.cert;
-    const badgeClass = c.loc === "Vault" ? "vault" : "home";
-    const badgeText = c.loc === "Vault" ? "VAULT" : "HOME";
+    const bClass = c.loc === "Vault" ? "vault" : "home";
+    const bText = c.loc === "Vault" ? "VAULT" : "HOME";
     d.innerHTML =
-      "<span class='badge " + badgeClass + "'>" + badgeText + "</span>" +
+      "<span class='badge " + bClass + "'>" + bText + "</span>" +
       (c.img ? "<img src='" + c.img + "'>" : "<div class='empty'>画像なし</div>") +
       "<div class='cap'>PSA " + (c.grade || "") + "<br>" + (c.name || "") + "</div>";
-
-    d.addEventListener("dragstart", function (e) {
-      dragCert = c.cert; d.classList.add("dragging");
-      e.dataTransfer.effectAllowed = "move";
-      // Safari はこれが無いとドラッグ自体が開始しない
-      e.dataTransfer.setData("text/plain", c.cert);
-    });
-    d.addEventListener("dragend", function () {
-      d.classList.remove("dragging");
-      document.querySelectorAll(".pocket.over").forEach(function (x) { x.classList.remove("over"); });
-      send("streamlit:setComponentValue", { value: currentOrder(), dataType: "json" });
-    });
-    d.addEventListener("dragover", function (e) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      const dragEl = document.querySelector(".pocket.dragging");
-      if (!dragEl || dragEl === d) return;
-      const rect = d.getBoundingClientRect();
-      const after = (e.clientY - rect.top) > rect.height / 2 || (e.clientX - rect.left) > rect.width / 2;
-      d.parentNode.insertBefore(dragEl, after ? d.nextSibling : d);
-    });
-    d.addEventListener("drop", function (e) { e.preventDefault(); });
     grid.appendChild(d);
   });
   setHeight();
 }
+
+// ----- ポインタ（マウス/タッチ）ベースのドラッグ並べ替え -----
+let dragging = null;
+
+function pointAt(x, y) {
+  dragging.style.pointerEvents = "none";
+  const el = document.elementFromPoint(x, y);
+  dragging.style.pointerEvents = "";
+  return el && el.closest ? el.closest(".pocket") : null;
+}
+
+function onMove(e) {
+  if (!dragging) return;
+  const p = e.touches ? e.touches[0] : e;
+  const target = pointAt(p.clientX, p.clientY);
+  if (target && target !== dragging && target.parentNode === grid) {
+    const kids = Array.from(grid.children);
+    const forward = kids.indexOf(dragging) < kids.indexOf(target);
+    grid.insertBefore(dragging, forward ? target.nextSibling : target);
+  }
+  if (e.cancelable) e.preventDefault();
+}
+
+function onUp() {
+  if (!dragging) return;
+  dragging.classList.remove("dragging");
+  window.removeEventListener("mousemove", onMove);
+  window.removeEventListener("mouseup", onUp);
+  window.removeEventListener("touchmove", onMove);
+  window.removeEventListener("touchend", onUp);
+  send("streamlit:setComponentValue", { value: currentOrder(), dataType: "json" });
+  dragging = null;
+}
+
+function startDrag(e) {
+  const t = (e.touches ? e.touches[0].target : e.target);
+  const pocket = t && t.closest ? t.closest(".pocket") : null;
+  if (!pocket) return;
+  dragging = pocket;
+  pocket.classList.add("dragging");
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup", onUp);
+  window.addEventListener("touchmove", onMove, { passive: false });
+  window.addEventListener("touchend", onUp);
+  if (e.cancelable) e.preventDefault();
+}
+grid.addEventListener("mousedown", startDrag);
+grid.addEventListener("touchstart", startDrag, { passive: false });
 
 window.addEventListener("message", function (e) {
   if (!e.data || e.data.type !== "streamlit:render") return;
