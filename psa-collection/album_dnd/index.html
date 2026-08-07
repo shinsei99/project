@@ -1,0 +1,96 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; padding: 0; font-family: -apple-system, "Hiragino Sans", sans-serif; background: transparent; }
+  #grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 6px;
+  }
+  .pocket {
+    position: relative; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff;
+    padding: 6px; cursor: grab; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+    transition: box-shadow .12s, transform .12s;
+  }
+  .pocket:active { cursor: grabbing; }
+  .pocket.dragging { opacity: .4; }
+  .pocket.over { outline: 2px dashed #2563eb; outline-offset: 2px; }
+  .pocket img { width: 100%; border-radius: 5px; display: block; pointer-events: none; }
+  .cap { font-size: 11px; line-height: 1.25; margin-top: 4px; color: #334155; }
+  .badge {
+    position: absolute; top: 8px; left: 8px; font-size: 10px; font-weight: 700;
+    color: #fff; padding: 2px 6px; border-radius: 6px;
+  }
+  .badge.home { background: #16a34a; }
+  .badge.vault { background: #2563eb; }
+  .empty { color: #94a3b8; font-size: 12px; text-align: center; padding: 30px 0; }
+</style>
+</head>
+<body>
+<div id="grid"></div>
+<script>
+let CARDS = [];
+
+function send(type, extra) {
+  window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type: type }, extra || {}), "*");
+}
+function setHeight() {
+  send("streamlit:setFrameHeight", { height: document.documentElement.scrollHeight + 8 });
+}
+function currentOrder() {
+  return Array.from(document.querySelectorAll(".pocket")).map(function (el) { return el.dataset.cert; });
+}
+
+let dragCert = null;
+function build(cards) {
+  CARDS = cards || [];
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  if (!CARDS.length) {
+    grid.innerHTML = "<div class='empty'>まだカードがありません。「➕ カードを追加」から入れてください。</div>";
+    setHeight(); return;
+  }
+  CARDS.forEach(function (c) {
+    const d = document.createElement("div");
+    d.className = "pocket";
+    d.draggable = true;
+    d.dataset.cert = c.cert;
+    const badgeClass = c.loc === "Vault" ? "vault" : "home";
+    const badgeText = c.loc === "Vault" ? "VAULT" : "HOME";
+    d.innerHTML =
+      "<span class='badge " + badgeClass + "'>" + badgeText + "</span>" +
+      (c.img ? "<img src='" + c.img + "'>" : "<div class='empty'>画像なし</div>") +
+      "<div class='cap'>PSA " + (c.grade || "") + "<br>" + (c.name || "") + "</div>";
+
+    d.addEventListener("dragstart", function (e) {
+      dragCert = c.cert; d.classList.add("dragging");
+      e.dataTransfer.effectAllowed = "move";
+    });
+    d.addEventListener("dragend", function () {
+      d.classList.remove("dragging");
+      document.querySelectorAll(".pocket.over").forEach(function (x) { x.classList.remove("over"); });
+      send("streamlit:setComponentValue", { value: currentOrder(), dataType: "json" });
+    });
+    d.addEventListener("dragover", function (e) {
+      e.preventDefault();
+      const dragEl = document.querySelector(".pocket.dragging");
+      if (!dragEl || dragEl === d) return;
+      const rect = d.getBoundingClientRect();
+      const after = (e.clientY - rect.top) > rect.height / 2 || (e.clientX - rect.left) > rect.width / 2;
+      d.parentNode.insertBefore(dragEl, after ? d.nextSibling : d);
+    });
+    grid.appendChild(d);
+  });
+  setHeight();
+}
+
+window.addEventListener("message", function (e) {
+  if (!e.data || e.data.type !== "streamlit:render") return;
+  build((e.data.args && e.data.args.cards) || []);
+});
+send("streamlit:componentReady", { apiVersion: 1 });
+setHeight();
+window.addEventListener("resize", setHeight);
+</script>
+</body>
+</html>

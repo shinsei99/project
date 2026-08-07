@@ -4,12 +4,14 @@ PSA「My Collection」のCSVエクスポートを読み込み、保有カード�
 保管場所の記録を行う在庫管理アプリ。
 """
 
+import base64
 import json
 from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from psa_images import DAILY_LIMIT, ImageStore, fetch_many
 
@@ -19,6 +21,15 @@ CSV_PATH = DATA_DIR / "collection.csv"
 NOTES_PATH = DATA_DIR / "storage_notes.json"
 TOKEN_PATH = DATA_DIR / "psa_api.json"
 ORDERS_PATH = DATA_DIR / "orders.json"
+ALBUMS_PATH = DATA_DIR / "albums.json"
+
+# アルバム用ドラッグ&ドロップ・コンポーネント（4列グリッド・画像を掴んで並べ替え）
+_ALBUM_DND = components.declare_component("album_dnd", path=str(BASE_DIR / "album_dnd"))
+
+
+def album_location(vault_status: str) -> str:
+    """Vault Status を Home / Vault に分類。"""
+    return "Vault" if vault_status in ("Vaulted", "Vault Bound") else "Home"
 
 # PSAグレーディングの工程順（progressSummary.lastCompletedStep の次が「現在の工程」）
 GRADING_STEPS = [
@@ -249,6 +260,155 @@ def render_grading():
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
 
 
+def load_albums() -> dict:
+    """data/albums.json（アルバム名 -> 証明書番号リスト）を読む。"""
+    if ALBUMS_PATH.exists():
+        try:
+            return json.loads(ALBUMS_PATH.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+    return {}
+
+
+def save_albums(albums: dict) -> None:
+    ALBUMS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    ALBUMS_PATH.write_text(json.dumps(albums, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _data_uri(path):
+    """ローカル画像を base64 data URI に。st.image のメディアID失効を回避（バインダー用）。"""
+    if not path:
+        return None
+    try:
+        return "data:image/jpeg;base64," + base64.b64encode(Path(path).read_bytes()).decode()
+    except Exception:
+        return None
+
+
+def album_label(df, cert) -> str:
+    """外すカード選択用のラベル（PSAグレード＋カード名＋cert）。"""
+    row = df[df["Cert Number"].astype(str) == str(cert)]
+    if len(row):
+        rr = row.iloc[0]
+        return f"PSA {rr['Grade']} {(rr['Subject'] or '')[:24]}（{cert}）"
+    return str(cert)
+
+
+def render_album(df, store):
+    """「アルバム」ビュー：保有中(Home/Vault)から選び、4列バインダーをドラッグで並べ替え。"""
+    st.subheader("📔 コレクションアルバム")
+    albums = load_albums()
+    active = df[df["Item Status"] == "Active"].copy()
+
+    top = st.columns([3, 2, 1])
+    names = list(albums.keys())
+    sel = top[0].selectbox("アルバム", names, key="album_sel") if names else None
+    if not names:
+        top[0].caption("アルバムがありません。右で新規作成してください。")
+    new_name = top[1].text_input("新規アルバム名", key="album_new", placeholder="お気に入り など")
+    if top[2].button("作成", key="album_create"):
+        nm = new_name.strip()
+        if nm and nm not in albums:
+            albums[nm] = []
+            save_albums(albums)
+            st.rerun()
+
+    if sel is None:
+        st.info("アルバム名を入れて「作成」してください。")
+        return
+
+    current = [str(c) for c in albums.get(sel, [])]
+
+    with st.expander("このアルバムの操作（改名・削除）"):
+        oc = st.columns([3, 1, 1])
+        rn = oc[0].text_input("新しい名前", value=sel, key="album_rename")
+        if oc[1].button("改名", key="album_do_rename") and rn.strip() and rn.strip() != sel:
+            albums[rn.strip()] = albums.pop(sel)
+            save_albums(albums)
+            st.rerun()
+        if oc[2].button("削除", key="album_delete", type="primary"):
+            albums.pop(sel, None)
+            save_albums(albums)
+            st.rerun()
+
+    view_tab, add_tab = st.tabs([f"📖 バインダー（{len(current)}枚）", "➕ カードを追加"])
+
+    with view_tab:
+        if not current:
+            st.info("まだカードがありません。「➕ カードを追加」から入れてください。")
+        else:
+            st.caption("カードを **ドラッグして並べ替え** できます（4列）。 🟩HOME ／ 🟦VAULT")
+            payload = []
+            for cert in current:
+                row = df[df["Cert Number"].astype(str) == cert]
+                rr = row.iloc[0] if len(row) else None
+                payload.append({
+                    "cert": cert,
+                    "img": _data_uri(store.thumb(cert)) or "",
+                    "grade": (rr["Grade"] if rr is not None else ""),
+                    "name": ((rr["Subject"] or "")[:22] if rr is not None else ""),
+                    "loc": album_location(rr["Vault Status"]) if rr is not None else "Home",
+                })
+            new_order = _ALBUM_DND(cards=payload, key=f"album_dnd_{sel}", default=None)
+            if new_order:
+                new_order = [str(x) for x in new_order]
+                # 同じ顔ぶれで並びだけ変わったら保存（無限ループ防止）
+                if set(new_order) == set(current) and new_order != current:
+                    albums[sel] = new_order
+                    save_albums(albums)
+                    st.rerun()
+
+            rem = st.multiselect(
+                "アルバムから外すカード", current,
+                format_func=lambda c: album_label(df, c), key="album_remove",
+            )
+            if st.button("選択したカードを外す", disabled=not rem, key="album_remove_btn"):
+                albums[sel] = [c for c in current if c not in rem]
+                save_albums(albums)
+                st.rerun()
+
+    with add_tab:
+        loc = st.radio("場所", ["両方", "Home", "Vault"], horizontal=True, key="album_loc")
+        cand = active[~active["Cert Number"].astype(str).isin(current)].copy()
+        if loc == "Home":
+            cand = cand[cand["Vault Status"] == "Unvaulted"]
+        elif loc == "Vault":
+            cand = cand[cand["Vault Status"].isin(["Vaulted", "Vault Bound"])]
+        q = st.text_input("検索", key="album_add_q", placeholder="リザードン / セット名 / cert番号")
+        if q.strip():
+            hay = (
+                cand["Subject"].fillna("") + " " + cand["Set"].fillna("") + " "
+                + cand["Cert Number"].astype(str)
+            )
+            cand = cand[hay.str.contains(q.strip(), case=False, na=False)]
+        st.caption(f"追加候補 {len(cand)} 枚（保有中で未追加）。選んで下のボタンで追加。")
+
+        picked = []
+        rows = list(cand.iterrows())
+        per_row = 5
+        for i in range(0, len(rows), per_row):
+            cols = st.columns(per_row)
+            for col, (_, card) in zip(cols, rows[i:i + per_row]):
+                cert = str(card["Cert Number"])
+                lc = album_location(card["Vault Status"])
+                with col:
+                    uri = _data_uri(store.thumb(cert))
+                    badge = "🟦VAULT" if lc == "Vault" else "🟩HOME"
+                    if uri:
+                        st.markdown(f"<img src='{uri}' style='width:100%;border-radius:6px'>", unsafe_allow_html=True)
+                    st.caption(f"{badge}・PSA {card['Grade']} {(card['Subject'] or '')[:16]}")
+                    if st.checkbox("選択", key=f"album_add_{cert}"):
+                        picked.append(cert)
+
+        if st.button(
+            f"選択した {len(picked)} 枚を「{sel}」に追加",
+            type="primary", disabled=not picked, key="album_add_btn",
+        ):
+            albums[sel] = current + [c for c in picked if c not in current]
+            save_albums(albums)
+            st.rerun()
+
+
 if not CSV_PATH.exists():
     st.error(f"CSVが見つかりません: {CSV_PATH}")
     st.info("PSA My Collection のエクスポートCSVをアップロードすると、この端末に取り込んで開始できます。")
@@ -278,9 +438,13 @@ st.sidebar.title("🃏 PSA保有カード管理")
 
 status = st.sidebar.radio(
     "表示対象",
-    ["保有中（Vault）", "保有中（Home）", "鑑定中", "売却済", "すべて"],
+    ["保有中（Vault）", "保有中（Home）", "アルバム", "鑑定中", "売却済", "すべて"],
 )
 
+# 「アルバム」は保有中(Home/Vault)から選ぶ4列バインダー（ドラッグ並べ替え）の別ビュー
+if status == "アルバム":
+    render_album(df, store)
+    st.stop()
 # 「鑑定中」はコレクションCSVではなく PSA申請データ（orders.json）を表示する別ビュー
 if status == "鑑定中":
     render_grading()

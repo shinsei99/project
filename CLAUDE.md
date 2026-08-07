@@ -91,7 +91,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **psacard.comの証明書ページはCloudflareで403**。サーバー側スクレイピングは不可。
 - `data/`は保有明細と資産額を含むため**gitignore**（公開リポジトリに出さない）。他PCではCSVを`data/collection.csv`に置いて起動。launchd未登録（ツール分類のため社内LAN共有なし）。
 - 元データの制約: `My Cost`/`My Value`/`Date Acquired`/`Source`/`My Notes`はPSA側で全件空欄 → **仕入値ベースの利益は算出不可**（売却額−手数料=手取り まで）。`Year`に`1998-99`形式が4件混在するため先頭4桁を数値年として扱う。
-- **サイドバー「表示対象」は5区分**（保有中(Vault)=Vault Status Vaulted+Vault Bound / 保有中(Home)=Unvaulted / 鑑定中 / 売却済 / すべて）。売却済ビューは売却額に加え**現在推定額（PSA Estimate列。全件入っている）**を併記（カード=緑字/一覧列/集計「現在推定額 合計・売却比」）。カードのキャプションはmarkdownとHTML混在だと生タグ化するため**純HTMLのdiv**で描画すること。
+- **サイドバー「表示対象」は6区分**（保有中(Vault)=Vault Status Vaulted+Vault Bound / 保有中(Home)=Unvaulted / アルバム / 鑑定中 / 売却済 / すべて）。売却済ビューは売却額に加え**現在推定額（PSA Estimate列。全件入っている）**を併記（カード=緑字/一覧列/集計「現在推定額 合計・売却比」）。カードのキャプションはmarkdownとHTML混在だと生タグ化するため**純HTMLのdiv**で描画すること。
+- **アルバム（コレクションアルバム）**: 保有中(Home/Vault)から選んだカードで名前つきアルバムを作る（`data/albums.json`＝アルバム名→cert配列、gitignore）。バインダーは**自作の双方向コンポーネント`album_dnd/index.html`**（4列グリッド・画像をHTML5ネイティブDnDで並べ替え→Streamlitのpostmessageプロトコルで新順序を戻して保存）。各カードにHOME/VAULTバッジ。画像は`_data_uri()`でbase64直埋め（`st.image`はメディアID失効エラーが出るため）。**streamlit-sortablesは`<img>`を生テキスト表示するのでNG**（検証済み）＝画像DnDは自作コンポーネント必須。
 - **鑑定中タブ（グレーディング申請中）**: `data/orders.json`（gitignore）を読み、進行中オーダーの**個別カードを画像・カード名・cert番号・現在工程つきで一覧**。取得は`./update_orders.sh`→`harvest_orders.js`をログイン済みSafariで実行。**psacard.comのtRPC API**を2段で叩く（画像取得のapp.collectors.comとは別サイト・入力は**base64**）: `orders.list`（申請一覧、status=Processing/Shipped/Completed）→ 進行中各件で`orders.get`（入力`{submissionNumber,orderNumber}`。返り`specReviewResults[]`=カード明細/`images{certID->[{imageSide:1表/2裏,thumbnail…}]}`/`orderProgressSteps[]`。現在工程=最初の未完了step）。画像は`d1htnxwo4o0jhw.cloudfront.net`（認証不要）。前提: Safari「開発>Apple EventsからのJavaScriptを許可」ON＋psacard.comログイン。
 
 ### theta-viewer FTP APIサーバー port修正（2026-07-14）
