@@ -352,9 +352,9 @@ def render_album(df, store):
             # 各カードのボタンを「クリックできるカード画像」に見せるCSS（バッジは写真の上に重ねる）
             css = [
                 "<style>",
-                '[class*="st-key-pcard_"] button{position:relative;aspect-ratio:5/7;width:100%;min-height:0;'
-                "padding:0;border-radius:8px;background-size:cover;background-position:center;"
-                "color:transparent;overflow:hidden;}",
+                '[class*="st-key-pcard_"] button{position:relative;aspect-ratio:5/8;width:100%;min-height:0;'
+                "padding:0;border-radius:8px;background-size:contain;background-repeat:no-repeat;"
+                "background-position:center;background-color:#f8fafc;color:transparent;overflow:hidden;}",
             ]
             for cert in page_certs:
                 row = df[df["Cert Number"].astype(str) == cert]
