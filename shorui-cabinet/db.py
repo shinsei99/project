@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 """書類キャビネットの保存層（SQLite）。
 
-「紙の書類が物理的にどこにあるか」を記録するのが目的なので、
-本体はあくまで所在情報。原本ファイルは任意でサムネイルだけ持つ。
+管理の単位は「ファイル」＝ クリアファイル1冊・バインダー1冊・箱1つ。
+書類1枚ずつは登録しない（現場では箱まで辿り着ければ十分で、
+1枚ずつ登録すると作業が終わらず台帳が続かないため）。
 
-DBは data/cabinet.db。物件名や書類の所在を含むため data/ は gitignore。
+中身の明細は AI が写真から起こしたテキストとして 1つのファイル行に持たせ、
+検索は明細も含めた横断LIKEで効かせる。
+
+DBは data/cabinet.db。物件名や所在を含むため data/ は gitignore。
 """
 
 # 実行環境は system python 3.9（他アプリと同じ）。`str | None` 等の新しい型注釈を
@@ -20,7 +24,10 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 DB_PATH = os.path.join(DATA_DIR, "cabinet.db")
 THUMB_DIR = os.path.join(DATA_DIR, "thumbs")
 
-# 不動産の紙書類でよく出るもの。設定タブから増やせる
+# 入れ物の種類
+KINDS = ["クリアファイル", "バインダー", "封筒", "箱", "ファイルボックス", "その他"]
+
+# 不動産の紙書類でよく出るもの
 DEFAULT_DOC_TYPES = [
     "売買契約書",
     "賃貸借契約書",
@@ -51,7 +58,7 @@ def _connect() -> sqlite3.Connection:
 
 
 def init_db() -> None:
-    """テーブルが無ければ作る。既存DBには影響しない。"""
+    """テーブルが無ければ作る。旧「書類1枚ずつ」形式のデータがあればファイル単位へ移す。"""
     with _connect() as conn:
         conn.executescript(
             """
@@ -70,29 +77,54 @@ def init_db() -> None:
                 created_at TEXT NOT NULL
             );
 
-            CREATE TABLE IF NOT EXISTS documents (
+            CREATE TABLE IF NOT EXISTS files (
                 id            INTEGER PRIMARY KEY AUTOINCREMENT,
-                title         TEXT NOT NULL,
-                doc_type      TEXT DEFAULT '',
-                property_name TEXT DEFAULT '',      -- 物件名（マスタに無くても自由入力できる）
-                doc_date      TEXT DEFAULT '',      -- YYYY-MM-DD（不明なら空）
-                counterparty  TEXT DEFAULT '',      -- 相手先・当事者
+                label         TEXT NOT NULL,        -- 背表紙・表紙の名前（探すときの目印）
+                kind          TEXT DEFAULT '',      -- クリアファイル / バインダー / 箱 など
+                location_id   INTEGER,
+                spot          TEXT DEFAULT '',      -- 場所内の細かい位置（左から3番目 など）
+                properties    TEXT DEFAULT '',      -- 関係する物件名（改行区切り）
+                doc_types     TEXT DEFAULT '',      -- 入っている書類種別（カンマ区切り）
+                year_from     TEXT DEFAULT '',
+                year_to       TEXT DEFAULT '',
+                item_count    TEXT DEFAULT '',      -- 点数（おおよそでよい）
+                contents      TEXT DEFAULT '',      -- 中身の明細（1行1件）
                 summary       TEXT DEFAULT '',
-                location_id   INTEGER,              -- 保管場所
-                container     TEXT DEFAULT '',      -- ファイル名・箱番号など
-                quantity      TEXT DEFAULT '',      -- 部数・冊数など
-                thumb         TEXT DEFAULT '',      -- data/thumbs 配下のファイル名
+                thumb         TEXT DEFAULT '',
                 note          TEXT DEFAULT '',
                 created_at    TEXT NOT NULL,
                 updated_at    TEXT NOT NULL,
                 FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL
             );
 
-            CREATE INDEX IF NOT EXISTS idx_doc_property ON documents(property_name);
-            CREATE INDEX IF NOT EXISTS idx_doc_type     ON documents(doc_type);
-            CREATE INDEX IF NOT EXISTS idx_doc_location ON documents(location_id);
+            CREATE INDEX IF NOT EXISTS idx_files_location ON files(location_id);
+            CREATE INDEX IF NOT EXISTS idx_files_label    ON files(label);
             """
         )
+
+        # --- 旧形式（documents: 書類1枚ずつ）からの移行 ---
+        has_old = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='documents'"
+        ).fetchone()
+        if has_old:
+            rows = conn.execute("SELECT * FROM documents").fetchall()
+            for r in rows:
+                conn.execute(
+                    """INSERT INTO files
+                       (label, kind, location_id, spot, properties, doc_types,
+                        year_from, year_to, item_count, contents, summary, thumb, note,
+                        created_at, updated_at)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        r["title"], "", r["location_id"], r["container"] or "",
+                        r["property_name"] or "", r["doc_type"] or "",
+                        (r["doc_date"] or "")[:4], (r["doc_date"] or "")[:4],
+                        r["quantity"] or "", r["title"], r["summary"] or "",
+                        r["thumb"] or "", r["note"] or "",
+                        r["created_at"], r["updated_at"],
+                    ),
+                )
+            conn.execute("DROP TABLE documents")
 
 
 def _now() -> str:
@@ -101,14 +133,12 @@ def _now() -> str:
 
 # ---------- 保管場所 ----------
 
-def list_locations() -> list[sqlite3.Row]:
+def list_locations() -> list:
     with _connect() as conn:
-        return conn.execute(
-            "SELECT * FROM locations ORDER BY sort, name"
-        ).fetchall()
+        return conn.execute("SELECT * FROM locations ORDER BY sort, name").fetchall()
 
 
-def add_location(name: str, note: str = "") -> int | None:
+def add_location(name: str, note: str = ""):
     """同名があれば追加せず既存のidを返す。"""
     name = (name or "").strip()
     if not name:
@@ -133,16 +163,15 @@ def update_location(loc_id: int, name: str, note: str, sort: int) -> None:
 
 
 def delete_location(loc_id: int) -> None:
-    """場所を消しても書類は残る（location_id が NULL になる）。"""
+    """場所を消してもファイルは残る（location_id が NULL になる）。"""
     with _connect() as conn:
         conn.execute("DELETE FROM locations WHERE id=?", (loc_id,))
 
 
-def location_counts() -> dict[int, int]:
-    """保管場所ごとの書類件数。"""
+def location_counts() -> dict:
     with _connect() as conn:
         rows = conn.execute(
-            "SELECT location_id, COUNT(*) AS c FROM documents "
+            "SELECT location_id, COUNT(*) AS c FROM files "
             "WHERE location_id IS NOT NULL GROUP BY location_id"
         ).fetchall()
     return {r["location_id"]: r["c"] for r in rows}
@@ -150,19 +179,19 @@ def location_counts() -> dict[int, int]:
 
 # ---------- 物件 ----------
 
-def list_properties() -> list[sqlite3.Row]:
+def list_properties() -> list:
     with _connect() as conn:
         return conn.execute("SELECT * FROM properties ORDER BY name").fetchall()
 
 
-def add_property(name: str, note: str = "") -> int | None:
+def add_property(name: str, note: str = ""):
     name = (name or "").strip()
     if not name:
         return None
     with _connect() as conn:
         row = conn.execute("SELECT id FROM properties WHERE name = ?", (name,)).fetchone()
         if row:
-            return row["id"]
+            return None  # 既存なので新規追加はしていない
         cur = conn.execute(
             "INSERT INTO properties (name, note, created_at) VALUES (?,?,?)",
             (name, note.strip(), _now()),
@@ -175,25 +204,28 @@ def delete_property(prop_id: int) -> None:
         conn.execute("DELETE FROM properties WHERE id=?", (prop_id,))
 
 
-# ---------- 書類 ----------
+# ---------- ファイル（管理の単位） ----------
 
-def add_document(d: dict) -> int:
+def add_file(d: dict) -> int:
     with _connect() as conn:
         cur = conn.execute(
-            """INSERT INTO documents
-               (title, doc_type, property_name, doc_date, counterparty, summary,
-                location_id, container, quantity, thumb, note, created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            """INSERT INTO files
+               (label, kind, location_id, spot, properties, doc_types,
+                year_from, year_to, item_count, contents, summary, thumb, note,
+                created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
-                d.get("title", "").strip() or "（無題）",
-                d.get("doc_type", ""),
-                d.get("property_name", "").strip(),
-                d.get("doc_date", ""),
-                d.get("counterparty", "").strip(),
-                d.get("summary", "").strip(),
+                d.get("label", "").strip() or "（名前なし）",
+                d.get("kind", ""),
                 d.get("location_id"),
-                d.get("container", "").strip(),
-                d.get("quantity", "").strip(),
+                d.get("spot", "").strip(),
+                d.get("properties", "").strip(),
+                d.get("doc_types", "").strip(),
+                d.get("year_from", "").strip(),
+                d.get("year_to", "").strip(),
+                d.get("item_count", "").strip(),
+                d.get("contents", "").strip(),
+                d.get("summary", "").strip(),
                 d.get("thumb", ""),
                 d.get("note", "").strip(),
                 _now(),
@@ -203,34 +235,35 @@ def add_document(d: dict) -> int:
         return cur.lastrowid
 
 
-def update_document(doc_id: int, d: dict) -> None:
+def update_file(file_id: int, d: dict) -> None:
     with _connect() as conn:
         conn.execute(
-            """UPDATE documents SET
-               title=?, doc_type=?, property_name=?, doc_date=?, counterparty=?,
-               summary=?, location_id=?, container=?, quantity=?, note=?, updated_at=?
+            """UPDATE files SET
+               label=?, kind=?, location_id=?, spot=?, properties=?, doc_types=?,
+               year_from=?, year_to=?, item_count=?, contents=?, summary=?, note=?, updated_at=?
                WHERE id=?""",
             (
-                d.get("title", "").strip() or "（無題）",
-                d.get("doc_type", ""),
-                d.get("property_name", "").strip(),
-                d.get("doc_date", ""),
-                d.get("counterparty", "").strip(),
-                d.get("summary", "").strip(),
+                d.get("label", "").strip() or "（名前なし）",
+                d.get("kind", ""),
                 d.get("location_id"),
-                d.get("container", "").strip(),
-                d.get("quantity", "").strip(),
+                d.get("spot", "").strip(),
+                d.get("properties", "").strip(),
+                d.get("doc_types", "").strip(),
+                d.get("year_from", "").strip(),
+                d.get("year_to", "").strip(),
+                d.get("item_count", "").strip(),
+                d.get("contents", "").strip(),
+                d.get("summary", "").strip(),
                 d.get("note", "").strip(),
                 _now(),
-                doc_id,
+                file_id,
             ),
         )
 
 
-def delete_document(doc_id: int) -> None:
-    """書類を消すときはサムネイル画像も片付ける。"""
+def delete_file(file_id: int) -> None:
     with _connect() as conn:
-        row = conn.execute("SELECT thumb FROM documents WHERE id=?", (doc_id,)).fetchone()
+        row = conn.execute("SELECT thumb FROM files WHERE id=?", (file_id,)).fetchone()
         if row and row["thumb"]:
             path = os.path.join(THUMB_DIR, row["thumb"])
             if os.path.exists(path):
@@ -238,79 +271,78 @@ def delete_document(doc_id: int) -> None:
                     os.remove(path)
                 except OSError:
                     pass
-        conn.execute("DELETE FROM documents WHERE id=?", (doc_id,))
+        conn.execute("DELETE FROM files WHERE id=?", (file_id,))
 
 
-def search_documents(
+def search_files(
     keyword: str = "",
     doc_type: str = "",
     property_name: str = "",
-    location_id: int | None = None,
+    location_id=None,
     year: str = "",
-) -> list[sqlite3.Row]:
-    """指定された条件のAND検索。キーワードはスペース区切りで全項目を横断。"""
+) -> list:
+    """AND検索。キーワードはスペース区切りで、中身の明細まで含めて横断する。"""
     sql = [
-        "SELECT d.*, l.name AS location_name FROM documents d "
-        "LEFT JOIN locations l ON l.id = d.location_id WHERE 1=1"
+        "SELECT f.*, l.name AS location_name FROM files f "
+        "LEFT JOIN locations l ON l.id = f.location_id WHERE 1=1"
     ]
     params: list = []
 
     for word in (keyword or "").split():
         sql.append(
-            " AND (d.title LIKE ? OR d.property_name LIKE ? OR d.counterparty LIKE ?"
-            " OR d.summary LIKE ? OR d.container LIKE ? OR d.note LIKE ? OR d.doc_type LIKE ?)"
+            " AND (f.label LIKE ? OR f.properties LIKE ? OR f.contents LIKE ?"
+            " OR f.summary LIKE ? OR f.doc_types LIKE ? OR f.note LIKE ? OR f.spot LIKE ?)"
         )
-        params.extend([f"%{word}%"] * 7)
+        params.extend(["%%%s%%" % word] * 7)
 
     if doc_type:
-        sql.append(" AND d.doc_type = ?")
-        params.append(doc_type)
+        sql.append(" AND f.doc_types LIKE ?")
+        params.append("%%%s%%" % doc_type)
     if property_name:
-        sql.append(" AND d.property_name = ?")
-        params.append(property_name)
+        sql.append(" AND f.properties LIKE ?")
+        params.append("%%%s%%" % property_name)
     if location_id:
-        sql.append(" AND d.location_id = ?")
+        sql.append(" AND f.location_id = ?")
         params.append(location_id)
     if year:
-        sql.append(" AND d.doc_date LIKE ?")
-        params.append(f"{year}%")
+        # 年の範囲に含まれるか（年が未入力のファイルは対象外）
+        sql.append(
+            " AND (f.year_from <> '' AND f.year_from <= ?"
+            " AND (f.year_to = '' OR f.year_to >= ?))"
+        )
+        params.extend([year, year])
 
-    sql.append(" ORDER BY d.doc_date DESC, d.id DESC")
+    sql.append(" ORDER BY f.label")
     with _connect() as conn:
         return conn.execute("".join(sql), params).fetchall()
 
 
-def get_document(doc_id: int) -> sqlite3.Row | None:
+def get_file(file_id: int):
     with _connect() as conn:
         return conn.execute(
-            "SELECT d.*, l.name AS location_name FROM documents d "
-            "LEFT JOIN locations l ON l.id = d.location_id WHERE d.id = ?",
-            (doc_id,),
+            "SELECT f.*, l.name AS location_name FROM files f "
+            "LEFT JOIN locations l ON l.id = f.location_id WHERE f.id = ?",
+            (file_id,),
         ).fetchone()
 
 
 def stats() -> dict:
     with _connect() as conn:
-        total = conn.execute("SELECT COUNT(*) AS c FROM documents").fetchone()["c"]
-        props = conn.execute(
-            "SELECT COUNT(DISTINCT property_name) AS c FROM documents WHERE property_name <> ''"
-        ).fetchone()["c"]
+        total = conn.execute("SELECT COUNT(*) AS c FROM files").fetchone()["c"]
         locs = conn.execute("SELECT COUNT(*) AS c FROM locations").fetchone()["c"]
         unplaced = conn.execute(
-            "SELECT COUNT(*) AS c FROM documents WHERE location_id IS NULL"
+            "SELECT COUNT(*) AS c FROM files WHERE location_id IS NULL"
         ).fetchone()["c"]
-    return {"documents": total, "properties": props, "locations": locs, "unplaced": unplaced}
+        props = conn.execute("SELECT COUNT(*) AS c FROM properties").fetchone()["c"]
+    return {"files": total, "locations": locs, "unplaced": unplaced, "properties": props}
 
 
-def used_doc_types() -> list[str]:
-    """既存データで実際に使われている種別（既定リストに無い自作の種別を拾う）。"""
+def all_doc_types() -> list:
+    """既定リスト＋実データで使われている自作の種別。"""
     with _connect() as conn:
-        rows = conn.execute(
-            "SELECT DISTINCT doc_type FROM documents WHERE doc_type <> '' ORDER BY doc_type"
-        ).fetchall()
-    return [r["doc_type"] for r in rows]
-
-
-def all_doc_types() -> list[str]:
-    extra = [t for t in used_doc_types() if t not in DEFAULT_DOC_TYPES]
+        rows = conn.execute("SELECT doc_types FROM files WHERE doc_types <> ''").fetchall()
+    used = set()
+    for r in rows:
+        used.update(t.strip() for t in r["doc_types"].split(",") if t.strip())
+    extra = sorted(t for t in used if t not in DEFAULT_DOC_TYPES)
     return DEFAULT_DOC_TYPES + extra

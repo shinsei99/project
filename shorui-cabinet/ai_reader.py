@@ -33,29 +33,34 @@ TEXT_MIN_CHARS = 40       # これ未満ならスキャン画像PDFとみなす
 TEXT_MAX_CHARS = 6000     # 長い書類は先頭だけ渡す
 
 SCHEMA = """{
-  "doc_type": "（書類の種別。例: 売買契約書 / 賃貸借契約書 / 重要事項説明書 / 管理委託契約書 / 覚書・合意書 / 登記簿謄本 / 図面・間取図 / 測量図・境界 / 確認済証・検査済証 / 見積書・請求書 / 領収書 / 鍵預り証 / 保険証券 / 納税通知・評価証明 / 写真・現況資料 / その他）",
-  "title": "（書類の表題。書かれているとおりに）",
-  "property_name": "（対象の物件名・建物名。号室まで分かれば含める。無ければ空）",
-  "doc_date": "（作成日・契約日。YYYY-MM-DD形式。和暦は西暦に直す。不明なら空）",
-  "counterparty": "（相手方・当事者。売主/買主/貸主/借主/業者名など。複数なら「A（売主）／B（買主）」）",
-  "summary": "（この書類が何かを40字程度で。あとで探すときの手がかりになる情報を優先）",
+  "label": "（このファイルの見出し。背表紙や表紙に名前が書いてあればそのまま。無ければ中身から『◯◯マンション 契約関係』のような探しやすい名前を付ける）",
+  "properties": ["（関係する物件名・建物名。号室が分かれば含める。複数可。無ければ空配列）"],
+  "doc_types": ["（入っている書類の種別。売買契約書 / 賃貸借契約書 / 重要事項説明書 / 管理委託契約書 / 覚書・合意書 / 登記簿謄本 / 図面・間取図 / 測量図・境界 / 確認済証・検査済証 / 見積書・請求書 / 領収書 / 鍵預り証 / 保険証券 / 納税通知・評価証明 / 写真・現況資料 / その他 から該当するものを列挙）"],
+  "year_from": "（中身の書類のうち最も古い年。YYYY。分からなければ空）",
+  "year_to": "（最も新しい年。YYYY。分からなければ空）",
+  "contents": ["（中に入っている書類を1件ずつ。『2024-05-20 賃貸借契約書 グランドメゾン天王寺302 山田太郎』のように、日付・種別・物件・相手先が分かる範囲で1行にまとめる）"],
+  "summary": "（このファイルが何かを40字程度で）",
   "confidence": "high | medium | low"
 }"""
 
 PROMPT_HEAD = """あなたは日本の不動産会社で書類整理を担当する事務です。
-提示された書類から、あとで紙を探すための情報を抜き出してください。
+クリアファイル／バインダー／箱に入っている書類を撮った写真を見て、
+**その入れ物1つ分の中身の目録**を作ってください。あとで「どのファイルを開けばよいか」を
+探すための情報です。
 
 これは要約ではなく**書き写し**の作業です。守ること:
 
 - **固有名詞（物件名・会社名・人名・地名）と数字は、書かれている文字を一字一句そのまま写す。**
   似た言葉への置き換え（例「天王寺」を「中央」、「大京商事」を「大和商事」）は誤りです。
   もっともらしい名称を推測で補ってはいけません。
-- 一部の文字がはっきり読み取れない項目は、**その項目を空文字にする**（部分的な推測で埋めない）。
+- 一部の文字がはっきり読み取れない項目は、**その項目を空にする**（部分的な推測で埋めない）。
 - 数字は桁と並びをそのまま写す（82,000 を 28,000 のように入れ替えない）。
 - 和暦（令和/平成/昭和）は西暦に変換する。それ以外は変換しない。
-- property_name はマンション名・ビル名など、人が探すときに使う呼び名。号室があれば含める。
+- **写真に写っていない書類を contents に足さない。** 写真は中身の一部だけのことがあるので、
+  見えたものだけを列挙してください。
+- 同じ書類が複数ページに渡って写っている場合は、まとめて1件として数える。
 - confidence: すべて明瞭に読み取れたら high、一部あいまいなら medium、
-  文字が不鮮明・表紙が写っていないなど自信が持てなければ low。
+  文字が不鮮明・写りが悪いなど自信が持てなければ low。
 - 出力は下記のJSONのみ。説明文やコードフェンスは付けない。
 
 出力するJSON:
@@ -138,22 +143,26 @@ def _normalize(d: dict) -> dict:
         v = d.get(key, "")
         return v.strip() if isinstance(v, str) else ""
 
-    date = s("doc_date")
-    # 2026/8/7 や 2026年8月7日 のような表記も YYYY-MM-DD に寄せる
-    m = re.search(r"(\d{4})\D{1,2}(\d{1,2})\D{1,2}(\d{1,2})", date)
-    if m:
-        date = f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-    elif not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
-        m2 = re.search(r"(\d{4})\D{1,2}(\d{1,2})", date)
-        date = f"{m2.group(1)}-{int(m2.group(2)):02d}-01" if m2 else ""
+    def lst(key: str) -> list:
+        v = d.get(key, [])
+        if isinstance(v, str):
+            v = [x for x in re.split(r"[,、\n]", v)]
+        if not isinstance(v, list):
+            return []
+        return [str(x).strip() for x in v if str(x).strip()]
+
+    def year(key: str) -> str:
+        m = re.search(r"(\d{4})", s(key))
+        return m.group(1) if m else ""
 
     conf = s("confidence").lower()
     return {
-        "doc_type": s("doc_type"),
-        "title": s("title"),
-        "property_name": s("property_name"),
-        "doc_date": date,
-        "counterparty": s("counterparty"),
+        "label": s("label"),
+        "properties": lst("properties"),
+        "doc_types": lst("doc_types"),
+        "year_from": year("year_from"),
+        "year_to": year("year_to"),
+        "contents": lst("contents"),
         "summary": s("summary"),
         "confidence": conf if conf in ("high", "medium", "low") else "medium",
     }
@@ -173,43 +182,56 @@ def _pdf_text(pdf_bytes: bytes) -> str:
         return ""
 
 
-def read_document(data: bytes, filename: str, note=lambda _m: None) -> dict | None:
-    """書類（PDF or 画像）を読んで構造化した dict を返す。失敗時 None。
+def read_file_contents(uploads: list, note=lambda _m: None) -> dict | None:
+    """ファイル1冊分の写真・PDF（複数可）をまとめて読み、中身の目録を返す。
 
+    uploads は (bytes, filename) のリスト。1冊のクリアファイルの中身を
+    数枚パラパラ撮ったもの、という想定。失敗時 None。
     note はユーザーに見せる進捗・失敗理由を受け取るコールバック。
     """
-    ext = os.path.splitext(filename)[1].lower()
+    if not uploads:
+        return None
 
-    # --- テキストPDFならテキストを渡す（速い・正確） ---
-    if ext == ".pdf":
-        text = _pdf_text(data)
-        if len(text) >= TEXT_MIN_CHARS:
-            note("PDFのテキストを読み取り中…")
-            prompt = (
-                PROMPT_HEAD + SCHEMA
-                + "\n\n--- 書類のテキスト ---\n" + text[:TEXT_MAX_CHARS]
-            )
-            out = _invoke(prompt, note, timeout=TEXT_TIMEOUT)
-            return _parse(out, note) if out is not None else None
+    # --- 全部がテキストPDFなら、テキストをまとめて渡す（速い・正確） ---
+    texts = []
+    all_text = True
+    for data, filename in uploads:
+        if os.path.splitext(filename)[1].lower() == ".pdf":
+            t = _pdf_text(data)
+            if len(t) >= TEXT_MIN_CHARS:
+                texts.append(f"--- {filename} ---\n{t}")
+                continue
+        all_text = False
+        break
 
-    # --- スキャン画像PDF・写真はビジョンで読む ---
-    note("画像として読み取り中…（向きの自動補正を含むため少し時間がかかります）")
+    if all_text and texts:
+        note("PDFのテキストを読み取り中…")
+        body = "\n\n".join(texts)[:TEXT_MAX_CHARS]
+        prompt = PROMPT_HEAD + SCHEMA + "\n\n--- 中身の書類のテキスト ---\n" + body
+        out = _invoke(prompt, note, timeout=TEXT_TIMEOUT)
+        return _parse(out, note) if out is not None else None
+
+    # --- 写真・スキャン画像はビジョンで読む ---
+    note(f"{len(uploads)}件を画像として読み取り中…（向きの自動補正を含むため時間がかかります）")
     with tempfile.TemporaryDirectory() as tmp:
-        names: list[str] = []
-        if ext == ".pdf":
-            try:
-                names = pdf_orient.upright_page_images(data, tmp)[:MAX_PAGES]
-            except Exception as e:
-                note(f"PDFを画像化できませんでした: {type(e).__name__}")
-                return None
-        else:
-            fixed = pdf_orient.ensure_upright_image(data)
-            # ensure_upright_image は (bytes, angle) を返す実装と bytes を返す実装がある
-            img_bytes = fixed[0] if isinstance(fixed, tuple) else fixed
-            name = "page_1.png"
-            with open(os.path.join(tmp, name), "wb") as f:
-                f.write(img_bytes if img_bytes else data)
-            names = [name]
+        names: list = []
+        for idx, (data, filename) in enumerate(uploads):
+            ext = os.path.splitext(filename)[1].lower()
+            if ext == ".pdf":
+                try:
+                    # 1冊分なのでPDF1件あたりのページ数は絞る
+                    pages = pdf_orient.upright_page_images(data, tmp)[:MAX_PAGES]
+                    names.extend(pages)
+                except Exception as e:
+                    note(f"{filename} を画像化できませんでした: {type(e).__name__}")
+            else:
+                fixed = pdf_orient.ensure_upright_image(data)
+                # ensure_upright_image は (bytes, angle) を返す実装と bytes を返す実装がある
+                img_bytes = fixed[0] if isinstance(fixed, tuple) else fixed
+                name = f"shot_{idx + 1}.png"
+                with open(os.path.join(tmp, name), "wb") as f:
+                    f.write(img_bytes if img_bytes else data)
+                names.append(name)
 
         if not names:
             note("読み取れる画像がありませんでした")
@@ -218,10 +240,10 @@ def read_document(data: bytes, filename: str, note=lambda _m: None) -> dict | No
         listing = "、".join(names)
         prompt = (
             PROMPT_HEAD + SCHEMA
-            + f"\n\n画像ファイル {listing} を Read ツールで開いてください。1ページ目が表紙です。"
-            "\n手順: まず画像に書かれている文字を最後まで丁寧に目で追い、"
-            "固有名詞と数字を正確に確認してから、JSONを組み立ててください。"
-            "画像に無い情報は決して足さないでください。"
+            + f"\n\n画像ファイル {listing} を Read ツールで**すべて**開いてください。"
+            "これらは1つのクリアファイル／バインダー／箱の中身を撮ったものです。"
+            "\n手順: 各画像の文字を最後まで丁寧に目で追い、固有名詞と数字を正確に確認したうえで、"
+            "中身の目録としてJSONを組み立ててください。画像に無い書類は決して足さないでください。"
         )
         out = _invoke(
             prompt, note,

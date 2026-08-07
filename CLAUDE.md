@@ -39,7 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 駐車場配置図ビューア | parking-map | 8522 | ✅ | — |
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
 | 送付書メーカー | soufu-maker | 8525 | ✅ | — |
-| 書類キャビネット（紙書類の所在管理） | shorui-cabinet | 8528 | ー（自分専用・localhost） | — |
+| 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ー（自分専用・localhost） | — |
 
 ### ツール（11本）※社内LAN共有なし
 
