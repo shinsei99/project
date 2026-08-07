@@ -495,15 +495,6 @@ def render_album(df, store):
                         nm = ((rr["Subject"] if rr is not None else "") or "")[:16]
                         card.caption(f"**No.{no}**　PSA {gr} {nm}")
 
-            rem = st.multiselect(
-                "アルバムから外すカード", current,
-                format_func=lambda c: album_label(df, c), key="album_remove",
-            )
-            if st.button("選択したカードを外す", disabled=not rem, key="album_remove_btn"):
-                albums[sel] = [c for c in current if c not in rem]
-                save_albums(albums)
-                st.rerun()
-
     with add_tab:
         loc = st.radio("場所", ["両方", "Home", "Vault"], horizontal=True, key="album_loc")
         cand = active[~active["Cert Number"].astype(str).isin(current)].copy()
