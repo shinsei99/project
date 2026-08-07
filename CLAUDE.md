@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全43本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全44本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（26本）
+### 不動産（27本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
@@ -39,6 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 駐車場配置図ビューア | parking-map | 8522 | ✅ | — |
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
 | 送付書メーカー | soufu-maker | 8525 | ✅ | — |
+| 書類キャビネット（紙書類の所在管理） | shorui-cabinet | 8528 | ー（自分専用・localhost） | — |
 
 ### ツール（11本）※社内LAN共有なし
 
@@ -139,7 +140,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 分類 | バインド | 対象 |
 |---|---|---|
 | 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の18本 |
-| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection |
+| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8528 shorui-cabinet |
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
 

@@ -191,3 +191,7 @@ psa-collection/data/
 psa-collection/.venv/
 psa-collection/__pycache__/
 psa-collection/data/thumbs/
+!shorui-cabinet/
+!shorui-cabinet/**
+shorui-cabinet/data/
+shorui-cabinet/.venv/
