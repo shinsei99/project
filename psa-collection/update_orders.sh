@@ -35,8 +35,8 @@ set js to (read POSIX file "$JS_FILE" as «class utf8»)
 tell application "Safari" to do JavaScript js in document 1
 OSA
 
-# window.__ord.done を最大20秒ポーリング
-for i in $(seq 1 20); do
+# window.__ord.done を最大60秒ポーリング（全オーダーの明細取得に時間がかかる）
+for i in $(seq 1 60); do
   DONE=$(osascript -e 'tell application "Safari" to do JavaScript "(window.__ord&&window.__ord.done)?(window.__ord.error?(\"ERR \"+window.__ord.error):\"ok\"):\"wait\"" in document 1' 2>/dev/null || echo "wait")
   case "$DONE" in
     ok) break ;;

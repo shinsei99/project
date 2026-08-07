@@ -36,33 +36,53 @@
         orderFilters: { start: 0, pageLength: 100, sort: "Arrived", sortOrder: "desc", location: "US" }
       });
       var orders = list.orders || [];
-      var inProg = orders.filter(function (o) { return o.status === "Processing"; });
-      var cards = [];
-      for (var i = 0; i < inProg.length; i++) {
-        var o = inProg[i];
+      var cards = [];        // 進行中(Processing)のみ … 「鑑定中」タブ用
+      var certOrders = {};   // certNo -> オーダー情報 … Vaultのオーダー別絞り込み用（全オーダー）
+      // 全オーダーに orders.get を叩いて certNo→オーダー対応を作る。
+      // 進行中オーダーは従来どおり画像・現工程つきの cards も作る。
+      for (var i = 0; i < orders.length; i++) {
+        var o = orders[i];
         var det = await trpc("orders.get", {
           submissionNumber: String(o.submissionNumber), orderNumber: String(o.orderNumber)
         });
-        var steps = det.orderProgressSteps || [];
-        var cur = null;
-        for (var s = 0; s < steps.length; s++) { if (!steps[s].completed) { cur = steps[s].step; break; } }
-        var imgs = det.images || {};
-        (det.specReviewResults || []).forEach(function (it) {
-          var arr = imgs[it.certID] || imgs[String(it.certID)] || [];
-          var front = null, back = null;
-          arr.forEach(function (im) {
-            if (im.imageSide === 1 && !front) front = im.thumbnail || im.small || im.medium;
-            if (im.imageSide === 2 && !back) back = im.thumbnail || im.small || im.medium;
-          });
-          cards.push({
-            orderNumber: o.orderNumber, submissionNumber: o.submissionNumber,
-            service: o.service, currentStep: cur,
-            certID: it.certID, certNo: it.certNo, name: it.specDescription,
-            line: it.lineNumber, front: front, back: back
-          });
+        var results = det.specReviewResults || [];
+        // 全オーダー: certNo→オーダー対応表
+        // 進行中は specReviewResults(certNo)、完了・発送済は psaCerts(certNumber) にカード明細が入る。
+        var info = {
+          orderNumber: o.orderNumber, submissionNumber: o.submissionNumber,
+          service: o.service, status: o.status,
+          dateReceived: o.dateReceived, dateCompleted: o.dateCompleted,
+          itemCount: o.itemCount
+        };
+        results.forEach(function (it) {
+          if (it.certNo) certOrders[String(it.certNo)] = info;
         });
+        (det.psaCerts || []).forEach(function (it) {
+          if (it.certNumber) certOrders[String(it.certNumber)] = info;
+        });
+        // 進行中のみ: 画像・現工程つきカード（従来の鑑定中タブ用）
+        if (o.status === "Processing") {
+          var steps = det.orderProgressSteps || [];
+          var cur = null;
+          for (var s = 0; s < steps.length; s++) { if (!steps[s].completed) { cur = steps[s].step; break; } }
+          var imgs = det.images || {};
+          results.forEach(function (it) {
+            var arr = imgs[it.certID] || imgs[String(it.certID)] || [];
+            var front = null, back = null;
+            arr.forEach(function (im) {
+              if (im.imageSide === 1 && !front) front = im.thumbnail || im.small || im.medium;
+              if (im.imageSide === 2 && !back) back = im.thumbnail || im.small || im.medium;
+            });
+            cards.push({
+              orderNumber: o.orderNumber, submissionNumber: o.submissionNumber,
+              service: o.service, currentStep: cur,
+              certID: it.certID, certNo: it.certNo, name: it.specDescription,
+              line: it.lineNumber, front: front, back: back
+            });
+          });
+        }
       }
-      window.__ord = { done: true, data: { totalCount: list.totalCount, orders: orders, cards: cards } };
+      window.__ord = { done: true, data: { totalCount: list.totalCount, orders: orders, cards: cards, certOrders: certOrders } };
     } catch (e) {
       window.__ord = { done: true, error: String((e && e.stack) || e) };
     }

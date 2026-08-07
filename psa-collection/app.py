@@ -6,6 +6,8 @@ PSA「My Collection」のCSVエクスポートを読み込み、保有カード�
 
 import base64
 import json
+import re
+import subprocess
 from datetime import datetime
 from pathlib import Path
 
@@ -21,6 +23,37 @@ NOTES_PATH = DATA_DIR / "storage_notes.json"
 TOKEN_PATH = DATA_DIR / "psa_api.json"
 ORDERS_PATH = DATA_DIR / "orders.json"
 ALBUMS_PATH = DATA_DIR / "albums.json"
+FETCH_SCRIPT = BASE_DIR / "fetch_new_images.sh"
+
+
+def missing_image_certs(frame: pd.DataFrame, store: "ImageStore") -> list:
+    """CSV上のカードのうち、画像がまだローカルに無いcert番号（保有・売却問わず）。"""
+    certs = [
+        str(c) for c in frame.get("Cert Number", pd.Series(dtype=str)).dropna().tolist()
+        if str(c) and str(c) != "-"
+    ]
+    return [c for c in certs if not store.has(c)]
+
+
+def harvest_missing_images(timeout: int = 180) -> dict:
+    """ログイン済みSafari経由で不足画像を取得する（fetch_new_images.sh を実行）。
+
+    戻り: {"ok": bool, "saved": int, "msg": str}
+    """
+    try:
+        p = subprocess.run(
+            ["bash", str(FETCH_SCRIPT)],
+            capture_output=True, text=True, timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "saved": 0, "msg": "タイムアウトしました（Safariのログイン状態を確認してください）"}
+    out = ((p.stdout or "") + "\n" + (p.stderr or "")).strip()
+    saved = 0
+    m = re.search(r"完了:\s*(\d+)枚 保存", out)
+    if m:
+        saved = int(m.group(1))
+    last = out.splitlines()[-1] if out else f"rc={p.returncode}"
+    return {"ok": p.returncode == 0, "saved": saved, "msg": last}
 
 def album_location(vault_status: str) -> str:
     """Vault Status を Home / Vault に分類。"""
@@ -91,6 +124,8 @@ def load_collection(path: Path, mtime: float) -> pd.DataFrame:
     # 「1998-99」のような表記があるため、先頭4桁を数値の年として別に持つ
     df["year_num"] = pd.to_numeric(df["Year"].str.extract(r"(\d{4})")[0], errors="coerce")
     df["grade_num"] = pd.to_numeric(df["Grade"], errors="coerce")
+    # 証明書番号（鑑定ナンバー）は桁数がまちまちなので数値として並べ替えるための列
+    df["cert_num"] = pd.to_numeric(df["Cert Number"], errors="coerce")
     df["cert_url"] = "https://www.psacard.com/cert/" + df["Cert Number"].astype(str)
     return df
 
@@ -127,6 +162,18 @@ def yen(v) -> str:
 def load_orders(mtime: float):
     """data/orders.json（PSAグレーディング申請一覧）を読む。mtimeはキャッシュ用。"""
     return json.loads(ORDERS_PATH.read_text(encoding="utf-8"))
+
+
+@st.cache_data
+def load_cert_orders(mtime: float) -> dict:
+    """証明書番号 → グレーディングオーダー情報 の対応表（orders.json の certOrders）。
+
+    各カードがどの提出オーダー由来か（Vault済のオーダー別絞り込み用）。
+    """
+    if not ORDERS_PATH.exists():
+        return {}
+    data = json.loads(ORDERS_PATH.read_text(encoding="utf-8"))
+    return data.get("certOrders", {}) or {}
 
 
 def order_current_step(order: dict) -> str:
@@ -561,6 +608,48 @@ elif status == "売却済":
 else:
     view = df.copy()
 
+# Vaultビュー: PSAへの提出オーダー（グレーディング申請）単位で絞り込む
+if status == "保有中（Vault）":
+    cert_orders = load_cert_orders(ORDERS_PATH.stat().st_mtime if ORDERS_PATH.exists() else 0.0)
+    if cert_orders:
+        # orderNumber → 代表情報（サービス名・完了日）を一度だけ作る
+        order_info: dict = {}
+        for _v in cert_orders.values():
+            _on = _v.get("orderNumber")
+            if _on and _on not in order_info:
+                order_info[_on] = _v
+        order_of = view["Cert Number"].astype(str).map(
+            lambda c: cert_orders.get(c, {}).get("orderNumber")
+        )
+        counts = order_of.value_counts()
+        if not counts.empty:
+            def _olabel(on: str) -> str:
+                if on not in order_info:
+                    return str(on)
+                info = order_info.get(on, {})
+                dc = (info.get("dateCompleted") or "").strip() or "—"
+                svc = info.get("service") or ""
+                return f"#{on}（{int(counts.get(on, 0))}枚 / {dc} / {svc}）"
+
+            n_unknown = int(order_of.isna().sum())
+            opts = ["すべてのオーダー"] + list(counts.index)
+            if n_unknown:
+                opts.append("__unknown__")
+            sel_order = st.sidebar.selectbox(
+                "オーダー（提出）", opts, key="vault_order",
+                format_func=lambda o: (
+                    "すべてのオーダー" if o == "すべてのオーダー"
+                    else f"オーダー不明（{n_unknown}枚）" if o == "__unknown__"
+                    else _olabel(o)
+                ),
+                help="Vault内のカードを、PSAへの提出オーダー単位で絞り込みます。"
+                "（対応表は「🔄 鑑定申請の更新」で最新化されます）",
+            )
+            if sel_order == "__unknown__":
+                view = view[order_of.isna().values]
+            elif sel_order != "すべてのオーダー":
+                view = view[(order_of == sel_order).values]
+
 keyword = st.sidebar.text_input(
     "キーワード検索", placeholder="リザードン / CHARIZARD / 98769002",
     help="カード名・セット名・品名・証明書番号を横断検索（スペース区切りでAND）",
@@ -720,10 +809,32 @@ with st.sidebar.expander("📷 画像を手動で追加"):
 with st.sidebar.expander("📥 データ更新"):
     st.caption("PSA My Collection の最新CSVで丸ごと差し替えます。")
     up = st.file_uploader("CSVを選択", type="csv", label_visibility="collapsed")
+    auto_img = st.checkbox(
+        "画像も自動取得", value=True,
+        help="差し替え後、増えたカードの画像をログイン済みSafari経由で自動取得します。"
+        "（app.collectors.com にログインしている必要があります）",
+    )
     if up is not None and st.button("差し替える", type="primary", width="stretch"):
         CSV_PATH.write_bytes(up.getvalue())
         st.cache_data.clear()
-        st.success("更新しました。")
+        if auto_img:
+            new_df = pd.read_csv(CSV_PATH, dtype=str)
+            miss = missing_image_certs(new_df, store)
+            if not miss:
+                st.success("更新しました。新規の画像はありません。")
+            else:
+                with st.spinner(f"新規カード {len(miss)}枚 の画像を取得中…（Safari）"):
+                    res = harvest_missing_images()
+                if res["ok"]:
+                    st.success(f"更新しました。画像 {res['saved']}枚 を取得しました。")
+                else:
+                    st.warning(
+                        f"更新は完了しましたが、画像取得に失敗しました：{res['msg']}\n\n"
+                        "Safariで app.collectors.com にログインしてから、"
+                        "サイドバー「🖼 カード画像の取得」で再試行できます。"
+                    )
+        else:
+            st.success("更新しました。")
         st.rerun()
     st.caption(
         f"現在のデータ: {len(df):,}件 / "
@@ -741,6 +852,8 @@ is_sold_view = status == "売却済"
 SORT_MAP = {
     "PSA推定額が高い順": ("PSA Estimate", False),
     "PSA推定額が安い順": ("PSA Estimate", True),
+    "鑑定番号が小さい順": ("cert_num", True),
+    "鑑定番号が大きい順": ("cert_num", False),
     "年が新しい順": ("year_num", False),
     "年が古い順": ("year_num", True),
     "グレードが高い順": ("grade_num", False),
