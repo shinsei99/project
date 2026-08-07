@@ -449,32 +449,65 @@ def render_album(df, store):
                 + cand["Cert Number"].astype(str)
             )
             cand = cand[hay.str.contains(q.strip(), case=False, na=False)]
-        st.caption(f"追加候補 {len(cand)} 枚（保有中で未追加）。選んで下のボタンで追加。")
 
-        picked = []
-        rows = list(cand.iterrows())
-        per_row = 5
-        for i in range(0, len(rows), per_row):
-            cols = st.columns(per_row)
-            for col, (_, card) in zip(cols, rows[i:i + per_row]):
-                cert = str(card["Cert Number"])
-                lc = album_location(card["Vault Status"])
+        cand_certs = cand["Cert Number"].astype(str).tolist()
+        st.caption(f"**カードをクリック → 確認して「{sel}」に追加**。候補 {len(cand_certs)} 枚（保有中で未追加）。 🟩HOME ／ 🟦VAULT")
+
+        @st.dialog("カードを追加")
+        def _confirm_add(cert):
+            st.write(f"**{album_label(df, cert)}**\n\nを「{sel}」に追加しますか？")
+            ac1, ac2 = st.columns(2)
+            if ac1.button("追加", type="primary", width="stretch", key="album_add_yes"):
+                a = load_albums()
+                cur = [str(c) for c in a.get(sel, [])]
+                if cert not in cur:
+                    a[sel] = cur + [cert]
+                    save_albums(a)
+                st.rerun()
+            if ac2.button("キャンセル", width="stretch", key="album_add_no"):
+                st.rerun()
+
+        add_per_page = 40
+        a_pages = max(1, -(-len(cand_certs) // add_per_page))
+        a_page = st.number_input(f"ページ（全{a_pages}・40枚/ページ）", 1, a_pages, 1, key="album_add_page")
+        a_slice = cand_certs[(a_page - 1) * add_per_page: a_page * add_per_page]
+
+        acss = [
+            "<style>",
+            '[class*="st-key-aimg_"] button{position:relative;aspect-ratio:5/8;width:100%;min-height:0;'
+            "padding:0;border-radius:8px;background-size:contain;background-repeat:no-repeat;"
+            "background-position:center;background-color:#f8fafc;color:transparent;overflow:hidden;"
+            "border:1px solid #e2e8f0;}",
+        ]
+        for cert in a_slice:
+            r2 = df[df["Cert Number"].astype(str) == cert]
+            loc2 = album_location(r2.iloc[0]["Vault Status"]) if len(r2) else "Home"
+            uri = _data_uri(store.thumb(cert))
+            bg = f"background-image:url('{uri}');" if uri else ""
+            bcolor = "#2563eb" if loc2 == "Vault" else "#16a34a"
+            btext = "VAULT" if loc2 == "Vault" else "HOME"
+            acss.append(f".st-key-aimg_{cert} button{{{bg}}}")
+            acss.append(
+                f".st-key-aimg_{cert} button::before{{content:'{btext}';position:absolute;top:6px;left:6px;"
+                f"background:{bcolor};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;z-index:2;}}"
+            )
+        acss.append("</style>")
+        st.markdown("\n".join(acss), unsafe_allow_html=True)
+
+        if not a_slice:
+            st.info("追加できるカードがありません（条件を変えるか、検索を消してください）。")
+        for i in range(0, len(a_slice), 4):
+            cols = st.columns(4)
+            for col, cert in zip(cols, a_slice[i:i + 4]):
+                r2 = df[df["Cert Number"].astype(str) == cert]
+                rr2 = r2.iloc[0] if len(r2) else None
                 with col:
-                    uri = _data_uri(store.thumb(cert))
-                    badge = "🟦VAULT" if lc == "Vault" else "🟩HOME"
-                    if uri:
-                        st.markdown(f"<img src='{uri}' style='width:100%;border-radius:6px'>", unsafe_allow_html=True)
-                    st.caption(f"{badge}・PSA {card['Grade']} {(card['Subject'] or '')[:16]}")
-                    if st.checkbox("選択", key=f"album_add_{cert}"):
-                        picked.append(cert)
-
-        if st.button(
-            f"選択した {len(picked)} 枚を「{sel}」に追加",
-            type="primary", disabled=not picked, key="album_add_btn",
-        ):
-            albums[sel] = current + [c for c in picked if c not in current]
-            save_albums(albums)
-            st.rerun()
+                    ac = st.container(key=f"aimg_{cert}")
+                    if ac.button("　", key=f"abtn_{cert}", width="stretch"):
+                        _confirm_add(cert)
+                    gr2 = rr2["Grade"] if rr2 is not None else ""
+                    nm2 = ((rr2["Subject"] if rr2 is not None else "") or "")[:16]
+                    st.caption(f"PSA {gr2} {nm2}")
 
 
 if not CSV_PATH.exists():
