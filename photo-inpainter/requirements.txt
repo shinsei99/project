@@ -1,5 +1,20 @@
+# ── AI エンジン ───────────────────────────────────────────────────────────────
+# Intel Mac (x86_64) では torch 2.2.2 が macOS 向けの最終ビルド。
+# 2.3 以降は Apple Silicon (arm64) のホイールしか公開されていないため、
+# ここを固定しないと Intel 機で pip install が通らない（arm64 版は両対応）。
+torch==2.2.2
+torchvision==0.17.2
+numpy<2
+
+# 消去エンジン LaMa と Segment Anything（mobile_sam）を提供する（Apache-2.0）。
+# モデルは初回実行時に ~/.cache/torch/hub/checkpoints へ自動ダウンロード
+#   big-lama.pt   約200MB … 消去本体
+#   mobile_sam.pt 約 40MB … クリック選択
+# opencv-python も iopaint の依存として入るため、ここには書かない
+# （headless 版を併記すると cv2 が二重になり衝突する）
+iopaint>=1.6.0
+
+# ── UI ───────────────────────────────────────────────────────────────────────
 streamlit>=1.28.0
 streamlit-drawable-canvas>=0.9.3
-opencv-python-headless>=4.8.0
 Pillow>=9.0.0
-numpy>=1.23.0

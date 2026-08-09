@@ -17,26 +17,87 @@ import numpy as np
 from PIL import Image
 from typing import Literal, List, Tuple
 
-# LaMa モデルの利用可能チェック（optional）
+# ── AI バックエンド（IOPaint）の利用可能チェック ───────────────────────────────
+# LaMa 本体と Segment Anything は IOPaint（Apache-2.0）の実装を利用する。
+# 旧実装は simple-lama-inpainting に依存していたが、これは requirements.txt に
+# 一度も含まれていなかったため常に ImportError → OpenCV へフォールバックしていた。
 try:
-    from simple_lama_inpainting import SimpleLama as _SimpleLama
+    from iopaint.model_manager import ModelManager as _ModelManager
+    from iopaint.schema import InpaintRequest as _InpaintRequest, HDStrategy as _HDStrategy
     LAMA_AVAILABLE = True
 except ImportError:
     LAMA_AVAILABLE = False
 
-_lama_instance = None  # シングルトン（モデルのロードは重いため1回だけ）
+try:
+    from iopaint.plugins.interactive_seg import InteractiveSeg as _InteractiveSeg
+    SAM_AVAILABLE = True
+except ImportError:
+    SAM_AVAILABLE = False
 
-def _get_lama() -> "_SimpleLama":
+# 選べる Segment Anything モデル（表示名 → IOPaint のモデル名）。
+#
+# 実測（1600x1067 の軽バンを1クリック / Intel CPU）:
+#   mobile_sam … 選択 14.2% / 1.8s  輪郭がギザギザで車体外にはみ出し、穴も空く
+#   vit_b      … 選択  5.6% / 24.1s スライドドア1枚を境界正確に選択
+# つまり大きいモデル＝広く取れる、ではない。「意味のまとまり」で正確に切る方向に効く。
+# インペイントは輪郭が汚いと消し跡にハローが残るため、実用上は大きい方が有利だが、
+# 車1台のような複合物は追加クリックで足していく前提になる。
+# いま結果の質を最も左右しているのは LaMa ではなく「マスクの精度」なので、
+# マシンに余裕があるならここを上げるのが一番効く。
+SAM_MODELS = {
+    "軽量 mobile_sam（40MB・Intel/CPU向き）": "mobile_sam",
+    "標準 vit_b（375MB）": "vit_b",
+    "高精度 vit_l（1.2GB）": "vit_l",
+    "最高精度 vit_h（2.4GB）": "vit_h",
+}
+
+
+def default_sam_model() -> str:
+    """
+    実行中のマシンに合わせた既定の SAM モデルを返す。
+
+    Apple Silicon（MPS あり）は余裕があるので vit_b、
+    Intel Mac は CPU 推論しかできないため mobile_sam を既定にする。
+    環境変数 SAM_MODEL で明示的に上書きできる。
+    """
+    import os
+    override = os.environ.get("SAM_MODEL")
+    if override in SAM_MODELS.values():
+        return override
+    import torch
+    return "vit_b" if torch.backends.mps.is_available() else "mobile_sam"
+
+
+_lama_instance = None   # シングルトン（モデルのロードは重いため1回だけ）
+_sam_instance = None
+
+
+def _pick_device():
+    """macOS は CUDA 非対応。MPS（Apple Silicon）があれば使い、なければ CPU。"""
+    import torch
+    if torch.backends.mps.is_available():
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def _get_lama():
     global _lama_instance
     if _lama_instance is None:
-        import torch
-        # macOS は CUDA 非対応。MPS（Apple Silicon）があれば使い、なければ CPU
-        if torch.backends.mps.is_available():
-            device = torch.device("mps")
-        else:
-            device = torch.device("cpu")
-        _lama_instance = _SimpleLama(device=device)
+        _lama_instance = _ModelManager(name="lama", device=_pick_device())
     return _lama_instance
+
+
+def _get_sam(model_name: str = None):
+    """SAM を取得する。モデルを切り替えた場合は載せ替える（埋め込みキャッシュもリセットされる）。"""
+    global _sam_instance
+    import torch
+    model_name = model_name or default_sam_model()
+    if _sam_instance is None:
+        # SAM は MPS で不安定な報告があるため CPU 固定
+        _sam_instance = _InteractiveSeg(model_name, torch.device("cpu"))
+    elif _sam_instance.model_name != model_name:
+        _sam_instance.switch_model(model_name)
+    return _sam_instance
 
 
 # ── 型エイリアス ─────────────────────────────────────────────────────────────
@@ -111,198 +172,6 @@ def extract_mask_from_canvas(
     return mask
 
 
-def _point_to_segment_dist(px: float, py: float,
-                            x1: float, y1: float,
-                            x2: float, y2: float) -> float:
-    """点 (px, py) から線分 (x1,y1)-(x2,y2) への最短距離。"""
-    dx, dy = x2 - x1, y2 - y1
-    if dx == 0 and dy == 0:
-        return float(((px - x1) ** 2 + (py - y1) ** 2) ** 0.5)
-    t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / (dx * dx + dy * dy)))
-    return float(((px - x1 - t * dx) ** 2 + (py - y1 - t * dy) ** 2) ** 0.5)
-
-
-def _hough_wire_mask(gray: np.ndarray, ix: int, iy: int,
-                     search_radius: int, wire_thickness: int = 4) -> np.ndarray:
-    """
-    HoughLinesP で直線セグメントを検出し、クリック点に最も近い「電線」のみ返す。
-
-    クリック点に最も近いセグメントを基準線とし、
-    ① 同じ角度（±25°以内）かつ
-    ② 基準線の延長上（垂直距離 20px 以内）
-    にあるセグメントのみ選択する。
-
-    これにより建物の辺（異なる角度・位置）は除外され、
-    電線（同じ方向・同一直線上に連続するセグメント群）のみ抽出される。
-    """
-    H, W = gray.shape
-    empty = np.zeros((H, W), dtype=np.uint8)
-
-    edges = cv2.Canny(gray, 30, 100)
-    lines = cv2.HoughLinesP(edges, 1, np.pi / 180,
-                             threshold=30, minLineLength=15, maxLineGap=15)
-    if lines is None:
-        return empty
-
-    # クリック点に最も近いセグメントを基準線に採用
-    best_dist, ref = float('inf'), None
-    for seg in lines:
-        x1, y1, x2, y2 = seg[0]
-        d = _point_to_segment_dist(float(ix), float(iy), x1, y1, x2, y2)
-        if d < best_dist:
-            best_dist, ref = d, seg[0]
-
-    if ref is None or best_dist > search_radius:
-        return empty
-
-    rx1, ry1, rx2, ry2 = ref
-    rdx, rdy = rx2 - rx1, ry2 - ry1
-    rlen = (rdx ** 2 + rdy ** 2) ** 0.5
-    if rlen < 1:
-        return empty
-
-    rux, ruy = rdx / rlen, rdy / rlen   # 単位方向ベクトル
-    rnx, rny = -ruy, rux                 # 単位法線ベクトル
-    ref_angle = np.arctan2(rdy, rdx)
-
-    mask = empty.copy()
-    for seg in lines:
-        x1, y1, x2, y2 = seg[0]
-        dx, dy = x2 - x1, y2 - y1
-
-        # ① 角度チェック（180° 対称を考慮）
-        a_diff = abs(ref_angle - np.arctan2(dy, dx))
-        if a_diff > np.pi / 2:
-            a_diff = np.pi - a_diff
-        if a_diff > np.radians(25):
-            continue
-
-        # ② 基準線の延長線からの垂直距離チェック
-        mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
-        perp = abs((mx - rx1) * rny - (my - ry1) * rnx)
-        if perp > 20:
-            continue
-
-        cv2.line(mask, (x1, y1), (x2, y2), 255, wire_thickness)
-
-    return mask
-
-
-def _nearest_component(
-    labels: np.ndarray,
-    ix: int,
-    iy: int,
-    orig_w: int,
-    orig_h: int,
-    search_radius: int,
-) -> np.ndarray:
-    """labels 配列の中から (ix, iy) に最も近い連結成分を返す。"""
-    y1 = max(0, iy - search_radius)
-    y2 = min(orig_h, iy + search_radius + 1)
-    x1 = max(0, ix - search_radius)
-    x2 = min(orig_w, ix + search_radius + 1)
-
-    win = labels[y1:y2, x1:x2]
-    yy, xx = np.ogrid[y1:y2, x1:x2]
-    win_dists = (yy - iy) ** 2 + (xx - ix) ** 2
-
-    nearby = np.unique(win[win > 0])
-    if len(nearby) == 0:
-        return np.zeros((orig_h, orig_w), dtype=np.uint8)
-
-    best_label, best_dist = None, float('inf')
-    for lbl in nearby:
-        px = win == lbl
-        if px.sum() < 3:
-            continue
-        d = float(win_dists[px].min() ** 0.5)
-        if d < best_dist:
-            best_dist, best_label = d, lbl
-
-    if best_label is None:
-        return np.zeros((orig_h, orig_w), dtype=np.uint8)
-
-    return (labels == best_label).astype(np.uint8) * 255
-
-
-def click_auto_mask(
-    image: ImageRGB,
-    click_points: List[Tuple[float, float]],
-    canvas_wh: Size2D,
-    tolerance: int = 25,
-    dilate_iters: int = 3,
-) -> MaskArr:
-    """
-    クリック座標リストから自動マスクを生成する。
-
-    処理フロー:
-    1. bilateralFilter で JPEG ノイズを除去（エッジは保持）
-    2. Black-hat 変換で「細い暗い構造物だけ」を抽出（空・建物壁は除外）
-    3. クリック点に最も近い Black-hat 連結成分を返す（= 電線）
-    4. Black-hat で見つからない場合: 色類似度でフォールバック（人物向け）
-
-    Args:
-        image        : 元 PIL 画像 (RGB)
-        click_points : キャンバス座標の点リスト [(cx, cy), ...]
-        canvas_wh    : キャンバスの表示サイズ (width, height)
-        tolerance    : フォールバック時の色許容差（人物は 30〜50）
-        dilate_iters : マスク膨張の反復回数
-
-    Returns:
-        (H_orig, W_orig) uint8 マスク配列
-    """
-    orig_w, orig_h = image.width, image.height
-    canvas_w, canvas_h = canvas_wh
-    scale_x = orig_w / canvas_w
-    scale_y = orig_h / canvas_h
-    search_radius = max(30, int(max(scale_x, scale_y) * 10))
-    snap_r = max(5, int(max(scale_x, scale_y) * 2))
-
-    img_bgr = pil_to_cv2(image)
-    smooth = cv2.bilateralFilter(img_bgr, 5, 50, 50)
-    gray = cv2.cvtColor(smooth, cv2.COLOR_BGR2GRAY)
-
-    combined = np.zeros((orig_h, orig_w), dtype=np.uint8)
-
-    for cx, cy in click_points:
-        ix = max(0, min(orig_w - 1, int(round(cx * scale_x))))
-        iy = max(0, min(orig_h - 1, int(round(cy * scale_y))))
-
-        # 近傍の最暗ピクセルにスナップ（クリックずれ・JPEG 端ピクセル対策）
-        sy1 = max(0, iy - snap_r)
-        sy2 = min(orig_h, iy + snap_r + 1)
-        sx1 = max(0, ix - snap_r)
-        sx2 = min(orig_w, ix + snap_r + 1)
-        min_pos = np.unravel_index(gray[sy1:sy2, sx1:sx2].argmin(), (sy2 - sy1, sx2 - sx1))
-        seed_iy = sy1 + int(min_pos[0])
-        seed_ix = sx1 + int(min_pos[1])
-
-        # ① Hough 直線検出（主手法）
-        # 「クリック点に最も近い直線と同じ角度・同一延長線上のセグメント」だけを選ぶ
-        # → 電線（一直線状のセグメント群）のみ抽出、建物の辺（異なる位置・角度）は除外
-        point_mask = _hough_wire_mask(gray, seed_ix, seed_iy, search_radius)
-
-        # ② フラッドフィル フォールバック（Hough で検出できない場合）
-        # グローバル色選択ではなくフラッドフィルを使うことで
-        # 「クリック点から連結していない同色エリア」が選択されるのを防ぐ
-        if point_mask.sum() // 255 < 30:
-            flood_buf = np.zeros((orig_h + 2, orig_w + 2), dtype=np.uint8)
-            cv2.floodFill(
-                smooth.copy(), flood_buf,
-                seedPoint=(seed_ix, seed_iy), newVal=(0, 0, 0),
-                loDiff=(tolerance,) * 3, upDiff=(tolerance,) * 3,
-                flags=cv2.FLOODFILL_MASK_ONLY | (255 << 8),
-            )
-            point_mask = flood_buf[1:-1, 1:-1]
-
-        combined = cv2.bitwise_or(combined, point_mask)
-
-    if dilate_iters > 0:
-        combined = dilate_mask(combined, iterations=dilate_iters)
-
-    return combined
-
-
 def create_mask_overlay(
     base_img: ImageRGB,
     mask: MaskArr,
@@ -375,8 +244,12 @@ def inpaint_lama(image: ImageRGB, mask: MaskArr) -> ImageRGB:
     """
     LaMa（Large Mask Inpainting）モデルで高品質にマスク領域を補完する。
 
-    OpenCV より大幅に高品質。初回実行時にモデル（約200MB）を自動ダウンロード。
-    CPU のみでも動作するが、OpenCV より処理は遅い（数秒〜数十秒）。
+    OpenCV より大幅に高品質。初回実行時にモデル（big-lama.pt・約200MB）を自動
+    ダウンロードし、以後は ~/.cache/torch/hub/checkpoints にキャッシュされる。
+
+    長辺が 800px を超える画像は HD ストラテジ CROP で処理する。
+    マスク周辺だけを切り出して推論するため、4000px 級の写真でも
+    原寸のまま数秒で終わり、マスク外の画質は一切劣化しない。
 
     Args:
         image : 入力 PIL 画像 (RGB)
@@ -386,12 +259,89 @@ def inpaint_lama(image: ImageRGB, mask: MaskArr) -> ImageRGB:
         処理済み PIL 画像 (RGB)
     """
     if not LAMA_AVAILABLE:
-        raise RuntimeError("simple-lama-inpainting がインストールされていません。`pip install simple-lama-inpainting` を実行してください。")
+        raise RuntimeError(
+            "IOPaint がインストールされていません。"
+            "`pip install -r requirements.txt` を実行してください。"
+        )
 
-    lama = _get_lama()
-    mask_pil = Image.fromarray(mask).convert("L")
-    result = lama(image, mask_pil)
-    return result.convert("RGB")
+    model = _get_lama()
+    rgb = np.array(image.convert("RGB"), dtype=np.uint8)
+
+    # マスクは画像と同サイズの 2値（0/255）に正規化してから渡す
+    if mask.shape[:2] != rgb.shape[:2]:
+        mask = cv2.resize(mask, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_NEAREST)
+    mask = np.where(mask >= 127, 255, 0).astype(np.uint8)
+
+    config = _InpaintRequest(
+        hd_strategy=_HDStrategy.CROP,
+        hd_strategy_crop_trigger_size=800,
+        hd_strategy_crop_margin=128,
+    )
+    bgr = model(rgb, mask, config)          # 返り値は BGR
+    return cv2_to_pil(np.clip(bgr, 0, 255).astype(np.uint8))
+
+
+# ── Segment Anything によるクリック選択 ───────────────────────────────────────
+
+def sam_click_mask(
+    image: ImageRGB,
+    click_points: List[Tuple[float, float]],
+    canvas_wh: Size2D,
+    image_key: str = "",
+    negative_points: List[Tuple[float, float]] = None,
+    dilate_iters: int = 1,
+    model_name: str = None,
+) -> MaskArr:
+    """
+    Segment Anything（mobile_sam）で、クリックした物体の輪郭を丸ごと選択する。
+
+    電柱・通行人・車・看板など **面のある物体** を1〜数クリックで切り抜ける。
+    電線のように細い線状のものは苦手なので、その場合はブラシでなぞる。
+
+    Args:
+        image           : 元 PIL 画像 (RGB)
+        click_points    : 消したい物体の上のクリック点（キャンバス座標）
+        canvas_wh       : キャンバスの表示サイズ (width, height)
+        image_key       : 画像の識別子。同じ画像なら埋め込み計算を再利用して高速化する
+        negative_points : 選択から除外したい点（キャンバス座標）
+        dilate_iters    : マスク膨張の反復回数
+        model_name      : SAM_MODELS の値。None ならマシンに応じた既定（default_sam_model）
+
+    Returns:
+        (H_orig, W_orig) uint8 マスク配列
+    """
+    if not SAM_AVAILABLE:
+        raise RuntimeError(
+            "Segment Anything が利用できません。"
+            "`pip install -r requirements.txt` を実行してください。"
+        )
+    if not click_points:
+        return np.zeros((image.height, image.width), dtype=np.uint8)
+
+    canvas_w, canvas_h = canvas_wh
+    scale_x = image.width / canvas_w
+    scale_y = image.height / canvas_h
+
+    def _to_orig(pts, label):
+        out = []
+        for cx, cy in (pts or []):
+            ix = max(0, min(image.width - 1, int(round(cx * scale_x))))
+            iy = max(0, min(image.height - 1, int(round(cy * scale_y))))
+            out.append([ix, iy, label])
+        return out
+
+    clicks = _to_orig(click_points, 1) + _to_orig(negative_points, 0)
+
+    rgb = np.array(image.convert("RGB"), dtype=np.uint8)
+    sam = _get_sam(model_name)
+    # モデルを切り替えると埋め込みキャッシュが無効になるため、キーにモデル名を含める
+    mask = sam.forward(rgb, clicks, f"{sam.model_name}:{image_key}")
+
+    if mask.shape[:2] != rgb.shape[:2]:
+        mask = cv2.resize(mask, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_NEAREST)
+    mask = np.where(mask >= 127, 255, 0).astype(np.uint8)
+
+    return dilate_mask(mask, iterations=dilate_iters)
 
 
 # ── パイプライン（エントリーポイント） ─────────────────────────────────────────

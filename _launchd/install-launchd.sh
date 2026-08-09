@@ -16,6 +16,7 @@ APPS=(
   "com.shinsei.quote-generator|quote-generator"                 # 8503 ※別リポ shinsei99/quote-generator（独自deploy/キット有・main pullには含まれない。別PCは個別clone）
   "com.shinsei.property-notice-generator|property-notice-generator" # 8504
   "com.shinsei.maisoku-converter|maisoku-converter"             # 8505
+  "com.shinsei.photo-inpainter|photo-inpainter"                 # 8506 ※初回は torch 等で .venv が 1.3GB・数分かかる
   "com.shinsei.realestate-calc|realestate-calc"                 # 8507 (静的PWA/npx serve)
   "com.shinsei.restoration-calculator|restoration-calculator"   # 8508
   "com.shinsei.realestate-valuation|realestate-valuation"       # 8509

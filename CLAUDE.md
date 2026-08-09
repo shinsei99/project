@@ -17,7 +17,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 見積書自動生成ツール | quote-generator | 8503 | ✅ | — |
 | 物件管理案内文ジェネレーター | property-notice-generator | 8504 | ✅ | — |
 | マイソクコンバーター | maisoku-converter | 8505 | ✅ | — |
-| 不動産写真AI | photo-inpainter | — | 開発中 | — |
+| 不動産写真AI | photo-inpainter | 8506 | ✅ | — |
 | 原状回復費用自動精算 | restoration-calculator | 8508 | ✅ | — |
 | AI不動産価格査定 | realestate-valuation | 8509 | ✅ | — |
 | 決済案内書自動作成 | settlement-creator | 8510 | ✅ | — |
@@ -111,6 +111,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 和暦→西暦はプロンプトで指示＋コード側でも `_wareki_to_seireki` で保険（令和元年=2019、平成31年4月30日=2019-04-30）。日付不明は `0000-00-00`。同名は `_2` 連番で**上書きしない**。
 - `input_docs/` `output_docs/` `.state.json` は個人情報を含むため**gitignore**（ルート .gitignore は「`*` で全無視＋アプリごとに `!` で許可」方式なので、そちらにも許可行の追加が必要）。処理済みはSHA1で `.state.json` に記録し二度処理しない（`--force` で無視）。入力ファイルは削除も変更もしない。
 
+### 不動産写真AI（photo-inpainter）補足 ※不動産・port 8506・完成（2026-08-10）
+
+- 物件写真から**電柱・電線・通行人・車・室内の家具**を消すStreamlit。消去エンジンは **LaMa**、クリック選択は **Segment Anything (mobile_sam)**。どちらも **IOPaint（Apache-2.0・商用可）** の実装を`import`して使う。**全処理ローカル・APIキー不要**。
+- モードは2つ。**🎯 AI選択**＝物体をクリックすると輪郭を自動抽出（点を足して範囲拡大／青クリックで除外）、**✏️ ブラシ**＝手動（電線など細いものはこちらが確実）。消去を**重ねがけ**でき、↩️元に戻す・複数枚アップロード・ZIP一括ダウンロードに対応。※Houghで電線を追跡する「電線クリック」モードも実装したが、実用性が薄く2026-08-10に削除済み（復活させないこと）。
+- **⚠️ Intel Mac は torch==2.2.2 で固定必須（再調査不要）**。torch は **2.2.2 が macOS x86_64 向けの最終ビルド**で、2.3以降は arm64 ホイールしか公開されていない。`requirements.txt` でピン済み（arm64機でも2.2.2で問題なく動く）。
+- **経緯（重要・同じ失敗を繰り返さないこと）**: 旧実装は `simple_lama_inpainting` を optional import していたが、これが **requirements.txt に一度も入っていなかった**ため `inpaint_lama()` は常に ImportError → `cv2.inpaint`（TELEA）へ暗黙フォールバックしていた。OpenCVは電線跡が茶色く滲むため「使えない」と判断され開発が止まっていた。**エンジン未導入が原因であってアルゴリズム選定の問題ではなかった。**
+- モデルは初回実行時に `~/.cache/torch/hub/checkpoints` へ自動DL（`big-lama.pt` 約200MB / `mobile_sam.pt` 約40MB）。実測: 1600×1067 の電線消去が **CPUで約4秒**（長辺800px超は `HDStrategy.CROP` でマスク周辺だけ切り出して推論するため、原寸のまま高速かつマスク外は無劣化）。SAMは同一画像なら埋め込みを再利用し2回目以降 0.1秒。
+- **SAMモデルは切替式**（mobile_sam / vit_b / vit_l / vit_h をサイドバーで選択）。既定は `default_sam_model()` が **MPSあり(Apple Silicon)→vit_b / なし(Intel)→mobile_sam** を自動判定。環境変数 `SAM_MODEL` で上書き可。**実測での注意（再検証不要）**: 軽バンを1クリックした場合 mobile_sam=選択14.2%/1.8s だが輪郭がギザギザで車体外にはみ出す、vit_b=選択5.6%/24.1s でスライドドア1枚を境界正確に選択。**大きいモデル＝広く取れる、ではない**。「意味のまとまり」で正確に切る方向に効くので、車1台なら追加クリック前提。
+- `.venv`（1.3GB）と `samples/`（実物件の写真を含む）は**gitignore**。launchd登録済み（`com.shinsei.photo-inpainter`）・`run.sh` は不動産カテゴリのため `0.0.0.0` バインド。
+
 ### theta-viewer FTP APIサーバー port修正（2026-07-14）
 
 - 旧: port 8519 → 新: **port 8523**。理由: 8519は`owner-payout-tracker`が既に使用しており実際は起動時にクラッシュしていた（KeepAliveで再起動ループ）。誰かが以前この衝突に気づき未コミットのまま8522に変更していたが、それはparking-map用に予約された番号と衝突するため、最終的に空きポート8523へ変更・再ビルド（`npm run build`→vite preview再起動）して確定。関連ファイル: `theta-viewer/server/server.js`（`const PORT`）、`theta-viewer/src/firebase.ts`（`API_BASE`）。
@@ -122,6 +132,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8503 | 見積書自動生成ツール | com.shinsei.quote-generator |
 | 8504 | 物件管理案内文ジェネレーター | com.shinsei.property-notice-generator |
 | 8505 | マイソクコンバーター | com.shinsei.maisoku-converter |
+| 8506 | 不動産写真AI（インペインター） | com.shinsei.photo-inpainter |
 | 8507 | 不動産・金融マスター電卓 | com.shinsei.realestate-calc |
 | 8508 | 原状回復費用自動精算 | com.shinsei.restoration-calculator |
 | 8509 | AI不動産価格査定 | com.shinsei.realestate-valuation |

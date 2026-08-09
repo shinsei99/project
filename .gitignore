@@ -23,6 +23,10 @@
 !madori-tracer/**
 !photo-inpainter/
 !photo-inpainter/**
+photo-inpainter/.venv/
+photo-inpainter/__pycache__/
+# 実物件の写真を含むため公開リポジトリには出さない（動作確認用のローカル資料）
+photo-inpainter/samples/
 !property-notice-generator/
 !property-notice-generator/**
 !realestate-calc/
