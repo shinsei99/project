@@ -29,6 +29,9 @@
 !realestate-calc/**
 !theta-viewer/
 !theta-viewer/**
+
+# 接続情報は公開しない（このリポジトリは public）
+theta-viewer/server/ftp-config.json
 !petapeta-extension/
 !petapeta-extension/**
 !color-gravity/

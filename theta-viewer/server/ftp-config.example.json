@@ -1,0 +1,6 @@
+{
+  "host": "example.co.jp",
+  "user": "ftpユーザー名",
+  "pass": "ftpパスワード",
+  "root": "/www/htdocs/vr"
+}

@@ -5,10 +5,19 @@ const ftp = require('basic-ftp');
 const { Writable, PassThrough } = require('stream');
 const path = require('path');
 
-const FTP_HOST = 'daikyocorp.co.jp';
-const FTP_USER = 'mw2pqwm3xa';
-const FTP_PASS = 'MgpCRN73#';
-const FTP_ROOT = '/www/htdocs/vr';
+// FTPの接続情報はここに書かない（このリポジトリは公開されている）。
+// 同じディレクトリの ftp-config.json（gitignore対象）か、環境変数から読む。
+const fs = require('fs');
+const cfgPath = path.join(__dirname, 'ftp-config.json');
+const cfg = fs.existsSync(cfgPath) ? JSON.parse(fs.readFileSync(cfgPath, 'utf8')) : {};
+const FTP_HOST = process.env.FTP_HOST || cfg.host;
+const FTP_USER = process.env.FTP_USER || cfg.user;
+const FTP_PASS = process.env.FTP_PASS || cfg.pass;
+const FTP_ROOT = process.env.FTP_ROOT || cfg.root || '/www/htdocs/vr';
+if (!FTP_HOST || !FTP_USER || !FTP_PASS) {
+  console.error('FTPの接続情報がありません。server/ftp-config.json を作るか環境変数で渡してください。');
+  process.exit(1);
+}
 const HTTP_BASE = 'https://daikyocorp.co.jp/vr';
 const PORT = 8523;
 const SESSION_TTL = 60 * 60 * 1000; // 1時間（15部屋対応）
