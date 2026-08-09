@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全44本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全45本）  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（27本）
+### 不動産（28本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
@@ -40,6 +40,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
 | 送付書メーカー | soufu-maker | 8525 | ✅ | — |
 | 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ー（自分専用・localhost） | — |
+| 書類キャビネット スマホ用（撮影→Dropbox取込） | shorui-mobile | — | ー（Vercel・pass保護） | Vercel（shorui-mobile.vercel.app） |
 
 ### ツール（11本）※社内LAN共有なし
 

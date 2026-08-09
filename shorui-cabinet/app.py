@@ -11,7 +11,9 @@
 from __future__ import annotations
 
 import io
+import json
 import os
+import shutil
 from datetime import date
 
 import pandas as pd
@@ -25,7 +27,46 @@ st.set_page_config(page_title="書類キャビネット", page_icon="🗄", layo
 db.init_db()
 
 ACCEPT = ["pdf", "jpg", "jpeg", "png", "webp", "heic"]
+IMG_EXT = (".pdf", ".jpg", ".jpeg", ".png", ".webp", ".heic")
 CONF_LABEL = {"high": "確度 高", "medium": "確度 中", "low": "確度 低"}
+
+# スマホ用（shorui-mobile）が Dropbox 経由で写真を届けるフォルダ。
+# 1サブフォルダ＝1冊。処理済みは _済/ に退避する。環境変数で上書き可。
+INBOX_DIR = os.environ.get(
+    "SHORUI_INBOX",
+    os.path.expanduser("~/Library/CloudStorage/Dropbox-個人/書類取込"),
+)
+INBOX_DONE = os.path.join(INBOX_DIR, "_済")
+
+
+def list_inbox_batches() -> list:
+    """取込フォルダ内の未処理の束（サブフォルダ）を新しい順に返す。"""
+    if not os.path.isdir(INBOX_DIR):
+        return []
+    out = []
+    for name in os.listdir(INBOX_DIR):
+        if name.startswith("_") or name.startswith("."):
+            continue
+        path = os.path.join(INBOX_DIR, name)
+        if not os.path.isdir(path):
+            continue
+        imgs = sorted(
+            f for f in os.listdir(path)
+            if f.lower().endswith(IMG_EXT) and not f.startswith(".")
+        )
+        if not imgs:
+            continue
+        meta = {}
+        mp = os.path.join(path, "meta.json")
+        if os.path.exists(mp):
+            try:
+                with open(mp, encoding="utf-8") as fh:
+                    meta = json.load(fh)
+            except Exception:
+                meta = {}
+        out.append({"name": name, "path": path, "images": imgs, "meta": meta})
+    out.sort(key=lambda b: b["name"], reverse=True)
+    return out
 
 
 # ---------------- 共通の小道具 ----------------
@@ -72,8 +113,10 @@ if s["unplaced"]:
 if not ai_reader.claude_available():
     st.sidebar.error("claude CLI が見つかりません。AI読み取りは使えませんが、手入力での登録・検索は可能です。")
 
-tab_add, tab_find, tab_loc, tab_conf = st.tabs(
-    ["📥 ファイルを登録", "🔍 さがす", "🗄 保管場所", "⚙️ 設定"]
+_inbox_n = len(list_inbox_batches())
+_inbox_label = f"📁 取込（{_inbox_n}）" if _inbox_n else "📁 取込"
+tab_add, tab_inbox, tab_find, tab_loc, tab_conf = st.tabs(
+    ["📥 ファイルを登録", _inbox_label, "🔍 さがす", "🗄 保管場所", "⚙️ 設定"]
 )
 
 
@@ -194,6 +237,167 @@ with tab_add:
             st.session_state["draft"] = draft_default()
             st.session_state.pop("draft_thumb", None)
             st.rerun()
+
+
+# ================= 取込（スマホから届いた束） =================
+with tab_inbox:
+    st.subheader("スマホから届いた束を取り込む")
+    st.caption(
+        "スマホ用アプリ（shorui-mobile）が Dropbox の「書類取込」に送った束を、"
+        "1冊ずつ読み取って登録します。登録した束は自動で「_済」へ移します。"
+    )
+    st.caption(f"監視フォルダ: `{INBOX_DIR}`")
+
+    if not os.path.isdir(INBOX_DIR):
+        st.warning(
+            "取込フォルダが見つかりません。Dropboxの同期先が違う場合は、環境変数 "
+            "`SHORUI_INBOX` にフォルダのパスを設定してください。"
+        )
+    else:
+        batches = list_inbox_batches()
+        r1, r2 = st.columns([1, 4])
+        if r1.button("🔄 更新", use_container_width=True):
+            st.rerun()
+        if not batches:
+            st.info("未処理の束はありません。スマホから撮って送ると、ここに出ます。")
+        else:
+            names = [b["name"] for b in batches]
+            def _blabel(n: str) -> str:
+                b = next(x for x in batches if x["name"] == n)
+                prop = (b["meta"].get("property") or "").strip()
+                return f"{n}　—　{prop}（{len(b['images'])}枚）" if prop else f"{n}（{len(b['images'])}枚）"
+
+            pick = st.selectbox("取り込む束", names, format_func=_blabel)
+            batch = next(x for x in batches if x["name"] == pick)
+            meta = batch["meta"]
+
+            with st.container(border=True):
+                if meta.get("property"):
+                    st.markdown(f"**物件名・件名:** {meta['property']}")
+                if meta.get("memo"):
+                    st.caption(f"メモ: {meta['memo']}")
+                if meta.get("capturedAt"):
+                    st.caption(f"撮影: {meta['capturedAt']}")
+
+                cols = st.columns(4)
+                for i, fn in enumerate(batch["images"][:8]):
+                    if fn.lower().endswith(".pdf"):
+                        cols[i % 4].caption(f"📄 {fn}")
+                        continue
+                    try:
+                        cols[i % 4].image(os.path.join(batch["path"], fn), use_container_width=True)
+                    except Exception:
+                        cols[i % 4].caption(fn)
+
+            dkey = f"inbox_draft_{pick}"
+            g1, g2 = st.columns([1, 3])
+            read = g1.button(
+                "🤖 読み取って目録化", type="primary",
+                disabled=not ai_reader.claude_available(),
+                use_container_width=True,
+            )
+            g2.caption("写真の枚数により1〜2分ほどかかります（正確さ優先で上位モデルを使用）")
+
+            if read:
+                uploads = []
+                for fn in batch["images"]:
+                    with open(os.path.join(batch["path"], fn), "rb") as fh:
+                        uploads.append((fh.read(), fn))
+                msgs: list = []
+                with st.spinner("読み取り中…"):
+                    got = ai_reader.read_file_contents(uploads, note=msgs.append)
+                if msgs:
+                    st.info("\n".join(msgs))
+                if got:
+                    # 物件名がスマホ入力にあればAI結果に補う
+                    prop = (meta.get("property") or "").strip()
+                    if prop and prop not in got.get("properties", []):
+                        got["properties"] = [prop] + got.get("properties", [])
+                    st.session_state[dkey] = got
+                    st.rerun()
+                else:
+                    st.error("読み取れませんでした。手入力で登録するか、撮り直してください。")
+
+            draft = st.session_state.get(dkey)
+            if draft is not None:
+                if draft.get("confidence"):
+                    lv = draft["confidence"]
+                    (st.success if lv == "high" else st.warning)(
+                        f"AIの読み取り結果を反映しました（{CONF_LABEL.get(lv, '')}）"
+                        + ("" if lv == "high" else " — 物件名と固有名詞は目視で確認してください")
+                    )
+                with st.container(border=True):
+                    st.markdown("**内容を確認して登録**")
+                    ids, labels = location_options()
+                    types = db.all_doc_types()
+
+                    f1, f2 = st.columns([3, 1])
+                    label = f1.text_input("ファイルの見出し *", draft.get("label", ""), key=f"lbl_{pick}")
+                    kind = f2.selectbox("入れ物の種類", db.KINDS, key=f"knd_{pick}")
+
+                    p1, p2, p3 = st.columns([2, 2, 1])
+                    loc = p1.selectbox("保管場所 *", ids, format_func=lambda x: labels[x], key=f"loc_{pick}")
+                    spot = p2.text_input("場所の中の位置", key=f"spt_{pick}", placeholder="例: 上から2段目 左端")
+                    with p3:
+                        newloc = st.text_input("場所を追加", key=f"nl_{pick}", placeholder="本社3F 書庫A")
+                        if st.button("追加", key=f"nlb_{pick}", use_container_width=True) and newloc.strip():
+                            db.add_location(newloc)
+                            st.rerun()
+
+                    q1, q2, q3 = st.columns(3)
+                    yf = q1.text_input("いちばん古い年", draft.get("year_from", ""), key=f"yf_{pick}")
+                    yt = q2.text_input("いちばん新しい年", draft.get("year_to", ""), key=f"yt_{pick}")
+                    cnt = q3.text_input("点数（おおよそ）", key=f"cnt_{pick}")
+
+                    dts = st.multiselect(
+                        "入っている書類の種別", types,
+                        default=[t for t in draft.get("doc_types", []) if t in types],
+                        key=f"dts_{pick}",
+                    )
+                    props = st.text_area(
+                        "関係する物件（1行1件）", "\n".join(draft.get("properties", [])),
+                        height=80, key=f"prp_{pick}",
+                    )
+                    contents = st.text_area(
+                        "中身の目録（1行1件）", "\n".join(draft.get("contents", [])),
+                        height=180, key=f"cnt2_{pick}",
+                    )
+                    summary = st.text_input("ひとことメモ", draft.get("summary", ""), key=f"sum_{pick}")
+
+                    if st.button("✅ 登録して束を「_済」へ移す", type="primary", key=f"reg_{pick}",
+                                 use_container_width=True):
+                        if not label.strip():
+                            st.error("ファイルの見出しを入れてください")
+                        else:
+                            # 1枚目をサムネイルにする
+                            thumb = ""
+                            first = batch["images"][0]
+                            if not first.lower().endswith(".pdf"):
+                                safe = f"file_{abs(hash(pick))}.jpg"
+                                with open(os.path.join(batch["path"], first), "rb") as fh:
+                                    if ai_reader.make_thumb(fh.read(), first,
+                                                            os.path.join(db.THUMB_DIR, safe)):
+                                        thumb = safe
+                            db.add_file({
+                                "label": label, "kind": kind, "location_id": loc, "spot": spot,
+                                "properties": props, "doc_types": ",".join(dts),
+                                "year_from": yf, "year_to": yt, "item_count": cnt,
+                                "contents": contents, "summary": summary, "thumb": thumb,
+                            })
+                            for p in props.splitlines():
+                                db.add_property(p)
+                            # 束を _済 へ退避
+                            os.makedirs(INBOX_DONE, exist_ok=True)
+                            dest = os.path.join(INBOX_DONE, pick)
+                            if os.path.exists(dest):
+                                dest = dest + f"_{abs(hash(pick)) % 10000}"
+                            try:
+                                shutil.move(batch["path"], dest)
+                            except Exception as e:
+                                st.warning(f"登録は済みましたが、束の移動に失敗しました（{type(e).__name__}）。手で「_済」へ移してください。")
+                            st.session_state.pop(dkey, None)
+                            st.success(f"「{label}」を登録しました")
+                            st.rerun()
 
 
 # ================= さがす =================
