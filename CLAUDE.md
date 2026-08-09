@@ -130,6 +130,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8525 | 送付書メーカー | com.shinsei.soufu-maker |
 | 8526 | 買取DMジェネレーター（※ツール・localhost・社内共有なし／常時起動のみ） | com.shinsei.kaitori-dm-maker |
 | 8527 | PSA保有カード管理（※ツール・localhost・社内共有なし／常時起動のみ。Desktop/社内ツールに.appショートカット有） | com.shinsei.psa-collection |
+| 8528 | 書類キャビネット（※不動産・自分専用・localhost・社内共有なし／常時起動のみ） | com.shinsei.shorui-cabinet |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
 

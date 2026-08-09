@@ -37,6 +37,7 @@ APPS=(
   "com.shinsei.soufu-maker|soufu-maker"                         # 8525 (不動産・新規)
   "com.shinsei.ai-ticket-counter|ai-ticket-counter"             # 8600 (uvicorn/FastAPI)
   "com.shinsei.kaitori-dm-maker|kaitori-dm-maker"               # 8526 ※ツール・localhost・社内共有なし（常時起動のみ）
+  "com.shinsei.shorui-cabinet|shorui-cabinet"                   # 8528 ※不動産・自分専用・localhost（常時起動のみ）
 )
 
 for entry in "${APPS[@]}"; do
