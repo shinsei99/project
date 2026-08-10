@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, ChangeEvent } from 'react'
-import { RotateCw, Trash2, Upload, Undo2, BoxSelect, ZoomIn, ZoomOut, Download } from 'lucide-react'
+import { RotateCw, Trash2, Upload, Undo2, BoxSelect, ZoomIn, ZoomOut, Download, Save, FolderOpen } from 'lucide-react'
 import {
   PART_DEFS,
   snap,
@@ -74,6 +74,60 @@ interface Snapshot {
   bg: BgImage | null
 }
 
+// ── 保存フォーマット ─────────────────────────────────────────────────────────
+// JSONファイル書き出し／localStorage自動保存の両方で使う。
+// 将来 Streamlit 側の自動部品化が生成する Part[] も、この形で読み込ませる想定。
+const STORAGE_KEY = 'madori-editor-state-v1'
+const SAVE_VERSION = 1
+
+interface SavedState {
+  version: number
+  parts: Part[]
+  bg: BgImage | null
+  bgOpacity: number
+}
+
+// 外部ファイル由来のデータをそのまま state に入れると描画時に落ちるため、
+// 最低限の形だけ検査して通す（未知のキーは保持し、将来の項目追加を壊さない）。
+export const sanitizeParts = (input: unknown): Part[] => {
+  if (!Array.isArray(input)) return []
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
+  const out: Part[] = []
+  for (const raw of input) {
+    if (!raw || typeof raw !== 'object') continue
+    const p = raw as Record<string, unknown>
+    const x = num(p.x), y = num(p.y), w = num(p.w), h = num(p.h)
+    if (x === null || y === null || w === null || h === null) continue
+    if (typeof p.type !== 'string') continue
+    const rot = p.rotation
+    out.push({
+      ...(p as unknown as Part),
+      id: typeof p.id === 'string' && p.id ? p.id : newId(),
+      type: p.type as PartType,
+      x, y,
+      w: Math.max(MIN_SIZE, w),
+      h: Math.max(MIN_SIZE, h),
+      rotation: rot === 90 || rot === 180 || rot === 270 ? rot : 0,
+      label: typeof p.label === 'string' ? p.label : '',
+    })
+  }
+  return out
+}
+
+export const sanitizeBg = (input: unknown): BgImage | null => {
+  if (!input || typeof input !== 'object') return null
+  const b = input as Record<string, unknown>
+  if (typeof b.dataUrl !== 'string' || !b.dataUrl.startsWith('data:image/')) return null
+  const num = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback)
+  return {
+    dataUrl: b.dataUrl,
+    x: num(b.x, 0),
+    y: num(b.y, 0),
+    w: Math.max(MIN_SIZE, num(b.w, CANVAS_W / 2)),
+    h: Math.max(MIN_SIZE, num(b.h, CANVAS_H / 2)),
+  }
+}
+
 const normalizeRect = (x0: number, y0: number, x1: number, y1: number): Rect => ({
   x: Math.min(x0, x1),
   y: Math.min(y0, y1),
@@ -106,14 +160,67 @@ export default function FloorPlanEditor() {
 
   const [history, setHistory] = useState<Snapshot[]>([])
 
+  const [saveNote, setSaveNote] = useState<string | null>(null)
+
   const svgRef = useRef<SVGSVGElement>(null)
   const dragRef = useRef<DragState>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const jsonInputRef = useRef<HTMLInputElement>(null)
   const partsRef = useRef<Part[]>(parts)
+  // 復帰が終わるまで自動保存を止める（空の初期状態で保存済みデータを潰さないため）
+  const restoredRef = useRef(false)
 
   useEffect(() => {
     partsRef.current = parts
   }, [parts])
+
+  // ── 自動保存からの復帰（初回マウント時のみ）──────────────────────────────
+  // これより後に走る ?bg= の効果で下絵だけが差し替わるのは意図どおり
+  // （Streamlit から新しいトレース画像を送ってきたケース）。
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY)
+      if (raw) {
+        const s = JSON.parse(raw) as Partial<SavedState>
+        const restored = sanitizeParts(s.parts)
+        setParts(restored)
+        setBg(sanitizeBg(s.bg))
+        if (typeof s.bgOpacity === 'number') setBgOpacity(s.bgOpacity)
+        if (restored.length > 0) setSaveNote(`前回の続きを復帰しました（${restored.length}個）`)
+      }
+    } catch (err) {
+      console.error('自動保存の復帰に失敗しました', err)
+    }
+    restoredRef.current = true
+  }, [])
+
+  // ── 自動保存（localStorage）───────────────────────────────────────────────
+  // 下絵は dataUrl のため数MBになることがあり容量超過しうる。
+  // その場合はパーツだけでも残す（下絵は「開く」で復元できる）。
+  useEffect(() => {
+    if (!restoredRef.current) return
+    const timer = setTimeout(() => {
+      const write = (payload: SavedState) => localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
+      try {
+        write({ version: SAVE_VERSION, parts, bg, bgOpacity })
+      } catch {
+        try {
+          write({ version: SAVE_VERSION, parts, bg: null, bgOpacity })
+          setSaveNote('下絵が大きいため自動保存から除外しました（パーツは保存済み）')
+        } catch {
+          setSaveNote('自動保存に失敗しました。「保存」でJSONに書き出してください')
+        }
+      }
+    }, 500)
+    return () => clearTimeout(timer)
+  }, [parts, bg, bgOpacity])
+
+  // 通知は数秒で消す
+  useEffect(() => {
+    if (!saveNote) return
+    const timer = setTimeout(() => setSaveNote(null), 4000)
+    return () => clearTimeout(timer)
+  }, [saveNote])
 
   const toSvgPoint = useCallback((clientX: number, clientY: number) => {
     const svg = svgRef.current
@@ -163,6 +270,50 @@ export default function FloorPlanEditor() {
     const x = Math.max(0, minX - pad)
     const y = Math.max(0, minY - pad)
     return { x, y, w: Math.min(CANVAS_W, maxX + pad) - x, h: Math.min(CANVAS_H, maxY + pad) - y }
+  }
+
+  // 現在の図面を JSON ファイルとして書き出す。
+  // 下絵も dataUrl ごと含めるため、このファイル1つで後日そのまま再編集できる。
+  const saveJson = () => {
+    const payload: SavedState = { version: SAVE_VERSION, parts, bg, bgOpacity }
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'floor-plan.json'
+    a.click()
+    URL.revokeObjectURL(url)
+    setSaveNote(`floor-plan.json を保存しました（パーツ${parts.length}個${bg ? '＋下絵' : ''}）`)
+  }
+
+  // 保存した JSON を読み込んで続きから編集する。
+  // Streamlit 側で自動生成した Part[] を取り込む入口も兼ねる。
+  const onJsonChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const s = JSON.parse(reader.result as string) as Partial<SavedState>
+        const loaded = sanitizeParts(s.parts)
+        if (loaded.length === 0 && !sanitizeBg(s.bg)) {
+          setSaveNote('読み込めるパーツがありませんでした')
+          return
+        }
+        pushHistory(partsRef.current, bg)   // 読み込み前の状態に戻せるようにしておく
+        setParts(loaded)
+        setBg(sanitizeBg(s.bg))
+        if (typeof s.bgOpacity === 'number') setBgOpacity(s.bgOpacity)
+        setSelectedId(null)
+        setBgSelected(false)
+        clearRectSelection()
+        setSaveNote(`${file.name} を読み込みました（パーツ${loaded.length}個）`)
+      } catch (err) {
+        setSaveNote(`読み込めませんでした: ${(err as Error).message}`)
+      }
+    }
+    reader.readAsText(file)
   }
 
   // 現在の図面をPNG画像として書き出し、ダウンロードさせる。
@@ -600,9 +751,21 @@ export default function FloorPlanEditor() {
       <aside className="palette">
         <h1>間取りエディタ</h1>
 
+        <div className="toolbar-row">
+          <button type="button" onClick={saveJson} title="編集中の図面をJSONファイルに保存する（後日この続きから編集できます）">
+            <Save size={14} /> 保存
+          </button>
+          <button type="button" onClick={() => jsonInputRef.current?.click()} title="保存したJSONファイルを読み込んで続きから編集する">
+            <FolderOpen size={14} /> 開く
+          </button>
+        </div>
+        <input ref={jsonInputRef} type="file" accept="application/json,.json" hidden onChange={onJsonChange} />
+
         <button type="button" className="export-button" onClick={exportPng} title="現在の図面をPNG画像として保存">
           <Download size={15} /> PNG画像として保存
         </button>
+
+        {saveNote && <p className="save-note">{saveNote}</p>}
 
         <div className="toolbar-row">
           <button type="button" onClick={undo} disabled={history.length === 0} title="1つ前の状態に戻す（Cmd/Ctrl+Zでも可）">

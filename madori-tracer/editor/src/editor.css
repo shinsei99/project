@@ -25,6 +25,18 @@
   margin: 0 0 14px;
 }
 
+/* 保存・読み込みの結果通知（数秒で自動的に消える） */
+.palette .save-note {
+  font-size: 11px;
+  line-height: 1.5;
+  color: #1a6b3c;
+  background: #eaf7ef;
+  border: 1px solid #bfe3cd;
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin: 0 0 12px;
+}
+
 .toolbar-row {
   display: flex;
   gap: 6px;
