@@ -90,6 +90,7 @@ def init_db() -> None:
                 item_count    TEXT DEFAULT '',      -- 点数（おおよそでよい）
                 contents      TEXT DEFAULT '',      -- 中身の明細（1行1件）
                 summary       TEXT DEFAULT '',
+                importance    TEXT DEFAULT '',      -- 重要度（高 / 中 / 低 / 空）
                 thumb         TEXT DEFAULT '',
                 note          TEXT DEFAULT '',
                 created_at    TEXT NOT NULL,
@@ -107,6 +108,11 @@ def init_db() -> None:
             );
             """
         )
+
+        # --- 既存DBに importance 列が無ければ足す（後から追加した列） ---
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(files)").fetchall()}
+        if "importance" not in cols:
+            conn.execute("ALTER TABLE files ADD COLUMN importance TEXT DEFAULT ''")
 
         # --- 旧形式（documents: 書類1枚ずつ）からの移行 ---
         has_old = conn.execute(
@@ -234,9 +240,9 @@ def add_file(d: dict) -> int:
         cur = conn.execute(
             """INSERT INTO files
                (label, kind, location_id, spot, properties, doc_types,
-                year_from, year_to, item_count, contents, summary, thumb, note,
+                year_from, year_to, item_count, contents, summary, importance, thumb, note,
                 created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 d.get("label", "").strip() or "（名前なし）",
                 d.get("kind", ""),
@@ -249,6 +255,7 @@ def add_file(d: dict) -> int:
                 d.get("item_count", "").strip(),
                 d.get("contents", "").strip(),
                 d.get("summary", "").strip(),
+                d.get("importance", "").strip(),
                 d.get("thumb", ""),
                 d.get("note", "").strip(),
                 _now(),
@@ -263,7 +270,8 @@ def update_file(file_id: int, d: dict) -> None:
         conn.execute(
             """UPDATE files SET
                label=?, kind=?, location_id=?, spot=?, properties=?, doc_types=?,
-               year_from=?, year_to=?, item_count=?, contents=?, summary=?, note=?, updated_at=?
+               year_from=?, year_to=?, item_count=?, contents=?, summary=?, importance=?,
+               note=?, updated_at=?
                WHERE id=?""",
             (
                 d.get("label", "").strip() or "（名前なし）",
@@ -277,6 +285,7 @@ def update_file(file_id: int, d: dict) -> None:
                 d.get("item_count", "").strip(),
                 d.get("contents", "").strip(),
                 d.get("summary", "").strip(),
+                d.get("importance", "").strip(),
                 d.get("note", "").strip(),
                 _now(),
                 file_id,
@@ -324,6 +333,7 @@ def search_files(
     property_name: str = "",
     location_id=None,
     year: str = "",
+    importance: str = "",
 ) -> list:
     """AND検索。キーワードはスペース区切りで、中身の明細まで含めて横断する。"""
     sql = [
@@ -348,6 +358,9 @@ def search_files(
     if location_id:
         sql.append(" AND f.location_id = ?")
         params.append(location_id)
+    if importance:
+        sql.append(" AND f.importance = ?")
+        params.append(importance)
     if year:
         # 年の範囲に含まれるか（年が未入力のファイルは対象外）
         sql.append(

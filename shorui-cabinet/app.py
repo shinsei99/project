@@ -31,6 +31,11 @@ db.init_db()
 ACCEPT = ["pdf", "jpg", "jpeg", "png", "webp", "heic"]
 IMG_EXT = (".pdf", ".jpg", ".jpeg", ".png", ".webp", ".heic")
 CONF_LABEL = {"high": "確度 高", "medium": "確度 中", "low": "確度 低"}
+# 重要度（人が手で選ぶ。契約書=高 など）
+IMPORTANCE_OPTS = ["", "高", "中", "低"]
+IMPORTANCE_BADGE = {"高": "🔴 高", "中": "🟡 中", "低": "⚪ 低", "": ""}
+def imp_label(x: str) -> str:
+    return IMPORTANCE_BADGE.get(x or "", "") or "（未設定）"
 
 # スマホ用（shorui-mobile）が Dropbox 経由で写真を届けるフォルダ。
 # 1サブフォルダ＝1冊。処理済みは _済/ に退避する。環境変数で上書き可。
@@ -112,13 +117,81 @@ c2.metric("保管場所", f"{s['locations']:,}")
 if s["unplaced"]:
     st.sidebar.warning(f"保管場所が未設定のファイルが {s['unplaced']} 件あります")
 
+# ---- サイドバー: 保管場所の登録・削除 ----
+with st.sidebar.expander("🗄 保管場所の登録・削除", expanded=True):
+    with st.form("side_add_loc", clear_on_submit=True):
+        _new_name = st.text_input("場所の名前", placeholder="本社3F 書庫A / 棚2")
+        _new_note = st.text_input("メモ（任意）", placeholder="鍵は総務が管理 など")
+        if st.form_submit_button("＋ この場所を追加", type="primary", use_container_width=True):
+            if _new_name.strip():
+                db.add_location(_new_name, _new_note)
+                st.rerun()
+            else:
+                st.warning("場所の名前を入れてください")
+
+    _locs = db.list_locations()
+    _counts = db.location_counts()
+    if not _locs:
+        st.caption("まだ保管場所がありません。上の欄で追加してください。")
+    else:
+        # 一覧はスッキリ名前だけ。編集・削除は下の「管理」欄から選んで行う。
+        st.caption("登録済み（かっこ内はファイル数）")
+        for _l in _locs:
+            st.markdown(
+                f"📍 {_l['name']}　<span style='color:#888'>({_counts.get(_l['id'], 0)})</span>",
+                unsafe_allow_html=True,
+            )
+
+        _name_of = {_l["id"]: _l["name"] for _l in _locs}
+        _note_of = {_l["id"]: (_l["note"] or "") for _l in _locs}
+        _sort_of = {_l["id"]: _l["sort"] for _l in _locs}
+
+        st.divider()
+        _sel = st.selectbox("編集・削除する場所", list(_name_of),
+                            format_func=lambda i: _name_of[i], key="side_manage_sel")
+        with st.form("side_manage_form"):
+            _en = st.text_input("名前", _name_of[_sel], key=f"side_mname_{_sel}")
+            _et = st.text_input("メモ", _note_of[_sel], key=f"side_mnote_{_sel}")
+            m1, m2 = st.columns(2)
+            _save = m1.form_submit_button("保存", type="primary", use_container_width=True)
+            _del = m2.form_submit_button("削除", use_container_width=True)
+        if _save:
+            if _en.strip():
+                db.update_location(_sel, _en, _et, _sort_of[_sel])
+                st.success("保存しました")
+                st.rerun()
+            else:
+                st.warning("名前を入れてください")
+        if _del:
+            st.session_state["side_del_pending"] = _sel
+            st.rerun()
+
+        _pending = st.session_state.get("side_del_pending")
+        if _pending is not None and _pending in _name_of:
+            st.markdown(f"**⚠️ 「{_name_of[_pending]}」を削除しますか？**")
+            _pc = _counts.get(_pending, 0)
+            if _pc:
+                st.caption(f"この場所の {_pc} 冊は「未設定」に戻ります（ファイル自体は消えません）")
+            dd1, dd2 = st.columns(2)
+            if dd1.button("削除する", type="primary", use_container_width=True,
+                          key="side_del_confirm"):
+                db.delete_location(_pending)
+                st.session_state.pop("side_del_pending", None)
+                st.rerun()
+            if dd2.button("やめる", use_container_width=True, key="side_del_cancel"):
+                st.session_state.pop("side_del_pending", None)
+                st.rerun()
+
 if not ai_reader.claude_available():
     st.sidebar.error("claude CLI が見つかりません。AI読み取りは使えませんが、手入力での登録・検索は可能です。")
 
-_inbox_n = len(list_inbox_batches())
-_inbox_label = f"📁 取込（{_inbox_n}）" if _inbox_n else "📁 取込"
-tab_add, tab_inbox, tab_find, tab_pdf, tab_loc, tab_conf = st.tabs(
-    ["📥 ファイルを登録", _inbox_label, "🔍 さがす", "📄 PDFを整理", "🗄 保管場所", "⚙️ 設定"]
+try:
+    _pending_n = len(inbox.list_folders(db.get_setting("inbox", inbox.default_root())))
+except Exception:
+    _pending_n = 0
+_add_label = f"📥 ファイルを登録（{_pending_n}）" if _pending_n else "📥 ファイルを登録"
+tab_add, tab_loc, tab_pdf, tab_conf = st.tabs(
+    [_add_label, "🗄 保管場所", "📄 PDFを整理", "⚙️ 設定"]
 )
 
 
@@ -213,13 +286,15 @@ with tab_add:
                 "見出しと場所は表の上で直せます。"
             )
             ids, labels = location_options()
-            m1, m2 = st.columns([2, 2])
+            m1, m2, m3 = st.columns([2, 2, 1])
             common = m1.selectbox(
                 "保管場所（全部まとめて）", ids, format_func=lambda x: labels[x],
                 key="batchloc", help="ここで選ぶと下の表の全行に入ります。行ごとに変えられます。",
             )
             common_spot = m2.text_input("場所の中の位置（全部まとめて）", key="batchspot",
                                         placeholder="例: 上から2段目 左端")
+            common_imp = m3.selectbox("重要度（全部）", IMPORTANCE_OPTS,
+                                      format_func=imp_label, key="batchimp")
 
             rows = st.data_editor(
                 pd.DataFrame([{
@@ -227,6 +302,7 @@ with tab_add:
                     "見出し": it["draft"].get("label", it["name"]),
                     "保管場所": labels[common],
                     "位置": common_spot,
+                    "重要度": common_imp,
                     "種別": "、".join(it["draft"].get("doc_types", [])),
                     "年": f'{it["draft"].get("year_from", "")}〜{it["draft"].get("year_to", "")}',
                     "確度": CONF_LABEL.get(it["draft"].get("confidence", ""), ""),
@@ -237,6 +313,8 @@ with tab_add:
                     "登録": st.column_config.CheckboxColumn(width="small"),
                     "保管場所": st.column_config.SelectboxColumn(
                         options=[labels[i] for i in ids], width="medium"),
+                    "重要度": st.column_config.SelectboxColumn(
+                        options=IMPORTANCE_OPTS, width="small"),
                     "見出し": st.column_config.TextColumn(width="large"),
                 },
             )
@@ -271,6 +349,7 @@ with tab_add:
                         "item_count": "",
                         "contents": "\n".join(d.get("contents", [])),
                         "summary": d.get("summary", ""),
+                        "importance": str(row["重要度"] or ""),
                         "thumb": it.get("thumb", ""),
                     })
                     for p in d.get("properties", []):
@@ -344,15 +423,18 @@ with tab_add:
         loc = g1.selectbox("保管場所 *", ids, format_func=lambda x: labels[x])
         spot = g2.text_input("場所の中の位置", placeholder="例: 上から2段目 左端")
         with g3:
-            newloc = st.text_input("場所を追加", placeholder="本社3F 書庫A")
-            if st.button("追加", use_container_width=True) and newloc.strip():
-                db.add_location(newloc)
-                st.rerun()
+            # フォームにすると Enter でも送信され、日本語入力の確定Enterで欄が消える誤操作を防げる。
+            with st.form("reg_add_loc", clear_on_submit=True):
+                newloc = st.text_input("場所を追加", placeholder="本社3F 書庫A")
+                if st.form_submit_button("追加", use_container_width=True) and newloc.strip():
+                    db.add_location(newloc.strip())
+                    st.rerun()
 
-        h1, h2, h3 = st.columns([1, 1, 1])
+        h1, h2, h3, h4 = st.columns([1, 1, 1, 1])
         yf = h1.text_input("いちばん古い年", draft.get("year_from", ""), placeholder="2019")
         yt = h2.text_input("いちばん新しい年", draft.get("year_to", ""), placeholder="2026")
         cnt = h3.text_input("点数（おおよそ）", placeholder="12")
+        imp = h4.selectbox("重要度", IMPORTANCE_OPTS, format_func=imp_label, key="reg_imp")
 
         dts = st.multiselect(
             "入っている書類の種別",
@@ -382,7 +464,7 @@ with tab_add:
                     "label": label, "kind": kind, "location_id": loc, "spot": spot,
                     "properties": props, "doc_types": ",".join(dts),
                     "year_from": yf, "year_to": yt, "item_count": cnt,
-                    "contents": contents, "summary": summary,
+                    "contents": contents, "summary": summary, "importance": imp,
                     "thumb": st.session_state.get("draft_thumb", ""),
                 })
                 for p in props.splitlines():
@@ -395,300 +477,6 @@ with tab_add:
             st.session_state["draft"] = draft_default()
             st.session_state.pop("draft_thumb", None)
             st.rerun()
-
-
-# ================= 取込（スマホから届いた束） =================
-with tab_inbox:
-    st.subheader("スマホから届いた束を取り込む")
-    st.caption(
-        "スマホ用アプリ（shorui-mobile）が Dropbox の「書類取込」に送った束を、"
-        "1冊ずつ読み取って登録します。登録した束は自動で「_済」へ移します。"
-    )
-    st.caption(f"監視フォルダ: `{INBOX_DIR}`")
-
-    if not os.path.isdir(INBOX_DIR):
-        st.warning(
-            "取込フォルダが見つかりません。Dropboxの同期先が違う場合は、環境変数 "
-            "`SHORUI_INBOX` にフォルダのパスを設定してください。"
-        )
-    else:
-        batches = list_inbox_batches()
-        r1, r2 = st.columns([1, 4])
-        if r1.button("🔄 更新", use_container_width=True):
-            st.rerun()
-        if not batches:
-            st.info("未処理の束はありません。スマホから撮って送ると、ここに出ます。")
-        else:
-            names = [b["name"] for b in batches]
-            def _blabel(n: str) -> str:
-                b = next(x for x in batches if x["name"] == n)
-                prop = (b["meta"].get("property") or "").strip()
-                return f"{n}　—　{prop}（{len(b['images'])}枚）" if prop else f"{n}（{len(b['images'])}枚）"
-
-            pick = st.selectbox("取り込む束", names, format_func=_blabel)
-            batch = next(x for x in batches if x["name"] == pick)
-            meta = batch["meta"]
-
-            with st.container(border=True):
-                if meta.get("property"):
-                    st.markdown(f"**物件名・件名:** {meta['property']}")
-                if meta.get("memo"):
-                    st.caption(f"メモ: {meta['memo']}")
-                if meta.get("capturedAt"):
-                    st.caption(f"撮影: {meta['capturedAt']}")
-
-                cols = st.columns(4)
-                for i, fn in enumerate(batch["images"][:8]):
-                    if fn.lower().endswith(".pdf"):
-                        cols[i % 4].caption(f"📄 {fn}")
-                        continue
-                    try:
-                        cols[i % 4].image(os.path.join(batch["path"], fn), use_container_width=True)
-                    except Exception:
-                        cols[i % 4].caption(fn)
-
-            dkey = f"inbox_draft_{pick}"
-            g1, g2 = st.columns([1, 3])
-            read = g1.button(
-                "🤖 読み取って目録化", type="primary",
-                disabled=not ai_reader.claude_available(),
-                use_container_width=True,
-            )
-            g2.caption("写真の枚数により1〜2分ほどかかります（正確さ優先で上位モデルを使用）")
-
-            if read:
-                uploads = []
-                for fn in batch["images"]:
-                    with open(os.path.join(batch["path"], fn), "rb") as fh:
-                        uploads.append((fh.read(), fn))
-                msgs: list = []
-                with st.spinner("読み取り中…"):
-                    got = ai_reader.read_file_contents(uploads, note=msgs.append)
-                if msgs:
-                    st.info("\n".join(msgs))
-                if got:
-                    # 物件名がスマホ入力にあればAI結果に補う
-                    prop = (meta.get("property") or "").strip()
-                    if prop and prop not in got.get("properties", []):
-                        got["properties"] = [prop] + got.get("properties", [])
-                    st.session_state[dkey] = got
-                    st.rerun()
-                else:
-                    st.error("読み取れませんでした。手入力で登録するか、撮り直してください。")
-
-            draft = st.session_state.get(dkey)
-            if draft is not None:
-                if draft.get("confidence"):
-                    lv = draft["confidence"]
-                    (st.success if lv == "high" else st.warning)(
-                        f"AIの読み取り結果を反映しました（{CONF_LABEL.get(lv, '')}）"
-                        + ("" if lv == "high" else " — 物件名と固有名詞は目視で確認してください")
-                    )
-                with st.container(border=True):
-                    st.markdown("**内容を確認して登録**")
-                    ids, labels = location_options()
-                    types = db.all_doc_types()
-
-                    f1, f2 = st.columns([3, 1])
-                    label = f1.text_input("ファイルの見出し *", draft.get("label", ""), key=f"lbl_{pick}")
-                    kind = f2.selectbox("入れ物の種類", db.KINDS, key=f"knd_{pick}")
-
-                    p1, p2, p3 = st.columns([2, 2, 1])
-                    loc = p1.selectbox("保管場所 *", ids, format_func=lambda x: labels[x], key=f"loc_{pick}")
-                    spot = p2.text_input("場所の中の位置", key=f"spt_{pick}", placeholder="例: 上から2段目 左端")
-                    with p3:
-                        newloc = st.text_input("場所を追加", key=f"nl_{pick}", placeholder="本社3F 書庫A")
-                        if st.button("追加", key=f"nlb_{pick}", use_container_width=True) and newloc.strip():
-                            db.add_location(newloc)
-                            st.rerun()
-
-                    q1, q2, q3 = st.columns(3)
-                    yf = q1.text_input("いちばん古い年", draft.get("year_from", ""), key=f"yf_{pick}")
-                    yt = q2.text_input("いちばん新しい年", draft.get("year_to", ""), key=f"yt_{pick}")
-                    cnt = q3.text_input("点数（おおよそ）", key=f"cnt_{pick}")
-
-                    dts = st.multiselect(
-                        "入っている書類の種別", types,
-                        default=[t for t in draft.get("doc_types", []) if t in types],
-                        key=f"dts_{pick}",
-                    )
-                    props = st.text_area(
-                        "関係する物件（1行1件）", "\n".join(draft.get("properties", [])),
-                        height=80, key=f"prp_{pick}",
-                    )
-                    contents = st.text_area(
-                        "中身の目録（1行1件）", "\n".join(draft.get("contents", [])),
-                        height=180, key=f"cnt2_{pick}",
-                    )
-                    summary = st.text_input("ひとことメモ", draft.get("summary", ""), key=f"sum_{pick}")
-
-                    if st.button("✅ 登録して束を「_済」へ移す", type="primary", key=f"reg_{pick}",
-                                 use_container_width=True):
-                        if not label.strip():
-                            st.error("ファイルの見出しを入れてください")
-                        else:
-                            # 1枚目をサムネイルにする
-                            thumb = ""
-                            first = batch["images"][0]
-                            if not first.lower().endswith(".pdf"):
-                                safe = f"file_{abs(hash(pick))}.jpg"
-                                with open(os.path.join(batch["path"], first), "rb") as fh:
-                                    if ai_reader.make_thumb(fh.read(), first,
-                                                            os.path.join(db.THUMB_DIR, safe)):
-                                        thumb = safe
-                            db.add_file({
-                                "label": label, "kind": kind, "location_id": loc, "spot": spot,
-                                "properties": props, "doc_types": ",".join(dts),
-                                "year_from": yf, "year_to": yt, "item_count": cnt,
-                                "contents": contents, "summary": summary, "thumb": thumb,
-                            })
-                            for p in props.splitlines():
-                                db.add_property(p)
-                            # 束を _済 へ退避
-                            os.makedirs(INBOX_DONE, exist_ok=True)
-                            dest = os.path.join(INBOX_DONE, pick)
-                            if os.path.exists(dest):
-                                dest = dest + f"_{abs(hash(pick)) % 10000}"
-                            try:
-                                shutil.move(batch["path"], dest)
-                            except Exception as e:
-                                st.warning(f"登録は済みましたが、束の移動に失敗しました（{type(e).__name__}）。手で「_済」へ移してください。")
-                            st.session_state.pop(dkey, None)
-                            st.success(f"「{label}」を登録しました")
-                            st.rerun()
-
-
-# ================= さがす =================
-with tab_find:
-    st.subheader("さがす")
-    st.caption("物件名や書類名で引くと、それが入っているファイルと置き場所が出ます。")
-
-    ids, labels = location_options()
-    q1, q2, q3, q4 = st.columns([3, 2, 2, 2])
-    kw = q1.text_input("キーワード（スペース区切りでAND検索）", placeholder="例: 角屋 契約")
-    types = ["（すべて）"] + db.all_doc_types()
-    ft = q2.selectbox("書類の種別", types)
-    fp = q3.selectbox("物件", ["（すべて）"] + property_names())
-    fl = q4.selectbox("保管場所", ids, format_func=lambda x: labels[x] if x else "（すべて）")
-
-    rows = db.search_files(
-        keyword=kw,
-        doc_type="" if ft == "（すべて）" else ft,
-        property_name="" if fp == "（すべて）" else fp,
-        location_id=fl,
-    )
-    st.caption(f"{len(rows):,} 件のファイル")
-
-    if not rows:
-        st.info("該当なし。登録タブから追加してください。")
-    else:
-        for r in rows:
-            place = r["location_name"] or "（保管場所 未設定）"
-            spot = f"／{r['spot']}" if r["spot"] else ""
-            with st.expander(f"📁 {r['label']}　—　📍 {place}{spot}"):
-                left, right = st.columns([1, 3])
-                with left:
-                    tp = thumb_path(r["thumb"])
-                    if tp:
-                        st.image(tp, use_container_width=True)
-                    st.markdown(f"**📍 {place}**")
-                    if r["spot"]:
-                        st.caption(r["spot"])
-                    meta = []
-                    if r["kind"]:
-                        meta.append(r["kind"])
-                    if r["item_count"]:
-                        meta.append(f"{r['item_count']}点")
-                    if r["year_from"] or r["year_to"]:
-                        meta.append(f"{r['year_from']}〜{r['year_to']}")
-                    if meta:
-                        st.caption(" / ".join(meta))
-
-                with right:
-                    if r["summary"]:
-                        st.write(r["summary"])
-                    if r["properties"]:
-                        st.markdown("**物件**　" + "、".join(r["properties"].split("\n")))
-                    if r["doc_types"]:
-                        st.markdown("**種別**　" + r["doc_types"].replace(",", "、"))
-                    if r["contents"]:
-                        st.markdown("**中身**")
-                        st.text(r["contents"])
-
-                if st.button("✏️ このファイルを編集", key=f"ed{r['id']}"):
-                    st.session_state["editing"] = r["id"]
-                    st.rerun()
-
-        # --- 編集 ---
-        if st.session_state.get("editing"):
-            rec = db.get_file(st.session_state["editing"])
-            if rec:
-                st.divider()
-                st.markdown(f"#### ✏️ 編集: {rec['label']}")
-                eids, elabels = location_options()
-                etypes = db.all_doc_types()
-                with st.form("editfile"):
-                    e1, e2 = st.columns([3, 1])
-                    lb = e1.text_input("見出し", rec["label"])
-                    kd = e2.selectbox(
-                        "入れ物", db.KINDS,
-                        index=db.KINDS.index(rec["kind"]) if rec["kind"] in db.KINDS else 0,
-                    )
-                    e3, e4 = st.columns(2)
-                    lc = e3.selectbox(
-                        "保管場所", eids,
-                        index=eids.index(rec["location_id"]) if rec["location_id"] in eids else 0,
-                        format_func=lambda x: elabels[x],
-                    )
-                    sp = e4.text_input("場所の中の位置", rec["spot"])
-                    e5, e6, e7 = st.columns(3)
-                    yf2 = e5.text_input("古い年", rec["year_from"])
-                    yt2 = e6.text_input("新しい年", rec["year_to"])
-                    ct2 = e7.text_input("点数", rec["item_count"])
-                    dt2 = st.multiselect(
-                        "種別", etypes,
-                        default=[t for t in rec["doc_types"].split(",") if t in etypes],
-                    )
-                    pr2 = st.text_area("関係する物件（1行1件）", rec["properties"], height=80)
-                    cn2 = st.text_area("中身の目録（1行1件）", rec["contents"], height=180)
-                    sm2 = st.text_input("ひとことメモ", rec["summary"])
-                    nt2 = st.text_area("備考", rec["note"], height=68)
-
-                    s1, s2, s3 = st.columns(3)
-                    if s1.form_submit_button("💾 保存", type="primary", use_container_width=True):
-                        db.update_file(rec["id"], {
-                            "label": lb, "kind": kd, "location_id": lc, "spot": sp,
-                            "properties": pr2, "doc_types": ",".join(dt2),
-                            "year_from": yf2, "year_to": yt2, "item_count": ct2,
-                            "contents": cn2, "summary": sm2, "note": nt2,
-                        })
-                        for p in pr2.splitlines():
-                            db.add_property(p)
-                        st.session_state.pop("editing")
-                        st.success("保存しました")
-                        st.rerun()
-                    if s2.form_submit_button("🗑 削除", use_container_width=True):
-                        db.delete_file(rec["id"])
-                        st.session_state.pop("editing")
-                        st.warning("削除しました")
-                        st.rerun()
-                    if s3.form_submit_button("閉じる", use_container_width=True):
-                        st.session_state.pop("editing")
-                        st.rerun()
-
-        st.divider()
-        exp = pd.DataFrame([
-            {"見出し": r["label"], "保管場所": r["location_name"] or "", "位置": r["spot"],
-             "入れ物": r["kind"], "物件": r["properties"].replace("\n", "、"),
-             "種別": r["doc_types"], "年": f"{r['year_from']}〜{r['year_to']}",
-             "点数": r["item_count"], "中身": r["contents"].replace("\n", " / ")}
-            for r in rows
-        ])
-        st.download_button(
-            "この結果をCSVで書き出す",
-            exp.to_csv(index=False).encode("utf-8-sig"),
-            file_name="書類ファイル一覧.csv", mime="text/csv",
-        )
 
 
 # ================= PDFを整理 =================
@@ -833,25 +621,23 @@ with tab_pdf:
 # ================= 保管場所 =================
 with tab_loc:
     st.subheader("保管場所")
-    st.caption("「本社3F 書庫A / 棚2」のように、探しに行ける粒度で登録してください。")
+    st.caption("棚の中身を見る・探す・直すのは全部ここ。場所の追加・名前変更・削除は左のサイドバーから。")
 
-    # --- 棚番号を後回しにして登録した分を、あとでまとめて割り当てる ---
+    ids, labels = location_options()
+
+    # --- 場所がまだ決まっていない分を、あとでまとめて割り当てる ---
     unplaced = db.list_unplaced()
     if unplaced:
         with st.container(border=True):
             st.markdown(f"**📦 場所がまだ決まっていないファイル — {len(unplaced)} 冊**")
-            st.caption(
-                "登録のときに場所を決めなくても構いません。"
-                "棚に戻すときに、ここでまとめて割り当ててください。"
-            )
-            uids, ulabels = location_options()
-            real_ids = [i for i in uids if i]
+            st.caption("棚に戻すときに、ここでまとめて割り当ててください。")
+            real_ids = [i for i in ids if i]
             if not real_ids:
-                st.info("先に下の欄で保管場所を1つ登録してください。")
+                st.info("先にサイドバーで保管場所を1つ登録してください。")
             else:
                 w1, w2 = st.columns([2, 2])
                 to_loc = w1.selectbox("この場所に入れる", real_ids,
-                                      format_func=lambda x: ulabels[x], key="uploc")
+                                      format_func=lambda x: labels[x], key="uploc")
                 to_spot = w2.text_input("場所の中の位置", key="upspot",
                                         placeholder="例: 上から2段目 左端")
                 picked = st.data_editor(
@@ -872,54 +658,161 @@ with tab_loc:
                 if v1.button(f"📍 {len(chosen)} 冊をここに置く", type="primary",
                              disabled=not chosen, use_container_width=True):
                     n = db.set_location(chosen, to_loc, to_spot)
-                    st.success(f"{n} 冊を「{ulabels[to_loc]}」にしました。")
+                    st.success(f"{n} 冊を「{labels[to_loc]}」にしました。")
                     st.rerun()
                 if v2.button("すべて選ぶ / すべて外す"):
                     st.session_state.pop("unplaced_ed", None)
                     st.rerun()
 
-    with st.form("add_loc"):
-        a1, a2, a3 = st.columns([2, 3, 1])
-        name = a1.text_input("場所の名前 *", placeholder="本社3F 書庫A / 棚2")
-        note = a2.text_input("メモ", placeholder="鍵は総務が管理 など")
-        a3.markdown("<br>", unsafe_allow_html=True)
-        if a3.form_submit_button("追加", type="primary", use_container_width=True):
-            if name.strip():
-                db.add_location(name, note)
-                st.rerun()
-            else:
-                st.error("場所の名前を入れてください")
+    # --- さがす（キーワード・保管場所・重要度で絞り込み） ---
+    st.markdown("#### さがす")
+    q1, q2, q3 = st.columns([3, 2, 2])
+    kw = q1.text_input("キーワード（スペース区切りでAND検索）",
+                       placeholder="例: 角屋 契約", key="loc_kw")
+    fl = q2.selectbox("保管場所", ids,
+                      format_func=lambda x: labels[x] if x else "（すべて）", key="loc_fl")
+    fi = q3.selectbox("重要度", ["（すべて）"] + IMPORTANCE_OPTS[1:], key="loc_fi")
 
-    counts = db.location_counts()
-    locs = db.list_locations()
-    if not locs:
-        st.info("まだ保管場所がありません。上から追加してください。")
-    for r in locs:
-        with st.expander(f"📍 {r['name']}　（ファイル {counts.get(r['id'], 0)} 冊）"):
-            with st.form(f"loc_{r['id']}"):
-                g1, g2, g3 = st.columns([2, 3, 1])
-                nm = g1.text_input("名前", r["name"])
-                nt = g2.text_input("メモ", r["note"])
-                so = g3.number_input("並び順", value=r["sort"], step=1)
-                h1, h2 = st.columns(2)
-                if h1.form_submit_button("💾 保存", use_container_width=True):
-                    db.update_location(r["id"], nm, nt, int(so))
+    rows = db.search_files(
+        keyword=kw,
+        location_id=fl,
+        importance="" if fi == "（すべて）" else fi,
+    )
+    st.caption(f"{len(rows):,} 件　—　行を選ぶと下に詳細が出ます")
+
+    if not rows:
+        st.info("該当なし。ファイルは「📥 ファイルを登録」から追加できます。")
+    else:
+        table = st.dataframe(
+            pd.DataFrame([{
+                "重要度": IMPORTANCE_BADGE.get(r["importance"] or "", ""),
+                "見出し": r["label"],
+                "保管場所": r["location_name"] or "（未設定）",
+                "位置": r["spot"],
+                "種別": r["doc_types"].replace(",", "、"),
+                "物件": r["properties"].replace("\n", "、"),
+                "年": f'{r["year_from"]}〜{r["year_to"]}'.strip("〜"),
+            } for r in rows]),
+            hide_index=True, use_container_width=True,
+            on_select="rerun", selection_mode="single-row", key="loc_table",
+        )
+
+        sel = table.selection.rows if getattr(table, "selection", None) else []
+        if sel and sel[0] < len(rows):
+            r = rows[sel[0]]
+            st.divider()
+            with st.container(border=True):
+                place = r["location_name"] or "（保管場所 未設定）"
+                spot = f"／{r['spot']}" if r["spot"] else ""
+                head = IMPORTANCE_BADGE.get(r["importance"] or "", "")
+                st.markdown(f"### {(head + '　') if head else ''}{r['label']}")
+                st.markdown(f"📍 **{place}**{spot}")
+                left, right = st.columns([1, 3])
+                with left:
+                    tp = thumb_path(r["thumb"])
+                    if tp:
+                        st.image(tp, use_container_width=True)
+                    meta = []
+                    if r["kind"]:
+                        meta.append(r["kind"])
+                    if r["item_count"]:
+                        meta.append(f"{r['item_count']}点")
+                    if r["year_from"] or r["year_to"]:
+                        meta.append(f"{r['year_from']}〜{r['year_to']}")
+                    if meta:
+                        st.caption(" / ".join(meta))
+                with right:
+                    if r["summary"]:
+                        st.write(r["summary"])
+                    if r["properties"]:
+                        st.markdown("**物件**　" + "、".join(r["properties"].split("\n")))
+                    if r["doc_types"]:
+                        st.markdown("**種別**　" + r["doc_types"].replace(",", "、"))
+                    if r["contents"]:
+                        st.markdown("**中身**")
+                        st.text(r["contents"])
+
+                with st.form(f"editfile_{r['id']}"):
+                    st.markdown("**✏️ この詳細を直す**")
+                    e1, e2 = st.columns([3, 1])
+                    lb = e1.text_input("見出し", r["label"], key=f"e_lb_{r['id']}")
+                    kd = e2.selectbox(
+                        "入れ物", db.KINDS,
+                        index=db.KINDS.index(r["kind"]) if r["kind"] in db.KINDS else 0,
+                        key=f"e_kd_{r['id']}")
+                    e3, e4, e5 = st.columns([2, 2, 1])
+                    lc = e3.selectbox(
+                        "保管場所", ids,
+                        index=ids.index(r["location_id"]) if r["location_id"] in ids else 0,
+                        format_func=lambda x: labels[x], key=f"e_lc_{r['id']}")
+                    sp = e4.text_input("場所の中の位置", r["spot"], key=f"e_sp_{r['id']}")
+                    ip = e5.selectbox(
+                        "重要度", IMPORTANCE_OPTS,
+                        index=IMPORTANCE_OPTS.index(r["importance"]) if r["importance"] in IMPORTANCE_OPTS else 0,
+                        format_func=imp_label, key=f"e_ip_{r['id']}")
+                    e6, e7, e8 = st.columns(3)
+                    yf2 = e6.text_input("古い年", r["year_from"], key=f"e_yf_{r['id']}")
+                    yt2 = e7.text_input("新しい年", r["year_to"], key=f"e_yt_{r['id']}")
+                    ct2 = e8.text_input("点数", r["item_count"], key=f"e_ct_{r['id']}")
+                    dt2 = st.multiselect(
+                        "種別", db.all_doc_types(),
+                        default=[t for t in r["doc_types"].split(",") if t],
+                        key=f"e_dt_{r['id']}")
+                    pr2 = st.text_area("関係する物件（1行1件）", r["properties"],
+                                       height=80, key=f"e_pr_{r['id']}")
+                    cn2 = st.text_area("中身の目録（1行1件）", r["contents"],
+                                       height=180, key=f"e_cn_{r['id']}")
+                    sm2 = st.text_input("ひとことメモ", r["summary"], key=f"e_sm_{r['id']}")
+                    nt2 = st.text_area("備考", r["note"], height=68, key=f"e_nt_{r['id']}")
+                    s1, s2 = st.columns(2)
+                    _save_click = s1.form_submit_button(
+                        "💾 保存", type="primary", use_container_width=True)
+                    _del_click = s2.form_submit_button(
+                        "🗑 このファイルを削除", use_container_width=True)
+
+                if _save_click:
+                    db.update_file(r["id"], {
+                        "label": lb, "kind": kd, "location_id": lc, "spot": sp,
+                        "properties": pr2, "doc_types": ",".join(dt2),
+                        "year_from": yf2, "year_to": yt2, "item_count": ct2,
+                        "contents": cn2, "summary": sm2, "importance": ip, "note": nt2,
+                    })
+                    for p in pr2.splitlines():
+                        db.add_property(p)
+                    st.success("保存しました")
                     st.rerun()
-                if h2.form_submit_button("🗑 場所を削除", use_container_width=True):
-                    db.delete_location(r["id"])
-                    st.warning("削除しました（この場所のファイルは「未設定」になります）")
+                if _del_click:
+                    st.session_state["file_del_pending"] = r["id"]
                     st.rerun()
 
-            inner = db.search_files(location_id=r["id"])
-            if inner:
-                st.dataframe(
-                    pd.DataFrame([
-                        {"見出し": x["label"], "入れ物": x["kind"], "位置": x["spot"],
-                         "物件": x["properties"].replace("\n", "、")}
-                        for x in inner
-                    ]),
-                    use_container_width=True, hide_index=True,
-                )
+                # 削除は一段確認を挟む（誤操作で消えないように）
+                if st.session_state.get("file_del_pending") == r["id"]:
+                    st.markdown(f"**⚠️ 「{r['label']}」を削除しますか？**（元に戻せません）")
+                    fd1, fd2 = st.columns(2)
+                    if fd1.button("削除する", type="primary", use_container_width=True,
+                                  key=f"fdel_yes_{r['id']}"):
+                        db.delete_file(r["id"])
+                        st.session_state.pop("file_del_pending", None)
+                        st.warning("削除しました")
+                        st.rerun()
+                    if fd2.button("やめる", use_container_width=True, key=f"fdel_no_{r['id']}"):
+                        st.session_state.pop("file_del_pending", None)
+                        st.rerun()
+
+        st.divider()
+        exp = pd.DataFrame([
+            {"重要度": r["importance"], "見出し": r["label"],
+             "保管場所": r["location_name"] or "", "位置": r["spot"],
+             "入れ物": r["kind"], "物件": r["properties"].replace("\n", "、"),
+             "種別": r["doc_types"], "年": f'{r["year_from"]}〜{r["year_to"]}',
+             "点数": r["item_count"], "中身": r["contents"].replace("\n", " / ")}
+            for r in rows
+        ])
+        st.download_button(
+            "この結果をCSVで書き出す",
+            exp.to_csv(index=False).encode("utf-8-sig"),
+            file_name="書類ファイル一覧.csv", mime="text/csv",
+        )
 
 
 # ================= 設定 =================
