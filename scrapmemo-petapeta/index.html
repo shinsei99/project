@@ -2552,6 +2552,22 @@ addEventListener('scroll', () => {
 
 if (!load()) pages=mkData();
 renderPage();
+
+// iOSのキーボード上に出る「入力補助バー(inputAccessoryView)」を消す。
+// テキスト欄の最下部を隠して選択の邪魔になるだけで用途が薄いため（Chrome等も非表示）。
+// Web(Safari)ではCapacitorが無いので何もしない。ネイティブ(iOS)のみ効く。
+(function(){
+  function hideKbBar(){
+    try {
+      var C = window.Capacitor;
+      if (C && C.getPlatform && C.getPlatform() === 'ios' && C.Plugins && C.Plugins.Keyboard) {
+        C.Plugins.Keyboard.setAccessoryBarVisible({ isVisible: false });
+      }
+    } catch (e) {}
+  }
+  if (document.readyState !== 'loading') hideKbBar();
+  else document.addEventListener('DOMContentLoaded', hideKbBar);
+})();
 </script>
 </body>
 </html>
