@@ -6,6 +6,36 @@ type Shot = { file: File; url: string };
 
 const PW_KEY = "shorui_pw";
 
+// 送信前に写真を縮小・JPEG化する。
+// スマホ写真は1枚2〜4MBあり、数枚で Vercel のリクエスト上限(4.5MB)を超えて弾かれる。
+// 長辺1600px・JPEG品質0.72に落とすと書類の文字は充分読めるまま1枚あたり数百KBに収まり、
+// 10枚でも上限に収まる。HEICもJPEGに揃うのでPC側の読み取り・サムネも安定する。
+async function shrinkForUpload(file: File): Promise<Blob> {
+  const MAX_EDGE = 1600;
+  const QUALITY = 0.72;
+  try {
+    // createImageBitmap は EXIF の向きも from-image で正立させてくれる。
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    const scale = Math.min(1, MAX_EDGE / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scale));
+    const h = Math.max(1, Math.round(bmp.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close?.();
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/jpeg", QUALITY)
+    );
+    // 縮小に失敗、または元よりむしろ大きくなった場合は原本を使う。
+    return blob && blob.size < file.size ? blob : file;
+  } catch {
+    return file;
+  }
+}
+
 export default function Home() {
   // --- パスワードゲート ---
   const [authPw, setAuthPw] = useState<string | null>(null); // 検証済みの合言葉
@@ -77,14 +107,12 @@ export default function Home() {
       fd.append("password", authPw || "");
       fd.append("property", property);
       fd.append("memo", memo);
-      // iOS Safari は FormData のファイル名に非ASCII（日本語・アクセント記号）が
-      // 混ざると送信時に "The string did not match the expected pattern" を投げる。
-      // 元のファイル名は使わず、ASCII固定の名前に付け替える（サーバーは拡張子だけ見る）。
-      shots.forEach((s, i) => {
-        const raw = (s.file.name.split(".").pop() || "").toLowerCase();
-        const ext = /^[a-z0-9]{1,5}$/.test(raw) ? raw : "jpg";
-        fd.append("files", s.file, `shot_${String(i + 1).padStart(2, "0")}.${ext}`);
-      });
+      // 各写真を縮小・JPEG化してから添付。ファイル名はASCII固定にする
+      // （iOS Safari は FormData のファイル名に非ASCIIが混ざると送信時に例外を投げるため）。
+      for (let i = 0; i < shots.length; i++) {
+        const blob = await shrinkForUpload(shots[i].file);
+        fd.append("files", blob, `shot_${String(i + 1).padStart(2, "0")}.jpg`);
+      }
       const res = await fetch("/api/upload", { method: "POST", body: fd });
       const text = await res.text();
       let j: { ok?: boolean; error?: string; count?: number };
