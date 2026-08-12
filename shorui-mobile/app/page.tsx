@@ -13,19 +13,28 @@ const PW_KEY = "shorui_pw";
 async function shrinkForUpload(file: File): Promise<Blob> {
   const MAX_EDGE = 1600;
   const QUALITY = 0.72;
+  // iOS Safari で確実な <img> 経由でデコードする（createImageBitmap は失敗しやすい）。
+  // iOS は HEIC も <img> で読め、表示時に EXIF の向きを自動で正立させる。
+  const url = URL.createObjectURL(file);
   try {
-    // createImageBitmap は EXIF の向きも from-image で正立させてくれる。
-    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-    const scale = Math.min(1, MAX_EDGE / Math.max(bmp.width, bmp.height));
-    const w = Math.max(1, Math.round(bmp.width * scale));
-    const h = Math.max(1, Math.round(bmp.height * scale));
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.onerror = () => reject(new Error("decode failed"));
+      im.src = url;
+    });
+    const iw = img.naturalWidth;
+    const ih = img.naturalHeight;
+    if (!iw || !ih) return file;
+    const scale = Math.min(1, MAX_EDGE / Math.max(iw, ih));
+    const w = Math.max(1, Math.round(iw * scale));
+    const h = Math.max(1, Math.round(ih * scale));
     const canvas = document.createElement("canvas");
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) return file;
-    ctx.drawImage(bmp, 0, 0, w, h);
-    bmp.close?.();
+    ctx.drawImage(img, 0, 0, w, h);
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/jpeg", QUALITY)
     );
@@ -33,6 +42,8 @@ async function shrinkForUpload(file: File): Promise<Blob> {
     return blob && blob.size < file.size ? blob : file;
   } catch {
     return file;
+  } finally {
+    URL.revokeObjectURL(url);
   }
 }
 
