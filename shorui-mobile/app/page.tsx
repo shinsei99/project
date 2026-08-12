@@ -77,9 +77,27 @@ export default function Home() {
       fd.append("password", authPw || "");
       fd.append("property", property);
       fd.append("memo", memo);
-      shots.forEach((s) => fd.append("files", s.file, s.file.name));
+      // iOS Safari は FormData のファイル名に非ASCII（日本語・アクセント記号）が
+      // 混ざると送信時に "The string did not match the expected pattern" を投げる。
+      // 元のファイル名は使わず、ASCII固定の名前に付け替える（サーバーは拡張子だけ見る）。
+      shots.forEach((s, i) => {
+        const raw = (s.file.name.split(".").pop() || "").toLowerCase();
+        const ext = /^[a-z0-9]{1,5}$/.test(raw) ? raw : "jpg";
+        fd.append("files", s.file, `shot_${String(i + 1).padStart(2, "0")}.${ext}`);
+      });
       const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const j = await res.json();
+      const text = await res.text();
+      let j: { ok?: boolean; error?: string; count?: number };
+      try {
+        j = text ? JSON.parse(text) : {};
+      } catch {
+        // 413（写真が大きすぎ）などでVercelがJSON以外を返したとき用のフォールバック。
+        throw new Error(
+          res.status === 413
+            ? "写真の合計サイズが大きすぎます。枚数を減らして送ってください。"
+            : `送信に失敗しました（${res.status}）`
+        );
+      }
       if (res.status === 401) {
         // 合言葉が変わった等 → ロック画面へ戻す
         localStorage.removeItem(PW_KEY);
