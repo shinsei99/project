@@ -18,6 +18,19 @@ function slugify(name: string): string {
   return s.slice(0, 40) || "未指定";
 }
 
+// クライアントが送ってくる束IDを、パス区切りや上位ディレクトリ指定を除いた
+// 安全な1階層のフォルダ名に丸める。
+function safeSegment(name: string): string {
+  return (
+    name
+      .replace(/\.\.+/g, "_")
+      .replace(/[\\/:*?"<>|]+/g, "_")
+      .replace(/\s+/g, "_")
+      .trim()
+      .slice(0, 80) || "未指定"
+  );
+}
+
 export async function POST(req: NextRequest) {
   try {
     const form = await req.formData();
@@ -38,10 +51,18 @@ export async function POST(req: NextRequest) {
 
     const dbx = getDropbox();
     const now = new Date();
-    const batch = `${stamp(now)}_${slugify(property)}`;
+
+    // 写真を1枚ずつ別リクエストで送ってきても同じフォルダにまとめられるよう、
+    // クライアントが束IDを送ってくればそれを使う。無ければ従来どおりサーバーで採番。
+    const batchRaw = ((form.get("batch") as string) || "").trim();
+    const batch = batchRaw ? safeSegment(batchRaw) : `${stamp(now)}_${slugify(property)}`;
     const dir = `${INBOX_ROOT}/${batch}`;
 
-    let i = 0;
+    // 束全体の枚数と、このリクエストの通し番号（1始まり）。1枚ずつ送るとき用。
+    const total = parseInt((form.get("total") as string) || "", 10) || files.length;
+    const startIndex = parseInt((form.get("index") as string) || "", 10) || 0;
+
+    let i = startIndex > 0 ? startIndex - 1 : 0;
     for (const file of files) {
       i++;
       const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
@@ -55,20 +76,24 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // PC側キャビネットが読む付帯情報。物件名・メモ・撮影時刻・枚数。
-    const meta = {
-      property,
-      memo,
-      capturedAt: now.toISOString(),
-      count: files.length,
-      source: "shorui-mobile",
-    };
-    await dbx.filesUpload({
-      path: `${dir}/meta.json`,
-      contents: Buffer.from(JSON.stringify(meta, null, 2), "utf-8"),
-      mode: { ".tag": "overwrite" },
-      mute: true,
-    });
+    // 付帯情報(meta.json)は、1枚ずつ送る場合は最後のリクエストだけで書く
+    // （writeMeta=1）。単発リクエスト（従来方式）のときは常に書く。
+    const writeMeta = batchRaw ? form.get("writeMeta") === "1" : true;
+    if (writeMeta) {
+      const meta = {
+        property,
+        memo,
+        capturedAt: now.toISOString(),
+        count: total,
+        source: "shorui-mobile",
+      };
+      await dbx.filesUpload({
+        path: `${dir}/meta.json`,
+        contents: Buffer.from(JSON.stringify(meta, null, 2), "utf-8"),
+        mode: { ".tag": "overwrite" },
+        mute: true,
+      });
+    }
 
     return NextResponse.json({ ok: true, batch, count: files.length });
   } catch (e: unknown) {

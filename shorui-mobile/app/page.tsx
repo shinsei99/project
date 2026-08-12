@@ -6,6 +6,19 @@ type Shot = { file: File; url: string };
 
 const PW_KEY = "shorui_pw";
 
+// この束のフォルダ名を1回だけ作る。1枚ずつ送ってもこのIDでPC側では1フォルダにまとまる。
+function makeBatchId(property: string): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  const d = new Date();
+  const stamp =
+    `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}` +
+    `-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  const slug =
+    property.replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, "_").trim().slice(0, 40) ||
+    "未指定";
+  return `${stamp}_${slug}`;
+}
+
 // 送信前に写真を縮小・JPEG化する。
 // スマホ写真は1枚2〜4MBあり、数枚で Vercel のリクエスト上限(4.5MB)を超えて弾かれる。
 // 長辺1600px・JPEG品質0.72に落とすと書類の文字は充分読めるまま1枚あたり数百KBに収まり、
@@ -114,41 +127,48 @@ export default function Home() {
     setBusy(true);
     setMsg(null);
     try {
-      const fd = new FormData();
-      fd.append("password", authPw || "");
-      fd.append("property", property);
-      fd.append("memo", memo);
-      // 各写真を縮小・JPEG化してから添付。ファイル名はASCII固定にする
-      // （iOS Safari は FormData のファイル名に非ASCIIが混ざると送信時に例外を投げるため）。
-      for (let i = 0; i < shots.length; i++) {
+      // 1枚ずつ別リクエストで送る（Vercelのリクエスト上限4.5MBを原理的に超えないため）。
+      // 束IDを共有するので、PC側では今まで通り1つのフォルダにまとまる。
+      const batch = makeBatchId(property);
+      const total = shots.length;
+      for (let i = 0; i < total; i++) {
+        setMsg({ ok: true, text: `送信中… ${i + 1}/${total} 枚` });
         const blob = await shrinkForUpload(shots[i].file);
+        const fd = new FormData();
+        fd.append("password", authPw || "");
+        fd.append("property", property);
+        fd.append("memo", memo);
+        fd.append("batch", batch);
+        fd.append("index", String(i + 1));
+        fd.append("total", String(total));
+        if (i === total - 1) fd.append("writeMeta", "1"); // 付帯情報は最後の1回だけ
+        // ファイル名はASCII固定（iOS Safari は非ASCIIファイル名で送信時に例外を投げる）。
         fd.append("files", blob, `shot_${String(i + 1).padStart(2, "0")}.jpg`);
+
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const text = await res.text();
+        let j: { ok?: boolean; error?: string };
+        try {
+          j = text ? JSON.parse(text) : {};
+        } catch {
+          throw new Error(
+            res.status === 413
+              ? `${i + 1}枚目が大きすぎて送れませんでした。`
+              : `送信に失敗しました（${res.status}）`
+          );
+        }
+        if (res.status === 401) {
+          localStorage.removeItem(PW_KEY);
+          setAuthPw(null);
+          throw new Error("パスワードが変わりました。もう一度入力してください。");
+        }
+        if (!res.ok || !j.ok) throw new Error(j.error || "送信に失敗しました");
       }
-      const res = await fetch("/api/upload", { method: "POST", body: fd });
-      const text = await res.text();
-      let j: { ok?: boolean; error?: string; count?: number };
-      try {
-        j = text ? JSON.parse(text) : {};
-      } catch {
-        // 413（写真が大きすぎ）などでVercelがJSON以外を返したとき用のフォールバック。
-        throw new Error(
-          res.status === 413
-            ? "写真の合計サイズが大きすぎます。枚数を減らして送ってください。"
-            : `送信に失敗しました（${res.status}）`
-        );
-      }
-      if (res.status === 401) {
-        // 合言葉が変わった等 → ロック画面へ戻す
-        localStorage.removeItem(PW_KEY);
-        setAuthPw(null);
-        throw new Error("パスワードが変わりました。もう一度入力してください。");
-      }
-      if (!res.ok || !j.ok) throw new Error(j.error || "送信に失敗しました");
       shots.forEach((s) => URL.revokeObjectURL(s.url));
       setShots([]);
       setProperty("");
       setMemo("");
-      setMsg({ ok: true, text: `送信しました（${j.count}枚）。PCのキャビネットで整理できます。` });
+      setMsg({ ok: true, text: `送信しました（${total}枚）。PCのキャビネットで整理できます。` });
     } catch (e) {
       setMsg({ ok: false, text: e instanceof Error ? e.message : "送信に失敗しました" });
     } finally {
