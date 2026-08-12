@@ -39,7 +39,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 駐車場配置図ビューア | parking-map | 8522 | ✅ | — |
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
 | 送付書メーカー | soufu-maker | 8525 | ✅ | — |
-| 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ー（自分専用・localhost） | — |
+| 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ✅ | — |
 | 書類キャビネット スマホ用（撮影→Dropbox取込） | shorui-mobile | — | ー（Vercel・pass保護） | Vercel（shorui-mobile.vercel.app） |
 
 ### ツール（12本）※社内LAN共有なし
@@ -111,6 +111,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - 和暦→西暦はプロンプトで指示＋コード側でも `_wareki_to_seireki` で保険（令和元年=2019、平成31年4月30日=2019-04-30）。日付不明は `0000-00-00`。同名は `_2` 連番で**上書きしない**。
 - `input_docs/` `output_docs/` `.state.json` は個人情報を含むため**gitignore**（ルート .gitignore は「`*` で全無視＋アプリごとに `!` で許可」方式なので、そちらにも許可行の追加が必要）。処理済みはSHA1で `.state.json` に記録し二度処理しない（`--force` で無視）。入力ファイルは削除も変更もしない。
 
+### 書類キャビネット（shorui-cabinet）補足 ※不動産・port 8528・社内LAN共有化（2026-08-12）
+
+- **社内共有化**: `run.sh` を `0.0.0.0` バインドに変更しlaunchd常時起動（`192.168.1.105:8528`）。配布は他アプリと同じ作法で **Dropbox共有フォルダ**（`…/（★必読★）新共有フォルダ/社内ツール/`）に `書類キャビネット.url`（URL=http://192.168.1.105:8528）＋`icons/書類キャビネット.ico`、**Mac用**に `Desktop/社内ツール/書類キャビネット.app`（launcherは`open http://localhost:8528`・`AppIcon.icns`）。アイコン生成元は `shorui-cabinet/icon-src/`（PILで白いキャビネット×インディゴ、`.ico`/`.icns`両方）。
+- **⚠️ launchd常時起動だとDropbox取込フォルダ（`~/Library/CloudStorage/…/書類取込`）を読めない**（macOS TCC。CloudStorageは保護領域）。**Python本体にフルディスクアクセスを付与しても効かない**（TCCの“責任プロセス”がlaunchdの`ProgramArguments[0]`=`/bin/bash`側のため）。→ **`/bin/bash` にフルディスクアクセスを付与**すれば常時起動でも取込を読める（要手動GUI・1回）。未付与でも他機能（検索・手入力登録・保管場所）は動く。取込セクションはOSErrorをcatchして案内表示。ターミナル由来で起動した場合はTerminalがFDAを持つため読める（＝切り分けの目安）。
+- 個人情報（物件名・所在）を含み個人Dropboxも読むため、社内WiFi内のみ・認証なし公開である点に留意。
+
 ### 不動産写真AI（photo-inpainter）補足 ※不動産・port 8506・完成（2026-08-10）
 
 - 物件写真から**電柱・電線・通行人・車・室内の家具**を消すStreamlit。消去エンジンは **LaMa**、クリック選択は **Segment Anything (mobile_sam)**。どちらも **IOPaint（Apache-2.0・商用可）** の実装を`import`して使う。**全処理ローカル・APIキー不要**。
@@ -153,7 +159,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8525 | 送付書メーカー | com.shinsei.soufu-maker |
 | 8526 | 買取DMジェネレーター（※ツール・localhost・社内共有なし／常時起動のみ） | com.shinsei.kaitori-dm-maker |
 | 8527 | PSA保有カード管理（※ツール・localhost・社内共有なし／常時起動のみ。Desktop/社内ツールに.appショートカット有） | com.shinsei.psa-collection |
-| 8528 | 書類キャビネット（※不動産・自分専用・localhost・社内共有なし／常時起動のみ） | com.shinsei.shorui-cabinet |
+| 8528 | 書類キャビネット（※不動産・社内LAN共有あり・0.0.0.0／要フルディスクアクセス for /bin/bash＝Dropbox取込読取） | com.shinsei.shorui-cabinet |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
 
@@ -163,8 +169,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | 分類 | バインド | 対象 |
 |---|---|---|
-| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の18本 |
-| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8528 shorui-cabinet |
+| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の18本＋8528 shorui-cabinet |
+| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection |
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
 

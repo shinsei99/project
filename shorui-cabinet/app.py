@@ -233,8 +233,20 @@ with tab_add:
                 except OSError as e:
                     st.error(f"作れませんでした: {e}")
         else:
-            entries = inbox.list_folders(root)
-            if not entries:
+            perm_error = False
+            entries = []
+            try:
+                entries = inbox.list_folders(root)
+            except OSError:
+                perm_error = True
+            if perm_error:
+                st.warning(
+                    "⚠️ 取込フォルダを読む権限がありません。常時起動(launchd)だと macOS が "
+                    "Dropbox フォルダを保護するためです。"
+                    "**システム設定 → プライバシーとセキュリティ → フルディスクアクセス** に "
+                    "`/bin/bash` を追加すると読めるようになります。"
+                )
+            elif not entries:
                 st.caption(
                     "いま待っているものはありません。"
                     "スマホでこの中にフォルダを作り、中身の写真を入れてください。"
