@@ -214,7 +214,7 @@ export default function Home() {
         type="text"
         value={property}
         onChange={(e) => setProperty(e.target.value)}
-        placeholder="例: グランドメゾン天王寺 302号室"
+        placeholder="例: グランドメゾン天王寺 301号室"
       />
       <p className="hint">入れておくと、この束のフォルダ名に付いてPC側で見分けやすくなります。</p>
 
