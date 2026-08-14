@@ -4,6 +4,8 @@
 # Explicitly track these paths
 !.gitignore
 !CLAUDE.md
+!TODO.md
+!SESSION_LOG.md
 !ios-build-guard.sh
 !handwriting-ocr/
 !handwriting-ocr/**
@@ -17,6 +19,15 @@
 !mom-counter/**
 !maisoku-converter/
 !maisoku-converter/**
+
+# ポケモンカード図鑑。**data/ は4.3GBあり個人情報も含むので絶対に追跡しない**
+# （カード画像31,520枚・DB 38MB。引き継ぎは Dropbox 経由。HANDOFF.md 参照）
+!pokecard-dex/
+!pokecard-dex/**
+pokecard-dex/data/
+pokecard-dex/.venv/
+pokecard-dex/__pycache__/
+pokecard-dex/pokemon_cards/
 !image-resizer/
 !image-resizer/**
 !madori-tracer/
