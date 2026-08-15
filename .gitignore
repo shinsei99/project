@@ -242,6 +242,26 @@ agent-platform/tools/assets/
 agent-platform/knowledge/
 # 発行者情報（会社名・連絡先・免許番号）
 agent-platform/config/
+
+# 加東 貸家チラシメーカー。**コードと文書だけ**を追跡する。
+# 素材・生成物は実物件の資料と個人情報を含むので絶対に入れない
+!kato-flyer/
+!kato-flyer/**
+kato-flyer/.venv/
+# data/ … 賃貸資料xlsから取り出した素材74MB・型サンプル61MB・編集内容・キャッシュ
+kato-flyer/data/
+# site/ … 生成した物件サイト。案件フォルダ由来の写真が混じる経路があるため出さない
+kato-flyer/site/
+# 集計ページの閲覧キー（stats.php?k=…）
+kato-flyer/.stats_key
+kato-flyer/__pycache__/
+kato-flyer/**/__pycache__/
+kato-flyer/.DS_Store
+kato-flyer/**/.DS_Store
+# ロゴは名前入りの白版だけ。spm_logo_white.png は旧免許番号(1)第58258号が焼き込まれており
+# 広告物に使えないため、そもそも配らない
+kato-flyer/assets/*
+!kato-flyer/assets/spm_logo_white_name.png
 # 型の見本画像・アイコンの生成キャッシュ（消せば次回作り直される）
 agent-platform/.cache/
 # moviepy が書き出し中に残す一時ファイル
