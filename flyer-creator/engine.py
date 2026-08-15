@@ -226,7 +226,9 @@ def render(fl, template_id: str, palette_id: str, out_dir, stem: str = "flyer") 
     """型と配色を指定して紙面を作る。戻り値は {"html":…, "pdf":…, "png":…}。"""
     colors = palette(palette_id)
     content, photos = build_content(fl)
-    out_dir = Path(out_dir)
+    # **必ず絶対パスにする。** 描画は agent-platform を作業フォルダにした別プロセスで走るので、
+    # 相対パスのまま渡すと**向こうのフォルダに書き出されて**、こちらから見えなくなる
+    out_dir = Path(out_dir).resolve()
     out_dir.mkdir(parents=True, exist_ok=True)
     made = _call({"op": "render", "template": template_id, "content": content,
                   "photos": photos, "out_dir": str(out_dir), "stem": stem,

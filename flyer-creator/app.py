@@ -1,4 +1,4 @@
-"""加東 貸家チラシメーカー — 屋外ホルダー（インフォパックA4 #31010）に入れるA4を作る。
+"""チラシクリエーター — 屋外ホルダー（インフォパックA4 #31010）に入れるA4を作る。
 
 看板本体には賃料を刷らず、変わる情報はこの紙に逃がす、という運用の紙側。
 写真はDropboxの撮影フォルダ（CR2も可）、間取り図はGoogleドライブの案件フォルダから拾う。
@@ -22,7 +22,7 @@ DATA = APP_DIR / "data"
 CACHE = DATA / "thumbs"
 OVERRIDES = DATA / "overrides.json"
 
-st.set_page_config(page_title="加東 貸家チラシメーカー", page_icon="🏡", layout="wide")
+st.set_page_config(page_title="チラシクリエーター", page_icon="🏡", layout="wide")
 
 
 def load_overrides() -> dict:
@@ -50,7 +50,7 @@ def thumb(path: str, mtime: float, px: int = 320) -> bytes:
 ov = load_overrides()
 
 # ── サイドバー：物件と素材の選択
-st.sidebar.title("🏡 加東 貸家チラシ")
+st.sidebar.title("🏡 チラシクリエーター")
 name = st.sidebar.selectbox("物件", list(PROPERTIES.keys()))
 base = PROPERTIES[name]
 cur = {**base, **ov.get(name, {})}

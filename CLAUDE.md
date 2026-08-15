@@ -61,7 +61,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全45本）  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全49本）※不動産28・ツール15・ゲーム6  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
 ### 不動産（28本）
@@ -97,7 +97,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ✅ | — |
 | 書類キャビネット スマホ用（撮影→Dropbox取込） | shorui-mobile | — | ー（Vercel・pass保護） | Vercel（shorui-mobile.vercel.app） |
 
-### ツール（12本）※社内LAN共有なし
+### ツール（15本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
@@ -115,6 +115,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | PDF書類オーガナイザー（スキャンPDFの分割・分類・リネーム） | pdf-organizer | ー（CLI） | — |
 | ポケモンカード図鑑（全31,520枚・画像100%収録） | pokecard-dex | 8531 | — |
 | マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | — |
+| チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
 
 ### ゲーム（6本）※社内LAN共有なし
 
@@ -170,6 +171,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **音が出ないときはまずMac本体のミュートを疑う**（`osascript -e 'get volume settings'`）。実際に`output muted:true`で「音が無い」と誤認した。
 - **ffmpeg未導入のMac**なので `imageio-ffmpeg` 同梱バイナリを `IMAGEIO_FFMPEG_EXE` に流して moviepy に使わせる。moviepy は v1/v2 で API名が違う（`set_audio`→`with_audio`）ため互換シムあり。
 - `.env` と `output/`（生成物）は**gitignore**。分類はツールなので `run.sh` は `127.0.0.1` バインド・launchd未登録。
+
+### チラシクリエーター（flyer-creator）補足 ※ツール・port 8529
+
+- 旧称「加東 貸家チラシメーカー」・旧フォルダ名 `kato-flyer`（**2026-08-15 に改称**）。加東市秋津の貸家の客付け一式（A4チラシ＋物件サイト＋看板の元データ）。紙とWebが同じ `properties.py` を読むので、片方を直せば両方に反映される。
+- **紙面の型10種・配色9種は `../agent-platform`（マルチプロダクション）のエンジンを借りている。コピーしていない。** 呼び方は **agent-platform の `.venv/bin/python` を別プロセスで動かす**方式（`engine.py`）。理由: エンジンは `import tools` で16アイテム（numpy・moviepy・playwright…）を読むため、こちらの `.venv` に同じものを入れると両方が壊れやすい。**flyer-creator 側に playwright は不要**。agent-platform が無いPCでは「これまでの型」（PIL版）だけで動く。
+- **配色の既定 橙 `#f07c1e` × 濃紺 `#1b2340` は変えないこと。** 現地写真に重ねて検証した色（木立にも壁にも負けず工事看板にも見えない）。エンジンの `sunset`（`#e2701a`）で代用しない。
+- **写真の安全装置3段構え（絶対に外さない）**: ①写真ソースは Dropbox 撮影フォルダのみ ②`DENY`（身分証・免許・申込・契約…）を候補から除外 ③人が選んだ写真がない物件は書き出さない。案件フォルダに**入居申込者の身分証と申込書が同居**しており、以前サイトの生成物に入りかけた（公開前に破棄・流出なし）。
+- 集計の閲覧キーは `.stats_key`（gitignore）。`stats.php?k=…` で見る。**ソースにも文書にも書かない**。
+- gitに入れるのは**コードと文書だけ**。`.venv` / `data/`（賃貸資料74MB・型サンプル）/ `site/`（生成物）は除外。旧免許番号(1)第58258号が焼き込まれた `assets/spm_logo_white.png` も配らない（使うのは `spm_logo_white_name.png`）。
+- 物件サイトは **https://daikyocorp.co.jp/slowlife/** に公開済み（募集中4件＋賃貸中11件）。FTP接続情報は `theta-viewer/server/ftp-config.json`（gitignore）。
 
 ### PDF書類オーガナイザー（pdf-organizer）補足 ※ツール・CLI・portなし
 
@@ -230,6 +241,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8526 | 買取DMジェネレーター（※ツール・localhost・社内共有なし／常時起動のみ） | com.shinsei.kaitori-dm-maker |
 | 8527 | PSA保有カード管理（※ツール・localhost・社内共有なし／常時起動のみ。Desktop/社内ツールに.appショートカット有） | com.shinsei.psa-collection |
 | 8528 | 書類キャビネット（※不動産・社内LAN共有あり・0.0.0.0／要フルディスクアクセス for /bin/bash＝Dropbox取込読取） | com.shinsei.shorui-cabinet |
+| 8529 | チラシクリエーター（※ツール・127.0.0.1・launchd未登録） | （未登録） |
 | 8532 | マルチプロダクション（※ツール・127.0.0.1・launchd未登録） | （未登録） |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |

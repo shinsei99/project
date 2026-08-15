@@ -1,4 +1,4 @@
-# TODO — 加東 貸家チラシメーカー（kato-flyer）
+# TODO — チラシクリエーター（flyer-creator）
 
 ## 完了（2026-08-15）
 

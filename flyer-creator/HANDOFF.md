@@ -9,11 +9,11 @@
 
 | 場所 | 中身 |
 |---|---|
-| `~/kato-flyer/` | チラシメーカー（Streamlit, port 8529）＋物件サイト生成 |
+| `~/flyer-creator/` | チラシクリエーター（Streamlit, port 8529）＋物件サイト生成 |
 | `~/design-assets/` | Googleドライブの入稿データ **367点のカタログ**（`index.html` をブラウザで開く）＋看板ラフ |
 | `~/Downloads/看板サンプル/` | **先方に送れる1ファイル版HTML**（画像埋め込み済み）＋A4チラシ見本PDF |
 
-### kato-flyer の構成
+### flyer-creator の構成
 
 ```
 run.sh            → http://127.0.0.1:8529（venvは初回自動作成）
@@ -266,10 +266,10 @@ site/data/counts.json 集計の実体。hit.php が .htaccess を置いて外か
 （スペースマーケットの予約メッセージには `?from=` なしの素のURLを貼っている）。
 
 集計を見る: `https://daikyocorp.co.jp/slowlife/stats.php?k=<キー>`
-（キーは `kato-flyer/.stats_key` の1行。**公開リポジトリなのでソースにも文書にも書かない**。
+（キーは `flyer-creator/.stats_key` の1行。**公開リポジトリなのでソースにも文書にも書かない**。
 他PCへはこのファイルを別途コピーする。無い場合は空になり、集計ページは誰も開けない）
 
-### チラシメーカー（app.py）との連携
+### チラシクリエーター（app.py）との連携
 QRの飛び先の既定を **`tracking.from_url("doc")`＝トップ + `?from=doc`** にしてある。
 サイドバーで手入力すれば上書きでき、既定に戻すURLもその場に出る。
 
