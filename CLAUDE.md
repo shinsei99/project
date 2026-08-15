@@ -97,6 +97,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ✅ | — |
 | 書類キャビネット スマホ用（撮影→Dropbox取込） | shorui-mobile | — | ー（Vercel・pass保護） | Vercel（shorui-mobile.vercel.app） |
 | マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | 開発中（完成まで127.0.0.1） | — |
+| AI業務マネージャー（Chatwork/LINE常駐AIエージェント） | chatwork-ai-manager | 8529(画面)/8530(LINE) | ✅（画面0.0.0.0） | LINE(ngrok) |
 
 ### ツール（13本）※社内LAN共有なし
 

@@ -1,6 +1,37 @@
 # 引き継ぎメモ（別PCで作業を続けるために）
 
-最終更新：2026-08-10
+最終更新：2026-08-16
+
+---
+
+## 2026-08-16 chatwork-ai-manager（Chatwork/LINE常駐AIエージェント）を追加・引き継ぎ整備 ★本セッション
+
+Chatwork/LINEから同じClaudeエージェントが、社内資料RAG・TODO/案件管理・定時進捗確認（13/18/翌10時）・
+Web検索/国交省APIを行う「AI社員」。worker/dashboard(8529)/line_webhook(8530)/ngrok の**4サービスをlaunchd常駐**。
+大京商事グループ＋オーナー個人チャットを監視。
+
+### 引き継ぎの考え方（コード=git / 機密=Dropbox個人）
+このアプリは **secrets・165MBのDB(ナレッジ/TODO/PII)・識別子入り内部docs** を持つため、公開gitには
+**コードだけ**を入れ、機密は **Dropbox-個人** で運ぶ（pokecard-dex と同じ流儀）。
+
+### 別PC（サブPC）でのセットアップ
+```
+1) cd ~ && git pull origin main                       # コード取得（chatwork-ai-manager/）
+2) メインPCで:  bash ~/chatwork-ai-manager/handoff_export.sh
+   → Dropbox-個人/chatwork-ai-manager-handoff/ に secret.tar が出来る（Dropbox同期を待つ）
+3) サブPCで:   cd ~/chatwork-ai-manager && bash handoff_import.sh   # tar展開(secrets/DB/docs/ngrok)
+4) /usr/bin/python3 -m pip install --user -r requirements.txt
+5) claude CLI にログイン済みであること（MAXプラン）
+6) bash install-launchd.sh                            # 4サービス常駐起動
+7) curl -s -o /dev/null -w '%{http_code}' http://localhost:8529/  → 200
+```
+
+### ⚠️ 重要な注意
+- **worker と ngrok は同時に1台のPCだけ**で動かす（2台同時＝Chatwork/LINE二重返信＋ngrok固定ドメイン取り合い）。
+  サブPCで動かす前にメインPCで `launchctl unload ~/Library/LaunchAgents/com.shinsei.chatwork-ai-manager*.plist`。
+- **port 8529 が flyer-creator と重複**。同一PCで両方動かすなら、どちらかのポートを変える。
+- 詳細な稼働状況・設計・エラー履歴は `chatwork-ai-manager/SESSION_LOG.md`・`README.md`（どちらもDropbox tarに同梱・git外）。
+- APIトークン類はローテート可（Chatwork/LINE/ngrokの各管理画面で再発行→secrets.toml差し替え）。
 
 ---
 
