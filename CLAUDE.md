@@ -61,10 +61,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全49本）※不動産28・ツール15・ゲーム6  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全48本）※不動産29・ツール13・ゲーム6  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（28本）
+### 不動産（29本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
@@ -96,8 +96,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 送付書メーカー | soufu-maker | 8525 | ✅ | — |
 | 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ✅ | — |
 | 書類キャビネット スマホ用（撮影→Dropbox取込） | shorui-mobile | — | ー（Vercel・pass保護） | Vercel（shorui-mobile.vercel.app） |
+| マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | 開発中（完成まで127.0.0.1） | — |
 
-### ツール（15本）※社内LAN共有なし
+### ツール（13本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
@@ -112,9 +113,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 買取DMジェネレーター | kaitori-dm-maker | 8526 | — |
 | PSA保有カード管理 | psa-collection | 8527 | — |
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
-| PDF書類オーガナイザー（スキャンPDFの分割・分類・リネーム） | pdf-organizer | ー（CLI） | — |
 | ポケモンカード図鑑（全31,520枚・画像100%収録） | pokecard-dex | 8531 | — |
-| マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | — |
 | チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
 
 ### ゲーム（6本）※社内LAN共有なし
@@ -159,7 +158,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Vaultをオーダー（提出）別に絞り込み＋鑑定番号ソート（2026-08-07）**: Vaultビューのサイドバーに「オーダー（提出）」selectboxを追加。各カードがどの提出オーダー由来かは `orders.json` の **`certOrders`（cert番号→オーダー情報）** で判定。**重要・再調査不要**: `orders.get` は **進行中(Processing)は `specReviewResults[]`（`certNo`）だが、完了・発送済(Completed/Shipped)は空 → 代わりに `psaCerts[]`（`certNumber`）にカード明細が入る**（`trackingNumber:"Shipped to Vault"`でVault確認可）。`harvest_orders.js` は全オーダーで `orders.get` を叩き両方から `certOrders` を構築（鑑定中タブ用 `cards` は従来どおり進行中のみ）。全オーダー処理で20秒超えるため `update_orders.sh` のポーリングは60秒。並べ替えに「鑑定番号が小さい/大きい順」を追加（`cert_num`＝Cert Numberの数値列。桁数差があるため文字列ソート不可）。
 - **CSVアップロードと同時に画像自動取得（2026-08-07）**: 「📥 データ更新」の「画像も自動取得」チェック（既定ON）で、差し替え後に不足cert分だけ `fetch_new_images.sh`（`harvest_collectors.js`→`import_from_web.py`）をSafari経由で実行。画像はCSVに含まれず `data/images/<cert>.jpg` の別キャッシュのため、CSV差し替え単体では新カードの画像は出ない。未ログイン時は更新のみ成功しフォールバック案内。
 
-### マルチプロダクション（agent-platform）補足 ※ツール・port 8532
+### マルチプロダクション（agent-platform）補足 ※不動産・port 8532・開発中
 
 - 「企画からパワポ・ナレーション音声・解説動画(mp4)・SNS告知文まで全部作って」という**1文の指示**を、**11部隊**（司令塔／リサーチャー／企画構成／画像生成／パワポ／音声／動画／高速チェッカー／SNS／法務／QA）が順に処理して成果物一式を出す。画面はStreamlit（**入力フォーム／実行状況（部隊ごとの進捗ボード＋日本語ログ）／成果物**の3タブ）、CLIは `main_orchestrator.py`。
 - **設計の芯＝縮退モード**: APIキーが1つも無くても全工程が完走する（雛形テキスト・Pillowの簡易画像・無音WAVで代替）。縮退した工程は画面とレポートで ⚠️ 表示。これが無いと1つのキー未設定でパイプライン全体が死んでデバッグ不能になる。
@@ -170,7 +169,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **動画の実測**: 2分13秒・1080pの書き出しにIntel Macで**約10分** → 既定を**720p＋`veryfast`＋マルチスレッド**に変更。書き出し途中のmp4は`moov atom not found`で再生できない（moviepyはヘッダを最後に書く）ため、**一時名で書いてrename**する実装にしてある。
 - **音が出ないときはまずMac本体のミュートを疑う**（`osascript -e 'get volume settings'`）。実際に`output muted:true`で「音が無い」と誤認した。
 - **ffmpeg未導入のMac**なので `imageio-ffmpeg` 同梱バイナリを `IMAGEIO_FFMPEG_EXE` に流して moviepy に使わせる。moviepy は v1/v2 で API名が違う（`set_audio`→`with_audio`）ため互換シムあり。
-- `.env` と `output/`（生成物）は**gitignore**。分類はツールなので `run.sh` は `127.0.0.1` バインド・launchd未登録。
+- `.env` と `output/`（生成物）は**gitignore**。
+- **分類は不動産（2026-08-16変更）。ただし開発中なので `run.sh` はまだ `127.0.0.1` バインド・launchd未登録。**
+  社内LAN共有は「不動産カテゴリの**完成済み**のみ」の決まりなので、完成時に `0.0.0.0` へ変えて
+  launchd に登録する（そのとき下の「バインド先のルール」の表も直すこと）。
 
 ### チラシクリエーター（flyer-creator）補足 ※ツール・port 8529
 
@@ -182,21 +184,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - gitに入れるのは**コードと文書だけ**。`.venv` / `data/`（賃貸資料74MB・型サンプル）/ `site/`（生成物）は除外。旧免許番号(1)第58258号が焼き込まれた `assets/spm_logo_white.png` も配らない（使うのは `spm_logo_white_name.png`）。
 - 物件サイトは **https://daikyocorp.co.jp/slowlife/** に公開済み（募集中4件＋賃貸中11件）。FTP接続情報は `theta-viewer/server/ftp-config.json`（gitignore）。
 
-### PDF書類オーガナイザー（pdf-organizer）補足 ※ツール・CLI・portなし
-
-- **クリアフォルダ1冊をまとめてスキャンした1つのPDF**を読み、中の書類を1件ずつに**分割**＋**分類**＋**リネーム**して `output_docs/<種類>/YYYY-MM-DD_種類_タイトル.pdf` に出力するCLI。`input_docs/` に放り込んで `python organize_docs.py`。**最初は必ず `--dry-run`**。
-- **shorui-cabinet との役割分担**: shorui-cabinet=**紙の原本**の所在を「棚1-14」粒度で管理 / pdf-organizer=**PDF化したデータ**を書類1件単位で整理。紙をPDF化しても原本は捨てられないので両方要る。
-- AI: 既定は**ローカルの `claude` CLI**（APIキー不要）。テキスト層あり→sonnet、スキャン画像→**opus**（画像経路でsonnetは固有名詞を推測置換する実測があるため）。`--backend api` で Anthropic API（`claude-opus-5`・プロンプトキャッシュ＋構造化出力）も選べる。**OpenAIは使っていない。**
-- **長いPDFはウィンドウ分割**（テキスト30ページ／画像8ページずつ）して判定し、`continues_from_previous` で書類がウィンドウを跨いだ場合に結合する。実測: 6ページを `--window 2`（3回に分割）にしても p1-3 の契約書は1件に正しく統合された。
-- **ページの取りこぼし防止**（`_fill_gaps`）: AIが範囲を飛ばす／重複させても、1〜N全ページが必ずどれか1件に1回だけ入るよう後処理で補正。抜けは直前の書類に吸収、先頭の抜けは「その他」で拾う。**出力からページが消えることはない。**
-- 和暦→西暦はプロンプトで指示＋コード側でも `_wareki_to_seireki` で保険（令和元年=2019、平成31年4月30日=2019-04-30）。日付不明は `0000-00-00`。同名は `_2` 連番で**上書きしない**。
-- `input_docs/` `output_docs/` `.state.json` は個人情報を含むため**gitignore**（ルート .gitignore は「`*` で全無視＋アプリごとに `!` で許可」方式なので、そちらにも許可行の追加が必要）。処理済みはSHA1で `.state.json` に記録し二度処理しない（`--force` で無視）。入力ファイルは削除も変更もしない。
-
 ### 書類キャビネット（shorui-cabinet）補足 ※不動産・port 8528・社内LAN共有化（2026-08-12）
 
 - **社内共有化**: `run.sh` を `0.0.0.0` バインドに変更しlaunchd常時起動（`192.168.1.105:8528`）。配布は他アプリと同じ作法で **Dropbox共有フォルダ**（`…/（★必読★）新共有フォルダ/社内ツール/`）に `書類キャビネット.url`（URL=http://192.168.1.105:8528）＋`icons/書類キャビネット.ico`、**Mac用**に `Desktop/社内ツール/書類キャビネット.app`（launcherは`open http://localhost:8528`・`AppIcon.icns`）。アイコン生成元は `shorui-cabinet/icon-src/`（PILで白いキャビネット×インディゴ、`.ico`/`.icns`両方）。
 - **⚠️ launchd常時起動だとDropbox取込フォルダ（`~/Library/CloudStorage/…/書類取込`）を読めない**（macOS TCC。CloudStorageは保護領域）。**Python本体にフルディスクアクセスを付与しても効かない**（TCCの“責任プロセス”がlaunchdの`ProgramArguments[0]`=`/bin/bash`側のため）。→ **`/bin/bash` にフルディスクアクセスを付与**すれば常時起動でも取込を読める（要手動GUI・1回）。未付与でも他機能（検索・手入力登録・保管場所）は動く。取込セクションはOSErrorをcatchして案内表示。ターミナル由来で起動した場合はTerminalがFDAを持つため読める（＝切り分けの目安）。
 - 個人情報（物件名・所在）を含み個人Dropboxも読むため、社内WiFi内のみ・認証なし公開である点に留意。
+
+#### 「📄 PDFを整理」タブ（旧 pdf-organizer を統合・2026-08-09）
+
+**クリアフォルダ1冊をまとめてスキャンした1つのPDF**を、書類1件ずつに**分割＋分類＋リネーム**する。
+実体は `pdf_split.py`＋`ai_reader.py`。**単体CLIの `pdf-organizer` は役目を終えたので使わない**
+（このリポジトリにも実体は無い）。判定結果はそのまま**中身の目録**になり、分割PDFは
+種類別フォルダ入りのZIPで取り出せる。
+
+- **役割分担**: 紙の原本の所在は「棚1-14」粒度で管理（本体機能） / こちらは**PDF化したデータ**を
+  書類1件単位で整理。紙をPDF化しても原本は捨てられないので両方要る
+- **AIはローカルの `claude` CLI**（APIキー不要）。テキスト層あり→**sonnet**、
+  スキャン画像→**opus**（`ai_reader.TEXT_MODEL` / `VISION_MODEL`）。
+  画像経路でsonnetは固有名詞を推測で置き換える実測があるため、ここは落とさないこと
+- **長いPDFはウィンドウ分割**して判定する（`TEXT_WINDOW=30` ページ／`VISION_WINDOW=8` ページ。
+  画像は1ページが高コストなので細かく刻む）。書類がウィンドウを跨いだ場合は
+  `continues_from_previous` で結合する
+- **ページの取りこぼし防止**（`_fill_gaps`）: AIが範囲を飛ばす／重複させても、
+  1〜N全ページが必ずどれか1件に1回だけ入るよう後処理で補正。**出力からページが消えることはない**
+- 和暦→西暦はプロンプトで指示（令和/平成/昭和 → `YYYY-MM-DD`）
 
 ### 不動産写真AI（photo-inpainter）補足 ※不動産・port 8506・完成（2026-08-10）
 
@@ -242,7 +253,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8527 | PSA保有カード管理（※ツール・localhost・社内共有なし／常時起動のみ。Desktop/社内ツールに.appショートカット有） | com.shinsei.psa-collection |
 | 8528 | 書類キャビネット（※不動産・社内LAN共有あり・0.0.0.0／要フルディスクアクセス for /bin/bash＝Dropbox取込読取） | com.shinsei.shorui-cabinet |
 | 8529 | チラシクリエーター（※ツール・127.0.0.1・launchd未登録） | （未登録） |
-| 8532 | マルチプロダクション（※ツール・127.0.0.1・launchd未登録） | （未登録） |
+| 8532 | マルチプロダクション（※不動産・開発中のため127.0.0.1・launchd未登録） | （未登録） |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
 
@@ -253,7 +264,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 分類 | バインド | 対象 |
 |---|---|---|
 | 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の18本＋8528 shorui-cabinet |
-| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection |
+| 不動産だが**開発中** | `--server.address 127.0.0.1` | 8532 agent-platform（完成したら0.0.0.0へ） |
+| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator |
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
 
