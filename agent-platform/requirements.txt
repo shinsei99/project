@@ -1,0 +1,26 @@
+# agent-platform — 依存ライブラリ
+# 導入: ./run.sh が .venv を作って自動でこれを入れる
+#      手動なら python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# --- 基盤 ---
+python-dotenv>=1.0.0        # .env 読み込み（無くても core/config.py の自前パーサで動く）
+requests>=2.31.0            # Stability / ElevenLabs / 画像DL の HTTP 呼び出し
+
+# --- UI（入力フォーム画面・処理ログ画面） ---
+streamlit>=1.36.0
+
+# --- LLM SDK（使うものだけ入っていればよい。未導入でも import 失敗を握って縮退する） ---
+anthropic>=0.40.0           # 司令塔・企画構成・法務（※claude CLI があればキー不要で代替可）
+openai>=1.50.0              # GPT-4o / DALL-E 3 / TTS / Groq(OpenAI互換エンドポイント)
+google-genai>=1.0.0         # Gemini（リサーチャー・長文＋画像生成）※旧 google-generativeai は提供終了
+
+# --- 成果物の生成 ---
+python-pptx>=0.6.23         # パワポビルダー（.pptx 組み立て）
+Pillow>=10.0.0              # 画像処理・プレースホルダ画像生成
+gTTS>=2.5.0                 # 音声合成のフォールバック（無料・キー不要）
+moviepy>=1.0.3              # 動画合成（v1/v2 両対応の互換シムあり）
+imageio-ffmpeg>=0.4.9       # ffmpeg 同梱バイナリ（システムに ffmpeg が無くても動かすため）
+numpy>=1.24                 # moviepy の依存（明示）
+
+# --- テスト ---
+pytest>=8.0.0

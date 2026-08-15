@@ -4,6 +4,8 @@
 # Explicitly track these paths
 !.gitignore
 !CLAUDE.md
+!TODO.md
+!SESSION_LOG.md
 !ios-build-guard.sh
 !handwriting-ocr/
 !handwriting-ocr/**
@@ -17,6 +19,15 @@
 !mom-counter/**
 !maisoku-converter/
 !maisoku-converter/**
+
+# ポケモンカード図鑑。**data/ は4.3GBあり個人情報も含むので絶対に追跡しない**
+# （カード画像31,520枚・DB 38MB。引き継ぎは Dropbox 経由。HANDOFF.md 参照）
+!pokecard-dex/
+!pokecard-dex/**
+pokecard-dex/data/
+pokecard-dex/.venv/
+pokecard-dex/__pycache__/
+pokecard-dex/pokemon_cards/
 !image-resizer/
 !image-resizer/**
 !madori-tracer/
@@ -219,3 +230,50 @@ shorui-mobile/.vercel/
 shorui-mobile/next-env.d.ts
 shorui-mobile/.env
 shorui-mobile/.env.local
+
+!agent-platform/
+!agent-platform/**
+# APIキー・生成物・依存は公開しない（このリポジトリは public）
+agent-platform/.env
+agent-platform/.venv/
+agent-platform/output/
+agent-platform/__pycache__/
+agent-platform/**/__pycache__/
+agent-platform/.pytest_cache/
+# ダウンロードした第三者の素材。**再配布は規約違反**（いらすとや・ソコスト等は再配布禁止）
+agent-platform/assets/*
+!agent-platform/assets/README.md
+!agent-platform/assets/SOURCES.md
+# 自動取得できるもの（Material Symbols=Apache-2.0 / Google Fonts=OFL）は持ち歩かない
+agent-platform/tools/assets/
+# 学習データ。成果物の中身（物件名など）が混ざるため公開リポジトリには出さない
+# 他PCへは Dropbox で渡す（README の引き継ぎ手順を参照）
+agent-platform/knowledge/
+# 発行者情報（会社名・連絡先・免許番号）
+agent-platform/config/
+
+# チラシクリエーター（旧 kato-flyer / 加東 貸家チラシメーカー）。**コードと文書だけ**を追跡する。
+# 素材・生成物は実物件の資料と個人情報を含むので絶対に入れない
+!flyer-creator/
+!flyer-creator/**
+flyer-creator/.venv/
+# data/ … 賃貸資料xlsから取り出した素材74MB・型サンプル61MB・編集内容・キャッシュ
+flyer-creator/data/
+# site/ … 生成した物件サイト。案件フォルダ由来の写真が混じる経路があるため出さない
+flyer-creator/site/
+# 集計ページの閲覧キー（stats.php?k=…）
+flyer-creator/.stats_key
+flyer-creator/__pycache__/
+flyer-creator/**/__pycache__/
+flyer-creator/.DS_Store
+flyer-creator/**/.DS_Store
+# ロゴは名前入りの白版だけ。spm_logo_white.png は旧免許番号(1)第58258号が焼き込まれており
+# 広告物に使えないため、そもそも配らない
+flyer-creator/assets/*
+!flyer-creator/assets/spm_logo_white_name.png
+# 型の見本画像・アイコンの生成キャッシュ（消せば次回作り直される）
+agent-platform/.cache/
+# moviepy が書き出し中に残す一時ファイル
+agent-platform/*TEMP_MPY_*
+agent-platform/.DS_Store
+agent-platform/**/.DS_Store
