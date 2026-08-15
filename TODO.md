@@ -12,4 +12,14 @@
 
 ## 横断作業（複数アプリにまたがるもの）
 
-（なし）
+- **CLAUDE.md のスリム化（メインPCで実施予定・2026-08-15決定）**
+  現状19,159字。うち**55%（約10,500字）がアプリ個別の補足**（psa-collection 3,539字／
+  agent-platform 2,064字／photo-inpainter 1,518字／pdf-organizer 1,128字 ほか）。
+  これを**各アプリの README.md へそのまま移し、CLAUDE.md には1行のポインタだけ残す**。
+  狙い: CLAUDE.md は全セッション・全ターンに乗る固定費のため、半分以下（約8,700字）にする。
+  **注意**: 移す前に `.gitignore` に許可行が要る。`photo-inpainter/` `pdf-organizer/` は
+  フォルダごと無視されており、README を作っても**他PCへ渡らない**（README自体もまだ無い）。
+  共通ルール（PDCA・バインド先・iOS再配信・ポート一覧・アプリ一覧）は**CLAUDE.mdに残す**。
+- **agent-platform をメインPCで動かすには別途ファイルが要る**（gitに入れていない）:
+  `config/`（会社名・免許番号などの発行者情報）、`knowledge/`（学習データ。物件名が混ざる）、
+  `.env`（`.env.example` をコピーしてGeminiキーを入れる）。Dropbox等で渡す。
