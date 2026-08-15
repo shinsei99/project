@@ -106,7 +106,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | デジタル書斎 | digital-shosai | 3001 | — |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
 | スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（配信済み・1.0.2審査中） |
-| 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages |
+| 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅ |
 | ママカウンター | mom-counter | — | GitHub Pages / App Store ✅ v1.0.1 |
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
 | フォトリメイク | photo-remake | — | iOS App Store配信済み ✅ |
