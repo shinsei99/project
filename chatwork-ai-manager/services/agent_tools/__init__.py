@@ -1,0 +1,116 @@
+"""共通Tool層。
+
+Claude（QA/自動解析/定時処理）が使う「安全なラッパー関数」を一元管理する。
+構造:  Claude → agent_tool.py(CLI) or 直接import → ここのTool関数 → 既存service → DB
+
+各Tool関数は JSON シリアライズ可能な dict/list を返す（agent_tool.py が JSON 出力する）。
+REGISTRY は「実装済みToolの唯一の真実」。System Prompt はこれから生成するので、
+存在しないToolをClaudeに説明することが構造的に起きない。
+"""
+from services.agent_tools import (
+    chatwork_tools,
+    knowledge_tools,
+    progress_tools,
+    project_tools,
+    reinfolib_tools,
+    task_tools,
+)
+
+# name -> {func, desc, usage}
+REGISTRY = {
+    # ---- Knowledge ----
+    "kb_search": {
+        "func": knowledge_tools.kb_search,
+        "desc": "社内資料（レントロール/管理物件台帳/全ファイル一覧/業務マニュアル/社内ツール等）を全文検索",
+        "usage": 'kb_search {"query":"メゾンドール都島 501 契約者","limit":12}',
+    },
+    # ---- Chatwork ----
+    "chatwork_search": {
+        "func": chatwork_tools.chatwork_search,
+        "desc": "過去のChatworkメッセージをキーワード検索（room_id省略で全ルーム）",
+        "usage": 'chatwork_search {"keyword":"見積","room_id":null,"limit":20}',
+    },
+    "chatwork_get_messages": {
+        "func": chatwork_tools.chatwork_get_messages,
+        "desc": "指定ルームの直近メッセージを取得",
+        "usage": 'chatwork_get_messages {"room_id":12345678,"limit":30}',
+    },
+    "chatwork_post_message": {
+        "func": chatwork_tools.chatwork_post_message,
+        "desc": "AI専用アカウントからChatworkへ投稿（post_modeにより自動送信/確認待ち。AI投稿と分かる接頭辞が付く）",
+        "usage": 'chatwork_post_message {"room_id":12345678,"body":"...","reason":"依頼","to_account_ids":"87654321"}',
+    },
+    # ---- TODO ----
+    "task_search": {
+        "func": task_tools.task_search,
+        "desc": "TODOを検索（keyword/assignee/status/room_idで絞り込み）。作成前の重複確認に使う",
+        "usage": 'task_search {"keyword":"資料確認","assignee":"田中","status":null}',
+    },
+    "task_create": {
+        "func": task_tools.task_create,
+        "desc": "TODOを作成。依頼者/担当者/期限/発生元メッセージを保存。同内容の未完了TODOがあれば重複作成しない",
+        "usage": 'task_create {"content":"○○資料を確認","assignee_name":"田中","requester":"鈴木","due_date":"2026-08-16","room_id":12345678,"source_message_id":"...","reason":"..."}',
+    },
+    "task_update": {
+        "func": task_tools.task_update,
+        "desc": "既存TODOを更新（期限変更・担当者変更・内容修正など）。新規作成ではない",
+        "usage": 'task_update {"task_id":12,"due_date":"2026-08-17","reason":"期限変更"}',
+    },
+    "task_complete": {
+        "func": task_tools.task_complete,
+        "desc": "TODOを完了にする。根拠メッセージを記録",
+        "usage": 'task_complete {"task_id":12,"note":"完了報告あり","evidence_message_id":"..."}',
+    },
+    "task_progress_update": {
+        "func": task_tools.task_progress_update,
+        "desc": "TODOの進捗/状態を更新（進行中/確認待ち/保留 等）",
+        "usage": 'task_progress_update {"task_id":12,"status":"進行中","note":"確認中","progress":50}',
+    },
+    # ---- Project ----
+    "project_search": {
+        "func": project_tools.project_search,
+        "desc": "案件を検索（物件名/顧客名）。関連TODOも返す",
+        "usage": 'project_search {"keyword":"メゾンドール都島"}',
+    },
+    "project_update": {
+        "func": project_tools.project_update,
+        "desc": "案件情報を更新（名前/顧客/状態）",
+        "usage": 'project_update {"project_id":3,"status":"完了","reason":"..."}',
+    },
+    # ---- Progress（定時処理向け・QAでも利用可） ----
+    "tasks_needing_attention": {
+        "func": progress_tools.tasks_needing_attention,
+        "desc": "確認/催促が必要なTODOを抽出（kind: due_soon/overdue/stale/carryover）",
+        "usage": 'tasks_needing_attention {"kind":"overdue"}',
+    },
+    # ---- 国交省API（公的な不動産データ） ----
+    "reinfolib_cities": {
+        "func": reinfolib_tools.reinfolib_cities,
+        "desc": "国交省: 都道府県の市区町村コード一覧（取引価格検索の前段）",
+        "usage": 'reinfolib_cities {"prefecture":"大阪府"}',
+    },
+    "reinfolib_transactions": {
+        "func": reinfolib_tools.reinfolib_transactions,
+        "desc": "国交省: 不動産取引価格情報を都道府県/市区町村・年で集計（相場の客観データ）",
+        "usage": 'reinfolib_transactions {"prefecture":"大阪府","city_code":"27122","year":2024}',
+    },
+}
+
+
+def call(name: str, args: dict):
+    if name not in REGISTRY:
+        return {"ok": False, "error": f"unknown tool: {name}"}
+    try:
+        return REGISTRY[name]["func"](**(args or {}))
+    except TypeError as e:
+        return {"ok": False, "error": f"引数エラー: {e}"}
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def catalog() -> str:
+    """System Prompt 用のTool一覧テキスト（実装と常に一致）。"""
+    lines = []
+    for name, meta in REGISTRY.items():
+        lines.append(f"- {name}: {meta['desc']}\n    例: python3 agent_tool.py {meta['usage']}")
+    return "\n".join(lines)

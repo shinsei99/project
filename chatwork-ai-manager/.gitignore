@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+data/
+logs/
+knowledge_files/
+.streamlit/secrets.toml
+# 識別子を含む内部ドキュメント（公開gitに出さない・Dropbox引き継ぎで運ぶ）
+CLAUDE.md
+TODO.md
+SESSION_LOG.md
+LINE_SETUP.md

@@ -1,0 +1,10 @@
+# AI業務マネージャー（chatwork-ai-manager）
+# HTTP は標準ライブラリ urllib を使うため requests 等は不要。
+# claude は CLI サブプロセス（Anthropic API キー不要）。
+streamlit>=1.40
+pandas>=2.0
+
+# ナレッジ取込（社内資料のテキスト抽出）に使用
+pymupdf>=1.24      # PDF テキスト抽出
+openpyxl>=3.1      # Excel 読み取り
+python-docx>=1.1   # Word 読み取り

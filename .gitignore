@@ -76,6 +76,15 @@ brain-dump/.vercel/
 pasha-calo/.vercel/
 pasha-calo/node_modules/
 pasha-calo/.next/
+!chatwork-ai-manager/
+!chatwork-ai-manager/**
+chatwork-ai-manager/.venv/
+chatwork-ai-manager/__pycache__/
+chatwork-ai-manager/**/__pycache__/
+chatwork-ai-manager/.streamlit/secrets.toml
+chatwork-ai-manager/data/
+chatwork-ai-manager/logs/
+chatwork-ai-manager/knowledge_files/
 !restoration-calculator/
 !restoration-calculator/**
 restoration-calculator/.venv/
