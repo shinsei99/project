@@ -114,6 +114,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
 | PDF書類オーガナイザー（スキャンPDFの分割・分類・リネーム） | pdf-organizer | ー（CLI） | — |
 | ポケモンカード図鑑（全31,520枚・画像100%収録） | pokecard-dex | 8531 | — |
+| マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | — |
 
 ### ゲーム（6本）※社内LAN共有なし
 
@@ -156,6 +157,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **鑑定中タブ（グレーディング申請中）**: `data/orders.json`（gitignore）を読み、進行中オーダーの**個別カードを画像・カード名・cert番号・現在工程つきで一覧**。取得は`./update_orders.sh`→`harvest_orders.js`をログイン済みSafariで実行。**psacard.comのtRPC API**を2段で叩く（画像取得のapp.collectors.comとは別サイト・入力は**base64**）: `orders.list`（申請一覧、status=Processing/Shipped/Completed）→ 進行中各件で`orders.get`（入力`{submissionNumber,orderNumber}`。返り`specReviewResults[]`=カード明細/`images{certID->[{imageSide:1表/2裏,thumbnail…}]}`/`orderProgressSteps[]`。現在工程=最初の未完了step）。画像は`d1htnxwo4o0jhw.cloudfront.net`（認証不要）。前提: Safari「開発>Apple EventsからのJavaScriptを許可」ON＋psacard.comログイン。
 - **Vaultをオーダー（提出）別に絞り込み＋鑑定番号ソート（2026-08-07）**: Vaultビューのサイドバーに「オーダー（提出）」selectboxを追加。各カードがどの提出オーダー由来かは `orders.json` の **`certOrders`（cert番号→オーダー情報）** で判定。**重要・再調査不要**: `orders.get` は **進行中(Processing)は `specReviewResults[]`（`certNo`）だが、完了・発送済(Completed/Shipped)は空 → 代わりに `psaCerts[]`（`certNumber`）にカード明細が入る**（`trackingNumber:"Shipped to Vault"`でVault確認可）。`harvest_orders.js` は全オーダーで `orders.get` を叩き両方から `certOrders` を構築（鑑定中タブ用 `cards` は従来どおり進行中のみ）。全オーダー処理で20秒超えるため `update_orders.sh` のポーリングは60秒。並べ替えに「鑑定番号が小さい/大きい順」を追加（`cert_num`＝Cert Numberの数値列。桁数差があるため文字列ソート不可）。
 - **CSVアップロードと同時に画像自動取得（2026-08-07）**: 「📥 データ更新」の「画像も自動取得」チェック（既定ON）で、差し替え後に不足cert分だけ `fetch_new_images.sh`（`harvest_collectors.js`→`import_from_web.py`）をSafari経由で実行。画像はCSVに含まれず `data/images/<cert>.jpg` の別キャッシュのため、CSV差し替え単体では新カードの画像は出ない。未ログイン時は更新のみ成功しフォールバック案内。
+
+### マルチプロダクション（agent-platform）補足 ※ツール・port 8532
+
+- 「企画からパワポ・ナレーション音声・解説動画(mp4)・SNS告知文まで全部作って」という**1文の指示**を、**11部隊**（司令塔／リサーチャー／企画構成／画像生成／パワポ／音声／動画／高速チェッカー／SNS／法務／QA）が順に処理して成果物一式を出す。画面はStreamlit（**入力フォーム／実行状況（部隊ごとの進捗ボード＋日本語ログ）／成果物**の3タブ）、CLIは `main_orchestrator.py`。
+- **設計の芯＝縮退モード**: APIキーが1つも無くても全工程が完走する（雛形テキスト・Pillowの簡易画像・無音WAVで代替）。縮退した工程は画面とレポートで ⚠️ 表示。これが無いと1つのキー未設定でパイプライン全体が死んでデバッグ不能になる。
+- **LLMは役割で抽象化**（`reasoning` / `longcontext` / `fast` / `light`）。`.env` の `AP_ROUTE_*` で `anthropic / claude_cli / openai / gemini / groq` を差し替え可能。**`claude` CLI がフォールバックに入っているのでANTHROPICキー無しでも司令塔・企画・法務が動く**。
+- **★費用方針: このアプリは「全部無料の範囲」で動かす（`AP_ALLOW_PAID=0` が既定）。** 有料機能は一切呼ばない。**AI画像生成（Gemini画像/DALL-E/Stability）もVeo（画像→動画）も無料枠が無い**（2026-08-14 確認）。代わりに ①実写真のアップロード ②**HTML+CSS→Playwrightで作図**（1枚2秒・無料・**日本語が崩れない**）③**ケンバーンズ**（ffmpegのズーム/パン・無料・写真の中身は変わらない）で作る。**Veoは実測で元の写真に無い建物を作った**ため、実在物件の広告には使用不可（8秒$0.80）。
+- **キー在庫の実測（2026-08-14）**: Gemini=**実キーあり**（`brain-dump/.env.local`・`pasha-calo/.env.local`・`madori-tracer/.secret_key` の3箇所。中身は同一・`AQ.`で始まる53文字。`.env`へコピー済み）、Anthropic=`madori-tracer/.env.local`のものは17文字のプレースホルダで**実キーではない**、OpenAI/Groq/ElevenLabs/Stability=**なし**。→ 文章系は全て実動、**画像もGeminiで実生成できる**、音声はgTTS。
+- **Gemini運用の要点（再調査不要）**: ①SDKは**新しい`google-genai`**（旧`google-generativeai`は提供終了）。②**`gemini-2.0-flash`は404で提供終了** → 既定は`gemini-3.5-flash`。③**Gemini 3.xは「思考」にも出力トークンを使う**ので、JSONを求めるときは`response_mime_type="application/json"`＋出力枠3倍（最低8000）にしないと本文が空/途中で切れる（実測: 失敗→14.5秒で成功）。④**タイムアウトはミリ秒**指定（`types.HttpOptions(timeout=…)`）。未指定だと5分以上ハングする。⑤画像は`gemini-3.1-flash-image`で**1枚60秒・約600KB**。
+- **動画の実測**: 2分13秒・1080pの書き出しにIntel Macで**約10分** → 既定を**720p＋`veryfast`＋マルチスレッド**に変更。書き出し途中のmp4は`moov atom not found`で再生できない（moviepyはヘッダを最後に書く）ため、**一時名で書いてrename**する実装にしてある。
+- **音が出ないときはまずMac本体のミュートを疑う**（`osascript -e 'get volume settings'`）。実際に`output muted:true`で「音が無い」と誤認した。
+- **ffmpeg未導入のMac**なので `imageio-ffmpeg` 同梱バイナリを `IMAGEIO_FFMPEG_EXE` に流して moviepy に使わせる。moviepy は v1/v2 で API名が違う（`set_audio`→`with_audio`）ため互換シムあり。
+- `.env` と `output/`（生成物）は**gitignore**。分類はツールなので `run.sh` は `127.0.0.1` バインド・launchd未登録。
 
 ### PDF書類オーガナイザー（pdf-organizer）補足 ※ツール・CLI・portなし
 
@@ -216,6 +230,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8526 | 買取DMジェネレーター（※ツール・localhost・社内共有なし／常時起動のみ） | com.shinsei.kaitori-dm-maker |
 | 8527 | PSA保有カード管理（※ツール・localhost・社内共有なし／常時起動のみ。Desktop/社内ツールに.appショートカット有） | com.shinsei.psa-collection |
 | 8528 | 書類キャビネット（※不動産・社内LAN共有あり・0.0.0.0／要フルディスクアクセス for /bin/bash＝Dropbox取込読取） | com.shinsei.shorui-cabinet |
+| 8532 | マルチプロダクション（※ツール・127.0.0.1・launchd未登録） | （未登録） |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
 

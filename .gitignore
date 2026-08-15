@@ -221,3 +221,30 @@ shorui-mobile/.vercel/
 shorui-mobile/next-env.d.ts
 shorui-mobile/.env
 shorui-mobile/.env.local
+
+!agent-platform/
+!agent-platform/**
+# APIキー・生成物・依存は公開しない（このリポジトリは public）
+agent-platform/.env
+agent-platform/.venv/
+agent-platform/output/
+agent-platform/__pycache__/
+agent-platform/**/__pycache__/
+agent-platform/.pytest_cache/
+# ダウンロードした第三者の素材。**再配布は規約違反**（いらすとや・ソコスト等は再配布禁止）
+agent-platform/assets/*
+!agent-platform/assets/README.md
+!agent-platform/assets/SOURCES.md
+# 自動取得できるもの（Material Symbols=Apache-2.0 / Google Fonts=OFL）は持ち歩かない
+agent-platform/tools/assets/
+# 学習データ。成果物の中身（物件名など）が混ざるため公開リポジトリには出さない
+# 他PCへは Dropbox で渡す（README の引き継ぎ手順を参照）
+agent-platform/knowledge/
+# 発行者情報（会社名・連絡先・免許番号）
+agent-platform/config/
+# 型の見本画像・アイコンの生成キャッシュ（消せば次回作り直される）
+agent-platform/.cache/
+# moviepy が書き出し中に残す一時ファイル
+agent-platform/*TEMP_MPY_*
+agent-platform/.DS_Store
+agent-platform/**/.DS_Store
