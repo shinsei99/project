@@ -24,7 +24,7 @@ Claude Code 型の**エージェント**（自分で複数ツールを反復実�
 3. DB初期化（自動・冪等）: 初回起動時に `db/migrate.py` が走る。
 
 ## 起動
-- 管理画面（Streamlit・port 8529）: `bash run.sh` → http://localhost:8529
+- 管理画面（Streamlit・port 8540）: `bash run.sh` → http://localhost:8540
 - 常時起動デーモン（監視・解析・定時処理）: `bash run_worker.sh`
 - **恒久化（launchd・24時間稼働・自動復旧）**: `bash install-launchd.sh`
   - 2サービス登録: `com.shinsei.chatwork-ai-manager`(dashboard) と `-worker`(daemon)。

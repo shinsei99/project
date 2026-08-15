@@ -42,5 +42,5 @@ register "com.shinsei.chatwork-ai-manager-ngrok"   "run_ngrok.sh"
 
 echo ""
 echo "確認: launchctl list | grep chatwork-ai-manager"
-echo "画面: http://localhost:8529 （社内LAN: http://192.168.1.105:8529）"
+echo "画面: http://localhost:8540 （社内LAN: http://192.168.1.105:8540）"
 echo "LINE: https://<ngrok_domain>/line/webhook"

@@ -11,4 +11,4 @@ if ! "$PY" -c "import streamlit, pandas" 2>/dev/null; then
   "$PY" -m pip install --user -q -r requirements.txt
 fi
 exec "$PY" -m streamlit run app.py \
-  --server.port 8529 --server.address 0.0.0.0 --server.headless true
+  --server.port 8540 --server.address 0.0.0.0 --server.headless true
