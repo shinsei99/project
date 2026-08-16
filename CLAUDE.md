@@ -61,7 +61,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全49本）※不動産30・ツール13・ゲーム6  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全50本）※不動産30・ツール14・ゲーム6  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
 ### 不動産（30本）
@@ -99,7 +99,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | 開発中（完成まで127.0.0.1） | — |
 | AI業務マネージャー（Chatwork/LINE常駐AIエージェント） | chatwork-ai-manager | 8540(画面)/8530(LINE) | ✅（画面0.0.0.0） | LINE(ngrok) |
 
-### ツール（13本）※社内LAN共有なし
+### ツール（14本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
@@ -116,6 +116,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
 | ポケモンカード図鑑（全31,520枚・画像100%収録） | pokecard-dex | 8531 | — |
 | チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
+| AIツールラボ（Claude Code主軸の比較メディア＋制作記録） | ai-tools-lab | 3004 | — |
 
 ### ゲーム（6本）※社内LAN共有なし
 
@@ -281,7 +282,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |---|---|---|
 | 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の18本＋8528 shorui-cabinet＋8540 chatwork-ai-manager |
 | 不動産だが**開発中** | `--server.address 127.0.0.1` | 8532 agent-platform（完成したら0.0.0.0へ） |
-| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator |
+| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 3004 ai-tools-lab（Next.js） |
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
 

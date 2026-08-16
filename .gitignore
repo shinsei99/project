@@ -277,3 +277,12 @@ agent-platform/.cache/
 agent-platform/*TEMP_MPY_*
 agent-platform/.DS_Store
 agent-platform/**/.DS_Store
+
+# AIツールラボ（ai-tools-lab）… コードとコンテンツだけ入れる
+!ai-tools-lab/
+!ai-tools-lab/**
+ai-tools-lab/node_modules/
+ai-tools-lab/.next/
+ai-tools-lab/out/
+ai-tools-lab/.env*
+!ai-tools-lab/.env.example
