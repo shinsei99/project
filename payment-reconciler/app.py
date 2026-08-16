@@ -12,6 +12,7 @@ from pathlib import Path
 import streamlit as st
 
 from match_payments import (
+    HAS_PYKAKASI,
     load_bank_data,
     load_name_mapping,
     save_name_mapping,
@@ -21,6 +22,10 @@ from match_payments import (
     NAME_MAPPING_FILE,
 )
 
+# 漢字→カナ変換が使えないと、突合の候補が減って**黙って一致率が下がる**。
+# 落ちないので気づけない。画面に出して分かるようにする。
+_PYKAKASI_WARNING = not HAS_PYKAKASI
+
 st.set_page_config(
     page_title="入金突合システム",
     page_icon="💴",
@@ -28,6 +33,13 @@ st.set_page_config(
 )
 
 st.title("💴 入金突合（消込）システム")
+
+if _PYKAKASI_WARNING:
+    st.warning(
+        "**pykakasi が入っていないため、漢字の契約者名をカナに変換できません。**\n\n"
+        "動作はしますが、突合の候補が減るぶん**一致率が下がります**（エラーにはなりません）。"
+        "`pip install -r requirements.txt` で導入してください。"
+    )
 st.caption("銀行入金データ × 入金一覧Excelを自動突合")
 
 # ─────────────────────────────────────────────────
