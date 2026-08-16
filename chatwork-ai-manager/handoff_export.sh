@@ -50,7 +50,7 @@ $(date '+%Y-%m-%d %H:%M')
   4) claude CLI にログイン済みであること（MAXプラン）
   5) ngrok: cp ngrok.yml へ or  ngrok config add-authtoken <token>
   6) 起動（常駐）: bash install-launchd.sh
-  7) 確認: curl -s -o /dev/null -w '%{http_code}' http://localhost:8529/  → 200
+  7) 確認: curl -s -o /dev/null -w '%{http_code}' http://localhost:8540/  → 200
 
 ⚠️ 重要（二重起動の禁止）
   worker と ngrok は「同時に1台のPCだけ」で動かすこと。

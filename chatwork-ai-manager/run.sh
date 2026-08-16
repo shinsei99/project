@@ -1,5 +1,5 @@
 #!/bin/bash
-# 管理画面（Streamlit）起動。port 8529 / 0.0.0.0（社内LAN・要パスワード認証）。
+# 管理画面（Streamlit）起動。port 8540 / 0.0.0.0（社内LAN・要パスワード認証）。
 #
 # claude を subprocess 呼び出しするため、venv Python ではなく /usr/bin/python3 を使う
 # （venv Python + launchd 常時起動 の組み合わせで claude が SIGSEGV(-11) で落ちるため。

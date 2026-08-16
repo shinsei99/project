@@ -11,6 +11,24 @@
 
 ---
 
+## 2026-08-16 — メインPC → サブPC の引き継ぎ受領（chatwork-ai-manager）
+
+### 完了したこと
+- サブPCで `git pull origin main`（5コミット）。メインPCで作られた **chatwork-ai-manager
+  （AI業務マネージャー・新規48本目→49本目）** 一式と flyer-creator の更新を取得
+- `chatwork-ai-manager/handoff_import.sh` で Dropbox-個人の機密tar(172MB)を展開
+  （secrets / DB / 内部docs / ngrok authtoken）。詳細はアプリ側 `SESSION_LOG.md` に記載
+- **常駐サービスはメインPCに置いたまま、サブPCは管理画面(8540)のみ起動**して疎通確認（HTTP 200）
+
+### 発生したエラーと解決策
+- なし
+
+### 次回への引き継ぎ事項・未解決の課題
+- **worker / LINE webhook / ngrok は「1台のPCでのみ」動かす決まり**（二重返信＋ngrok固定ドメインの
+  取り合いが起きる）。移す場合は先にメインPCで `launchctl unload …chatwork-ai-manager*.plist`
+- **DBは双方向マージできない**ので、常駐を移す直前に必ず export→import で最新へ揃える
+- CLAUDE.md のスリム化（横断作業）は**まだ未着手**。メインPCで実施予定のまま
+
 ## 2026-08-15（深夜〜08-16）— メインPCへの引き継ぎと、アプリ一覧の棚卸し
 
 ### 完了したこと

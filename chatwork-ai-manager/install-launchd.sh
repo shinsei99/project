@@ -1,6 +1,6 @@
 #!/bin/bash
 # chatwork-ai-manager を launchd に常時起動登録する（2サービス）。
-#   com.shinsei.chatwork-ai-manager         … 管理画面 Streamlit (run.sh, port 8529, 0.0.0.0)
+#   com.shinsei.chatwork-ai-manager         … 管理画面 Streamlit (run.sh, port 8540, 0.0.0.0)
 #   com.shinsei.chatwork-ai-manager-worker  … 常時起動デーモン (run_worker.sh)
 # 冪等: 何度実行してもOK（unload→load）。別PCでも $HOME 基準で動く。
 set -e
