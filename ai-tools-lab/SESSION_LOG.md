@@ -4,6 +4,37 @@
 
 ---
 
+## 2026-08-16（続き4）— 集客の実装・制作記録2本追加・メインPCへ引き継ぎ
+
+### 完了したこと
+- **Google Search Console**: プロパティ登録 → 所有権確認（HTMLタグ方式）→ sitemap送信。
+  ステータス「成功しました」/ 検出ページ数26。トークンは `src/app/layout.tsx` の
+  `verification.google`（**消すと所有権が外れる**）
+- **構造化データ（JSON-LD）**: Article / BreadcrumbList / WebSite
+- **RSS `/feed.xml`** と `<link rel=alternate>` による自動検出
+- **内部リンクの修復**（ここが最大の穴だった）
+  - 制作記録の詳細ページ同士が繋がっていなかった → 末尾に「ほかの制作記録」3件
+  - 記事内のツール名が**公式サイトへ直リンク**していて回遊が切れていた → `/tools/<slug>` へ
+- **Zenn / note のプロフィールを整備**（自己紹介＋サイトURL。noteはクリエイターページにリンク表示）
+- **制作記録を2本追加**（不動産）: `baikai-generator` / `ai-ticket-counter`。
+  それぞれ Zenn・note の原稿も作成（計4本）→ 本体は本番反映済み
+- **`HANDOFF.md` を作成**。以後の開発・公開は**メインPC**で行う
+
+### 発生したエラーと解決策
+- **`npx vercel --prod` の出力を `>/dev/null` に捨てて実行し、デプロイが走っていないのに
+  成功したと誤認した**（本番に新ページが出ず404のままだった）。
+  → **出力を見て `Aliased https://ai-tools-lab-psi.vercel.app` を目視確認する**
+- **theta-viewer の制作記録は書けなかった。** サブPCの `README.md` は Vite の雛形のままで、
+  `SESSION_LOG.md` も存在しない（gitにあるSESSION_LOGは5アプリぶんのみ）。
+  **メインPCに未コミットの記録がある可能性が高い**ので保留。憶測では書かない
+- note のプロフィールには**ウェブサイト専用の欄が無い**（ソーシャルリンクはX/Instagram等のみ）。
+  自己紹介文にURLを書くとリンクになる
+
+### 次回への引き継ぎ事項・未解決の課題
+- **`ai-tools-lab/HANDOFF.md` を参照。** 引き継ぎ手順はそこに集約した
+- 公開待ち: Zenn 5本 / note 5本（`drafts/PUBLISH.md` に日別の順番表あり）
+- theta-viewer の記録はメインPCで素材を確認してから
+
 ## 2026-08-16（続き3）— 在庫を揃える方針・集客基盤・Zennのレート制限
 
 ### 完了したこと

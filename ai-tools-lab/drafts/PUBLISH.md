@@ -87,6 +87,38 @@
 
 ---
 
+## 6本目：スキャンの向きで読み取り精度が変わる（baikai-generator）
+
+| 媒体 | 原稿 | URL |
+|---|---|---|
+| 本体 | （公開済み） | https://ai-tools-lab-psi.vercel.app/works/baikai-generator |
+| Zenn | `zenn/scanned-pdf-orientation.md` | ⬜ 公開後に記入（slug `scanned-pdf-orientation`） |
+| note | `note/upside-down.md` | ⬜ 公開後に記入 |
+
+---
+
+## 7本目：AIが聞き出して起票する受付（ai-ticket-counter）
+
+| 媒体 | 原稿 | URL |
+|---|---|---|
+| 本体 | （公開済み） | https://ai-tools-lab-psi.vercel.app/works/ai-ticket-counter |
+| Zenn | `zenn/ai-intake-hearing.md` | ⬜ 公開後に記入（slug `ai-intake-hearing`） |
+| note | `note/nanka-ugokanai.md` | ⬜ 公開後に記入 |
+
+---
+
+## 公開待ちの順番（Zennは1日2本まで）
+
+Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その日のうちに対応するnoteを出す。
+
+| 日 | Zenn | note |
+|---|---|---|
+| 8/17 19:56以降 | ai-agent-always-on / launchd-restart-loop | ai-always-on / silent-failure |
+| 翌日 | llm-pdf-split-gaps / scanned-pdf-orientation | scanned-pile / upside-down |
+| その翌日 | ai-intake-hearing | nanka-ugokanai |
+
+---
+
 ## 投稿のしかた
 
 ### Zenn — **GitHub連携済み（2026-08-16）。以後は push だけでよい**

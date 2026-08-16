@@ -10,7 +10,7 @@
 | pokecard-dex | 画像100%（31,520枚）。内訳に推定14枚・参考画像4枚・透かし2枚あり。次はそれらの実物差し替え | 2026-08-14 |
 | flyer-creator | チラシクリエーター。型10種はagent-platform共通（直すのはagent-platform/core）。下帯ロゴ＋メイン写真の切取位置(上下)スライダー追加。次は物件データの未決3点 | 2026-08-16 |
 | agent-platform | 講演スライドを .pptx で作り直し（4:3・型8種）＋フリー素材自動補充（Openverse）。11枚の通し実行は成功、**見栄えの目視確認が未了**。作り込みはいったん停止 | 2026-08-15 |
-| ai-tools-lab | AIツールラボ。Claude Code主軸の比較メディア＋制作記録。**Vercel公開済み**（ai-tools-lab-psi.vercel.app）。Stage1・2完了。**ZennはGitHub連携で2本公開済み**（articles/をpushで公開）。**Zenn2本・note2本とも公開済み**（相互リンク実装済み）。**Zenn/note各2本公開・残り3本ずつは原稿済み**。Zennは24時間の投稿上限に当たったため**明日 空コミットpush→Zenn3本→note3本**の順で出す（OGP/sitemapは導入済み） | 2026-08-16 |
+| ai-tools-lab | AIツールラボ。**メインPCへ引き継ぎ（2026-08-16）→ `ai-tools-lab/HANDOFF.md` を読む**。本体7本公開・Zenn/note各2本公開＋5本ずつ原稿済み。Zennは1日2本まで（8/17 19:56以降に再開）。Vercelは手動デプロイ `npx vercel --prod` | 2026-08-16 |
 | chatwork-ai-manager | Chatwork/LINE常駐AIエージェント（社内RAG・TODO/案件・Web/国交省API）。**常駐4サービスはメインPCで稼働中／サブPCは引き継ぎ受領済みで画面8540のみ起動**（worker・ngrokは1台のみ・同時起動禁止）。次はアプリ側TODO.mdを現状に更新 | 2026-08-16 |
 
 ## 横断作業（複数アプリにまたがるもの）
