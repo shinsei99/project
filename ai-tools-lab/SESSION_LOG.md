@@ -15,6 +15,12 @@
   `/works/[slug]` に「この記録から書いた記事」ブロックを表示。
   `photo-inpainter` / `agent-platform` の2件にZennのURLを記入
 - `drafts/PUBLISH.md` を更新（Zenn欄にURL記入、投稿手順を**GitHub連携前提**に書き換え）
+- **note の原稿2本を投稿できる状態まで仕上げた**（投稿自体はブラウザ操作なので未実施）
+  - 懸案だった「品質が低い原因を突き止めてほしい」の鍵カッコを**外して地の文にした**。
+    実際の文面が不明なまま引用の体裁で載せられないため。趣旨（改善ではなく原因究明を頼んだ）は保持
+  - 末尾の Zenn リンクを実URLへ差し替え。`ai-generated-building.md` には
+    制作記録（`/works/agent-platform`）への導線を追加
+  - `drafts/note/make_paste.py` を追加 → `drafts/note/paste/*.txt` を生成
 
 ### 発生したエラーと解決策
 - **ブラウザ拡張はこのセッションでも未接続**（`Browser extension is not connected`）。
@@ -25,13 +31,18 @@
   記事一覧が入っていないので、そちらを見ても分からない
 - `gh api /user/installations` は **403**（GitHub App 経由のトークンでないと一覧できない）。
   連携の有無を CLI から確認する用途には使えない
+- **note は Markdown が効かない**ので、Zennと同じ原稿をそのまま貼ると `##` や `**` が
+  文字として出る。さらに**貼り付けた改行がそのまま行送りになる**ため、原稿の折り返しのまま
+  貼るとスマホで不自然に改行される。→ 記法を落とし段落を1行に繋ぐ `make_paste.py` を用意した
+  （見出し・引用は画面側で指定する前提で、対象行の一覧をファイル先頭に付ける）
 
 ### 次回への引き継ぎ事項・未解決の課題
-- **note が未着手。** 原稿は `drafts/note/` に2本。アカウント作成と投稿はブラウザ操作なので
-  ご本人の手が要る。出したら `content/works/*.json` の `links` に note のURLを足す
-- `drafts/note/photo-inpainter.md` の **「品質が低い原因を突き止めてほしい」は再構成**であり
-  実際に打った文面ではない。投稿前に実文へ差し替えるか鍵カッコを外す（本人しか分からない）
-- 同ファイル末尾の Zenn リンク `(#)` を実URLへ差し替える
+- **note の投稿が残り。** 原稿と貼り付け用テキスト（`drafts/note/paste/*.txt`）は完成済み。
+  **アカウント作成と投稿はブラウザ操作で、AIは代行できない**（拡張が未接続で、
+  そもそもアカウント作成は代行しない領域）。手順は `drafts/PUBLISH.md` の note 節
+- note を出したら `content/works/*.json` の `links` に note のURLを足す（Zennと同じ形）
+- `drafts/note/photo-inpainter.md` の鍵カッコは外したが、**実際に打った文面を思い出したら
+  そちらへ差し替えてよい**（趣旨は変えないこと）
 - ツール4件（v0 / bolt / devin / windsurf）の `review` 未記入は**据え置き**（触ってから書く）
 
 ## 2026-08-16（続き）— Vercel公開・Zenn/note展開の準備

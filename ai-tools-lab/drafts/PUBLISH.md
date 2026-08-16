@@ -19,10 +19,11 @@
 | note | `note/photo-inpainter.md` | ⬜ 公開後にここへ記入 |
 
 **公開前に直すもの**
-- [ ] `note/photo-inpainter.md` … 「品質が低い原因を突き止めてほしい」の鍵カッコ内は
-      **再構成であり実際の文面ではない**。実際に打った指示に差し替えるか、鍵カッコを外す
-      （原稿内にHTMLコメントで警告あり）
-- [ ] `note/photo-inpainter.md` 末尾の Zenn リンク `(#)` を
+- [x] `note/photo-inpainter.md` の鍵カッコ問題 … **鍵カッコを外して地の文にした**（2026-08-16）。
+      実際の文面が分からない以上、引用の体裁で載せられないため。
+      「改善ではなく原因の特定を頼んだ」という趣旨だけを残してある。
+      **実際に打った文面を思い出したら、そちらへ差し替えてよい**（趣旨は変えないこと）
+- [x] `note/photo-inpainter.md` 末尾の Zenn リンクを
       https://zenn.dev/shinsei99/articles/photo-inpainter に差し替え
 - [x] `zenn/photo-inpainter.md` の frontmatter を `published: true` に（`articles/` へ複製済み）
 
@@ -38,6 +39,7 @@
 
 **公開前に直すもの**
 - [x] `zenn/gemini-api-traps.md` の frontmatter を `published: true` に（`articles/` へ複製済み）
+- [x] `note/ai-generated-building.md` の末尾に制作記録（`/works/agent-platform`）への導線を追加
 
 ---
 
@@ -59,15 +61,28 @@
 > 画面から出す場合（連携なし）は `drafts/zenn/paste/*.txt` を投稿画面に貼る。
 > frontmatter を投稿画面用の値に変換済み。
 
-### note
-1. https://note.com/ でアカウント作成
+### note — **貼り付け用のテキストを用意済み**
+
+**note は Markdown が効かない。** `##` も `**` もそのまま文字として出る。
+そこで原稿から記法を落としたものを `note/paste/*.txt` に用意してある。
+
+    python3 drafts/note/make_paste.py     # 原稿(.md)から paste/*.txt を作り直す
+
+1. https://note.com/ でアカウント作成（**ブラウザ操作。AIは代行できない**）
 2. 「投稿」→「テキスト」
-3. 原稿の見出し（`# 〜`）はnoteの見出し機能に置き換える。Markdownはそのままでは効かない
-4. 本文中のリンクはnoteのリンク機能で貼る
-5. 公開後、URLを上の表に記入
+3. `note/paste/<記事>.txt` の「▼ ここから下」以降を**全部**本文欄に貼る
+4. ファイル先頭に**見出しにする行・引用にする行の一覧**があるので、その行を選んで
+   note の「見出し」「引用」を押す（6箇所＋1箇所ほど）
+5. 末尾のURLは、直前の文字を選んで note のリンク機能で貼り直す（生URLのままでもよい）
+6. タイトルは同じくファイル先頭に書いてある
+7. 公開後、URLを上の表に記入し、`content/works/*.json` の `links` にも足す
 
 > **note は技術用語を落としきること。** 原稿はその前提で書いてあるが、
 > 追記するときも同じ基準を守る。
+
+> **改行に注意。** note は貼り付けた改行をそのまま行送りにする。原稿の折り返しのまま貼ると
+> スマホで変な位置に改行が入るので、`make_paste.py` が段落を1行に繋いである。
+> **原稿を直したら、貼る前に必ず作り直すこと。**
 
 ---
 
