@@ -4,9 +4,23 @@
   "visibility": "public",
   "category": "realestate",
   "summary": "物件写真から電線・電柱・通行人を消すローカル完結アプリ。開発が半年止まっていた原因が、アルゴリズムではなく依存関係の記述漏れだったという記録。",
-  "stack": ["Python", "Streamlit", "LaMa", "Segment Anything", "IOPaint", "PyTorch"],
+  "stack": [
+    "Python",
+    "Streamlit",
+    "LaMa",
+    "Segment Anything",
+    "IOPaint",
+    "PyTorch"
+  ],
   "year": 2026,
   "buildTime": "再開後2日で完成（停滞期間は約半年）",
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/photo-inpainter",
+      "note": "原因と直し方だけを短くまとめた版"
+    }
+  ],
   "prompts": [],
   "features": [
     "クリックした物体の輪郭を自動抽出して消す（AI選択モード）",

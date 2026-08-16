@@ -4,9 +4,24 @@
   "visibility": "public",
   "category": "realestate",
   "summary": "1文の指示から、企画・紙面・スライド・ナレーション音声・解説動画・SNS告知文まで一式を出すシステム。APIキーが1つも無くても完走する設計にしたのが要。",
-  "stack": ["Python", "Streamlit", "Gemini API", "Playwright", "moviepy", "ffmpeg", "gTTS"],
+  "stack": [
+    "Python",
+    "Streamlit",
+    "Gemini API",
+    "Playwright",
+    "moviepy",
+    "ffmpeg",
+    "gTTS"
+  ],
   "year": 2026,
   "buildTime": "通し実行が成功するまで数日",
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/gemini-api-traps",
+      "note": "Gemini API で踏んだ4つの罠"
+    }
+  ],
   "prompts": [],
   "features": [
     "1文の指示を11部隊（司令塔／リサーチ／企画／画像／スライド／音声／動画／チェック／SNS／法務／QA）が順に処理",

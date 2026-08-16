@@ -103,6 +103,23 @@ export const workSchema = z.object({
   /** 着手から動くまでの実測。「AIなら一瞬」と言わないための数字 */
   buildTime: z.string().min(1).optional(),
 
+  /**
+   * 外部媒体へ出した転載記事。**本体を先に公開してから**URLを入れる
+   * （後追いにすると検索で自分の転載に負ける）。
+   * ここに入れた分だけ詳細ページに相互リンクが出る。
+   */
+  links: z
+    .array(
+      z.object({
+        /** 媒体名。そのまま表示ラベルになる（「Zenn」「note」） */
+        label: z.string().min(1),
+        url: z.string().url(),
+        /** 「技術的な詳細」など、どちらを読めばいいかの一言 */
+        note: z.string().min(1).optional(),
+      }),
+    )
+    .default([]),
+
   /** ① 実際に投げたプロンプト。取り繕わず、そのままの文言を載せる価値がある */
   prompts: z
     .array(

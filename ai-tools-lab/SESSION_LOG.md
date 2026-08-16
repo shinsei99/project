@@ -4,6 +4,36 @@
 
 ---
 
+## 2026-08-16（続き2）— Zenn公開2本・本体からの相互リンク
+
+### 完了したこと
+- **Zenn の GitHub連携が開通**（`shinsei99/project`）。ご本人がブラウザで App を承認 →
+  こちらから空コミットを push（`34971fb`）→ **記事2本が公開**
+  - https://zenn.dev/shinsei99/articles/photo-inpainter
+  - https://zenn.dev/shinsei99/articles/gemini-api-traps
+- **相互リンクの器を実装**: `workSchema` に `links`（`label` / `url` / `note`）を追加し、
+  `/works/[slug]` に「この記録から書いた記事」ブロックを表示。
+  `photo-inpainter` / `agent-platform` の2件にZennのURLを記入
+- `drafts/PUBLISH.md` を更新（Zenn欄にURL記入、投稿手順を**GitHub連携前提**に書き換え）
+
+### 発生したエラーと解決策
+- **ブラウザ拡張はこのセッションでも未接続**（`Browser extension is not connected`）。
+  前回「セッション再起動で使える」と書いたが**再起動しても繋がらなかった**。
+  → **GitHub App の承認はご本人にブラウザで実施してもらった**。以後もこの承認系は代行できない
+- **Zenn の公開状況はブラウザ無しで確認できる**: `zenn.dev/api/articles?username=<id>&order=latest`
+  （公開JSON。0件なら連携が効いていない）。プロフィールHTMLの `__NEXT_DATA__` には
+  記事一覧が入っていないので、そちらを見ても分からない
+- `gh api /user/installations` は **403**（GitHub App 経由のトークンでないと一覧できない）。
+  連携の有無を CLI から確認する用途には使えない
+
+### 次回への引き継ぎ事項・未解決の課題
+- **note が未着手。** 原稿は `drafts/note/` に2本。アカウント作成と投稿はブラウザ操作なので
+  ご本人の手が要る。出したら `content/works/*.json` の `links` に note のURLを足す
+- `drafts/note/photo-inpainter.md` の **「品質が低い原因を突き止めてほしい」は再構成**であり
+  実際に打った文面ではない。投稿前に実文へ差し替えるか鍵カッコを外す（本人しか分からない）
+- 同ファイル末尾の Zenn リンク `(#)` を実URLへ差し替える
+- ツール4件（v0 / bolt / devin / windsurf）の `review` 未記入は**据え置き**（触ってから書く）
+
 ## 2026-08-16（続き）— Vercel公開・Zenn/note展開の準備
 
 ### 完了したこと

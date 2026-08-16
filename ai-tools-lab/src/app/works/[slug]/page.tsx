@@ -91,6 +91,27 @@ export default async function WorkPage({
           </p>
         ) : null}
 
+        {work.links.length > 0 ? (
+          <div className="mt-6 rounded-xl border border-border bg-surface p-4">
+            <p className="text-sm font-semibold">この記録から書いた記事</p>
+            <ul className="mt-2 space-y-1.5">
+              {work.links.map((l) => (
+                <li key={l.url} className="text-sm">
+                  <a
+                    href={l.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-semibold text-accent hover:underline"
+                  >
+                    {l.label} ↗
+                  </a>
+                  {l.note ? <span className="ml-2 text-muted">{l.note}</span> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
         <CoverArt seed={work.slug} label="制作記録" image={photo?.src} className="mt-8 !h-56" />
 
         {work.prompts.length > 0 ? (
