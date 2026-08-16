@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/Badge";
 import { getTool, getTools } from "@/lib/content/tools";
 import { getArticles } from "@/lib/content/articles";
 import { overallScore } from "@/lib/schema";
+import { JsonLd, breadcrumb } from "@/components/seo/JsonLd";
+import { SITE } from "@/lib/site";
 
 const SCORE_LABELS: Record<string, string> = {
   autonomy: "自律性（どこまで任せられるか）",
@@ -27,7 +29,13 @@ export async function generateMetadata({
   const { slug } = await params;
   const tool = getTool(slug);
   if (!tool) return {};
-  return { title: tool.name, description: tool.summary };
+  return {
+    title: tool.name,
+    description: tool.summary,
+    alternates: { canonical: `/tools/${tool.slug}` },
+    openGraph: { type: "article", title: tool.name, description: tool.summary, url: `/tools/${tool.slug}` },
+    twitter: { card: "summary_large_image", title: tool.name, description: tool.summary },
+  };
 }
 
 export default async function ToolPage({
@@ -44,6 +52,13 @@ export default async function ToolPage({
 
   return (
     <Container className="max-w-3xl py-12 sm:py-16">
+      <JsonLd
+        data={breadcrumb(SITE.url, [
+          { name: SITE.name, path: "/" },
+          { name: "ツール比較", path: "/tools" },
+          { name: tool.name, path: `/tools/${tool.slug}` },
+        ])}
+      />
       <Link href="/tools" className="text-sm text-muted hover:text-fg">
         ← ツール一覧
       </Link>

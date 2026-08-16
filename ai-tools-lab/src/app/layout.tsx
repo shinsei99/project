@@ -19,7 +19,13 @@ export const metadata: Metadata = {
     template: `%s | ${SITE.name}`,
   },
   description: SITE.description,
-  alternates: { canonical: "/" },
+  // Google Search Console の所有権確認。**確認後も消さないこと**（消すと所有権が外れる）
+  verification: { google: "kI8QDUk7Op-BmaU3y6VoUvdt18cVp0IxfDgViBzK7do" },
+  alternates: {
+    canonical: "/",
+    // RSSリーダーがページからフィードを見つけられるようにする
+    types: { "application/rss+xml": [{ url: "/feed.xml", title: SITE.name }] },
+  },
   openGraph: {
     type: "website",
     siteName: SITE.name,

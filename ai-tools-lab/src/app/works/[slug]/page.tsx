@@ -7,6 +7,8 @@ import { CoverArt } from "@/components/ui/CoverArt";
 import { getWork, getWorks } from "@/lib/content/works";
 import { getPhoto } from "@/lib/content/photos";
 import type { Work } from "@/lib/schema";
+import { JsonLd, breadcrumb } from "@/components/seo/JsonLd";
+import { SITE } from "@/lib/site";
 
 const PHASE_LABELS: Record<Work["prompts"][number]["phase"], string> = {
   kickoff: "着手",
@@ -78,9 +80,33 @@ export default async function WorkPage({
   if (!work) notFound();
 
   const photo = getPhoto(work.slug);
+  // 関連記録: 同カテゴリを優先し、足りなければ他カテゴリで埋める（詳細ページ同士を必ず繋ぐ）
+  const others = getWorks().filter((w) => w.slug !== work.slug);
+  const related = [
+    ...others.filter((w) => w.category === work.category),
+    ...others.filter((w) => w.category !== work.category),
+  ].slice(0, 3);
 
   return (
     <article className="py-12 sm:py-16">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: work.name,
+          description: work.summary,
+          mainEntityOfPage: `${SITE.url}/works/${work.slug}`,
+          publisher: { "@type": "Organization", name: SITE.name },
+          about: work.stack,
+        }}
+      />
+      <JsonLd
+        data={breadcrumb(SITE.url, [
+          { name: SITE.name, path: "/" },
+          { name: "制作記録", path: "/works" },
+          { name: work.name, path: `/works/${work.slug}` },
+        ])}
+      />
       <Container className="max-w-3xl">
         <Link href="/works" className="text-sm text-muted hover:text-fg">
           ← 制作記録の一覧
@@ -213,6 +239,25 @@ export default async function WorkPage({
               ))}
             </div>
           </Section>
+        ) : null}
+
+        {related.length > 0 ? (
+          <section className="mt-16 border-t border-border pt-8">
+            <h2 className="text-sm font-semibold text-muted">ほかの制作記録</h2>
+            <ul className="mt-4 grid gap-3 sm:grid-cols-3">
+              {related.map((w) => (
+                <li key={w.slug}>
+                  <Link
+                    href={`/works/${w.slug}`}
+                    className="block rounded-xl border border-border bg-surface p-4 transition-colors hover:border-accent/60"
+                  >
+                    <span className="block font-semibold leading-snug">{w.name}</span>
+                    <span className="mt-2 block text-sm text-muted">{w.summary.slice(0, 48)}…</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
       </Container>
     </article>

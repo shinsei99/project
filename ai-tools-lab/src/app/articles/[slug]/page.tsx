@@ -8,6 +8,8 @@ import { getArticle, getArticles } from "@/lib/content/articles";
 import { getTool } from "@/lib/content/tools";
 import { getPhoto } from "@/lib/content/photos";
 import { renderMarkdown } from "@/lib/markdown";
+import { JsonLd, breadcrumb } from "@/components/seo/JsonLd";
+import { SITE } from "@/lib/site";
 import type { Article } from "@/lib/schema";
 
 const KIND_LABELS: Record<Article["kind"], string> = {
@@ -31,7 +33,20 @@ export async function generateMetadata({
   const { slug } = await params;
   const article = getArticle(slug);
   if (!article) return {};
-  return { title: article.title, description: article.description };
+  return {
+    title: article.title,
+    description: article.description,
+    alternates: { canonical: `/articles/${article.slug}` },
+    openGraph: {
+      type: "article",
+      title: article.title,
+      description: article.description,
+      url: `/articles/${article.slug}`,
+      publishedTime: article.publishedAt,
+      modifiedTime: article.updatedAt ?? article.publishedAt,
+    },
+    twitter: { card: "summary_large_image", title: article.title, description: article.description },
+  };
 }
 
 export default async function ArticlePage({
@@ -50,6 +65,25 @@ export default async function ArticlePage({
 
   return (
     <article className="py-12 sm:py-16">
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "Article",
+          headline: article.title,
+          description: article.description,
+          datePublished: article.publishedAt,
+          dateModified: article.updatedAt ?? article.publishedAt,
+          mainEntityOfPage: `${SITE.url}/articles/${article.slug}`,
+          publisher: { "@type": "Organization", name: SITE.name },
+        }}
+      />
+      <JsonLd
+        data={breadcrumb(SITE.url, [
+          { name: SITE.name, path: "/" },
+          { name: "記事", path: "/articles" },
+          { name: article.title, path: `/articles/${article.slug}` },
+        ])}
+      />
       <Container className="max-w-3xl">
         <Link href="/articles" className="text-sm text-muted hover:text-fg">
           ← 記事一覧
@@ -87,14 +121,14 @@ export default async function ArticlePage({
             <ul className="mt-3 space-y-2">
               {relatedTools.map((t) => (
                 <li key={t.slug} className="text-sm">
-                  <a
-                    href={t.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  {/* 公式サイトではなく**自サイトの詳細ページ**へ送る。
+                      外部へ直接出すと回遊が切れる（公式へのリンクは詳細ページ側にある） */}
+                  <Link
+                    href={`/tools/${t.slug}`}
                     className="font-semibold underline-offset-4 hover:underline"
                   >
                     {t.name}
-                  </a>
+                  </Link>
                   <span className="text-muted"> — {t.summary}</span>
                 </li>
               ))}

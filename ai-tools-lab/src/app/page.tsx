@@ -15,6 +15,8 @@ import { WorkCard } from "@/components/works/WorkCard";
 import { getCategories, getTools } from "@/lib/content/tools";
 import { getFeaturedArticles } from "@/lib/content/articles";
 import { getFeaturedWorks, getWorkStats } from "@/lib/content/works";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { SITE } from "@/lib/site";
 
 export default function HomePage() {
   const tools = getTools();
@@ -25,6 +27,16 @@ export default function HomePage() {
 
   return (
     <>
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: SITE.name,
+          url: SITE.url,
+          description: SITE.description,
+          inLanguage: "ja",
+        }}
+      />
       <Hero
         stats={[
           { label: "比較しているツール", value: `${tools.length}` },
