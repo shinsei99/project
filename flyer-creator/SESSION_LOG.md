@@ -1,5 +1,26 @@
 # SESSION LOG — チラシクリエーター（flyer-creator）
 
+## 2026-08-16
+
+### 完了したこと
+- **メイン写真の切り取り位置（上下）スライダーを追加**。`app.py`「写真を選ぶ」に 0〜100 のスライダー
+  （0=上端／50=中央／100=下端）。`flyer.Flyer.main_focus_y` → `engine.build_content` の
+  `content["main_focus_y"]` → **`agent-platform/core/layouts.build()` の後処理**で主役写真の部品
+  （`full_photo`／`photo_hero`／`hero_pair`の左）に `focus_y` を注入 → CSS `object-position:center Y%`。
+  間取り図（contain）は切らないので対象外。**型は共通なのでマルチプロダクションにも同じ機能が入る。**
+- **`engine.py` の render を `tpl["build"]()` 直呼びから `layouts.build()` 経由に変更**。
+  でないと `build()` の後処理（focus_y 注入）がチラシ側の実描画に効かない（見本だけ効いて本番が効かない罠）。
+- 下帯: 電話・メールが長いと2行に折れる問題 → `white-space:nowrap` で1行固定（電話29pt）。ロゴ表示は前回反映済み。
+- CLAUDE.md の flyer-creator 補足に **「型・レイアウト・下帯・配色は agent-platform/core を直す＝両アプリ共通」** を明記。
+
+### 発生したエラーと解決策
+- **見本では切り取り位置が動くのに本番で動かない懸念** → 原因: `engine.py` の RUNNER が
+  `tpl["build"]()` を直呼びしており `layouts.build()` の後処理を通らなかった → `layouts.build()` 経由へ修正。
+- 型見本のサムネは `agent-platform/.cache/previews/*.png` にキャッシュされる → 下帯/型変更時は削除して再生成。
+
+### 次回への引き継ぎ事項・未解決の課題
+- ロゴ入り下帯・切り取り位置スライダーとも、実物件写真での最終見た目は本人未確認（見本＋当て紙では確認済み）。
+
 ## 2026-08-15（改称）
 
 ### 完了したこと

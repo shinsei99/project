@@ -179,6 +179,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - 旧称「加東 貸家チラシメーカー」・旧フォルダ名 `kato-flyer`（**2026-08-15 に改称**）。加東市秋津の貸家の客付け一式（A4チラシ＋物件サイト＋看板の元データ）。紙とWebが同じ `properties.py` を読むので、片方を直せば両方に反映される。
 - **紙面の型10種・配色9種は `../agent-platform`（マルチプロダクション）のエンジンを借りている。コピーしていない。** 呼び方は **agent-platform の `.venv/bin/python` を別プロセスで動かす**方式（`engine.py`）。理由: エンジンは `import tools` で16アイテム（numpy・moviepy・playwright…）を読むため、こちらの `.venv` に同じものを入れると両方が壊れやすい。**flyer-creator 側に playwright は不要**。agent-platform が無いPCでは「これまでの型」（PIL版）だけで動く。
+  - **★型・レイアウト・下帯・配色を直すときは `agent-platform/core/{layouts,blocks,previews}.py` を直す（flyer-creator 側に型の実体は無い）。1箇所直せばマルチプロダクションとチラシクリエーターの両方に反映される＝共通。** flyer-creator の `engine.py` はその型を呼ぶ橋渡し（`build_content` で `flyer.Flyer`→content へ翻訳・renderは `layouts.build()` 経由）だけ。型を直したら `agent-platform/.cache/previews/*.png` を消して見本を作り直す。逆に「チラシだけ変えたい」変更も、共通なのでマルチにも出る点に注意。
 - **配色の既定 橙 `#f07c1e` × 濃紺 `#1b2340` は変えないこと。** 現地写真に重ねて検証した色（木立にも壁にも負けず工事看板にも見えない）。エンジンの `sunset`（`#e2701a`）で代用しない。
 - **写真の安全装置3段構え（絶対に外さない）**: ①写真ソースは Dropbox 撮影フォルダのみ ②`DENY`（身分証・免許・申込・契約…）を候補から除外 ③人が選んだ写真がない物件は書き出さない。案件フォルダに**入居申込者の身分証と申込書が同居**しており、以前サイトの生成物に入りかけた（公開前に破棄・流出なし）。
 - 集計の閲覧キーは `.stats_key`（gitignore）。`stats.php?k=…` で見る。**ソースにも文書にも書かない**。

@@ -154,7 +154,7 @@ def _trim_margins(path: str) -> str:
 
 
 def photo_hero(path: str = "", caption: str = "", height: int = 90,
-               fit: str = "cover", **_) -> str:
+               fit: str = "cover", focus_y=None, **_) -> str:
     """主役の写真を1枚大きく。height はmm。
 
     fit="cover"（既定）… 枠いっぱいに広げ、はみ出した分は切る。写真向き。
@@ -171,8 +171,14 @@ def photo_hero(path: str = "", caption: str = "", height: int = 90,
         return ('<div class="hero contain">'
                 '<img src="%s" style="max-height:%dmm;height:auto">%s</div>'
                 % (_img_uri(_trim_margins(path)), int(height), cap))
-    return ('<div class="hero"><img src="%s" style="height:%dmm">%s</div>'
-            % (_img_uri(path), int(height), cap))
+    pos = ""
+    if focus_y is not None:
+        try:
+            pos = ";object-position:center %d%%" % max(0, min(100, int(focus_y)))
+        except (TypeError, ValueError):
+            pos = ""
+    return ('<div class="hero"><img src="%s" style="height:%dmm%s">%s</div>'
+            % (_img_uri(path), int(height), pos, cap))
 
 
 def photo_grid(paths: List[str] = (), cols: int = 3, captions: List[str] = (),
@@ -318,7 +324,7 @@ def photo_row(paths: List[str] = (), height: int = 46, gap: int = 2, **_) -> str
 def contact_bar(label: str = "ご見学・お問い合わせ", tel: str = "", company: str = "",
                 address: str = "", note: str = "", qr: str = "",
                 qr_label: str = "物件ページはこちら", license_no: str = "",
-                trade: str = "", **_) -> str:
+                trade: str = "", email: str = "", logo: str = "", **_) -> str:
     """最下部の連絡先帯。**電話番号を特大**にする。
 
     連絡先を小さく置くと問い合わせは来ない。紙面で2番目に大きい文字にする。
@@ -341,15 +347,30 @@ def contact_bar(label: str = "ご見学・お問い合わせ", tel: str = "", co
             box = ('<div class="cbar-qr"><img src="%s">'
                    '<div class="cbar-qr-cap">%s</div></div>'
                    % (_img_uri(path), _esc(qr_label)))
+    # これまでの型(pil)に合わせる：左寄せ縦積み（ラベル→特大電話→社名→住所+免許1行）、QRは右。
+    lic_parts = []
+    if trade:
+        lic_parts.append("取引態様：%s" % _esc(trade))
+    if license_no:
+        lic_parts.append("免許番号：%s" % _esc(license_no))
+    addr_line = "　".join(x for x in [_esc(address), "　／　".join(lic_parts)] if x)
+    email_html = '<div class="cbar-email">✉ %s</div>' % _esc(email) if email else ""
+    # ロゴ画像があれば社名テキストの代わりに先頭へ（ロゴに社名が入っているため二重にしない）
+    if logo and Path(logo).exists():
+        com_html = '<img class="cbar-logo" src="%s" alt="%s">' % (_img_uri(logo), _esc(company))
+    elif company:
+        com_html = '<div class="cbar-com">%s</div>' % _esc(company)
+    else:
+        com_html = ""
+    # 社名/ロゴ(先頭)→☎電話(大)→✉メール(大)→住所+免許。ラベル文字は出さない。
     return ('<div class="contactbar full-bleed"><div class="cbar-inner">'
             '<div class="cbar-main">'
-            '<div class="cbar-label">%s</div>'
+            '%s'
             '<div class="cbar-tel">☎ %s</div>'
-            '<div class="cbar-com">%s</div>'
-            '<div class="cbar-addr">%s</div>%s%s</div>%s</div></div>'
-            % (_esc(label), _esc(tel), _esc(company), _esc(address),
-               '<div class="cbar-note">%s</div>' % _esc(note) if note else "",
-               _license_line(license_no, trade), box))
+            '%s'
+            '<div class="cbar-addr">%s</div>'
+            '</div>%s</div></div>'
+            % (com_html, _esc(tel), email_html, addr_line, box))
 
 
 def _license_line(license_no: str = "", trade: str = "") -> str:
@@ -471,11 +492,16 @@ def columns(left: List[Any] = (), right: List[Any] = (), ratio: str = "1fr 1fr",
 
 
 def full_photo(path: str = "", title: str = "", sub: str = "", height: int = 120,
-               align: str = "bottom", **_) -> str:
+               align: str = "bottom", bleed: bool = False,
+               gap_top=None, gap_bottom=None, focus_y=None, **_) -> str:
     """**全面写真に文字を重ねる。** PRチラシで一番強い見せ方。
 
     小さい写真を等間隔に並べた紙面は、それだけで安っぽく見える。
     一番良い1枚を大きく敷いて、その上にキャッチを載せると印象が変わる。
+
+    bleed=True で紙面の左右いっぱい（バンドと同じ横幅）にする。
+    gap_top/gap_bottom(mm) で上下の余白を型ごとに調整（既定3mm）。
+    ※full-bleedは左右marginを使うので、ここでは上下marginだけをinline指定する。
     """
     if not path or not Path(path).exists():
         return catch(text=title, note=sub)
@@ -484,9 +510,19 @@ def full_photo(path: str = "", title: str = "", sub: str = "", height: int = 120
         overlay = ('<div class="fp-text"><div class="fp-title">%s</div>%s</div>'
                    % (_esc(title),
                       '<div class="fp-sub">%s</div>' % _esc(sub) if sub else ""))
-    return ('<div class="fullphoto fp-%s" style="height:%dmm">'
-            '<img src="%s">%s</div>'
-            % (_esc(align), int(height), _img_uri(path), overlay))
+    cls = "fullphoto fp-%s%s" % (_esc(align), " full-bleed" if bleed else "")
+    mt = "3mm" if gap_top is None else "%smm" % gap_top
+    mb = "3mm" if gap_bottom is None else "%smm" % gap_bottom
+    # focus_y(0-100): 写真のどこを見せるか（縦の切り取り位置）。0=上端 50=中央 100=下端
+    img_style = ""
+    if focus_y is not None:
+        try:
+            img_style = ' style="object-position:center %d%%"' % max(0, min(100, int(focus_y)))
+        except (TypeError, ValueError):
+            img_style = ""
+    return ('<div class="%s" style="height:%dmm;margin-top:%s;margin-bottom:%s">'
+            '<img src="%s"%s>%s</div>'
+            % (cls, int(height), mt, mb, _img_uri(path), img_style, overlay))
 
 
 def lifestyle(items: List[Any] = (), title: str = "", **_) -> str:
@@ -534,7 +570,7 @@ def cta(text: str = "", lines: List[str] = (), note: str = "", **_) -> str:
 
 def hero_pair(left_photo: str = "", right_photo: str = "", left_caption: str = "外観",
               right_caption: str = "間取り", height: int = 72,
-              left_fit: str = "cover", right_fit: str = "contain", **_) -> str:
+              left_fit: str = "cover", right_fit: str = "contain", focus_y=None, **_) -> str:
     """写真を2枚、左右に大きく並べる。**マイソクの核心**。
 
     不動産チラシは「外観」と「間取り図」を大きく並べるのが定番で、
@@ -542,9 +578,16 @@ def hero_pair(left_photo: str = "", right_photo: str = "", left_caption: str = "
     片方しか無ければ、あるほうを幅いっぱいに使う。
     """
     cells = []
+    # 左（主役写真）だけ切り取り位置を効かせる。右の間取り図は contain で切らない
+    lpos = ""
+    if focus_y is not None:
+        try:
+            lpos = ";object-position:center %d%%" % max(0, min(100, int(focus_y)))
+        except (TypeError, ValueError):
+            lpos = ""
     # 右は既定で間取り図。**図面は切らない**（切ると1階しか映らない等が起きる。実際に踏んだ）
-    for path, cap, fit in ((left_photo, left_caption, left_fit),
-                           (right_photo, right_caption, right_fit)):
+    for path, cap, fit, extra in ((left_photo, left_caption, left_fit, lpos),
+                                  (right_photo, right_caption, right_fit, "")):
         if path and Path(path).exists():
             if str(fit) == "contain":
                 cells.append('<div class="hp-cell contain">'
@@ -552,9 +595,9 @@ def hero_pair(left_photo: str = "", right_photo: str = "", left_caption: str = "
                              '<div class="cap">%s</div></div>'
                              % (_img_uri(_trim_margins(path)), int(height), _esc(cap)))
             else:
-                cells.append('<div class="hp-cell"><img src="%s" style="height:%dmm">'
+                cells.append('<div class="hp-cell"><img src="%s" style="height:%dmm%s">'
                              '<div class="cap">%s</div></div>'
-                             % (_img_uri(path), int(height), _esc(cap)))
+                             % (_img_uri(path), int(height), extra, _esc(cap)))
     if not cells:
         return ""
     if len(cells) == 1:
@@ -1025,23 +1068,24 @@ body{{margin:0;width:{w};height:{h};font-family:{font};color:#15181d;background:
 /* margin-top:auto を付けてはいけない。flexで残りの余白を食い尽くし、
    紙面が常に溢れ判定になり、しかも自分自身が紙面外へ押し出される（実際に消えた）。 */
 /* 帯で終わるなら下の余白は要らない。紙の端まで届かせる */
-.contactbar{{background:{ink};color:#fff;padding:6mm {padx} 7mm;
+.contactbar{{background:{ink};color:#fff;padding:4mm {padx} 4mm;
  margin-bottom:-{pady};margin-top:2mm}}
 /* QRは帯の右端。左の連絡先が主で、QRは従。QRが無いときは左が全幅を使う */
+/* QRは帯の右端。左が主（連絡先を縦積み）、QRは従。QRが無いときは左が全幅 */
 .cbar-inner{{display:flex;align-items:center;gap:6mm}}
 .cbar-main{{flex:1;min-width:0}}
 .cbar-qr{{flex:0 0 auto;text-align:center}}
-.cbar-qr img{{width:26mm;height:26mm;display:block;background:#fff;padding:1.5mm;
+.cbar-qr img{{width:35mm;height:35mm;display:block;background:#fff;padding:1.5mm;
  border-radius:1mm}}
-.cbar-qr-cap{{font-size:8.5pt;opacity:.9;margin-top:1.2mm;white-space:nowrap}}
-.cbar-label{{font-size:11pt;opacity:.85}}
-.cbar-tel{{font-size:34pt;font-weight:900;color:{onink};line-height:1.15;
- letter-spacing:.02em}}
-.cbar-com{{font-size:13pt;font-weight:900;margin-top:1.5mm}}
-.cbar-addr{{font-size:10pt;opacity:.85;margin-top:1mm}}
-.cbar-note{{font-size:9.5pt;opacity:.75;margin-top:1.5mm}}
-/* 免許番号は法定表示。小さくてよいが必ず載せる */
-.cbar-license{{font-size:9pt;opacity:.8;margin-top:1.8mm;letter-spacing:.02em}}
+.cbar-qr-cap{{font-size:8.5pt;opacity:.9;margin-top:1.2mm;white-space:nowrap;text-align:center}}
+/* これまでの型(pil)と同じ左寄せ縦積み：ラベル→特大電話(オレンジ)→社名→住所+免許 */
+/* 社名(大・左寄せ・先頭)→電話→メール→住所。ラベルは出さない */
+.cbar-com{{font-size:19pt;font-weight:900;letter-spacing:.01em}}
+.cbar-logo{{height:9mm;width:auto;max-width:100%;display:block;margin-bottom:.5mm}}
+.cbar-tel{{font-size:29pt;font-weight:900;color:{onink};line-height:1.1;
+ letter-spacing:.02em;margin-top:1.5mm;white-space:nowrap}}
+.cbar-email{{font-size:15pt;font-weight:700;margin-top:1mm;white-space:nowrap}}
+.cbar-addr{{font-size:9.5pt;opacity:.85;margin-top:1.5mm}}
 """
 
 PAPER_MM = {"A4": ("210mm", "297mm"), "A4_landscape": ("297mm", "210mm"),

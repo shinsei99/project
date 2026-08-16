@@ -24,3 +24,5 @@ numpy>=1.24                 # moviepy の依存（明示）
 
 # --- テスト ---
 pytest>=8.0.0
+playwright>=1.40         # チラシ/紙面のHTML→画像描画（別途 playwright install chromium）
+segno>=1.5             # QRコード生成（純Python・オフライン）

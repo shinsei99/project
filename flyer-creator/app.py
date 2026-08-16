@@ -90,8 +90,31 @@ def _label(t: dict) -> str:
 tpl = st.sidebar.selectbox("型", choices, format_func=_label,
                            help="▭ は A4横。型ごとに並べ方が決まっています")
 st.sidebar.caption(tpl["summary"])
+# 型がどんなものか分かるように、使用枚数・向いている物件を明示
+_need = int(tpl.get("photos_min") or 0)
+if _need:
+    st.sidebar.caption("📷 写真 **%d枚**から　／　向き %s" % (_need, tpl.get("best_for", "")))
 if not engine_ok:
     st.sidebar.warning("増やした型は使えません：%s" % engine_note)
+
+# 型プレビュー（マルチプロダクションが生成した見本画像を表示）
+def _show_type_card():
+    st.markdown("#### 選んだ型：%s" % tpl["name"])
+    cc = st.columns([1, 1.4])
+    prev = engine.preview_path(tpl["id"]) if tpl["id"] != "pil" else None
+    with cc[0]:
+        if prev:
+            st.image(prev, caption="型の見本（ダミー内容）", use_container_width=True)
+        else:
+            st.info("この型の見本画像はありません")
+    with cc[1]:
+        if _need:
+            st.markdown("**使う写真：%d枚から**" % _need)
+        if tpl.get("best_for"):
+            st.caption("向いている物件：%s" % tpl["best_for"])
+        st.markdown("**レイアウトの並び**")
+        for i, part in enumerate([s.strip() for s in tpl.get("shape", "").replace("｜", "／").split("／") if s.strip()], 1):
+            st.markdown("%d. %s" % (i, part))
 
 palette_id = engine.KATO_PALETTE["id"]
 if tpl["id"] != "pil":
@@ -159,12 +182,25 @@ with left:
                if tpl["id"] != "pil" else
                "1枚目に選んだものが大きく入り、次の3枚が下段に並びます。")
     names = [p.name for p in photos]
-    picked = st.multiselect("使う写真（選んだ順）", names, default=names[:want])
+    # どれがどの写真か分かるよう、全写真をサムネイルで一覧表示（名前つき）
+    with st.expander("📷 写真を一覧で見る（%d枚・どれがどれか確認）" % len(photos), expanded=False):
+        gcols = st.columns(4)
+        for i, p in enumerate(photos):
+            gcols[i % 4].image(thumb(str(p), p.stat().st_mtime, 200), caption=p.name)
+    picked = st.multiselect("使う写真（選んだ順・1枚目が主役）", names, default=names[:want])
     if picked:
+        st.caption("選んだ写真（この順で入ります）")
         cols = st.columns(min(4, len(picked)))
         for i, n in enumerate(picked[:4]):
             p = photos[names.index(n)]
-            cols[i].image(thumb(str(p), p.stat().st_mtime), caption=f"{i + 1}枚目")
+            cols[i].image(thumb(str(p), p.stat().st_mtime), caption=f"{i + 1}枚目：{n}")
+
+    # メイン写真は枠を埋めるように切り取る。どこを残すか（上下）を選べるようにする
+    main_focus_y = st.slider(
+        "メイン写真の切り取り位置（上下）", 0, 100, 50, 5,
+        help="小さいほど写真の上側、大きいほど下側を残します（0=上端／50=中央／100=下端）。",
+        disabled=not picked,
+    )
 
     madori_name = st.selectbox(
         "間取り図", ["（なし）"] + [p.name for p in madoris],
@@ -194,6 +230,7 @@ fl = flyer.Flyer(
     qr_url=qr_url,
     qr_label=qr_label,
     main_photo=str(sel[0]) if sel else None,
+    main_focus_y=main_focus_y,
     # 増やした型は6枚まで使う。これまでの型は先頭3枚しか見ないので渡しても影響しない
     sub_photos=[str(p) for p in sel[1:7]],
     madori=str(madoris[[p.name for p in madoris].index(madori_name)])
@@ -216,6 +253,8 @@ def _stem() -> str:
 
 
 with right:
+    _show_type_card()
+    st.divider()
     if tpl["id"] == "pil":
         st.subheader("仕上がり（A4・300dpi）")
         try:

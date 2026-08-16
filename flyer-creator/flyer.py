@@ -52,6 +52,8 @@ class Flyer:
     main_photo: str | None = None
     sub_photos: list[str] = field(default_factory=list)
     madori: str | None = None
+    # メイン写真の切り取り位置（縦）。0=上を見せる 50=中央 100=下を見せる
+    main_focus_y: int = 50
 
 
 def load_image(path: str) -> Image.Image:

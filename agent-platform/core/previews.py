@@ -38,8 +38,11 @@ SAMPLE = {
                   ["駐車場", "空きあり（月5,000円）"], ["ペット", "相談可"],
                   ["備考", "即入居可／更新料なし"]],
     "photos": {"hero": 1, "floorplan": 2, "rooms": [3, 4, 5, 6, 7, 8]},
-    "contact": {"label": "ご見学・お問い合わせ", "tel": "00-0000-0000",
-                "company": "〇〇不動産株式会社", "address": "〇〇県〇〇市〇〇町1-2-3"},
+    "contact": {"label": "内覧・お問い合わせ", "tel": "00-0000-0000",
+                "company": "〇〇不動産株式会社", "email": "info@example.co.jp", "address": "〇〇県〇〇市〇〇町1-2-3",
+                "license": "〇〇県知事（1）第00000号"},
+    # 見本でもQRを出して実物と揃える（右端にQR）
+    "qr": "https://example.com/", "qr_on": True, "qr_label": "写真と間取りをもっと見る",
 }
 
 SIGNAGE_SAMPLE = {

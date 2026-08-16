@@ -31,6 +31,14 @@ from pathlib import Path
 APP_DIR = Path(__file__).resolve().parent
 ENGINE_DIR = APP_DIR.parent / "agent-platform"
 ENGINE_PY = ENGINE_DIR / ".venv" / "bin" / "python"
+PREVIEW_DIR = ENGINE_DIR / ".cache" / "previews"
+
+
+def preview_path(template_id: str):
+    """型見本画像のパス（agent-platform側で生成済みのもの）。無ければNone。"""
+    f = PREVIEW_DIR / ("%s.png" % template_id)
+    return str(f) if f.exists() else None
+
 PHOTO_CACHE = APP_DIR / "data" / "render_cache"
 
 # 看板と同じ色。**現地写真に重ねて検証した結果の値**なので、
@@ -71,7 +79,8 @@ elif op == "render":
     if not picked:
         raise SystemExit("型が見つかりません: %s" % req["template"])
     tpl = picked[0]
-    layout = tpl["build"](req["content"])
+    # build() 経由で組む（メイン写真の切り取り位置 main_focus_y 等の後処理を効かせる）
+    layout = layouts.build(req["template"], req["content"])
     paper = layouts.PAPER_BY_ORIENTATION.get(tpl["orientation"], "A4")
     made = flyer_build.render(layout, req["photos"], req["out_dir"],
                               stem=req["stem"], paper=paper,
@@ -213,8 +222,9 @@ def build_content(fl, qr_on: bool = True) -> tuple[dict, list[str]]:
         "photos": {"hero": 1 if fl.main_photo else None,
                    "floorplan": plan_no,
                    "rooms": rooms},
+        "main_focus_y": getattr(fl, "main_focus_y", 50),
         "contact": {"label": "内覧・お問い合わせ", "tel": fl.tel,
-                    "company": COMPANY, "address": ADDRESS, "license": LICENSE},
+                    "company": COMPANY, "email": "info@shinsei-pm.co.jp", "logo": str(APP_DIR / "assets" / "spm_logo_white_name.png"), "address": ADDRESS, "license": LICENSE},
         "qr": fl.qr_url,
         "qr_on": bool(qr_on and fl.qr_url),
         "qr_label": fl.qr_label,

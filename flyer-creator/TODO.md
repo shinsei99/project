@@ -1,5 +1,11 @@
 # TODO — チラシクリエーター（flyer-creator）
 
+## 完了（2026-08-16）
+
+- [x] **メイン写真の切り取り位置（上下）スライダー**（`main_focus_y` → `object-position`。型共通・マルチにも反映）
+- [x] 下帯の電話/メール折返し防止（nowrap）
+- [x] 型が agent-platform 共通である旨を CLAUDE.md に明記（直すのは `agent-platform/core`）
+
 ## 完了（2026-08-15）
 
 **紙面の「型」を増やし、配色を切り替えられるようにする。**

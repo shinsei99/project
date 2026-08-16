@@ -76,6 +76,7 @@ def _contact(content) -> Optional[Dict[str, Any]]:
     return {"block": "contact_bar",
             "label": info.get("label") or "ご見学・お問い合わせ",
             "tel": info.get("tel", ""), "company": info.get("company", ""),
+            "email": info.get("email", ""), "logo": info.get("logo", ""),
             "address": info.get("address", ""),
             # QRは入れる指定があるときだけ。空ならブロック側が出さない
             "qr": content.get("qr", "") if content.get("qr_on") else "",
@@ -203,10 +204,14 @@ def _photo_first(content) -> List[Dict[str, Any]]:
     return _clean([
         {"block": "hero_band", "kicker": content.get("kicker", ""),
          "catch": content.get("catch", "")},
-        {"block": "full_photo", "photo": hero, "height": 112} if hero else None,
+        # メイン写真は横いっぱい(bleed)＋上帯に密着(gap_top=0)＋中帯との間は詰める(gap_bottom=1)
+        {"block": "full_photo", "photo": hero, "height": 122,
+         "bleed": True, "gap_top": 0, "gap_bottom": 1} if hero else None,
         {"block": "title_price_bar", "title": content.get("title", ""),
          "sub": content.get("sub", ""), "price": content.get("price", ""),
          "unit": content.get("unit", "円 / 月")},
+        # 中帯の下にも少し余白を入れて、サブ写真とくっつかないようにする
+        {"block": "spacer", "size": 2},
         {"block": "photo_row", "photos": rooms, "height": 55,
          "captions": _captions_for(content, rooms)} if rooms else None,
         _features(content),
@@ -233,7 +238,7 @@ def _catch_first(content) -> List[Dict[str, Any]]:
         {"block": "big_catch", "text": content.get("catch", ""),
          "sub": content.get("kicker", "")},
         {"block": "note", "text": content.get("lead", "")},
-        {"block": "photo_row", "photos": pair, "height": 66} if pair else None,
+        {"block": "photo_row", "photos": pair, "height": 74} if pair else None,
         {"block": "title_price_bar", "title": content.get("title", ""),
          "sub": content.get("sub", ""), "price": content.get("price", ""),
          "unit": content.get("unit", "円 / 月")},
@@ -261,7 +266,7 @@ def _gallery(content) -> List[Dict[str, Any]]:
     return _clean([
         {"block": "hero_band", "kicker": content.get("kicker", ""),
          "catch": content.get("catch", "")},
-        {"block": "full_photo", "photo": hero, "height": 82} if hero else None,
+        {"block": "full_photo", "photo": hero, "height": 90} if hero else None,
         {"block": "title_price_bar", "title": content.get("title", ""),
          "sub": content.get("sub", ""), "price": content.get("price", ""),
          "unit": content.get("unit", "円 / 月")},
@@ -287,7 +292,7 @@ def _split(content) -> List[Dict[str, Any]]:
     plan_no = _photo(content, "floorplan")
     rooms = _rooms(content, 3, exclude=(hero, plan_no))
     left = _clean([
-        {"block": "photo_hero", "photo": hero, "height": 74} if hero else None,
+        {"block": "photo_hero", "photo": hero, "height": 82} if hero else None,
     ] + [{"block": "photo_hero", "photo": n, "height": 52} for n in rooms])
     right = _clean([
         {"block": "catch", "text": content.get("catch", "")},
@@ -326,7 +331,7 @@ def _maisoku(content) -> List[Dict[str, Any]]:
         {"block": "hero_pair", "left_photo": hero, "right_photo": plan_no,
          "height": 92, "left_caption": "外観", "right_caption": "間取り"}
         if hero and plan_no else
-        ({"block": "full_photo", "photo": hero, "height": 88} if hero else None),
+        ({"block": "full_photo", "photo": hero, "height": 96} if hero else None),
         {"block": "title_price_bar", "title": content.get("title", ""),
          "sub": content.get("sub", ""), "price": content.get("price", ""),
          "unit": content.get("unit", "円 / 月")},
@@ -367,7 +372,7 @@ def _wide_photo_first(content) -> List[Dict[str, Any]]:
         {"block": "hero_band", "kicker": content.get("kicker", ""),
          "catch": content.get("title", "")},
         {"block": "columns", "ratio": "1.15fr 1fr",
-         "left": _clean([{"block": "photo_hero", "photo": hero, "height": 96}
+         "left": _clean([{"block": "photo_hero", "photo": hero, "height": 104}
                          if hero else None]),
          "right": right},
         {"block": "title_price_bar", "title": content.get("title", ""),
@@ -388,7 +393,7 @@ def _wide_split(content) -> List[Dict[str, Any]]:
     hero = _photo(content, "hero", 1)
     plan_no = _photo(content, "floorplan")
     rooms = _rooms(content, 2, exclude=(hero, plan_no))
-    left = _clean([{"block": "photo_hero", "photo": hero, "height": 88} if hero else None,
+    left = _clean([{"block": "photo_hero", "photo": hero, "height": 96} if hero else None,
                    {"block": "photo_grid", "photos": rooms, "cols": 2, "height": 46}
                    if rooms else None])
     right = _clean([
@@ -478,7 +483,7 @@ def _wide_maisoku(content) -> List[Dict[str, Any]]:
     plan_no = _photo(content, "floorplan")
     rooms = _rooms(content, 3, exclude=(hero, plan_no))
     spec = _spec(content)
-    left = _clean([{"block": "photo_hero", "photo": hero, "height": 76,
+    left = _clean([{"block": "photo_hero", "photo": hero, "height": 84,
                     "caption": "外観"} if hero else None,
                    {"block": "photo_grid", "photos": rooms, "cols": 3, "height": 32}
                    if rooms else None])
@@ -555,8 +560,22 @@ def build(template_id: str, content: Dict[str, Any]) -> List[Dict[str, Any]]:
     型が見つからないときは黙って「写真主役」にする。
     紙面が1枚も出ないより、既定の型で出したほうがいい。
     """
+    content = content or {}
     item = get(template_id) or get("photo_first")
-    return item["build"](content or {})
+    layout = item["build"](content)
+    # メイン写真の切り取り位置（縦）。指定があれば、主役写真を出す部品に流す
+    focus_y = content.get("main_focus_y")
+    if focus_y is not None:
+        hero = _photo(content, "hero", 1)
+        for blk in layout:
+            if not isinstance(blk, dict):
+                continue
+            name = blk.get("block")
+            if name in ("full_photo", "photo_hero") and blk.get("photo") == hero:
+                blk.setdefault("focus_y", focus_y)
+            elif name == "hero_pair" and blk.get("left_photo") == hero:
+                blk.setdefault("focus_y", focus_y)
+    return layout
 
 
 def choose(genre: str, photo_count: int, orientation: str = "portrait") -> str:
