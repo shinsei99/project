@@ -3,3 +3,8 @@ python-docx
 pandas
 xlrd
 openpyxl
+
+# 謄本PDFの読み取りは baikai-generator/services/registry_parser.py を借りている。
+# **借りた側の依存もここに書かないと、その機能だけ動かない**（画面にはエラーが出る）。
+pdfplumber
+pymupdf
