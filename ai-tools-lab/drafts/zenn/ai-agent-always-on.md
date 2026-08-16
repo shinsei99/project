@@ -1,6 +1,6 @@
 ---
 title: "AIエージェントを24時間常駐させて踏んだ4つ（SIGSEGV・二重投稿・日本語検索・権限）"
-emoji: "🛎️"
+emoji: "🔔"
 type: "tech"
 topics: ["python", "sqlite", "macos", "生成ai", "claudecode"]
 published: true

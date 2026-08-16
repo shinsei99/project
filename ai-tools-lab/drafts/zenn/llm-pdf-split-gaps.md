@@ -1,6 +1,6 @@
 ---
 title: "LLMに長いPDFを書類ごとに分割させると、出力からページが消える"
-emoji: "✂️"
+emoji: "📄"
 type: "tech"
 topics: ["python", "生成ai", "pdf", "ocr", "claudecode"]
 published: true
