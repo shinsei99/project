@@ -12,12 +12,11 @@
 2. ~~Google Search Console に新URLを登録~~ ✅ **完了（8/17 07:53）**
    所有権は**自動確認**で通り、`sitemap.xml` 送信 →「成功しました」/ **28件検出**。
    旧プロパティ `ai-tools-lab-psi` は**残す**判断（URLが404なので害なし）
-3. **🔴 19:56 以降に `git push`（未実施）** … 直下 `articles/` の Zenn 未公開3本が
-   投稿上限で弾かれるため、それより前に push しない。
+3. **🔴 19:56 以降に `git push`（未実施・これだけ残っている）** … 直下 `articles/` の
+   Zenn 未公開3本が投稿上限で弾かれるため、それより前に push しない。
    push すると同時に**公開済みZenn2本のリンクが新URLに直る**
-4. **🔴 note 公開済み2本の404リンクを修正（未実施・ブラウザ・本人）**
-   - https://note.com/shinsei99/n/nad3f0dce2889
-   - https://note.com/shinsei99/n/n0388b9c81b5f
+4. ~~note 公開済み2本の404リンクを修正~~ ✅ **完了（8/17 08:2x・Chromeで代行）**
+   本文2本に加え、**noteプロフィールの自己紹介欄**（全記事下部に出る）も新URL＋新サイト名に
 5. 以降は `drafts/PUBLISH.md` の順番表どおり、Zenn→note を1日2本ずつ
 
 **19:56 まで待つ間にできること**: Stage 2 のページ（`/tools` `/articles` `/works` `/history`）。
@@ -43,8 +42,9 @@ Search Console は新URLで登録・sitemap送信済み。
 - [x] Vercel プロジェクト rename → `npx vercel --prod` → 全ページ200を確認
 - [x] **旧URLは削除した**（`ai-tools-lab-psi` / `ai-tools-lab-brain-dump` の2エイリアス）。
       アクセスがまだ無く、URLが2つ並存するほうがややこしいため。リンクは貼り直す方針
-- [ ] **🔴 公開済み4本のリンクが 404 のまま。貼り直す**
-      Zenn2本 = 19:56以降の push で直る（原稿は新URL済み）／**note2本はブラウザ・本人**
+- [~] **公開済み4本のリンクの貼り直し**
+      note2本 ✅完了（8/17・プロフィール欄も直した）／
+      **🔴 Zenn2本は 19:56 以降の push でまとめて直る**（原稿は新URL済み）
 - [x] Google Search Console に新URLを登録（8/17 07:53・自動確認／sitemap 28件送信済み）。
       旧プロパティは**残す**（URLが404なので害なし）
 
