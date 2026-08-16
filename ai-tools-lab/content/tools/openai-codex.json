@@ -1,0 +1,34 @@
+{
+  "slug": "openai-codex",
+  "name": "OpenAI Codex",
+  "vendor": "OpenAI",
+  "category": "agent",
+  "summary": "OpenAI のコーディングエージェント。CLI とクラウド実行を持ち、タスクを投げて結果を受け取る使い方に寄っている。",
+  "pricing": {
+    "model": "subscription",
+    "label": "ChatGPT 有料プランに同梱 / API は従量",
+    "freeTier": false
+  },
+  "audiences": ["developer", "team"],
+  "scores": {
+    "autonomy": 4.5,
+    "codeQuality": 4,
+    "costEfficiency": 3.5,
+    "learningCurve": 3.5,
+    "japanese": 4
+  },
+  "strengths": [
+    "クラウド側で並列にタスクを走らせられるため、待ち時間を圧縮しやすい",
+    "既存の ChatGPT 契約の延長で始められる"
+  ],
+  "weaknesses": [
+    "ローカル環境の細かい事情（社内フォルダ・権限）に踏み込む作業は不得手",
+    "従量課金と併用すると費用が読みにくい"
+  ],
+  "url": "https://openai.com/codex",
+  "featured": false,
+  "review": {
+    "basis": "独立した機能追加のタスクで比較。指示が明確なタスクの並列処理は速い一方、環境依存の調査は手戻りが出た。",
+    "updatedAt": "2026-08-16"
+  }
+}

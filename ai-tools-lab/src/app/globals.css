@@ -1,0 +1,114 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+/*
+ * デザイントークン。色はここ以外に直書きしない。
+ * ライトを既定にし、ダークは prefers-color-scheme で上書きする。
+ */
+@theme {
+  --color-bg: oklch(99% 0.004 260);
+  --color-surface: oklch(100% 0 0);
+  --color-surface-2: oklch(97% 0.006 260);
+  --color-border: oklch(91% 0.008 260);
+  --color-fg: oklch(22% 0.02 265);
+  --color-muted: oklch(52% 0.018 265);
+  --color-accent: oklch(58% 0.18 258);
+  --color-accent-fg: oklch(99% 0 0);
+  --color-accent-soft: oklch(95% 0.03 258);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
+
+  --radius-card: 0.875rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-bg: oklch(17% 0.015 265);
+    --color-surface: oklch(21% 0.017 265);
+    --color-surface-2: oklch(25% 0.018 265);
+    --color-border: oklch(31% 0.02 265);
+    --color-fg: oklch(96% 0.005 260);
+    --color-muted: oklch(72% 0.015 265);
+    --color-accent: oklch(72% 0.15 258);
+    --color-accent-fg: oklch(18% 0.02 265);
+    --color-accent-soft: oklch(28% 0.05 258);
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  /* 日本語の可読性。行間は広めに取る */
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 見出しは行間を詰める（本文と同じ 1.75 だと間延びする） */
+h1, h2, h3 {
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+/* 横に長い表は、ページ本体ではなく表自身をスクロールさせる */
+.table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 記事本文（.prose）の調整。日本語向けに行間と余白を広めに取る */
+.prose {
+  --tw-prose-body: var(--color-fg);
+  --tw-prose-headings: var(--color-fg);
+  --tw-prose-bold: var(--color-fg);
+  --tw-prose-links: var(--color-accent);
+  --tw-prose-quotes: var(--color-muted);
+  --tw-prose-quote-borders: var(--color-accent);
+  --tw-prose-code: var(--color-fg);
+  --tw-prose-th-borders: var(--color-border);
+  --tw-prose-td-borders: var(--color-border);
+  --tw-prose-hr: var(--color-border);
+  line-height: 1.9;
+}
+
+.prose :where(h2) {
+  margin-top: 2.5em;
+  padding-top: 1.2em;
+  border-top: 1px solid var(--color-border);
+}
+
+.prose :where(code):not(:where(pre code)) {
+  background: var(--color-surface-2);
+  padding: 0.15em 0.4em;
+  border-radius: 0.3em;
+  font-size: 0.9em;
+}
+.prose :where(code):not(:where(pre code))::before,
+.prose :where(code):not(:where(pre code))::after {
+  content: "";
+}
+
+.prose :where(pre) {
+  background: #12151c;
+  color: #e6e8ee;
+  border: 1px solid var(--color-border);
+}
+
+/* 表は横に長くなりがち。ページ本体ではなく表自身をスクロールさせる */
+.prose :where(table) {
+  display: block;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.prose :where(blockquote) {
+  background: var(--color-surface-2);
+  padding: 0.8em 1.2em;
+  border-radius: 0 0.5rem 0.5rem 0;
+  font-style: normal;
+}

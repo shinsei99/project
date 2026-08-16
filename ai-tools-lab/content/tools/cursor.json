@@ -1,0 +1,34 @@
+{
+  "slug": "cursor",
+  "name": "Cursor",
+  "vendor": "Anysphere",
+  "category": "assistant",
+  "summary": "AI前提で作り直されたエディタ。補完・チャット・エージェント実行を1つの画面に集約している。",
+  "pricing": {
+    "model": "freemium",
+    "label": "無料あり / Pro $20/月〜",
+    "freeTier": true
+  },
+  "audiences": ["developer", "beginner"],
+  "scores": {
+    "autonomy": 4,
+    "codeQuality": 4,
+    "costEfficiency": 4,
+    "learningCurve": 4.5,
+    "japanese": 4
+  },
+  "strengths": [
+    "エディタなので、AIに任せる範囲と自分で書く範囲を細かく切り替えられる",
+    "差分を見ながら受け入れるUIが分かりやすく、初学者でも事故りにくい"
+  ],
+  "weaknesses": [
+    "長時間の自律作業はターミナル型のエージェントに分がある",
+    "エディタを乗り換える前提のため、既存の環境がある人ほど移行コストが出る"
+  ],
+  "url": "https://cursor.com",
+  "featured": true,
+  "review": {
+    "basis": "小〜中規模の画面実装で試用。差分レビューの体験は良いが、複数ファイルにまたがる長い作業では人の介入回数が増えた。",
+    "updatedAt": "2026-08-16"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "slug": "swim-tracker",
+  "name": "個人アプリをApp Storeへ出すまでの一式",
+  "visibility": "internal",
+  "category": "tool",
+  "summary": "個人の記録アプリをWebとApp Storeの両方で配信するまでの記録。",
+  "stack": ["React", "Capacitor"],
+  "year": 2026,
+  "prompts": [],
+  "features": [],
+  "process": [],
+  "improvements": [],
+  "featured": false
+}

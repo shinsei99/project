@@ -1,0 +1,30 @@
+{
+  "slug": "v0",
+  "name": "v0",
+  "vendor": "Vercel",
+  "category": "build",
+  "summary": "指示から React / Tailwind の画面を生成する。デザインの叩き台を作る速度が突出している。",
+  "pricing": {
+    "model": "freemium",
+    "label": "無料あり / $20/月〜",
+    "freeTier": true
+  },
+  "audiences": ["beginner", "sidejob", "developer"],
+  "scores": {
+    "autonomy": 3,
+    "codeQuality": 3.5,
+    "costEfficiency": 4,
+    "learningCurve": 5,
+    "japanese": 4
+  },
+  "strengths": [
+    "画面の叩き台が数分で出るので、要件の議論が具体物ベースになる",
+    "生成物が普通の React / Tailwind なので、そのまま自分のコードへ持ち込める"
+  ],
+  "weaknesses": [
+    "データ設計や運用まで面倒を見てくれるわけではない",
+    "生成物をそのまま積み上げると、後から構造の作り直しが要る"
+  ],
+  "url": "https://v0.app",
+  "featured": false
+}

@@ -1,0 +1,47 @@
+{
+  "hero": {
+    "title": "Free Wired!",
+    "creator": "cogdogblog",
+    "license": "CC0 1.0",
+    "licenseCode": "cc0",
+    "needsCredit": false,
+    "source": "https://www.flickr.com/photos/37996646802@N01/2913651045",
+    "provider": "flickr"
+  },
+  "claude-code-setup": {
+    "title": "Developer walking through a contemporary open office, open, agile, development space, desks, developers, backpack, laptop computers, Redmond, Washington, USA",
+    "creator": "Wonderlane",
+    "license": "CC0 1.0",
+    "licenseCode": "cc0",
+    "needsCredit": false,
+    "source": "https://www.flickr.com/photos/71401718@N00/26650832672",
+    "provider": "flickr"
+  },
+  "agent-era": {
+    "title": "Project 365 #335: 011209 Not Our Usual Dead Switch",
+    "creator": "comedy_nose",
+    "license": "PDM 1.0",
+    "licenseCode": "pdm",
+    "needsCredit": false,
+    "source": "https://www.flickr.com/photos/23408922@N07/4150503612",
+    "provider": "flickr"
+  },
+  "tool-comparison-2026": {
+    "title": "Work space, Microsoft Custom Development Solutions Technical Innovation Partner of the Year 2006, Tiger mousepad, San Francisco, California, 20 floors up, USA",
+    "creator": "Wonderlane",
+    "license": "CC0 1.0",
+    "licenseCode": "cc0",
+    "needsCredit": false,
+    "source": "https://www.flickr.com/photos/71401718@N00/3006233559",
+    "provider": "flickr"
+  },
+  "prompt-patterns": {
+    "title": "Writing in Notebook at Desk",
+    "creator": "Image Catalog",
+    "license": "CC0 1.0",
+    "licenseCode": "cc0",
+    "needsCredit": false,
+    "source": "https://www.flickr.com/photos/132795455@N08/18692128651",
+    "provider": "flickr"
+  }
+}

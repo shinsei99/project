@@ -1,0 +1,30 @@
+{
+  "slug": "windsurf",
+  "name": "Windsurf",
+  "vendor": "Cognition",
+  "category": "assistant",
+  "summary": "エージェント実行を前面に出したAIエディタ。Cursor の対抗として補完とエージェントの中間を狙う。",
+  "pricing": {
+    "model": "freemium",
+    "label": "無料あり / $15/月〜",
+    "freeTier": true
+  },
+  "audiences": ["developer", "beginner"],
+  "scores": {
+    "autonomy": 4,
+    "codeQuality": 3.5,
+    "costEfficiency": 4,
+    "learningCurve": 4.5,
+    "japanese": 3.5
+  },
+  "strengths": [
+    "エージェントの実行過程が画面で追えるため、任せた内容を把握しやすい",
+    "無料枠でエージェント機能まで試せる"
+  ],
+  "weaknesses": [
+    "エディタ型ゆえ、長時間の完全自律ではターミナル型に見劣りする",
+    "拡張やモデルの構成が頻繁に変わる"
+  ],
+  "url": "https://windsurf.com",
+  "featured": false
+}

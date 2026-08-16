@@ -1,0 +1,30 @@
+{
+  "slug": "bolt-new",
+  "name": "Bolt",
+  "vendor": "StackBlitz",
+  "category": "build",
+  "summary": "ブラウザ内でアプリを丸ごと生成して即動かす。環境構築なしで形にできるのが強み。",
+  "pricing": {
+    "model": "freemium",
+    "label": "無料あり / $20/月〜",
+    "freeTier": true
+  },
+  "audiences": ["beginner", "sidejob"],
+  "scores": {
+    "autonomy": 3.5,
+    "codeQuality": 3,
+    "costEfficiency": 3.5,
+    "learningCurve": 5,
+    "japanese": 3.5
+  },
+  "strengths": [
+    "ローカル環境を作らずに動くものが出るため、最初の一歩の脱落が少ない",
+    "試作を人に見せて反応を得るまでが速い"
+  ],
+  "weaknesses": [
+    "本番運用（認証・DB・常駐）まで持っていく段で作り直しになりやすい",
+    "生成のやり直しでトークンを消費しやすい"
+  ],
+  "url": "https://bolt.new",
+  "featured": false
+}

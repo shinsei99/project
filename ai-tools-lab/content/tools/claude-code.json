@@ -1,0 +1,35 @@
+{
+  "slug": "claude-code",
+  "name": "Claude Code",
+  "vendor": "Anthropic",
+  "category": "agent",
+  "summary": "ターミナル常駐型のコーディングエージェント。調査・実装・テスト・コミットまでを一続きで任せられる。当サイトの主軸。",
+  "pricing": {
+    "model": "subscription",
+    "label": "Pro $20/月〜（Max プランで上限拡張）",
+    "freeTier": false
+  },
+  "audiences": ["developer", "sidejob", "team"],
+  "scores": {
+    "autonomy": 5,
+    "codeQuality": 4.5,
+    "costEfficiency": 4.5,
+    "learningCurve": 3.5,
+    "japanese": 4.5
+  },
+  "strengths": [
+    "既存リポジトリを読んでから直すので、大きなコードベースでも文脈を外しにくい",
+    "CLI・IDE拡張・Web・デスクトップと入口が複数あり、同じ設定を共有できる",
+    "定額プランのため、長時間の試行錯誤でも費用が読める"
+  ],
+  "weaknesses": [
+    "ターミナル前提のため、非エンジニアには最初の一歩が重い",
+    "任せきると差分が大きくなりがちで、レビューの負荷は人側に残る"
+  ],
+  "url": "https://claude.com/claude-code",
+  "featured": true,
+  "review": {
+    "basis": "業務アプリ49本の設計・実装・保守で常用。社内LAN常駐のStreamlitアプリからiOSネイティブまで、同じ運用ルール（PDCAログ・引き継ぎ）で回している。",
+    "updatedAt": "2026-08-16"
+  }
+}

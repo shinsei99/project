@@ -1,0 +1,30 @@
+{
+  "slug": "devin",
+  "name": "Devin",
+  "vendor": "Cognition",
+  "category": "agent",
+  "summary": "チームに1人足す発想の自律エージェント。チケットを渡して PR を受け取る運用に振り切っている。",
+  "pricing": {
+    "model": "subscription",
+    "label": "$500/月〜（従量併用）",
+    "freeTier": false
+  },
+  "audiences": ["team"],
+  "scores": {
+    "autonomy": 5,
+    "codeQuality": 3.5,
+    "costEfficiency": 2,
+    "learningCurve": 3,
+    "japanese": 3.5
+  },
+  "strengths": [
+    "タスク単位で完全に切り離して任せられ、人の待ち時間を作らない",
+    "PR という既存のレビュー文化にそのまま乗る"
+  ],
+  "weaknesses": [
+    "個人・副業の規模では費用が見合いにくい",
+    "任せた結果のレビュー負荷は残るため、レビューできる人がいない組織では回らない"
+  ],
+  "url": "https://devin.ai",
+  "featured": false
+}

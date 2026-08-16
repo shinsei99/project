@@ -1,0 +1,34 @@
+{
+  "slug": "github-copilot",
+  "name": "GitHub Copilot",
+  "vendor": "GitHub / Microsoft",
+  "category": "assistant",
+  "summary": "最も普及した補完型の支援。エージェント機能も足されたが、真価は書いている手元の速度を上げること。",
+  "pricing": {
+    "model": "subscription",
+    "label": "$10/月〜（学生・OSS開発者は無料）",
+    "freeTier": true
+  },
+  "audiences": ["developer", "beginner", "team"],
+  "scores": {
+    "autonomy": 3,
+    "codeQuality": 3.5,
+    "costEfficiency": 4.5,
+    "learningCurve": 5,
+    "japanese": 3.5
+  },
+  "strengths": [
+    "既存のエディタにそのまま入るので、導入で環境を壊さない",
+    "組織導入の実績と管理機能が厚く、会社で通しやすい"
+  ],
+  "weaknesses": [
+    "任せられる範囲が狭く、設計から丸ごとは向かない",
+    "補完に頼りすぎると、初学者が仕組みを理解しないまま進んでしまう"
+  ],
+  "url": "https://github.com/features/copilot",
+  "featured": false,
+  "review": {
+    "basis": "補完用途で長期利用。定型コードの速度は上がるが、仕様の判断が絡む場面では他ツールに任せた。",
+    "updatedAt": "2026-08-16"
+  }
+}

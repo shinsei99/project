@@ -1,0 +1,14 @@
+{
+  "slug": "pokecard-dex",
+  "name": "31,520枚の画像を100%揃えるまで",
+  "visibility": "internal",
+  "category": "tool",
+  "summary": "大規模な図鑑データベースの構築記録。件数が多い収集タスクで、最後の数%をどう埋めるかが本題。",
+  "stack": ["Python", "Streamlit"],
+  "year": 2026,
+  "prompts": [],
+  "features": [],
+  "process": [],
+  "improvements": [],
+  "featured": false
+}
