@@ -19,6 +19,11 @@
       "label": "Zenn",
       "url": "https://zenn.dev/shinsei99/articles/photo-inpainter",
       "note": "原因と直し方だけを短くまとめた版"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/nad3f0dce2889",
+      "note": "技術用語なしで、つまずいた経緯を書いた版"
     }
   ],
   "prompts": [],

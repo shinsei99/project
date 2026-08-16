@@ -20,6 +20,11 @@
       "label": "Zenn",
       "url": "https://zenn.dev/shinsei99/articles/gemini-api-traps",
       "note": "Gemini API で踏んだ4つの罠"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/n0388b9c81b5f",
+      "note": "AIが実在しない建物を描いた話（技術用語なし）"
     }
   ],
   "prompts": [],

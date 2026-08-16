@@ -21,6 +21,11 @@
   - 末尾の Zenn リンクを実URLへ差し替え。`ai-generated-building.md` には
     制作記録（`/works/agent-platform`）への導線を追加
   - `drafts/note/make_paste.py` を追加 → `drafts/note/paste/*.txt` を生成
+- **note に2本公開**（Chrome拡張で投稿まで実施）
+  - https://note.com/shinsei99/n/nad3f0dce2889 （半年あきらめていた開発が、2日で終わった話）
+  - https://note.com/shinsei99/n/n0388b9c81b5f （AIが、実際には存在しない建物を描いてきた話）
+  - 見出し画像は note の**みんなのフォトギャラリー**から設定（クレジットは note が自動表示）
+  - `content/works/*.json` の `links` に note のURLを追記
 
 ### 発生したエラーと解決策
 - **ブラウザ拡張はこのセッションでも未接続**（`Browser extension is not connected`）。
@@ -31,16 +36,31 @@
   記事一覧が入っていないので、そちらを見ても分からない
 - `gh api /user/installations` は **403**（GitHub App 経由のトークンでないと一覧できない）。
   連携の有無を CLI から確認する用途には使えない
+- **note の投稿は「HTMLをクリップボードに載せて貼る」のが最短**（`drafts/note/md2html.py`）。
+  noteのエディタは**クリップボードの text/html を読む**ので、h2 / blockquote / ul / a が
+  そのまま見出し・引用・箇条書き・リンクになる。**プレーンテキストで貼ると1行ずつ
+  画面で見出し指定する羽目になり、実際に途中で断念した**。
+  macOSは `pbcopy` がプレーンテキストしか置けないため、AppleScript の
+  `set the clipboard to «data HTML…»`（16進）を使う。pyobjc は未導入で使えない
+- **noteのMarkdownショートカット（行頭に `# `）は既存の行では効かない**。
+  文字としてそのまま入るだけなので、記法での後付けは不可
+- **見出し画像は「記事にあう画像を選ぶ」（みんなのフォトギャラリー）が速い**。
+  `画像をアップロード` は**hidden な file input がアクセシビリティツリーに出ず**、
+  file_upload でも掴めなかった（クリックするとネイティブのファイル選択が開いて操作不能）
+- 素材選びの注意: ギャラリーには**実在の特定物件を写した写真**があり、タイトルに物件名が入る。
+  「実在しない建物」の記事に使うと誤解を生むので外した（採用したのは
+  タイトルに「AI生成画像」と明記されたイラスト）
 - **note は Markdown が効かない**ので、Zennと同じ原稿をそのまま貼ると `##` や `**` が
   文字として出る。さらに**貼り付けた改行がそのまま行送りになる**ため、原稿の折り返しのまま
   貼るとスマホで不自然に改行される。→ 記法を落とし段落を1行に繋ぐ `make_paste.py` を用意した
   （見出し・引用は画面側で指定する前提で、対象行の一覧をファイル先頭に付ける）
 
 ### 次回への引き継ぎ事項・未解決の課題
-- **note の投稿が残り。** 原稿と貼り付け用テキスト（`drafts/note/paste/*.txt`）は完成済み。
-  **アカウント作成と投稿はブラウザ操作で、AIは代行できない**（拡張が未接続で、
-  そもそもアカウント作成は代行しない領域）。手順は `drafts/PUBLISH.md` の note 節
-- note を出したら `content/works/*.json` の `links` に note のURLを足す（Zennと同じ形）
+- **Vercelはgit連携ではなく `vercel` CLI での手動デプロイ**（`.vercel/project.json` あり・
+  CLIは `daikyocorps-3085` でログイン済み）。**pushしても本番は更新されない**。
+  相互リンクを本番に出すには `npx vercel --prod` が要る（2026-08-16時点で**未実行**）
+- note のアカウント作成・ログイン・メール認証は**ご本人の操作が必要**だった
+  （Chrome拡張は接続できたが、認証情報の入力は代行しない領域）
 - `drafts/note/photo-inpainter.md` の鍵カッコは外したが、**実際に打った文面を思い出したら
   そちらへ差し替えてよい**（趣旨は変えないこと）
 - ツール4件（v0 / bolt / devin / windsurf）の `review` 未記入は**据え置き**（触ってから書く）
