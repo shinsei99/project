@@ -286,3 +286,7 @@ ai-tools-lab/.next/
 ai-tools-lab/out/
 ai-tools-lab/.env*
 !ai-tools-lab/.env.example
+
+# Zenn の記事（GitHub連携がリポジトリ直下の articles/ を見る）
+!articles/
+!articles/**
