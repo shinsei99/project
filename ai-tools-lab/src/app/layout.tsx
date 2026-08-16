@@ -3,14 +3,36 @@ import Link from "next/link";
 import "./globals.css";
 import { Container } from "@/components/ui/Container";
 import { PhotoCredits } from "@/components/ui/PhotoCredits";
+import { SITE } from "@/lib/site";
 
+/**
+ * `metadataBase` を入れておくと、各ページで相対パス（`/works/xxx`）を書くだけで
+ * canonical と OGP が絶対URLになる。**独自ドメインへ移すときは `SITE.url` だけ直せばよい。**
+ *
+ * OG画像は `opengraph-image.tsx` が記事ごとに生成する（ファイル規約で自動的に紐づく）。
+ * ここで images を指定していないのはそのため。
+ */
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE.url),
   title: {
-    default: "AIツールラボ — Claude Code 主軸のAI開発ガイド",
-    template: "%s | AIツールラボ",
+    default: `${SITE.name} — Claude Code 主軸のAI開発ガイド`,
+    template: `%s | ${SITE.name}`,
   },
-  description:
-    "自律型AIエージェント時代の開発ガイド。Claude Code を主軸にツールを比較し、実際に業務アプリを作った過程・プロンプト・改善記録を公開します。",
+  description: SITE.description,
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    siteName: SITE.name,
+    locale: SITE.locale,
+    url: "/",
+    title: `${SITE.name} — Claude Code 主軸のAI開発ガイド`,
+    description: SITE.description,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: `${SITE.name} — Claude Code 主軸のAI開発ガイド`,
+    description: SITE.description,
+  },
 };
 
 const NAV = [

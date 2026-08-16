@@ -4,6 +4,50 @@
 
 ---
 
+## 2026-08-16（続き3）— 在庫を揃える方針・集客基盤・Zennのレート制限
+
+### 完了したこと
+- **転載の方針を確定**: 本体の**不動産カテゴリの公開記録**と Zenn / note の本数を揃える。
+  ツール・ゲーム分類は本体のみ。**制作記録を1本増やしたら Zenn・note も同時に出す**
+  （`ai-tools-lab/CLAUDE.md` に常駐。`npm run validate` が転載漏れを ⚠️ で出す）
+- **psa-collection を本体からも外した**（`visibility: internal`。削除ではない）。
+  他社サイトの内部APIを叩く手順の公開になるため
+- **不動産の残り3本ぶんの原稿を Zenn・note とも作成**（計6本）
+  - Zenn: `ai-agent-always-on` / `launchd-restart-loop` / `llm-pdf-split-gaps`
+  - note: `ai-always-on` / `silent-failure` / `scanned-pile`
+- **集客の基盤を入れて本番反映**（ここが全く無かった）
+  - 全ページに OGP / Twitterカード、`metadataBase`、canonical
+  - `works/[slug]/opengraph-image.tsx` で**記事ごとのOG画像を自動生成**（日本語表示も確認済み）
+  - `sitemap.xml` / `robots.txt`（どちらも404だった）
+  - URLは `src/lib/site.ts` の1箇所に集約（独自ドメイン移行はここだけ直す）
+
+### 発生したエラーと解決策
+- **Zennに3本pushしても反映されない** → 原因は **Zennの投稿レート制限**（記事は
+  直近24時間の投稿数で判定。上限ロジックは非開示）。今日すでに2本出していたため弾かれた。
+  **デプロイ履歴は「デプロイ成功」と表示され、お知らせ欄にだけ
+  「投稿数の上限に達したためデプロイされませんでした」と出る**ので気づきにくい。
+  → **原因の切り分けは https://zenn.dev/dashboard/deploys のお知らせ欄が最短**（要ログイン）
+- **最初は絵文字（異体字セレクタ付き `🛎️` `✂️`）を疑ったが外れ。** 1コードポイントに
+  直して再pushしても反映されなかった。修正自体は無害なので残してある
+- Zennは**時間が経っても自動で再試行しない**。上限解除後にもう一度 push が要る
+- 「booksディレクトリが見つかりません」の警告も出るが、本を出さないなら無視でよい
+
+### 次回への引き継ぎ事項・未解決の課題
+- **⚠️ 明日やること（順番厳守）**
+  1. 空コミット push → Zenn 3本（`ai-agent-always-on` / `launchd-restart-loop` /
+     `llm-pdf-split-gaps`）が公開されるのを API で確認
+     （`curl -s "https://zenn.dev/api/articles?username=shinsei99&order=latest"`）
+  2. note 3本を投稿（`python3 drafts/note/md2html.py <名前>` → 本文欄で ⌘V →
+     見出し画像は「記事にあう画像を選ぶ」）。**note原稿にはZennのURLが埋めてある**ので
+     Zennを先に出すこと
+  3. `content/works/*.json` の `links` に両方のURLを追記 → `npx vercel --prod`
+  4. `npm run validate` の転載漏れ警告が消えることを確認
+- **Google Search Console に未登録**（sitemapができたので登録すると初期のインデックスが早い）。
+  登録はブラウザ操作＝本人の作業
+- 有料化（noteの有料記事）は**当面やらない**と判断。まず無料で流入を作る。
+  やるならプロンプト単体ではなく「運用の型一式」か「1本ぶんの全ログ」で、
+  本命は内蔵ツールのSaaS化（Stage 3）
+
 ## 2026-08-16（続き2）— Zenn公開2本・本体からの相互リンク
 
 ### 完了したこと

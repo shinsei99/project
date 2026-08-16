@@ -27,7 +27,19 @@ export async function generateMetadata({
   const { slug } = await params;
   const work = getWork(slug);
   if (!work) return {};
-  return { title: work.name, description: work.summary };
+  // OG画像は同階層の opengraph-image.tsx が自動で付く。ここでは文言と正規URLだけ指定する
+  return {
+    title: work.name,
+    description: work.summary,
+    alternates: { canonical: `/works/${work.slug}` },
+    openGraph: {
+      type: "article",
+      title: work.name,
+      description: work.summary,
+      url: `/works/${work.slug}`,
+    },
+    twitter: { card: "summary_large_image", title: work.name, description: work.summary },
+  };
 }
 
 /** 見出し＋中身。4本柱を同じ形で並べる */

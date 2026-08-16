@@ -82,6 +82,20 @@ const works = checkJsonDir("works", (w, rel) => {
         warnings.push(`${rel}: 公開設定だが${label}を含みます（"${hit[0]}"）。個人情報でないか確認してください`);
       }
     }
+
+    // **不動産カテゴリは Zenn / note と同時に出す**という運用ルールの取りこぼし検知。
+    // 記録を増やしたときに転載を忘れると、本体だけが増えて流入が伸びない状態になる。
+    // （ツール・ゲーム分類は転載対象外なので見ない。詳細は drafts/README.md）
+    if (w.category === "realestate") {
+      const labels = (w.links ?? []).map((l) => l.label);
+      const missing = ["Zenn", "note"].filter((m) => !labels.includes(m));
+      if (missing.length > 0) {
+        warnings.push(
+          `${rel}: 不動産カテゴリの公開記録ですが ${missing.join(" / ")} への転載がまだです` +
+            `（原稿は drafts/ に作り、公開後に links へURLを追記する）`,
+        );
+      }
+    }
   }
 });
 
