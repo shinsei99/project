@@ -1,10 +1,15 @@
 {
   "slug": "psa-collection",
   "name": "公開APIが承認制で使えないとき、どこから取るか",
-  "visibility": "public",
+  "visibility": "internal",
   "category": "tool",
   "summary": "コレクション管理ツール。公開APIが承認制で閉ざされ、公式サイトもボット対策で弾かれる中、正規のログイン済みブラウザ経由でデータを取る方法に辿り着いた記録。",
-  "stack": ["Python", "Streamlit", "JavaScript", "Safari自動化"],
+  "stack": [
+    "Python",
+    "Streamlit",
+    "JavaScript",
+    "Safari自動化"
+  ],
   "year": 2026,
   "buildTime": "画像871枚の収集を含めて数セッション",
   "prompts": [],

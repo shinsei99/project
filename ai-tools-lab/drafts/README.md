@@ -25,16 +25,27 @@ Google はそちらを本命と判断し、本体が自分の記事に負ける�
 
 ## 原稿の一覧
 
-| 素材 | Zenn | note | 本体 |
+**方針: 本体の「不動産」カテゴリの公開記録と、Zenn / note の本数を揃える。**
+ツール・ゲーム分類のものは転載しない（本体だけに置く）。
+
+| 素材（不動産・公開） | Zenn | note | 本体 |
 |---|---|---|---|
-| photo-inpainter | `zenn/photo-inpainter.md` | `note/photo-inpainter.md` | `/works/photo-inpainter` |
-| agent-platform | `zenn/gemini-api-traps.md` | `note/ai-generated-building.md` | `/works/agent-platform` |
+| photo-inpainter | `zenn/photo-inpainter.md` ✅公開 | `note/photo-inpainter.md` ✅公開 | `/works/photo-inpainter` |
+| agent-platform | `zenn/gemini-api-traps.md` ✅公開 | `note/ai-generated-building.md` ✅公開 | `/works/agent-platform` |
+| chatwork-ai-manager | `zenn/ai-agent-always-on.md` | `note/ai-always-on.md` | `/works/chatwork-ai-manager` |
+| port-conflict | `zenn/launchd-restart-loop.md` | `note/silent-failure.md` | `/works/port-conflict` |
+| shorui-cabinet | `zenn/llm-pdf-split-gaps.md` | `note/scanned-pile.md` | `/works/shorui-cabinet` |
 
-## 素材として保留にしているもの
+**note の原稿には Zenn 記事のURLを先に書いてある。** ZennのURLはファイル名から決まる
+（`https://zenn.dev/shinsei99/articles/<ファイル名>`）ので、公開前でも確定できる。
+ただし**Zennを先に公開すること**（noteから死んだリンクを出さない）。
 
-- **psa-collection（公開APIが承認制 → ログイン済みブラウザ経由で取得）**
-  技術的には面白いが、**他社サイトの内部APIを叩く手順を公開する形になる**。
-  自分のアカウントの自分のデータを取るぶんには問題なくても、
-  手順書として公開すると規約違反を助長しかねない。出すなら
-  「公開APIが承認制で塞がれていた」という調査の話までに留め、
-  取得手順そのものは書かないこと。
+## 出さないと決めたもの
+
+- **psa-collection … 本体からも外した（2026-08-16）。**
+  `content/works/psa-collection.json` を `visibility: internal` にしてページを止めてある
+  （削除ではないので戻せる）。**Zenn / note にも出さない。**
+  理由: 他社サイトの内部APIを叩く手順を公開する形になり、
+  自分のデータを取るぶんには問題なくても、手順書として出すと規約違反を助長しかねない。
+- 転載の対象は**不動産カテゴリの公開記録のみ**。ツール分類（flyer-creator /
+  ios-build-number など）とゲームは本体だけに置く。
