@@ -4,38 +4,30 @@
 
 ---
 
-## ▶ 「続きから」と言われたら、ここから（2026-08-17 セッション中断）
-
-**中断理由**: Claude in Chrome 拡張がペアリングできず、Search Console の操作を代行できなかった。
-拡張自体は正常（有効・権限付与済み・v1.0.85・プロファイルはDefault1つ）だが
-`list_connected_browsers` が空を返した。**セッション再起動で繋がる想定**（前回も同じ症状→再起動で解決）。
+## ▶ 「続きから」と言われたら、ここから（2026-08-17 07:55 更新）
 
 ### やること（この順）
 
-1. **ブラウザ接続を確認** … `list_connected_browsers`。空なら `switch_browser` で
-   Chrome側に出る「Connect」を押してもらう
-2. **Google Search Console に新URLを登録**（← 中断したのはここ）
-   - https://search.google.com/search-console →「プロパティを追加」→「**URL プレフィックス**」
-     → `https://ai-tools-base.vercel.app`
-   - 所有権の確認は「**HTMLタグ**」。**表示される値が
-     `kI8QDUk7Op-BmaU3y6VoUvdt18cVp0IxfDgViBzK7do` と同じなら、押すだけで通る**
-     （このタグは新URLで配信済み。`src/app/layout.tsx` の `verification.google`）
-   - 違う値が出たら `layout.tsx` を書き換えて `npx vercel --prod` → それから「確認」
-   - 通ったら「サイトマップ」で `sitemap.xml` を送信（28件）
-   - 旧プロパティ（`ai-tools-lab-psi`）は削除してよい。URLごと消してある
-   - ⚠️ **Googleへのログイン・トークン入力は代行しない**（本人操作）
-3. **19:56 以降に `git push`** … 直下 `articles/` の Zenn 未公開3本が投稿上限で弾かれるため、
-   それより前に push しない。push すると同時に**公開済みZenn2本のリンクが新URLに直る**
-4. **note 公開済み2本の404リンクを修正**（ブラウザ・本人）
+1. ~~ブラウザ接続を確認~~ ✅ 繋がった（前回の症状はセッション再起動で解消）
+2. ~~Google Search Console に新URLを登録~~ ✅ **完了（8/17 07:53）**
+   所有権は**自動確認**で通り、`sitemap.xml` 送信 →「成功しました」/ **28件検出**。
+   旧プロパティ `ai-tools-lab-psi` は**残す**判断（URLが404なので害なし）
+3. **🔴 19:56 以降に `git push`（未実施）** … 直下 `articles/` の Zenn 未公開3本が
+   投稿上限で弾かれるため、それより前に push しない。
+   push すると同時に**公開済みZenn2本のリンクが新URLに直る**
+4. **🔴 note 公開済み2本の404リンクを修正（未実施・ブラウザ・本人）**
    - https://note.com/shinsei99/n/nad3f0dce2889
    - https://note.com/shinsei99/n/n0388b9c81b5f
 5. 以降は `drafts/PUBLISH.md` の順番表どおり、Zenn→note を1日2本ずつ
 
-### 今日ここまでで終わっていること
+**19:56 まで待つ間にできること**: Stage 2 のページ（`/tools` `/articles` `/works` `/history`）。
+
+### ここまでで終わっていること
 
 改名は**コード・文書・Vercel とも完了済み**（`267e7fa` でコミット。**push はまだ**）。
 本番 https://ai-tools-base.vercel.app は全ページ200。旧URLは削除済み。
 Vercelの余計な `drafts` プロジェクトも削除した。
+Search Console は新URLで登録・sitemap送信済み。
 
 ---
 
@@ -53,7 +45,8 @@ Vercelの余計な `drafts` プロジェクトも削除した。
       アクセスがまだ無く、URLが2つ並存するほうがややこしいため。リンクは貼り直す方針
 - [ ] **🔴 公開済み4本のリンクが 404 のまま。貼り直す**
       Zenn2本 = 19:56以降の push で直る（原稿は新URL済み）／**note2本はブラウザ・本人**
-- [ ] Google Search Console に新URLを登録（**ブラウザ・本人**）。旧プロパティは消してよい
+- [x] Google Search Console に新URLを登録（8/17 07:53・自動確認／sitemap 28件送信済み）。
+      旧プロパティは**残す**（URLが404なので害なし）
 
 **書き換えなかったもの（意図的）**: `SESSION_LOG.md` の過去ログと
 `content/works/ai-tools-base.json` の「名前と立ち位置を先に決めた」。当時の事実なので改竄しない。
