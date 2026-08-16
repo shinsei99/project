@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "validate": "node scripts/validate-content.mjs",
-    "photos": "node scripts/fetch-photos.mjs"
+    "photos": "node scripts/fetch-photos.mjs",
+    "prompts": "node scripts/harvest-prompts.mjs"
   },
   "dependencies": {
     "@tailwindcss/typography": "^0.5.20",
