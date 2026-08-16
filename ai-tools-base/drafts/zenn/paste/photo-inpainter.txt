@@ -1,10 +1,11 @@
----
-title: "「このライブラリ使えない」の原因が、requirements.txt の書き忘れだった話"
-emoji: "🔌"
-type: "tech"
-topics: ["python", "機械学習", "画像処理", "pytorch", "claudecode"]
-published: true
----
+── Zennの投稿画面に入れる値 ──────────────
+タイトル: 「このライブラリ使えない」の原因が、requirements.txt の書き忘れだった話
+絵文字  : 🔌
+種類    : Tech
+トピック: ["python", "機械学習", "画像処理", "pytorch", "claudecode"]
+URL(slug): photo-inpainter
+──────────────────────────────────
+▼ ここから下をすべて本文欄に貼り付け
 
 写真から電線を消すツールを作っていて、**「消去エンジンの品質が低いから使えない」と判断して
 半年止めていた**ことがあります。

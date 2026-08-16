@@ -278,14 +278,14 @@ agent-platform/*TEMP_MPY_*
 agent-platform/.DS_Store
 agent-platform/**/.DS_Store
 
-# AIツールラボ（ai-tools-lab）… コードとコンテンツだけ入れる
-!ai-tools-lab/
-!ai-tools-lab/**
-ai-tools-lab/node_modules/
-ai-tools-lab/.next/
-ai-tools-lab/out/
-ai-tools-lab/.env*
-!ai-tools-lab/.env.example
+# AIツールベース（ai-tools-base）… コードとコンテンツだけ入れる
+!ai-tools-base/
+!ai-tools-base/**
+ai-tools-base/node_modules/
+ai-tools-base/.next/
+ai-tools-base/out/
+ai-tools-base/.env*
+!ai-tools-base/.env.example
 
 # Zenn の記事（GitHub連携がリポジトリ直下の articles/ を見る）
 !articles/
