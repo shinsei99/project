@@ -11,6 +11,60 @@
 
 ---
 
+## 2026-08-16 — サブPCで全アプリを触れるようにする（横断整備）
+
+### 完了したこと
+- **道具を3つ追加**（リポジトリ直下）
+  - `dev-doctor.py` … 全51本の「依存／機密／待受／稼働」を1画面で表示。
+    ツール・ゲーム分類が `0.0.0.0` で待ち受けていたら ⚠️、
+    chatwork-ai-manager の**本体**（worker / LINE webhook / ngrok）がこのPCで
+    動いていたら ⚠️（管理画面8540は動かしてよい）
+  - `dev-setup.sh` … 不足している `.venv` / `node_modules` を一括作成。
+    **venvは python3.11 を優先**（システムの3.9では入らない依存がある）。
+    chatwork-ai-manager だけ venv を作らない（claude 呼び出しが SIGSEGV になるため）
+  - `secrets-sync.sh` ＋ `secrets-manifest.txt` … 機密を**個人Dropbox**経由で運ぶ。
+    `check` / `export` / `import`。対象はパスだけを列挙し、値は書かない
+- **依存を21本ぶん作成**（Python 16 / Node 5）→ 不足0本。ディスクは 40GB → 34GB
+- `.gitignore` を**まとめて除外する形**に変更（`**/.venv/` 等）。
+  従来はアプリごとの個別指定で、**新規作成の .venv が2本 git に載りかけていた**
+- `SETUP.md` を新規作成（手順・PCまたぎの注意・見つかった不具合）
+
+### 発生したエラーと解決策
+**依存を作り直したことで、実際の不具合が4件出た。3件は同じ形。**
+
+- `madori-tracer` … `pip install -r requirements.txt` が必ず失敗。
+  原因は `streamlit-cropper>=0.7` を要求しているが**PyPIには 0.3.1 までしか無い**。
+  実在する版へ修正 → `st_cropper` の import まで確認
+- `payment-reconciler` … 入金の突合率が下がるがエラーは出ない。
+  原因は `pykakasi`（漢字→カナ変換）が try/except の暗黙フォールバックで、
+  `requirements.txt` に入っていなかった。requirements に追加＋**未導入なら画面に警告**
+- `kaitori-dm-maker` … 謄本PDF取込だけ動かない。原因は借りている
+  `baikai-generator/services/registry_parser.py` の依存（pdfplumber / pymupdf）が未宣言
+- `realestate-valuation` / `restoration-calculator` / `settlement-creator` …
+  requirements に `pymupdf>=1.24.0` と書いてあるのに**venvに入っていなかった**。
+  `pdf_orient.py` は `except ImportError: return -1` なので、
+  **PDFの向き補正が黙ってスキップ**されていた。入れ直して解消
+
+→ 4件中3件が **photo-inpainter と同じ「入れ忘れた依存が静かに代替経路へ落ちる」形**。
+  optional import を書くときは、落ちたことが見えるようにすること。
+
+**道具側の不具合も2つ潰した**
+- `dev-setup.sh` が `$log（末尾:…` で落ちた。bashは**変数名の直後の全角文字を名前の一部と解釈する**
+  ことがある → `${log}` と括る
+- `dev-doctor.py` が chatwork の本体を誤検知。`ps` の全文検索だと**検査コマンド自身の
+  文字列**を拾う（スクリプトに "run_worker.sh" と書いてあるため）→ ポートとプロセス名で判定
+
+### 次回への引き継ぎ事項・未解決の課題
+- **メインPCで `./secrets-sync.sh export` を実行してもらう。** サブPCに無いのは3件:
+  `digital-shosai/.env.local` / `psa-collection/data/orders.json` / `psa-collection/data/albums.json`
+  （受け取ったらサブPCで `./secrets-sync.sh import`）
+- **launchd 常駐2本（file-finder 8520 / owner-payout-tracker 8519）がサブPCでも
+  LAN公開で動いている。** メインPCと二重公開で、どちらも個人情報を含む。止めるかは未判断
+  （止めるなら `launchctl unload ~/Library/LaunchAgents/com.shinsei.<アプリ>.plist`）
+- 既存の venv のうち14本は Python 3.9 のまま（動いてはいる）。
+  3.10以上を要求する依存が来たら `rm -rf <app>/.venv && ./dev-setup.sh <app>` で作り直す
+
+
 ## 2026-08-16 — メインPC → サブPC の引き継ぎ受領（chatwork-ai-manager）
 
 ### 完了したこと

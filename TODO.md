@@ -15,6 +15,14 @@
 
 ## 横断作業（複数アプリにまたがるもの）
 
+- **【明日いちばん最初】メインPCで `./secrets-sync.sh export` を実行 → サブPCで `import`**
+  サブPCに無いのは `digital-shosai/.env.local` / `psa-collection/data/{orders,albums}.json` の3件。
+  これでサブPCで全アプリが触れる状態になる（依存は2026-08-16に整備済み・不足0本）
+- **ai-tools-lab: Zenn 5本 / note 5本の公開待ち。** Zennの投稿上限が **8/17 19:56** に解ける。
+  1日2本ずつ Zenn→note の順で。手順は `ai-tools-lab/drafts/PUBLISH.md`
+- サブPCの launchd 常駐2本（file-finder 8520 / owner-payout-tracker 8519）を
+  止めるか要判断（メインPCと二重にLAN公開されている・個人情報を含む）
+
 - **CLAUDE.md のスリム化（メインPCで実施予定・2026-08-15決定）**
   現状19,159字。うち**55%（約10,500字）がアプリ個別の補足**（psa-collection 3,539字／
   agent-platform 2,064字／photo-inpainter 1,518字／pdf-organizer 1,128字 ほか）。
