@@ -21,3 +21,20 @@ Google はそちらを本命と判断し、本体が自分の記事に負ける�
 3. Zenn / note に部分版を出し、本体へリンクする
 
 逆にすると本体が後追い扱いになる。
+
+
+## 原稿の一覧
+
+| 素材 | Zenn | note | 本体 |
+|---|---|---|---|
+| photo-inpainter | `zenn/photo-inpainter.md` | `note/photo-inpainter.md` | `/works/photo-inpainter` |
+| agent-platform | `zenn/gemini-api-traps.md` | `note/ai-generated-building.md` | `/works/agent-platform` |
+
+## 素材として保留にしているもの
+
+- **psa-collection（公開APIが承認制 → ログイン済みブラウザ経由で取得）**
+  技術的には面白いが、**他社サイトの内部APIを叩く手順を公開する形になる**。
+  自分のアカウントの自分のデータを取るぶんには問題なくても、
+  手順書として公開すると規約違反を助長しかねない。出すなら
+  「公開APIが承認制で塞がれていた」という調査の話までに留め、
+  取得手順そのものは書かないこと。
