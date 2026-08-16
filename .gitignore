@@ -290,3 +290,11 @@ ai-tools-lab/.env*
 # Zenn の記事（GitHub連携がリポジトリ直下の articles/ を見る）
 !articles/
 !articles/**
+
+# ── 依存関係・ログはPCごとに作るもの。**全アプリまとめて除外**
+# （以前はアプリごとに1行ずつ書いていたため、新しく作った .venv が載りかけた）
+**/.venv/
+**/node_modules/
+**/.deps/
+logs/
+**/__pycache__/
