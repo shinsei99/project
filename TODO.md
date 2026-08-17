@@ -28,6 +28,15 @@
   `mv ai-tools-lab/node_modules ai-tools-lab/.next ai-tools-lab/.vercel ai-tools-lab/.env* ai-tools-base/`
   → 移したら `rmdir ai-tools-lab`（`./publish.sh` は `ai-tools-base/` 側にある）
 - `digital-shosai/.env.local` は**メインPCにも存在しない**（`.env.local.example` のみ）＝運べないので要件取り下げ。
+- **MCPサーバー `VISUAL_AGENT` がサブPCに無い**（2026-08-17にメインPCへ追加したもの）。
+  **MCPの設定はgitに乗らない**（ユーザースコープは `~/.claude.json` の `mcpServers`、
+  プロジェクトスコープは直下 `.mcp.json`。直下に `.mcp.json` は無い＝ユーザースコープ）。
+  サブPCは `claude mcp list` が「No MCP servers configured」で、リポジトリ内にも
+  `VISUAL_AGENT` の文字列は1件も無い（＝実体も未受領）。
+  受け渡しに要るもの: ①メインPCで `claude mcp get VISUAL_AGENT` の出力（コマンド・引数・環境変数のキー名）
+  ②サーバー本体がローカルのスクリプト/パッケージなら**その実体**（リポジトリ外ならDropbox経由）
+  ③APIキーが要るなら値は他の機密と同じ扱い（Dropboxの一時置き場。ここには書かない）
+  → **今後は「gitに乗らないPC側の設定」として `secrets-manifest.txt` の対象に加える**（漏れの再発防止）。
 - ~~サブPCの launchd 常駐2本（file-finder 8520 / owner-payout-tracker 8519）~~
   ✅ 2026-08-17 に unload 済み。サブPCの launchd 常駐は**0本**（`launchctl list | grep shinsei` が空）。
   画面が要るときは `cd <アプリ> && ./run.sh` で都度起動する（常駐に戻さない）
