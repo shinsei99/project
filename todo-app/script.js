@@ -21,6 +21,7 @@ const form = document.getElementById("add-form");
 const input = document.getElementById("todo-input");
 const list = document.getElementById("todo-list");
 const emptyMessage = document.getElementById("empty-message");
+const remainingCount = document.getElementById("remaining-count");
 
 let todos = [];
 let currentUser = null;
@@ -145,6 +146,9 @@ function render() {
   });
 
   emptyMessage.classList.toggle("hidden", todos.length > 0);
+
+  const remaining = todos.filter((t) => !t.done).length;
+  remainingCount.textContent = `残り${remaining}件`;
 }
 
 function addTodo(text) {
