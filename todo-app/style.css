@@ -224,3 +224,10 @@ h1 {
 .user-bar button:hover {
   background: #eef2ff;
 }
+
+.version-tag {
+  margin: 16px 0 0;
+  text-align: center;
+  font-size: 11px;
+  color: #bbb;
+}
