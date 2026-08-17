@@ -268,6 +268,48 @@ CREATE TABLE IF NOT EXISTS dev_tasks (
 );
 CREATE INDEX IF NOT EXISTS idx_dev_tasks_status ON dev_tasks(status);
 
+-- ============================================================
+-- GIS / 地図。物件マスタ（管理物件台帳 Excel から取り込む）と住所→座標のキャッシュ。
+-- 既存の projects（案件）とは別物。こちらは「建物そのもの」の台帳。
+-- ⚠️ オーナーの連絡先・電話番号は**取り込まない**（地図やLINEに出す情報ではないため）。
+-- ============================================================
+CREATE TABLE IF NOT EXISTS properties (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id    TEXT NOT NULL UNIQUE,          -- 物件名から作る安定キー（P-0001 形式ではなく名前ベース）
+    name           TEXT NOT NULL,
+    category       TEXT,                          -- 種別: マンション/ビル/駐車場/看板/トランク など
+    classification TEXT,                          -- 分類: 自社/管理/仲介/終了
+    address        TEXT,
+    postal_code    TEXT,
+    built          TEXT,                          -- 築年数（原文のまま）
+    structure      TEXT,                          -- 構造
+    units          TEXT,                          -- 戸数
+    access         TEXT,                          -- 交通
+    owner          TEXT,                          -- オーナー（法人名/担当。電話番号は持たない）
+    folder         TEXT,                          -- 社内フォルダの場所
+    lat            REAL,
+    lon            REAL,
+    geo_source     TEXT,                          -- 座標の出所（gsi / manual）
+    geo_query      TEXT,                          -- 実際に問い合わせた住所文字列
+    geo_status     TEXT,                          -- ok / no_address / not_found / error
+    active         INTEGER NOT NULL DEFAULT 1,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_properties_geo ON properties(lat, lon);
+CREATE INDEX IF NOT EXISTS idx_properties_cls ON properties(classification, category);
+
+-- 住所→座標のキャッシュ。同じ住所を二度と外部へ問い合わせないための土台。
+CREATE TABLE IF NOT EXISTS geocode_cache (
+    query      TEXT PRIMARY KEY,                  -- 正規化した問い合わせ文字列
+    lat        REAL,
+    lon        REAL,
+    title      TEXT,                              -- 相手が返した正式表記
+    source     TEXT,                              -- gsi など
+    status     TEXT,                              -- ok / not_found / error
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- 開発タスクの経過（監査・引き継ぎ用）
 CREATE TABLE IF NOT EXISTS dev_task_events (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,

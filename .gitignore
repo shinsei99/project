@@ -108,6 +108,8 @@ chatwork-ai-manager/.streamlit/secrets.toml
 chatwork-ai-manager/data/
 chatwork-ai-manager/logs/
 chatwork-ai-manager/knowledge_files/
+# 生成した地図・GeoJSON。実在の管理物件の所在地とオーナー名を含むため公開しない
+chatwork-ai-manager/maps/
 !restoration-calculator/
 !restoration-calculator/**
 restoration-calculator/.venv/

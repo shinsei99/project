@@ -10,6 +10,7 @@ REGISTRY は「実装済みToolの唯一の真実」。System Prompt はこれ�
 from services.agent_tools import (
     chatwork_tools,
     dev_tools,
+    gis_tools,
     knowledge_tools,
     progress_tools,
     project_tools,
@@ -24,6 +25,14 @@ REGISTRY = {
         "func": knowledge_tools.kb_search,
         "desc": "社内資料（レントロール/管理物件台帳/全ファイル一覧/業務マニュアル/社内ツール等）を全文検索",
         "usage": 'kb_search {"query":"メゾンドール都島 501 契約者","limit":12}',
+    },
+    "kb_read_document": {
+        "func": knowledge_tools.kb_read_document,
+        "desc": "指定ファイルをその場で読む（未索引のスキャン画像PDFはclaude visionでOCR）。"
+                "kb_searchでヒットしないが全ファイル一覧・フォルダ構成等でフルパスが分かっている資料"
+                "（申込書・契約書等のスキャンPDF）に使う。ユーザーに手動確認を促す前にまずこれで読み、"
+                "内容から直接回答する。読んだ内容は索引にも自動登録され、次回からkb_searchでも見つかる",
+        "usage": 'kb_read_document {"path":"/Users/apple/Library/CloudStorage/.../801・P1_森田将悟(2023.10.15~)/連絡先通・申込書・保証会社.pdf"}',
     },
     # ---- Chatwork ----
     "chatwork_search": {
@@ -84,6 +93,57 @@ REGISTRY = {
         "desc": "確認/催促が必要なTODOを抽出（kind: due_soon/overdue/stale/carryover）",
         "usage": 'tasks_needing_attention {"kind":"overdue"}',
     },
+    # ---- GIS / 地図（管理物件108件の位置情報。座標は国土地理院・DBキャッシュ済み） ----
+    "gis_property_search": {
+        "func": gis_tools.gis_property_search,
+        "desc": "管理物件マスタを検索（物件名/住所/オーナー・分類=自社|管理|仲介|終了・種別=マンション|ビル|駐車場等・エリア）。"
+                "位置を扱う質問はまずこれで対象物件を特定する",
+        "usage": 'gis_property_search {"keyword":"ベリエール","classification":null,"area":"都島区"}',
+    },
+    "gis_nearby_properties": {
+        "func": gis_tools.gis_nearby_properties,
+        "desc": "指定した物件/住所/座標から半径内の管理物件を近い順に返す（距離つき）。"
+                "「この物件の近くに自社物件ある？」「半径800mで探して」に使う",
+        "usage": 'gis_nearby_properties {"property":"メゾンドール都島","radius_m":1000}',
+    },
+    "gis_distance": {
+        "func": gis_tools.gis_distance,
+        "desc": "2地点の距離（物件名でも住所でも可）。球面距離で計算した直線距離",
+        "usage": 'gis_distance {"from_property":"大京本社ビル","to_property":"メゾンドール都島"}',
+    },
+    "gis_area_stats": {
+        "func": gis_tools.gis_area_stats,
+        "desc": "エリア別の管理物件数（集中している地域を調べる）。group: city/ward/town",
+        "usage": 'gis_area_stats {"group":"ward"}',
+    },
+    "gis_create_map": {
+        "func": gis_tools.gis_create_map,
+        "desc": "条件に合う物件の地図HTMLを生成（種別で色分け・クリックで詳細）。"
+                "center_property＋radius_m で半径円も描ける。extra_points に取引価格等を渡すと重ねられる",
+        "usage": 'gis_create_map {"area":"都島区","classification":"自社"} '
+                 'または {"center_property":"メゾンドール都島","radius_m":1000}',
+    },
+    "gis_geocode": {
+        "func": gis_tools.gis_geocode,
+        "desc": "住所→緯度経度（国土地理院。結果はキャッシュするので同じ住所は再問い合わせしない）",
+        "usage": 'gis_geocode {"address":"大阪市都島区中野町1-4-18"}',
+    },
+    "gis_export_geojson": {
+        "func": gis_tools.gis_export_geojson,
+        "desc": "条件に合う物件をGeoJSONで書き出す（他のGISツールに渡す標準形式）",
+        "usage": 'gis_export_geojson {"classification":"自社","filename":"jisha.geojson"}',
+    },
+    "gis_market_map": {
+        "func": gis_tools.gis_market_map,
+        "desc": "管理物件に国交省の取引価格（町名別の中央値）を重ねた地図を作る。"
+                "市場データの取得は既存の reinfolib_transactions を内部で再利用している",
+        "usage": 'gis_market_map {"prefecture":"大阪府","city_code":"27102","city_name":"大阪市都島区","area":"都島区"}',
+    },
+    "gis_status": {
+        "func": gis_tools.gis_status,
+        "desc": "物件マスタと座標の整備状況（何件登録・何件に座標があるか・未取得の一覧）",
+        "usage": "gis_status {}",
+    },
     # ---- 開発（アプリ制作・改修。業務TODOとは別系統） ----
     "dev_task_create": {
         "func": dev_tools.dev_task_create,
@@ -124,8 +184,9 @@ REGISTRY = {
     },
     "reinfolib_transactions": {
         "func": reinfolib_tools.reinfolib_transactions,
-        "desc": "国交省: 不動産取引価格情報を都道府県/市区町村・年で集計（相場の客観データ）",
-        "usage": 'reinfolib_transactions {"prefecture":"大阪府","city_code":"27122","year":2024}',
+        "desc": "国交省: 不動産取引価格情報を都道府県/市区町村・年で集計（相場の客観データ）。"
+                "⚠️ city_code は必ず reinfolib_cities で確認してから使う（27102=都島区 / 27122=西成区）",
+        "usage": 'reinfolib_transactions {"prefecture":"大阪府","city_code":"27102","year":2024}',
     },
 }
 

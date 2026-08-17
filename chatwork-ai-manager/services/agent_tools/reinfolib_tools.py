@@ -105,6 +105,7 @@ def reinfolib_transactions(prefecture, city_code=None, year=None, quarter=None, 
                 "params": {"prefecture_code": code, "city_code": city_code, "year": year}}
 
     prices, by_type = [], {}
+    districts = {}          # 町名別（地図に重ねるため。2026-08-17 追加）
     samples = []
     for r in rows[:limit]:
         try:
@@ -115,6 +116,12 @@ def reinfolib_transactions(prefecture, city_code=None, year=None, quarter=None, 
             prices.append(p)
         t = r.get("Type") or "不明"
         by_type[t] = by_type.get(t, 0) + 1
+        d = r.get("DistrictName")
+        if d and p > 0:
+            districts.setdefault(d, {"district": d, "municipality": r.get("Municipality"),
+                                     "count": 0, "_prices": []})
+            districts[d]["count"] += 1
+            districts[d]["_prices"].append(p)
         if len(samples) < 8:
             samples.append({
                 "type": t, "region": r.get("Region"), "municipality": r.get("Municipality"),
@@ -122,12 +129,21 @@ def reinfolib_transactions(prefecture, city_code=None, year=None, quarter=None, 
                 "area_m2": r.get("Area"), "layout": r.get("FloorPlan"),
                 "year_built": r.get("BuildingYear"), "period": r.get("Period"),
             })
+    by_district = []
+    for d in districts.values():
+        ps = d.pop("_prices")
+        d["price_median_yen"] = int(statistics.median(ps))
+        by_district.append(d)
+    by_district.sort(key=lambda x: -x["count"])
+
     summary = {
         "ok": True, "count": len(rows),
         "prefecture_code": code, "city_code": city_code, "year": year,
         "price_median_yen": int(statistics.median(prices)) if prices else None,
         "price_mean_yen": int(statistics.mean(prices)) if prices else None,
         "by_type": by_type, "samples": samples,
+        # 町名別（GISで地図に重ねる用。件数の多い順）
+        "by_district": by_district[:40],
         "source": "国土交通省 不動産情報ライブラリ 取引価格情報(XIT001)",
     }
     return summary

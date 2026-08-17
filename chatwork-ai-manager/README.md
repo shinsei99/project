@@ -79,6 +79,45 @@ LINE/Chatwork → 既存Agent(qa) ─┬─ 業務 → 既存Tool層（変更な
 - 関連設定（システム設定）: `dev_agent_enabled` / `dev_model` / `dev_timeout_sec` /
   `dev_workspace`（既定 `/Users/apple`）/ `dev_mcp_config` / `dev_allowed_account_ids` / `dev_max_attempts`。
 
+## GIS / 地図（管理物件の位置情報）※2026-08-17 追加
+「この物件の近くに自社物件ある？」「管理物件を地図にして」「どのエリアに集中してる？」に答える。
+**常駐AgentもターミナルのClaude Codeも同じ `services/agent_tools/gis_tools.py` を使う**（2系統に分けない）。
+
+### データの作り方（最初に1回・台帳を更新したら再実行）
+```bash
+python3 ingest_properties.py          # 台帳Excel取込 → 住所→座標（未取得ぶんだけ）
+python3 ingest_properties.py --stats  # 登録状況
+```
+- 元データは Dropbox の `★要更新★管理物件台帳.xlsx`。**ターミナルから実行する**
+  （CloudStorage は launchd 常時起動からは読めない。`/bin/bash` にFDAがあれば常駐でも可）。
+- 実績: **108件登録 / 88件に座標**。残り20件は**台帳の住所欄が空**（ほぼ仲介ビル）。
+  台帳に住所を入れて再実行すれば地図に載る。
+- **オーナーの連絡先・電話番号の列は意図的に取り込んでいない**（地図やLINEに出す情報ではないため）。
+
+### Geocoding（住所→緯度経度）
+- **国土地理院 住所検索API**（`msearch.gsi.go.jp`）。**APIキー不要・無料・政府提供**。
+- OpenStreetMap の Nominatim は**利用規約で一括ジオコーディングを禁止**しているため使わない。
+- 結果は `geocode_cache` テーブルに保存し、**同じ住所を二度外部へ問い合わせない**。呼び出し間隔1秒。
+- ⚠️ **国土地理院は町名が特定できないと黙って区の中心座標を返す。** `geocode()` の戻りの
+  `coarse=True` がその印。町名ごとに点を並べる用途では捨てること（全部同じ点に重なる）。
+
+### ライブラリを追加していない理由（再検討しないための記録）
+このMacは51本のアプリが共通の `/usr/bin/python3`(3.9) を使い、本番workerもそこで動いている。
+geopandas は fiona/GDAL のバイナリを引き込むため、共有環境を壊す危険が利益に見合わない。
+→ 距離は Haversine（純Python）、地図は Leaflet を読むHTMLを自前生成、GeoJSONは標準json。
+将来ポリゴン解析（町丁目・ハザード重ね）が要るなら、その時に隔離venvで shapely を足す。
+
+### Tool 一覧
+`gis_property_search`（物件検索）/ `gis_nearby_properties`（半径検索・距離つき）/
+`gis_distance`（2地点間）/ `gis_area_stats`（エリア別集計）/ `gis_create_map`（地図HTML生成）/
+`gis_market_map`（**既存の reinfolib_transactions を再利用**して取引価格を重ねた地図）/
+`gis_geocode` / `gis_export_geojson` / `gis_status`。
+
+### 地図の置き場所・見方
+- `chatwork-ai-manager/maps/` に HTML を保存（**gitignore**。実在の所在地とオーナー名を含むため）。
+- 管理画面の「🗺 物件マップ」で表示・作成・物件一覧の確認ができる。
+- 背景地図は地理院タイル。LINEには画像を送れないので、**要点を文章で返し**ファイル名を添える運用。
+
 ## 投稿モード（安全設計）
 `confirm`（既定・AIの自発投稿はすべて管理画面で承認）/ `semi`（進捗確認等は自動）/ `auto`（全自動）。
 管理画面「システム設定」で切替。@Claudeへの直接返信は常に送信。
