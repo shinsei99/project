@@ -93,9 +93,11 @@
 - メインPCに**前からの未コミット作業**が19ファイル分ある（mail-merge-pro / realestate-valuation /
   restoration-calculator / parking-map / memorandum-generator の icon-src）。素性を確認してから整理する
   → **今週はサブPC中心なので、これは先にコミットして push しないとサブPCから触れない**
-- **Dropbox共有フォルダの `.url` が4本足りない**（Desktop の `.app` にはあるのに配っていない）:
-  横断ファイル検索(8520) / 業務マニュアル(8521) / 駐車場配置図ビューア(8522) / AI業務マネージャー(8540)。
-  `icons/` には 横断ファイル検索・業務マニュアル の `.ico` だけある。配るかは未判断
+- **社内への配り方を整理**（4本足りないように見えた件の決着）。
+  横断ファイル検索(8520)・業務マニュアル(8521) は**`社内ツール/` の1つ上**（`（★必読★）新共有フォルダ/` 直下）に
+  既に置いてあった＝毎日使う入口なので浅い位置。駐車場配置図ビューア(8522) は今回追加（`.url`＋`.ico`。
+  `.ico` は Desktop の `.app` の `AppIcon.icns` を sips→PIL で変換し見た目を統一）。
+  **AI業務マネージャー(8540) はオーナー管理の情報を扱うため配らない**（画面は 0.0.0.0＋パスワードのまま）
 - **鍵が6本、メインPCに存在しない**（`brain-dump/.env.local` / `pasha-calo/.env.local` /
   `digital-shosai/.env.local` / `baikai-generator/.streamlit/secrets.toml` /
   `theta-viewer/server/ftp-config.json` / `kaitori-dm-maker/senders.json`）。

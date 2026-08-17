@@ -340,6 +340,22 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
 
+### 社内への配り方（入口の置き場・2026-08-17整理）
+
+| 置き場 | 中身 |
+|---|---|
+| Dropbox `共有フォルダ/（★必読★）新共有フォルダ/社内ツール/` | 各アプリの `.url`（23本）＋ `icons/*.ico` |
+| その**1つ上**（`（★必読★）新共有フォルダ/` 直下） | `横断ファイル検索.url` と `業務マニュアル.url` の2本だけ。全社員が毎日使う入口なので浅い位置に置く |
+| `Desktop/社内ツール/`（このMacのみ） | `.app`（29本）。Mac用のランチャで、Dropboxには置かない |
+
+- `.url` は **Shift-JIS(CP932)＋CRLF**。`URL=http://192.168.1.105:<port>`、
+  `IconFile=%USERPROFILE%\大京商事　株式会社 Dropbox\…\社内ツール\icons\<名前>.ico`
+  （※このMacは en0=192.168.1.140 / en1=**192.168.1.105** の2枚刺し。**配布は .105 で統一**）
+- **AI業務マネージャー（8540）は社内に配らない。** オーナー管理の情報を扱うため、
+  画面は 0.0.0.0＋パスワードで動かすが `.url` は置かない（2026-08-17判断）
+- `.ico` が無いアプリは、Desktop の `.app` の `AppIcon.icns` を
+  `sips -s format png` → PIL の `save(..., sizes=[...])` で変換すると見た目を揃えられる
+
 ---
 
 ## ★ iOS App Store 再配信ルール（再発防止・必読）
