@@ -90,7 +90,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 バインド先やPythonを変えたら、**`launchctl kickstart -k gui/$(id -u)/<label>` で入れ替えて
 `lsof` で見る**まででワンセット（2026-08-17に 8526/8527 がこれでLAN公開のままだった）。
 
-## ★ 公開しているサイト・発信先（5つ）
+## ★ 公開サイト（5つ）
 
 **アプリ（動かすもの）とは別軸の索引。** 本数の内訳には入れない
 （AIツールベースは port 3004 のアプリでもあるため、ツール分類に残したまま）。
