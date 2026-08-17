@@ -11,6 +11,43 @@
 
 ---
 
+## 2026-08-17（夜・サブPC）— 開発ループを明文化し、検証を実行できるようにした
+
+「Agentic Workflow のガイドラインを入れたい」という相談を受け、**このリポジトリの実情に合わせて縮めて**導入した。
+
+### 完了したこと
+- **CLAUDE.md に「5. 完了の定義」「6. 自律で進めてよい範囲と、必ず聞くこと」「7. タスクの書き方」を追加**
+  （約1,500字。今日46%削った分を食い潰さない範囲に収めた）
+  - 完了条件＝要件充足／**検証の最低ラインの実行**／**画面の目視**／既存機能を壊していない／記録／`--sync`
+  - 種別ごとの検証ライン: Streamlit＝smoke_test＋**127.0.0.1で起動しHTTP 200**＋目視 ／
+    Next＝lint+build(+validate) ／静的＝Consoleエラー0件＋目視 ／iOS＝`ios-build-guard.sh`
+  - **自律の範囲はローカル完結のみ。** 外部へ出る操作（Chatwork/LINE返信・メール送信・FTP公開・
+    Vercel本番・Zenn/note投稿・App Store提出）、戻せない操作、個人情報、**解釈が分かれる判断**は人に聞く
+- **`./dev-doctor.py --verify <アプリ>` を追加**。上の最低ラインを実際に回す。
+  `run.sh` を使わず **127.0.0.1 を明示**して立てる（不動産カテゴリの run.sh は 0.0.0.0）。
+  `chatwork-ai-manager` と `mail-merge-pro` は**外部に送るので自動検証しない**（理由を出して飛ばす）
+- **実測**: `business-plan-generator` → smoke_test ✓（総事業費25,501万・Excel 9,380バイト）＋
+  127.0.0.1:8990 で **HTTP 200** ✓ ／ `ai-tools-base` → `validate` ✓ `lint` ✓
+  （validateの⚠️は既知の「転載がまだ」5件と review 未記入4件のみ）
+
+### 判断したこと（採用しなかった部分と理由）
+- **`docs/tasks.md` `architecture.md` `decisions.md` `issues.md` の新設は採らなかった。**
+  既存の「直下TODO.md（51本の索引）＋各アプリの TODO / SESSION_LOG / README」と二重になり、
+  51アプリのタスクを1ファイルに集めると破綻する。→ tasks=各アプリTODO / decisions=README /
+  issues=SESSION_LOGの未解決節 に**写像**した。`architecture` だけ不足なので、構成が複雑な3本
+  （agent-platform / chatwork-ai-manager / building-manager）のREADMEに図を足す方針だけ決めた（未実施）
+- **Task ID・9項目テンプレを全タスクに課すのも採らなかった。** 51本×全タスクでは続かない。
+  複数セッションまたぎ・複数ファイル・外部影響のある改修だけ様式化する
+- **「テスト成功」を無条件のDONE条件にしなかった。** 実測で pytest 0件・smoke_test 4本・
+  npm test 2本しか無く、形式的なチェックになる。代わりに種別ごとの最低ラインを定義した
+
+### 次回への引き継ぎ事項・未解決の課題
+- 構成図（architecture）を3本のREADMEに追加するのは**未実施**
+- 検証ラインを**全51本で通したわけではない**（2本で確認しただけ）。触るアプリで順次
+- `--verify` は Next の `build` を既定で飛ばす（Intel Macで数分かかるため）。`--build` で回る
+
+---
+
 ## 2026-08-17（夜・サブPC）— 2台のPCで同じ開発環境にするための整備（調査→修正→統合）
 
 **目的**: 今回のような引き継ぎミス（コミット漏れ・改名の枝分かれ・MCPの取りこぼし）を、

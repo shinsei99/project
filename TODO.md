@@ -39,7 +39,13 @@
 > #    手順はその中の「先に読む.txt」に書いてある（MEMORY.md は上書きせず diff を見てから）
 > #    取り込んだら置き場ごと削除する
 >
-> # ⑦ 新しい道具（使うなら）
+> # ⑦ 開発ループの新ルール（CLAUDE.md 5〜7）を確認する
+> ./dev-doctor.py --verify <アプリ>          # 検証の最低ラインを実行（smoke_test / 起動 / lint）
+> ./dev-doctor.py --verify <アプリ> --build   # Nextのbuildも回す（Intel Macで数分）
+> #   ★ run.sh は検証に使わない（不動産は 0.0.0.0＝LANに晒される）。--verify は 127.0.0.1 で立てる
+> #   ★ chatwork-ai-manager と mail-merge-pro は自動検証しない（外部へ実際に送るため）
+>
+> # ⑧ 新しい道具（使うなら）
 > ./va.sh --help          # Visual Agent: ブラウザを見て操作しUIを検証する
 > ./see.sh --help         # Macの画面・pptx/pdfの見た目を見る
 > #   Chromium は agent-platform/.venv の playwright を借りる。無ければ:
@@ -60,6 +66,8 @@
 > | SESSION_LOG の見出しにPC名必須 | 同じ日付の節を2台が書いて衝突した実例の再発防止 |
 > | TODO に「担当PC」列 | 2台で同じ作業を始める事故の防止 |
 > | `va.sh` / `see.sh` | Claude Code が画面を見て確かめられるようにした |
+> | **開発ループの明文化（CLAUDE.md 5〜7）** | 「完了の定義」＝実装＋検証＋目視＋記録。**アプリ種別ごとの検証の最低ライン**の表。自律で進めてよい範囲と**必ず聞くこと**（外部送信・公開・課金・戻せない操作・解釈が分かれる判断）。タスクの様式は大きい改修だけ |
+> | `dev-doctor.py --verify <アプリ>` | その最低ラインを実行する。実測: business-plan-generator は smoke_test ✓ ＋ 127.0.0.1 で HTTP 200 ✓／ai-tools-base は validate ✓ lint ✓ |
 >
 > ### サブPCの現状（メインPCが知っておくこと）
 >

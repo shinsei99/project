@@ -7,6 +7,7 @@
 
     python3 dev-doctor.py --sync     # 2台の環境差・コミット漏れを検知（作業の終わりに叩く）
     python3 dev-doctor.py --sync --fetch   # remoteを取りに行ってから比較
+    python3 dev-doctor.py --verify <アプリ> # 検証の最低ラインを実行（smoke_test / 起動 / lint / build）
 
 見るのは4点:
   依存    … `.venv` / `node_modules` があるか（**gitで来ないので各PCで作る**）
@@ -345,6 +346,124 @@ def check_autostart() -> None:
         WARNINGS.append(f"LANに公開されている待受がある: {', '.join(lan)}（サブPCでは出さない）")
 
 
+# ============================================================================
+# 検証の最低ライン（`--verify <アプリ>`）
+#   「実装しただけ」を完了にしないための実行部隊。ルート CLAUDE.md「5. 完了の定義」の表と揃える。
+#   **外部に出る操作は絶対にしない**（送信・公開・デプロイ・提出）。ローカルだけで確かめる。
+# ============================================================================
+
+# 検証しようとすると外部に作用してしまうアプリ。**自動では動かさない**
+EXTERNAL_RISK = {
+    "chatwork-ai-manager": "Chatwork・LINEへ実際に返信する（worker/LINEは1台のみ）。画面だけ手で起動する",
+    "mail-merge-pro": "Apple Mail から実際に送信する。手で確かめる",
+}
+
+
+def _free_port(start: int = 8990) -> int:
+    import socket
+    for p in range(start, start + 30):
+        with socket.socket() as s:
+            if s.connect_ex(("127.0.0.1", p)) != 0:
+                return p
+    return start
+
+
+def _run(cmd: list[str], cwd: Path, label: str, timeout: int = 900) -> bool:
+    print(f"\n  ▶ {label}: {' '.join(cmd[:6])}{' …' if len(cmd) > 6 else ''}")
+    try:
+        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        print(f"    ✗ {timeout}秒で打ち切り")
+        return False
+    out = (r.stdout + r.stderr).strip().splitlines()
+    for l in out[-8:]:
+        print(f"    | {l[:150]}")
+    print(f"    {'✓ 成功' if r.returncode == 0 else f'✗ 失敗 (exit {r.returncode})'}")
+    return r.returncode == 0
+
+
+def _http_ok(url: str, wait: int = 45) -> bool:
+    import time
+    import urllib.request
+    for _ in range(wait):
+        try:
+            with urllib.request.urlopen(url, timeout=2) as res:
+                if res.status == 200:
+                    return True
+        except Exception:
+            pass
+        time.sleep(1)
+    return False
+
+
+def verify(app: str, do_build: bool) -> None:
+    p = ROOT / app
+    if not p.is_dir():
+        print(f"{app} が無い")
+        return
+    print(f"■ 検証: {app}")
+    if app in EXTERNAL_RISK:
+        print(f"  ⏭ 自動検証しない — {EXTERNAL_RISK[app]}")
+        return
+
+    results: list[tuple[str, bool]] = []
+    py_app = (p / "requirements.txt").exists()
+    node_app = (p / "package.json").exists()
+
+    if py_app:
+        py = str(p / ".venv/bin/python") if (p / ".venv/bin/python").exists() else "/usr/bin/python3"
+        if (p / "smoke_test.py").exists():
+            results.append(("smoke_test.py", _run([py, "smoke_test.py"], p, "smoke test", 600)))
+        else:
+            print("\n  ▶ smoke test: **無い**（無理に作らない。触った処理を1つ動かす代わりの確認を書く）")
+        if (p / "app.py").exists():
+            # **run.sh は使わない**（不動産カテゴリは 0.0.0.0＝LANに晒される）。127.0.0.1 を明示する
+            port = _free_port()
+            print(f"\n  ▶ 起動確認: 127.0.0.1:{port} で streamlit を立ち上げて HTTP 200 を待つ")
+            proc = subprocess.Popen(
+                [py, "-m", "streamlit", "run", "app.py", "--server.address", "127.0.0.1",
+                 "--server.port", str(port), "--server.headless", "true"],
+                cwd=p, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+            ok = _http_ok(f"http://127.0.0.1:{port}")
+            proc.terminate()
+            try:
+                proc.wait(timeout=15)
+            except Exception:
+                proc.kill()
+            print(f"    {'✓ HTTP 200（止めた）' if ok else '✗ 200 が返らなかった'}")
+            results.append((f"起動確認(127.0.0.1:{port})", ok))
+            print(f"    ※ 画面の中身は目で見る: ./va.sh start && ./va.sh goto 127.0.0.1:{port} && ./va.sh shot")
+
+    if node_app:
+        scripts = json.loads((p / "package.json").read_text(encoding="utf-8")).get("scripts", {})
+        for name in ("validate", "lint", "test"):
+            if name in scripts:
+                results.append((f"npm run {name}", _run(["npm", "run", name], p, name, 600)))
+        if "build" in scripts:
+            if do_build:
+                results.append(("npm run build", _run(["npm", "run", "build"], p, "build", 1800)))
+            else:
+                print("\n  ▶ build: 飛ばした（--build を付けると実行する。Intel Macでは数分かかる）")
+
+    if not py_app and not node_app:
+        print("\n  静的HTMLのアプリ。`./va.sh` で開いて Console エラー0件と画面を確認する:")
+        print(f"    ./va.sh start && ./va.sh goto file://{p}/index.html && ./va.sh console --errors")
+
+    if list(p.glob("*/*.xcodeproj")) or list(p.glob("*.xcodeproj")):
+        print("\n  iOSアプリ。再配信するなら **ビルド番号の衝突確認**を先にやる:")
+        print(f"    ./ios-build-guard.sh {app}")
+
+    print("\n  " + "-" * 60)
+    if not results:
+        print("  自動で回せる検証は無かった。**上の手順を人が実行して確かめる**")
+    else:
+        ng = [n for n, ok in results if not ok]
+        for n, ok in results:
+            print(f"  {'✓' if ok else '✗'} {n}")
+        print(f"  → {'すべて成功' if not ng else f'失敗 {len(ng)}件: ' + ', '.join(ng)}")
+    print("  画面を目で見るところまでやって初めて完了（CLAUDE.md「5. 完了の定義」）")
+
+
 def sync_report(do_fetch: bool) -> None:
     print(f"役割: {'メインPC' if pc_role() == 'main' else 'サブPC'}"
           f"（`.dev-role` で切り替える。無ければサブPC扱い）")
@@ -364,6 +483,14 @@ def sync_report(do_fetch: bool) -> None:
 
 
 def main() -> None:
+    if "--verify" in sys.argv:
+        i = sys.argv.index("--verify")
+        target = sys.argv[i+1] if len(sys.argv) > i+1 and not sys.argv[i+1].startswith("--") else ""
+        if not target:
+            print("使い方: ./dev-doctor.py --verify <アプリ名> [--build]")
+            return
+        verify(target, "--build" in sys.argv)
+        return
     if "--sync" in sys.argv:
         sync_report("--fetch" in sys.argv)
         return
