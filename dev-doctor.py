@@ -368,16 +368,30 @@ def _free_port(start: int = 8990) -> int:
     return start
 
 
-def _run(cmd: list[str], cwd: Path, label: str, timeout: int = 900) -> bool:
+# 「失敗」ではなく「その仕組みがまだ無い」だけの出力。✗ にしないで飛ばす
+NOT_SET_UP = (
+    "ESLint must be installed",                    # eslint が devDependency に無い
+    "How would you like to configure ESLint",       # next lint が対話で設定を聞いてくる
+    "No tests found",
+    "missing script",
+)
+
+
+def _run(cmd: list[str], cwd: Path, label: str, timeout: int = 900) -> bool | None:
+    """成功=True / 失敗=False / **そもそも未設定=None**（Noneは合否に数えない）"""
     print(f"\n  ▶ {label}: {' '.join(cmd[:6])}{' …' if len(cmd) > 6 else ''}")
     try:
         r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
     except subprocess.TimeoutExpired:
         print(f"    ✗ {timeout}秒で打ち切り")
         return False
-    out = (r.stdout + r.stderr).strip().splitlines()
+    joined = r.stdout + r.stderr
+    out = joined.strip().splitlines()
     for l in out[-8:]:
         print(f"    | {l[:150]}")
+    if r.returncode != 0 and any(k in joined for k in NOT_SET_UP):
+        print("    ⏭ この仕組み自体が未設定（失敗ではない。無理に足さない）")
+        return None
     print(f"    {'✓ 成功' if r.returncode == 0 else f'✗ 失敗 (exit {r.returncode})'}")
     return r.returncode == 0
 
@@ -406,7 +420,7 @@ def verify(app: str, do_build: bool) -> None:
         print(f"  ⏭ 自動検証しない — {EXTERNAL_RISK[app]}")
         return
 
-    results: list[tuple[str, bool]] = []
+    results: list[tuple[str, bool | None]] = []
     py_app = (p / "requirements.txt").exists()
     node_app = (p / "package.json").exists()
 
@@ -457,10 +471,14 @@ def verify(app: str, do_build: bool) -> None:
     if not results:
         print("  自動で回せる検証は無かった。**上の手順を人が実行して確かめる**")
     else:
-        ng = [n for n, ok in results if not ok]
+        ng = [n for n, ok in results if ok is False]
+        skipped = [n for n, ok in results if ok is None]
         for n, ok in results:
-            print(f"  {'✓' if ok else '✗'} {n}")
-        print(f"  → {'すべて成功' if not ng else f'失敗 {len(ng)}件: ' + ', '.join(ng)}")
+            print(f"  {'✓' if ok else ('⏭' if ok is None else '✗')} {n}")
+        if ng:
+            print(f"  → 失敗 {len(ng)}件: {', '.join(ng)}")
+        else:
+            print(f"  → すべて成功{f'（{len(skipped)}件は未設定のため対象外）' if skipped else ''}")
     print("  画面を目で見るところまでやって初めて完了（CLAUDE.md「5. 完了の定義」）")
 
 

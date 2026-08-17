@@ -145,9 +145,13 @@ launchctl print-disabled "gui/$(id -u)" | grep shinsei             # 無効化�
 - **新しく `.env` を作ったら `secrets-manifest.txt` に1行追記する。** 載っていないものは運ばれない
 - `chatwork-ai-manager` は対象外。専用の `handoff_export.sh` / `handoff_import.sh` を使う
 
-**2026-08-17 実測: `secrets-manifest.txt` の18件のうち17件が設定済み。不足は
-`digital-shosai/.env.local`（Supabase）だけで、これは<b>メインPCにも実体が無い</b>**
-（あるのは `.env.local.example`）。**運べないので、使うときは新規に発行する。**
+**2026-08-17 実測: `secrets-manifest.txt` に載っている機密は全件そろっている（不足0件）。**
+
+> `digital-shosai/.env.local`（Supabase）を長く「不足」として扱っていたが、**そもそも要らなかった**。
+> このアプリは**完全オンデバイス版**（pdf.js＋IndexedDB・`output: "export"`）に作り替えられており、
+> コード内に `process.env` の参照が**1つも無い**。`.env.local.example` が旧設計の名残として
+> 残っていたため、点検ツールが「exampleがあるのに実体が無い」と誤検知していた。
+> exampleを削除し、manifestからも外した（`npm run build` が通ることを実測で確認）。
 
 > ⚠️ `secrets-sync.sh export` は **メインPCでは使えなかった**（道具自体が
 > `.gitignore` の許可行漏れでコミットされておらず、メインPCに存在しなかった）。

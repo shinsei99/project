@@ -74,7 +74,7 @@
 > - **launchd 常駐 0本**（`file-finder` 8520 / `owner-payout-tracker` 8519 は unload＋**disable**）。
 >   LAN公開なし。8540（chatwork管理画面）も停止済み。**worker/LINE/ngrok はメインPCのみで変更なし**
 > - 依存は Python 31/31・Node 14/14（`business-plan-generator` の venv を作成）
-> - 機密は18件中17件あり。不足は `digital-shosai/.env.local` だけで**両PCに無い**（要件取り下げ）
+> - 機密は**不足0件**（`digital-shosai/.env.local` は不要だったと判明。オンデバイス版で `process.env` 参照0件）
 > - **Build/Test の実走は未実施**（判断により省略）。実施するなら外部に出るアプリを除外すること
 >   （chatwork / mail-merge-pro / FTP公開 / Vercel本番 / prisma db push）
 > - サブPCに `stash@{0} pre-origin-sync` とローカルブランチ2本が残っている。**消していない**
@@ -118,7 +118,9 @@
   `ai-tools-base` に統一**した。メインPCは `git pull` 後、gitに入らない実体を手で移す:
   `mv ai-tools-lab/node_modules ai-tools-lab/.next ai-tools-lab/.vercel ai-tools-lab/.env* ai-tools-base/`
   → 移したら `rmdir ai-tools-lab`（`./publish.sh` は `ai-tools-base/` 側にある）
-- `digital-shosai/.env.local` は**メインPCにも存在しない**（`.env.local.example` のみ）＝運べないので要件取り下げ。
+- ~~`digital-shosai/.env.local` が不足~~ ✅ **そもそも不要だった**（2026-08-17実測）。完全オンデバイス版
+  （pdf.js＋IndexedDB）に作り替えられており `process.env` の参照が0件。旧設計の `.env.local.example` を
+  削除し manifest からも外した。→ **機密の不足は0件になった**
 - ~~サブPCの launchd 常駐2本（file-finder 8520 / owner-payout-tracker 8519）~~
   ✅ 2026-08-17 に unload 済み。サブPCの launchd 常駐は**0本**（`launchctl list | grep shinsei` が空）。
   画面が要るときは `cd <アプリ> && ./run.sh` で都度起動する（常駐に戻さない）
