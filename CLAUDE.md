@@ -138,7 +138,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 送付書ジェネレーター | soufu-generator | 8518 | — |
 | デジタル書斎 | digital-shosai | 3001 | — |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
-| スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（1.0.2 build6 配信済み・**1.0.3 build7 アップロード待ち**） |
+| スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（1.0.2 build6 配信済み・**1.0.3 build7 アップ済み／審査提出待ち**） |
 | 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅ |
 | ママカウンター | mom-counter | — | GitHub Pages / App Store ✅ v1.0.1 |
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
@@ -148,7 +148,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
 | ポケモンカード図鑑（全31,520枚・画像100%収録） | pokecard-dex | 8531 | — |
 | チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
-| AIツールラボ（Claude Code主軸の比較メディア＋制作記録） | ai-tools-lab | 3004 | — |
+| AIツールラボ（Claude Code主軸の比較メディア＋制作記録） | ai-tools-lab | 3004 | Vercel（ai-tools-lab-psi.vercel.app・手動 `npx vercel --prod`） |
 
 ### ゲーム（6本）※社内LAN共有なし
 
