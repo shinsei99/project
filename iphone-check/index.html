@@ -128,7 +128,7 @@
     </div>
     <p class="note">
       速さの測定は、本1ページ分（992×1454px）を描いて圧縮する時間です。3万ページの見込み時間もここから出します。
-      容量の試験は 30MB を書き込んですぐ削除します。端末には何も残しません。
+      容量の試験は Blob と ArrayBuffer の2通りで5MBずつ試し、そのあと20MBずつ増やして上限を探ります（最大200MB）。すべて<strong>その場で削除</strong>します。
     </p>
   </section>
 
@@ -187,7 +187,7 @@
   const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
   addRow("auto", "ホーム画面から起動", standalone ? "ok" : "idle",
     standalone ? "standalone で動作中" : "ブラウザのタブで開いています",
-    "ホーム画面に追加して開くと、保存できる量が増える端末があります。");
+    "ホーム画面に追加して開くと保存できる量が増える端末があります。タブで開いている場合は、共有ボタン→「ホーム画面に追加」→そこから開いて、もう一度このページを試してください。");
 
   // ── 2. ファイルの読み方 ───────────────────────────────────────────
   addRow("auto", "フォルダを指定して読む", "showDirectoryPicker" in window ? "ok" : "bad",
@@ -224,6 +224,28 @@
     addRow("auto", "WebP で保存できる", ok ? "ok" : "warn",
       "toDataURL: " + url.slice(5, 15),
       ok ? "画像を小さく保存できます。" : "PNG になります（同じ画質でも数倍大きくなります）。");
+  })();
+
+  // WebP を表示できるか（作れるかとは別。Macで作った画像をiPhoneで見られるかの判定）
+  (function () {
+    const row = addRow("auto", "WebP を表示できる", "idle", "判定中…", "Macで作ったWebPをiPhoneで見られるかどうか。");
+    const img = new Image();
+    img.onload = () => {
+      const ok = img.width === 2;
+      row.querySelector(".pill").className = "pill " + (ok ? "ok" : "bad");
+      row.querySelector(".pill").textContent = ok ? "使える" : "使えない";
+      row.querySelector(".val").textContent = "decode: " + (ok ? "OK (2x2)" : "失敗");
+      results[results.length - 1].value = "decode: " + (ok ? "OK" : "失敗");
+      results[results.length - 1].state = ok ? "使える" : "使えない";
+    };
+    img.onerror = () => {
+      row.querySelector(".pill").className = "pill bad";
+      row.querySelector(".pill").textContent = "使えない";
+      row.querySelector(".val").textContent = "decode: エラー";
+      results[results.length - 1].value = "decode: エラー";
+      results[results.length - 1].state = "使えない";
+    };
+    img.src = "data:image/webp;base64,UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==";
   })();
 
   // 保存容量の見込み
@@ -278,41 +300,84 @@
     btn.disabled = false;
   });
 
+  function errText(e) {
+    if (e == null) return "エラー情報なし（null）";
+    if (typeof e === "string") return e;
+    return [e.name, e.message || String(e)].filter(Boolean).join(": ");
+  }
+
+  function openProbe(name) {
+    return new Promise((res, rej) => {
+      const r = indexedDB.open(name, 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("s");
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+      r.onblocked = () => rej(new Error("blocked"));
+    });
+  }
+
+  function putOnce(db, key, value) {
+    return new Promise((res, rej) => {
+      let tx;
+      try { tx = db.transaction("s", "readwrite"); } catch (e) { rej(e); return; }
+      tx.oncomplete = () => res();
+      tx.onabort = () => rej(tx.error || new Error("transaction aborted（容量上限の可能性）"));
+      tx.onerror = () => rej(tx.error);
+      try { tx.objectStore("s").put(value, key); } catch (e) { rej(e); }
+    });
+  }
+
   document.getElementById("btnQuota").addEventListener("click", async (e) => {
     const btn = e.currentTarget;
     btn.disabled = true;
-    btn.textContent = "書き込んでいます…";
+    btn.textContent = "試しています…";
     const DB = "shosai-capacity-probe";
-    try {
-      const db = await new Promise((res, rej) => {
-        const r = indexedDB.open(DB, 1);
-        r.onupgradeneeded = () => r.result.createObjectStore("blobs");
-        r.onsuccess = () => res(r.result);
-        r.onerror = () => rej(r.error);
-      });
-      const chunk = new Blob([new Uint8Array(1024 * 1024)]);   // 1MB
-      const t0 = performance.now();
-      let written = 0;
-      for (let i = 0; i < 30; i++) {
-        await new Promise((res, rej) => {
-          const tx = db.transaction("blobs", "readwrite");
-          tx.objectStore("blobs").put(chunk, "c" + i);
-          tx.oncomplete = res;
-          tx.onerror = () => rej(tx.error);
-        });
-        written++;
+    try { indexedDB.deleteDatabase(DB); } catch (_) {}
+
+    // ① Blob で保存できるか（Safari は昔から苦手という説の検証）
+    // ② ArrayBuffer で保存できるか（①が駄目ならこちらで実装する）
+    for (const kind of ["Blob", "ArrayBuffer"]) {
+      try {
+        const db = await openProbe(DB + "-" + kind);
+        const bytes = new Uint8Array(5 * 1024 * 1024);   // 5MB
+        const value = kind === "Blob" ? new Blob([bytes]) : bytes.buffer;
+        const t0 = performance.now();
+        await putOnce(db, "k", value);
+        const ms = performance.now() - t0;
+        db.close();
+        indexedDB.deleteDatabase(DB + "-" + kind);
+        addRow("measured", kind + " を5MB保存", "ok", (ms).toFixed(0) + "ms で成功（削除済み）",
+          kind === "Blob" ? "画像をそのまま置ける形です。" : "画像をこの形に変えれば置けます。");
+      } catch (err) {
+        addRow("measured", kind + " を5MB保存", "bad", errText(err),
+          kind === "Blob" ? "Blobは使えません。ArrayBuffer の結果を見てください。" : "どちらも駄目なら画像は端末に置けません。");
       }
-      const ms = performance.now() - t0;
-      db.close();
-      indexedDB.deleteDatabase(DB);
-      addRow("measured", "書き込みの試験", "ok",
-        written + " MB を " + (ms / 1000).toFixed(1) + " 秒で書き込み（削除済み）",
-        "この速さなら、60MBの索引の読み書きは " + (ms * 2 / 1000).toFixed(0) + " 秒程度の見込みです。");
-    } catch (err) {
-      addRow("measured", "書き込みの試験", "bad", String(err && err.name ? err.name + ": " + err.message : err),
-        "ここで止まるなら、iPhone では索引の持ち込み量を減らす必要があります。");
-      try { indexedDB.deleteDatabase(DB); } catch (_) {}
     }
+
+    // ③ どこまで入るか（20MBずつ増やして、失敗した所で止める。上限200MBまで試す）
+    btn.textContent = "容量の上限を探っています…";
+    const DB2 = DB + "-grow";
+    let written = 0, stopped = "";
+    try {
+      const db = await openProbe(DB2);
+      const bytes = new Uint8Array(20 * 1024 * 1024).buffer;   // ArrayBuffer で20MBずつ
+      for (let i = 0; i < 10; i++) {
+        try {
+          await putOnce(db, "c" + i, bytes.slice(0));
+          written += 20;
+        } catch (err) { stopped = errText(err); break; }
+      }
+      db.close();
+    } catch (err) { stopped = errText(err); }
+    indexedDB.deleteDatabase(DB2);
+
+    let est = null;
+    try { est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; } catch (_) {}
+    addRow("measured", "実際に入った量", written >= 200 ? "ok" : written > 0 ? "warn" : "bad",
+      written + " MB まで書けた" + (stopped ? "（そこで停止: " + stopped + "）" : "（200MBまで試して全部成功）") +
+      (est ? " ／ 申告 " + fmt(est.quota) : ""),
+      "テキスト索引は約60MB。ここが60MBを超えていれば、索引は問題なく持ち込めます。");
+
     btn.textContent = "もう一度試す";
     btn.disabled = false;
   });
