@@ -22,9 +22,11 @@ struct RecipientImportView: View {
                 Label("宛先", systemImage: "person.2")
                     .font(.headline)
                 Spacer()
-                Text("\(viewModel.recipientCount) 件")
-                    .foregroundStyle(.secondary)
-                    .font(.subheadline)
+                if viewModel.recipientCount > 0 {
+                    Text("\(viewModel.selectedCount) / \(viewModel.recipientCount) 件")
+                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
+                }
             }
 
             // 読込ボタン。
@@ -73,20 +75,47 @@ struct RecipientImportView: View {
             .frame(maxWidth: .infinity, minHeight: 120)
             .background(.quinary, in: RoundedRectangle(cornerRadius: 8))
         } else {
-            List(viewModel.recipients) { recipient in
-                HStack(spacing: 8) {
-                    Image(systemName: recipient.status.systemImage)
-                        .foregroundStyle(recipient.status.color)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(recipient.name.isEmpty ? "(名前なし)" : recipient.name)
-                        Text(recipient.email)
+            VStack(alignment: .leading, spacing: 4) {
+                // 全選択／全解除トグル。
+                HStack {
+                    Toggle(isOn: Binding(
+                        get: { viewModel.allSelected },
+                        set: { viewModel.setAllSelections($0) }
+                    )) {
+                        Text("すべて選択")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
+                    .toggleStyle(.checkbox)
                     Spacer()
+                    Text("チェックした宛先だけ送信します")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
+
+                List(viewModel.recipients) { recipient in
+                    HStack(spacing: 8) {
+                        // 個別の送信対象チェック。
+                        Toggle(isOn: Binding(
+                            get: { recipient.isSelected },
+                            set: { viewModel.setSelection(id: recipient.id, to: $0) }
+                        )) { EmptyView() }
+                        .toggleStyle(.checkbox)
+                        .labelsHidden()
+
+                        Image(systemName: recipient.status.systemImage)
+                            .foregroundStyle(recipient.status.color)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(recipient.name.isEmpty ? "(名前なし)" : recipient.name)
+                                .foregroundStyle(recipient.isSelected ? .primary : .secondary)
+                            Text(recipient.email)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                }
+                .frame(minHeight: 160)
             }
-            .frame(minHeight: 160)
         }
     }
 }

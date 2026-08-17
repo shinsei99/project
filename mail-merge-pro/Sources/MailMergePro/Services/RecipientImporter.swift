@@ -41,9 +41,15 @@ protocol RecipientImporting {
 final class RecipientImporter: RecipientImporting {
 
     /// 名前列とみなすヘッダ候補（小文字・前後空白除去で比較）。
-    private let nameHeaders: Set<String> = ["name", "名前", "氏名", "宛名", "お名前"]
+    private let nameHeaders: Set<String> = [
+        "name", "なまえ", "名前", "氏名", "お名前", "御名前", "宛名", "宛先名",
+        "ネーム", "担当者", "担当者名", "顧客名", "会社名", "御芳名", "様名"
+    ]
     /// メール列とみなすヘッダ候補。
-    private let emailHeaders: Set<String> = ["email", "e-mail", "mail", "メール", "メールアドレス", "アドレス"]
+    private let emailHeaders: Set<String> = [
+        "email", "e-mail", "e mail", "mail", "mailaddress", "mail address",
+        "メール", "メールアドレス", "メルアド", "アドレス", "e-メール"
+    ]
 
     func importRecipients(from url: URL) throws -> [Recipient] {
         let ext = url.pathExtension.lowercased()
@@ -80,10 +86,16 @@ final class RecipientImporter: RecipientImporting {
         let lowerHeader = header.map { $0.lowercased() }
 
         let emailIndex = lowerHeader.firstIndex(where: { emailHeaders.contains($0) })
-        let nameIndex = lowerHeader.firstIndex(where: { nameHeaders.contains($0) })
 
         guard let emailIdx = emailIndex else {
             throw RecipientImportError.missingEmailColumn
+        }
+
+        // 名前列を決める。ヘッダ名で見つからなければ、メール列以外の先頭列を名前とみなす
+        // （「なまえ,メール」等、想定外のヘッダ名でも名前を拾えるようにするフォールバック）。
+        var nameIndex = lowerHeader.firstIndex(where: { nameHeaders.contains($0) })
+        if nameIndex == nil {
+            nameIndex = header.indices.first(where: { $0 != emailIdx })
         }
 
         // データ行を Recipient に変換。

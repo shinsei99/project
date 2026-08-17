@@ -33,6 +33,9 @@ struct Recipient: Identifiable, Equatable, Codable {
     /// 送信失敗時のエラーメッセージ。成功時は nil。
     var errorMessage: String?
 
+    /// 送信対象に含めるか（チェックで個別に除外できる）。既定は true。
+    var isSelected: Bool
+
     /// 名前・アドレス以外の差し込み項目（列名 → 値）。
     /// 例: ["company": "株式会社サンプル", "contract_no": "A-1024"]
     var extraFields: [String: String]
@@ -47,7 +50,8 @@ struct Recipient: Identifiable, Equatable, Codable {
         email: String,
         status: SendStatus = .pending,
         errorMessage: String? = nil,
-        extraFields: [String: String] = [:]
+        extraFields: [String: String] = [:],
+        isSelected: Bool = true
     ) {
         self.id = id
         self.name = name
@@ -55,6 +59,7 @@ struct Recipient: Identifiable, Equatable, Codable {
         self.status = status
         self.errorMessage = errorMessage
         self.extraFields = extraFields
+        self.isSelected = isSelected
     }
 
     // MARK: - 差し込み（マージ）
