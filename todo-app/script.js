@@ -164,7 +164,6 @@ function toggleTodo(id) {
 
 function deleteTodo(id) {
   todos = todos.filter((t) => t.id !== id);
-  saveTodos();
   render();
 }
 
