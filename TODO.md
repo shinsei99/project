@@ -18,8 +18,18 @@
 > #    ★今週サブPCで全アプリを触れるようにするためのもの。中身は
 > #      handoff-20260817/引き継ぎ-先に読む.txt に一覧がある
 > #    ★--ignore-existing 必須。サブPCに既にあるファイルは上書きしない
-> rsync -av --ignore-existing --exclude '引き継ぎ-先に読む.txt' \
+> rsync -av --ignore-existing --exclude '引き継ぎ-先に読む.txt' --exclude 'memory-from-main' \
 >   ~/Library/CloudStorage/Dropbox-個人/handoff-20260817/ ~/
+>
+> #    ②-b Claudeの記憶（アプリ一覧を含む）を取り込む。メモリはgitに入れていないので手渡し
+> #    （公開リポジトリのため。社名・物件名・保有明細を含む）
+> D=~/Library/CloudStorage/Dropbox-個人/handoff-20260817
+> M=~/.claude/projects/-Users-apple/memory
+> cp -R "$M" ~/memory-backup                                  # 念のため退避
+> rsync -av --ignore-existing "$D/memory-from-main/" "$M/"    # 足りないものだけ足す
+> cp "$D/memory-from-main/MEMORY.md" "$D/memory-from-main/app_list_master.md" \
+>    "$D/memory-from-main/feedback_pc_roles.md" \
+>    "$D/memory-from-main/project_realestate_novel.md" "$M/"  # 今日更新した4本は上書き
 >
 > #    メインPCに無かった6本がサブPCにあるか確認する（あるなら何もしなくてよい）
 > for f in brain-dump/.env.local pasha-calo/.env.local digital-shosai/.env.local \
