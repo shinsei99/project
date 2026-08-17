@@ -1,0 +1,332 @@
+<title>iPhone 書斎チェック</title>
+<style>
+  /* ── 配色トークン（light を基準に定義し、dark は上書きだけ） ───────────── */
+  :root {
+    --ground: #e9edf1;      /* わずかに青みのある紙 */
+    --surface: #ffffff;
+    --surface-2: #f3f6f8;
+    --line: #cfd8de;
+    --ink: #171d23;
+    --ink-2: #4c5a64;
+    --ink-3: #77858f;
+    --accent: #0e6f78;      /* 深い青緑。書斎の万年筆のインク */
+    --ok-bg: #e2f0e6; --ok-fg: #1d6b40;
+    --warn-bg: #f7edd8; --warn-fg: #7d5a00;
+    --bad-bg: #f7e1e1; --bad-fg: #9a2f2f;
+    --shadow: 0 1px 2px rgba(23,29,35,.06), 0 8px 24px rgba(23,29,35,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #10161b;
+      --surface: #171f26;
+      --surface-2: #1d262e;
+      --line: #2b3841;
+      --ink: #e4eaef;
+      --ink-2: #a8b6c0;
+      --ink-3: #7d8b95;
+      --accent: #4fb3bd;
+      --ok-bg: #14301f; --ok-fg: #7ed4a0;
+      --warn-bg: #33280d; --warn-fg: #e3bc63;
+      --bad-bg: #33191a; --bad-fg: #f0a0a0;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #10161b;
+    --surface: #171f26;
+    --surface-2: #1d262e;
+    --line: #2b3841;
+    --ink: #e4eaef;
+    --ink-2: #a8b6c0;
+    --ink-3: #7d8b95;
+    --accent: #4fb3bd;
+    --ok-bg: #14301f; --ok-fg: #7ed4a0;
+    --warn-bg: #33280d; --warn-fg: #e3bc63;
+    --bad-bg: #33191a; --bad-fg: #f0a0a0;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", system-ui, sans-serif;
+    line-height: 1.7;
+    -webkit-text-size-adjust: 100%;
+  }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 2rem 1.15rem 4rem; display: flex; flex-direction: column; gap: 1.5rem; }
+
+  header { display: flex; flex-direction: column; gap: .5rem; }
+  .eyebrow { font-size: .74rem; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+  h1 {
+    margin: 0; font-size: clamp(1.5rem, 5.2vw, 2rem); line-height: 1.3; text-wrap: balance;
+    font-family: "Hiragino Mincho ProN", "Yu Mincho", Georgia, serif; font-weight: 600;
+  }
+  .lede { margin: 0; color: var(--ink-2); font-size: .95rem; }
+
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  section > h2 {
+    margin: 0; padding: .85rem 1.1rem; font-size: .82rem; letter-spacing: .08em;
+    color: var(--ink-2); background: var(--surface-2); border-bottom: 1px solid var(--line); font-weight: 700;
+  }
+  .rows { display: flex; flex-direction: column; }
+  .row { display: grid; grid-template-columns: 4.6rem 1fr; gap: .1rem .8rem; padding: .8rem 1.1rem; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .pill {
+    align-self: start; justify-self: start; font-size: .72rem; font-weight: 700; padding: .18rem .55rem;
+    border-radius: 999px; white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .pill.ok { background: var(--ok-bg); color: var(--ok-fg); }
+  .pill.warn { background: var(--warn-bg); color: var(--warn-fg); }
+  .pill.bad { background: var(--bad-bg); color: var(--bad-fg); }
+  .pill.idle { background: var(--surface-2); color: var(--ink-3); }
+  .name { font-weight: 600; font-size: .95rem; }
+  .val {
+    grid-column: 2; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: .82rem; color: var(--ink-2); word-break: break-all; font-variant-numeric: tabular-nums;
+  }
+  .why { grid-column: 2; font-size: .82rem; color: var(--ink-3); }
+
+  .actions { display: flex; flex-wrap: wrap; gap: .6rem; padding: 1.1rem; }
+  button {
+    font: inherit; font-size: .9rem; font-weight: 600; color: var(--surface); background: var(--accent);
+    border: 1px solid transparent; border-radius: 10px; padding: .6rem 1rem; cursor: pointer;
+  }
+  button.ghost { background: transparent; color: var(--accent); border-color: var(--line); }
+  button:disabled { opacity: .55; cursor: progress; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: no-preference) { button { transition: transform .08s ease; } button:active { transform: translateY(1px); } }
+
+  .note { margin: 0; padding: 0 1.1rem 1.1rem; font-size: .82rem; color: var(--ink-3); }
+  footer { color: var(--ink-3); font-size: .8rem; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .85em; background: var(--surface-2); padding: .1em .35em; border-radius: 4px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">デジタル書斎 / 端末調査</span>
+    <h1>この iPhone でどこまで動くか</h1>
+    <p class="lede">
+      スキャン本 77冊・約3万ページを iPhone から検索できるようにするために、
+      この端末のブラウザで<strong>何が使えて、何が使えないか</strong>を実測します。
+      Safari と Chrome の両方で開いて、最後に「結果をコピー」を押してください。
+    </p>
+  </header>
+
+  <section>
+    <h2>すぐ分かること</h2>
+    <div class="rows" id="auto"></div>
+  </section>
+
+  <section>
+    <h2>実際に測ること</h2>
+    <div class="rows" id="measured"></div>
+    <div class="actions">
+      <button id="btnSpeed">ページ画像の速さを測る</button>
+      <button id="btnQuota" class="ghost">保存できる量を試す（30MB書いて消す）</button>
+    </div>
+    <p class="note">
+      速さの測定は、本1ページ分（992×1454px）を描いて圧縮する時間です。3万ページの見込み時間もここから出します。
+      容量の試験は 30MB を書き込んですぐ削除します。端末には何も残しません。
+    </p>
+  </section>
+
+  <section>
+    <h2>結果の受け渡し</h2>
+    <div class="actions">
+      <button id="btnCopy">結果をコピー</button>
+    </div>
+    <p class="note" id="copyState">コピーしたものを、そのまま Claude Code に貼ってください。</p>
+  </section>
+
+  <footer>
+    このページは調査のためだけに動きます。あなたのファイルにも Dropbox にも一切触りません。
+  </footer>
+</div>
+
+<script>
+  const results = [];
+
+  function addRow(target, name, state, value, why) {
+    const labels = { ok: "使える", warn: "条件つき", bad: "使えない", idle: "未測定" };
+    const el = document.createElement("div");
+    el.className = "row";
+    el.innerHTML =
+      '<span class="pill ' + state + '">' + labels[state] + "</span>" +
+      '<span class="name"></span>' +
+      (value ? '<span class="val"></span>' : "") +
+      (why ? '<span class="why"></span>' : "");
+    el.querySelector(".name").textContent = name;
+    if (value) el.querySelector(".val").textContent = value;
+    if (why) el.querySelector(".why").textContent = why;
+    document.getElementById(target).appendChild(el);
+    results.push({ name, state: labels[state], value: value || "", why: why || "" });
+    return el;
+  }
+
+  const fmt = (n) => {
+    if (n == null) return "不明";
+    const u = ["B", "KB", "MB", "GB"];
+    const i = Math.min(u.length - 1, Math.floor(Math.log(Math.max(n, 1)) / Math.log(1024)));
+    return (n / 1024 ** i).toFixed(i ? 1 : 0) + " " + u[i];
+  };
+
+  // ── 1. 端末とエンジン ─────────────────────────────────────────────
+  const ua = navigator.userAgent;
+  const vendor = navigator.vendor || "(なし)";
+  const isWebKitShell = /Apple/.test(vendor);
+  addRow("auto", "ブラウザ", "ok", ua);
+  addRow("auto", "描画エンジン",
+    isWebKitShell ? "warn" : "ok",
+    "vendor: " + vendor,
+    isWebKitShell
+      ? "WebKit（Safari の中身）です。iPhone の Chrome や Edge もここが同じなら、機能はSafariと同一になります。"
+      : "WebKit 以外のようです。別エンジンが解禁された環境かもしれません（要確認）。");
+
+  const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  addRow("auto", "ホーム画面から起動", standalone ? "ok" : "idle",
+    standalone ? "standalone で動作中" : "ブラウザのタブで開いています",
+    "ホーム画面に追加して開くと、保存できる量が増える端末があります。");
+
+  // ── 2. ファイルの読み方 ───────────────────────────────────────────
+  addRow("auto", "フォルダを指定して読む", "showDirectoryPicker" in window ? "ok" : "bad",
+    "showDirectoryPicker: " + ("showDirectoryPicker" in window),
+    "書籍フォルダ全体を一度の許可で読み続ける方式。これが使えると Mac と同じやり方ができます。");
+
+  addRow("auto", "ファイルを選んで読む（API）", "showOpenFilePicker" in window ? "ok" : "warn",
+    "showOpenFilePicker: " + ("showOpenFilePicker" in window),
+    "無くても <input type=\"file\"> でファイルアプリから選べます（毎回選ぶ必要あり）。");
+
+  const inputOk = (() => { const i = document.createElement("input"); i.type = "file"; return i.type === "file"; })();
+  addRow("auto", "ファイル選択（input）", inputOk ? "ok" : "bad", 'input[type="file"]: ' + inputOk,
+    "Dropbox のPDFを『ファイル』アプリ経由で開く道。ここが生きていれば iPhone でもページ画像を出せます。");
+
+  // ── 3. 保存の仕組み ───────────────────────────────────────────────
+  addRow("auto", "端末内データベース", "indexedDB" in window ? "ok" : "bad",
+    "IndexedDB: " + ("indexedDB" in window), "本文テキストの索引をここに置きます。");
+
+  addRow("auto", "オフライン起動（PWA）", "serviceWorker" in navigator ? "ok" : "warn",
+    "serviceWorker: " + ("serviceWorker" in navigator), "通信なしでアプリを開くために使います。");
+
+  addRow("auto", "データを消されにくくする", navigator.storage && navigator.storage.persist ? "ok" : "warn",
+    "storage.persist: " + !!(navigator.storage && navigator.storage.persist),
+    "空き容量が減ったとき、ブラウザが勝手に消してしまうのを防ぐ仕組みです。");
+
+  // WebP を書き出せるか（実際に1枚作って type を見る）
+  (function () {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#123"; ctx.fillRect(0, 0, 64, 64);
+    const url = c.toDataURL("image/webp");
+    const ok = url.startsWith("data:image/webp");
+    addRow("auto", "WebP で保存できる", ok ? "ok" : "warn",
+      "toDataURL: " + url.slice(5, 15),
+      ok ? "画像を小さく保存できます。" : "PNG になります（同じ画質でも数倍大きくなります）。");
+  })();
+
+  // 保存容量の見込み
+  (async function () {
+    if (!(navigator.storage && navigator.storage.estimate)) {
+      addRow("auto", "保存できる量（申告値）", "warn", "estimate() 非対応", "実際に書いて試すしかありません（下のボタン）。");
+      return;
+    }
+    const est = await navigator.storage.estimate();
+    const quota = est.quota ?? null;
+    const state = quota == null ? "warn" : quota > 2e9 ? "ok" : "warn";
+    addRow("auto", "保存できる量（申告値）", state,
+      "使用 " + fmt(est.usage) + " / 上限 " + fmt(quota),
+      quota
+        ? "テキスト索引は約60MBの見込みなので、上限がこの値なら余裕があります。画像も入れるなら1ページ65〜150KBで計算してください。"
+        : "");
+  })();
+
+  // ── 4. 実測 ───────────────────────────────────────────────────────
+  document.getElementById("btnSpeed").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    btn.textContent = "測っています…";
+    await new Promise((r) => setTimeout(r, 30));
+
+    const W = 992, H = 1454;                   // 本1ページを倍率2.0で描いた大きさ
+    const c = document.createElement("canvas");
+    c.width = W; c.height = H;
+    const ctx = c.getContext("2d");
+    const t0 = performance.now();
+    ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#111"; ctx.font = "26px serif";
+    for (let i = 0; i < 42; i++) {
+      ctx.fillText("不動産の売買契約における特約条項の考え方について述べる。", 60, 90 + i * 32);
+    }
+    const drawMs = performance.now() - t0;
+
+    const t1 = performance.now();
+    const blob = await new Promise((res) => c.toBlob(res, "image/webp", 0.85));
+    const encMs = performance.now() - t1;
+    const per = drawMs + encMs;
+
+    addRow("measured", "1ページの描画＋圧縮", per < 400 ? "ok" : "warn",
+      "描画 " + drawMs.toFixed(0) + "ms ／ 圧縮 " + encMs.toFixed(0) + "ms ／ 合計 " + per.toFixed(0) + "ms",
+      "3万ページなら約 " + (per * 30000 / 3600000).toFixed(1) + " 時間。1冊300ページなら約 " +
+      (per * 300 / 1000).toFixed(0) + " 秒です。");
+    addRow("measured", "1ページの容量（品質85）", "ok",
+      (blob ? fmt(blob.size) + "（" + blob.type + "）" : "作れませんでした"),
+      blob ? "3万ページで約 " + fmt(blob.size * 30000) + " になります。" : "");
+
+    btn.textContent = "もう一度測る";
+    btn.disabled = false;
+  });
+
+  document.getElementById("btnQuota").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    btn.disabled = true;
+    btn.textContent = "書き込んでいます…";
+    const DB = "shosai-capacity-probe";
+    try {
+      const db = await new Promise((res, rej) => {
+        const r = indexedDB.open(DB, 1);
+        r.onupgradeneeded = () => r.result.createObjectStore("blobs");
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+      const chunk = new Blob([new Uint8Array(1024 * 1024)]);   // 1MB
+      const t0 = performance.now();
+      let written = 0;
+      for (let i = 0; i < 30; i++) {
+        await new Promise((res, rej) => {
+          const tx = db.transaction("blobs", "readwrite");
+          tx.objectStore("blobs").put(chunk, "c" + i);
+          tx.oncomplete = res;
+          tx.onerror = () => rej(tx.error);
+        });
+        written++;
+      }
+      const ms = performance.now() - t0;
+      db.close();
+      indexedDB.deleteDatabase(DB);
+      addRow("measured", "書き込みの試験", "ok",
+        written + " MB を " + (ms / 1000).toFixed(1) + " 秒で書き込み（削除済み）",
+        "この速さなら、60MBの索引の読み書きは " + (ms * 2 / 1000).toFixed(0) + " 秒程度の見込みです。");
+    } catch (err) {
+      addRow("measured", "書き込みの試験", "bad", String(err && err.name ? err.name + ": " + err.message : err),
+        "ここで止まるなら、iPhone では索引の持ち込み量を減らす必要があります。");
+      try { indexedDB.deleteDatabase(DB); } catch (_) {}
+    }
+    btn.textContent = "もう一度試す";
+    btn.disabled = false;
+  });
+
+  // ── 5. 結果のコピー ───────────────────────────────────────────────
+  document.getElementById("btnCopy").addEventListener("click", async () => {
+    const text = "デジタル書斎 iPhone チェック結果\n" +
+      results.map((r) => "- [" + r.state + "] " + r.name + " … " + r.value).join("\n");
+    const state = document.getElementById("copyState");
+    try {
+      await navigator.clipboard.writeText(text);
+      state.textContent = "コピーしました。Claude Code に貼ってください。";
+    } catch (_) {
+      state.textContent = "コピーできなかったので、下の内容を手で選んでコピーしてください：\n\n" + text;
+    }
+  });
+</script>
