@@ -21,6 +21,10 @@
 - 直下 `.gitignore` に許可行を追加（`HANDOFF.md` / `SETUP.md` / `dev-doctor.py` /
   `dev-setup.sh` / `secrets-sync.sh` / `secrets-manifest.txt`）
 - **メインPCの 8526 / 8527 のLAN公開を解消**（下記）
+- **photo-inpainter（不動産写真AI・8506）をメインPCへ設置し、社内LAN共有に載せた**。
+  サブPCで完成（2026-08-10）していたがメインPCには環境が無く、8506は待受なしだった。
+  `.venv` 作成 → launchd `com.shinsei.photo-inpainter` 登録 → `192.168.1.105:8506` で疎通確認、
+  Desktop の `.app`（27本→28本）と Dropbox共有フォルダの `.url`＋`icons/*.ico` も設置
 - **個人Dropboxの受け渡し置き場を片付け**。受け取り済みを1件ずつ確認して削除:
   `handoff-20260815`（agent-platform の config/knowledge/.env・flyer-creator の .stats_key。
   5件ともメインPCに実体あり）／`chatwork-ai-manager-handoff` 165MB（サブPCが8/16にimport済み。
@@ -52,6 +56,14 @@
   `git show --stat <コミット>` で実体が入ったかを見る**（`git check-ignore -v <file>` で確認できる）。
 - **症状**: サブPCからの依頼3件のうち `digital-shosai/.env.local` が用意できない。
   **原因**: メインPCにも存在しない（`.env.local.example` のみ）。運ぶ元が無い＝要件取り下げ。
+- **症状**: photo-inpainter の依存を Python 3.12 の venv に入れようとすると
+  `Failed building wheel for Pillow` で必ず落ちる。
+  **原因**: `iopaint==1.6.0` が **`Pillow==9.5.0` をハード固定**しており、
+  Pillow 9.5.0 には cp312 のホイールが無い（arm64は cp38〜cp311 まで）。
+  pip はホイールが無いのでソースビルドへ落ち、ビルド環境が無いため失敗する。
+  **直し方**: venv を `/usr/bin/python3`（3.9.6）で作り直す → 全依存が入り稼働。
+  → 教訓: 「Pillowのビルド失敗」は**Python が新しすぎる**サイン。requirements の直接指定
+  （`Pillow>=9.0.0`）ではなく、**依存の依存が固定していないか**を見る。
 - **症状**: メインPCで **8527 psa-collection（保有明細・資産額）と 8526 kaitori-dm-maker が
   `*`（LAN全公開）で待ち受けていた**。どちらもツール分類で 127.0.0.1 が正。
   **原因**: `run.sh` は 127.0.0.1 に修正済みだったが、**動いているプロセスが 8/8 05:52 起動のまま**で
