@@ -82,6 +82,14 @@
 > （②で鍵10件＋データ6アプリぶんが入る）。メインPCに実体が無くて渡せなかった6本は
 > ②の確認ループで「無し」と出たものだけ、サブPCで作り直す。
 >
+> **⚠️ ①の `git pull` でつまずいたら（ai-tools-lab）**
+> メインPCが 2026-08-17 に **「AIツールラボ」→「AIツールベース」の改名を37ファイル分コミット済み**
+> （サイト名・公開URL `ai-tools-base.vercel.app`・Zenn記事5本のリンク）。
+> サブPCに同じ改名が**未コミットで残っている**と、pull が
+> 「local changes would be overwritten」で止まる。そのときは中身を見比べてから、
+> メインPC側が正なので `git checkout -- ai-tools-lab articles` で捨てて pull し直す。
+> **改名以外の作業が混ざっていないかは、捨てる前に `git diff` で必ず確認する。**
+>
 > **触らないもの**
 > - `ai-tools-lab` … メインPCへ移管済み。サブPCでは開発も公開もしない
 > - `chatwork-ai-manager` の worker / LINE webhook / ngrok … メインPCで稼働中。**同時起動禁止**
