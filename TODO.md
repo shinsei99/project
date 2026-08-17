@@ -1,5 +1,71 @@
 # TODO — 全アプリの索引
 
+> ## 🖥 メインPCでやること（2026-08-17 夜・サブPCから依頼）
+>
+> **まず `git pull origin main`。上から順に。終わったらこの節ごと消す。**
+> コードと文書は全部gitに入れた。**Dropboxで運ぶものは無い**（今回サブPC→メインPCは git だけで足りる）。
+>
+> ```bash
+> cd ~
+> git pull origin main
+>
+> # ① このPCを「メインPC」と宣言する（点検ツールの期待値が逆になる）
+> echo main > .dev-role      # PCごとの設定なのでgitに入らない。サブPCでは作らない
+>
+> # ② ai-tools-base のフォルダ改名の後始末（gitに乗らない実体だけ手で移す）
+> mv ai-tools-lab/node_modules ai-tools-lab/.next ai-tools-lab/.vercel ai-tools-base/ 2>/dev/null
+> mv ai-tools-lab/.env* ai-tools-base/ 2>/dev/null
+> ls -a ai-tools-lab          # 空なら → rmdir ai-tools-lab
+> cd ai-tools-base && npm run validate && cd ~     # 動くか確認（publish.sh はこちらへ移動済み）
+>
+> # ③ 環境の点検（今回追加した機能）
+> ./dev-doctor.py --sync --fetch
+> #   ★**メインPCの未コミット変更はサブPCから見えない。** ここで出たら中身を見てから commit/push
+> #   ★Python/Node が .python-version(3.9.6) / .nvmrc(26.3.1) と違ったら**上げずにまず報告**
+> #   ★メインPCは常駐があって正常。①をやっていれば警告にならない
+>
+> # ④ Zenn の残り1本（1日2本の上限。日付が変わってから）
+> cd ai-tools-base && ./publish.sh zenn && sleep 90 && ./publish.sh status && cd ~
+> #   ⬜ llm-pdf-split-gaps が ✅ になれば完了。そのあと note を2本（./publish.sh note <名前>）
+>
+> # ⑤ MCP `VISUAL_AGENT` の設定をサブPCへ渡す（サブPCには無い）
+> D=~/Library/CloudStorage/Dropbox-個人/handoff-20260818; mkdir -p "$D"
+> claude mcp get VISUAL_AGENT > "$D/mcp-visual-agent.txt"
+> #   ※キーを含む可能性があるので**Dropbox経由・gitには入れない**。サブPCが取り込んだら置き場ごと削除
+> #   サーバー本体がローカルのスクリプトなら、その実体も同じ置き場に入れる
+>
+> # ⑥ 新しい道具（使うなら）
+> ./va.sh --help          # Visual Agent: ブラウザを見て操作しUIを検証する
+> ./see.sh --help         # Macの画面・pptx/pdfの見た目を見る
+> #   Chromium は agent-platform/.venv の playwright を借りる。無ければ:
+> #   agent-platform/.venv/bin/python -m playwright install chromium
+> ```
+>
+> ### 今回サブPCで変えたこと（コミット7本・`954844d`〜`a86116d`＋SESSION_LOG）
+>
+> | 何を | 効果 |
+> |---|---|
+> | 改名の枝分かれを統合 | 両PCが同じ日に別々に改名していたのを1つに。**フォルダ名は `ai-tools-base` で統一** |
+> | 整備ツール5本を再コミット | `.gitignore` の許可行漏れで実体が入っていなかった件を解消（575行入ったことを確認） |
+> | `dev-doctor.py --sync` | 未コミット・stash・push漏れ・**ignoreされてgitに入っていないソース**・版の不一致・機密不足・常駐を検知 |
+> | `.python-version` / `.nvmrc` | 現状値（3.9.6 / 26.3.1）を基準として固定。**pyenv/nvm は無いので自動切替はしない** |
+> | CLAUDE.md 27,288→14,700字 | アプリ個別の事情12,999字を10本の `<アプリ>/README.md` へ移動（両PCに渡る場所） |
+> | SESSION_LOG の見出しにPC名必須 | 同じ日付の節を2台が書いて衝突した実例の再発防止 |
+> | TODO に「担当PC」列 | 2台で同じ作業を始める事故の防止 |
+> | `va.sh` / `see.sh` | Claude Code が画面を見て確かめられるようにした |
+>
+> ### サブPCの現状（メインPCが知っておくこと）
+>
+> - **launchd 常駐 0本**（`file-finder` 8520 / `owner-payout-tracker` 8519 は unload＋**disable**）。
+>   LAN公開なし。8540（chatwork管理画面）も停止済み。**worker/LINE/ngrok はメインPCのみで変更なし**
+> - 依存は Python 31/31・Node 14/14（`business-plan-generator` の venv を作成）
+> - 機密は18件中17件あり。不足は `digital-shosai/.env.local` だけで**両PCに無い**（要件取り下げ）
+> - **Build/Test の実走は未実施**（判断により省略）。実施するなら外部に出るアプリを除外すること
+>   （chatwork / mail-merge-pro / FTP公開 / Vercel本番 / prisma db push）
+> - サブPCに `stash@{0} pre-origin-sync` とローカルブランチ2本が残っている。**消していない**
+> - **メインPCでは `launchctl disable` を実行しないこと**（サブPC限定の設定）
+>
+
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
 詳細は各アプリの `<アプリ>/TODO.md` と `<アプリ>/SESSION_LOG.md` にある。
 
