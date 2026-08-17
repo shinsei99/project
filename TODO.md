@@ -119,8 +119,12 @@
   （2026-08-17）。`Dropbox-個人/handoff-20260817/` に `psa-collection/data/{orders,albums}.json` を配置。
   **`digital-shosai/.env.local` はメインPCにも存在しない**（`.env.local.example` のみ）ので運べない＝要件取り下げ。
   残: サブPCで受け取り（フォルダ内の `引き継ぎ-先に読む.txt` のとおり）
-- **ai-tools-lab: Zenn 5本 / note 5本の公開待ち。** Zennの投稿上限が **8/17 19:56** に解ける。
-  1日2本ずつ Zenn→note の順で。手順は `ai-tools-lab/drafts/PUBLISH.md`
+- **【今夜 19:56以降・メインPCで】Zenn の未反映3本を出し直す。**
+  `cd ai-tools-lab && ./publish.sh zenn` → 1〜2分後に `./publish.sh status` で ✅ を確認。
+  `published: true` なのに投稿上限で**黙って未反映**のまま止まっている3本
+  （ai-agent-always-on / launchd-restart-loop / llm-pdf-split-gaps）。自動再試行はされない。
+  そのあと note へ（`./publish.sh note <名前>`）。Zenn→note の順。詳細は `ai-tools-lab/drafts/PUBLISH.md`
+  ※ ai-tools-lab はメインPCの担当。**サブPCではやらない**
 - サブPCの launchd 常駐2本（file-finder 8520 / owner-payout-tracker 8519）を
   止めるか要判断（メインPCと二重にLAN公開されている・個人情報を含む）
 
