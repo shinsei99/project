@@ -8,7 +8,9 @@ Anthropic APIキーは不要。Claude Pro/Max サブスクリプションのみ�
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -19,7 +21,27 @@ from services.excel_parser import (
 )
 
 
-CLAUDE_BIN = "claude"
+def _resolve_claude_bin() -> str:
+    """`claude` の実行パスを解決する。
+
+    launchd 常時起動では PATH が最小化され `~/.local/bin` や `/opt/homebrew/bin`
+    が含まれないため、PATH 頼みの素の "claude" では見つからない。
+    which → 既知の設置先 の順に絶対パスを探し、最後に素の名前へフォールバックする。
+    """
+    p = shutil.which("claude")
+    if p:
+        return p
+    for cand in (
+        "/opt/homebrew/bin/claude",
+        os.path.expanduser("~/.local/bin/claude"),
+        "/usr/local/bin/claude",
+    ):
+        if os.path.exists(cand):
+            return cand
+    return "claude"
+
+
+CLAUDE_BIN = _resolve_claude_bin()
 CLAUDE_TIMEOUT_SEC = 1800  # 30分（API混雑時も対応できる範囲）
 
 _PROMPT = """\
