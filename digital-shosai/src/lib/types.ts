@@ -6,13 +6,31 @@ export interface SearchResult {
   content: string;
 }
 
-/** 蔵書と端末容量の状況（本棚メーターの表示に使う） */
+/** 原本PDFの目印。同じ本かどうかを照合するために持つ（中身は保存しない） */
+export interface BookSource {
+  fileName: string;
+  fileSize: number;
+  lastModified: number;
+}
+
+/** 蔵書と端末容量の状況 */
 export interface LibraryStatus {
   bookCount: number;
   pageCount: number;
-  /** ページ画像の合計バイト数（本ごとに保存時に記録した値の合計） */
-  imageBytes: number;
+  /** 本文テキストの合計文字数（索引の重さの目安） */
+  textChars: number;
+  /** キャッシュしたページ画像の枚数と合計バイト数 */
+  cachedPages: number;
+  cachedBytes: number;
   /** ブラウザが報告する使用量・上限。取れない環境では null */
   usageBytes: number | null;
+  quotaBytes: number | null;
+}
+
+/** 保存できる状態かどうか（プライベートブラウズ等の検知結果） */
+export interface StorageState {
+  writable: boolean;
+  /** 書けなかったときの理由（画面にそのまま出す） */
+  reason?: string;
   quotaBytes: number | null;
 }

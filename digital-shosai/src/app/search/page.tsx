@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, Loader2 } from "lucide-react";
 import { SearchResults } from "@/components/SearchResults";
-import { PageViewerModal } from "@/components/PageViewerModal";
 import { listBooks, searchPages, type BookRecord } from "@/lib/db";
 import type { SearchResult } from "@/lib/types";
 
@@ -13,7 +12,6 @@ export default function SearchPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [selected, setSelected] = useState<SearchResult | null>(null);
   const [books, setBooks] = useState<BookRecord[]>([]);
   const [bookId, setBookId] = useState(""); // "" = すべての本
   const [elapsed, setElapsed] = useState<number | null>(null);
@@ -115,7 +113,15 @@ export default function SearchPage() {
         </p>
       )}
 
-      <SearchResults results={results} keyword={committed} onSelect={setSelected} />
+      <SearchResults
+        results={results}
+        keyword={committed}
+        onSelect={(r) => {
+          // ヒットしたページから**本として読み始める**（前後のページへ移動できる）
+          const q = new URLSearchParams({ book: r.bookId, page: String(r.pageNumber), q: committed });
+          window.location.href = `/read?${q.toString()}`;
+        }}
+      />
 
       {searched && !loading && results.length === 0 && committed && (
         <p className="py-10 text-center text-sm text-slate-500">
@@ -124,14 +130,6 @@ export default function SearchPage() {
         </p>
       )}
 
-      {/* 詳細ビューア */}
-      {selected && (
-        <PageViewerModal
-          result={selected}
-          keyword={committed}
-          onClose={() => setSelected(null)}
-        />
-      )}
     </div>
   );
 }

@@ -17,7 +17,8 @@ export function formatBytes(n: number): string {
 export function StorageMeter({ status }: { status: LibraryStatus | null }) {
   const books = status?.bookCount ?? 0;
   const pages = status?.pageCount ?? 0;
-  const used = status?.usageBytes ?? status?.imageBytes ?? 0;
+  // 使用量はブラウザの申告を優先し、取れない環境では「キャッシュした画像の量」で代替する
+  const used = status?.usageBytes ?? status?.cachedBytes ?? 0;
   const quota = status?.quotaBytes ?? null;
   const ratio = quota && quota > 0 ? Math.min(100, (used / quota) * 100) : null;
 
@@ -28,6 +29,9 @@ export function StorageMeter({ status }: { status: LibraryStatus | null }) {
           <Library className="h-4 w-4 text-sky-400" />
           蔵書 <span className="font-bold text-slate-100">{books}</span> 冊 ／{" "}
           <span className="font-bold text-slate-100">{pages}</span> ページ
+          {status?.textChars ? (
+            <span className="text-slate-400">／本文 {(status.textChars / 10000).toFixed(0)}万字</span>
+          ) : null}
         </span>
         <span className="flex items-center gap-2 text-slate-400">
           <HardDrive className="h-4 w-4" />
@@ -45,6 +49,12 @@ export function StorageMeter({ status }: { status: LibraryStatus | null }) {
         </div>
       )}
 
+      {status && status.cachedPages > 0 && (
+        <p className="mt-2 text-xs text-slate-400">
+          読んだページの画像を {status.cachedPages} 枚キャッシュ（{formatBytes(status.cachedBytes)}）。
+          本棚の各本の「管理」から消せます。
+        </p>
+      )}
       <p className="mt-2 text-xs text-slate-500">
         {ratio !== null
           ? "ブラウザが許可している保存領域に対する使用量です。"

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { BookMarked, Upload, Search, Library } from "lucide-react";
+import { StorageGuard } from "@/components/StorageGuard";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -35,12 +36,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 href="/library"
                 className="flex items-center gap-1 rounded-lg px-3 py-1.5 hover:bg-slate-800"
               >
-                <Library className="h-4 w-4" /> 蔵書
+                <Library className="h-4 w-4" /> 本棚
               </Link>
             </div>
           </nav>
         </header>
-        <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 py-6">
+          <StorageGuard />
+          {children}
+        </main>
       </body>
     </html>
   );
