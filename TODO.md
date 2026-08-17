@@ -45,7 +45,13 @@
 > #   ★ run.sh は検証に使わない（不動産は 0.0.0.0＝LANに晒される）。--verify は 127.0.0.1 で立てる
 > #   ★ chatwork-ai-manager と mail-merge-pro は自動検証しない（外部へ実際に送るため）
 >
-> # ⑧ 新しい道具（使うなら）
+> # ⑧ デジタル書斎を App Store に出す（サブPCから引き継ぎ）
+> cat digital-shosai/HANDOFF-APPSTORE.md      # ← 手順はこれ1本にまとめてある
+> #   Web版の中身は完成・buildも通る。残りは PWA化 → Capacitor化 → Xcode → 提出
+> #   ★配信用証明書はメインPCだけ。★再提出はビルド番号+1（./ios-build-guard.sh digital-shosai）
+> #   ★自炊本は同梱しない。審査用は samples/デジタル書斎-サンプル.pdf（自作4ページ）
+>
+> # ⑨ 新しい道具（使うなら）
 > ./va.sh --help          # Visual Agent: ブラウザを見て操作しUIを検証する
 > ./see.sh --help         # Macの画面・pptx/pdfの見た目を見る
 > #   Chromium は agent-platform/.venv の playwright を借りる。無ければ:
@@ -93,7 +99,7 @@
 | agent-platform | サブ | **完成扱いへ移行（2026-08-17）**: launchd 登録・0.0.0.0・社内LAN共有（8532）。残るのは作り込み（出来た .pptx 11枚の見栄え目視確認／字幕焼き込み／投稿API）で、通し実行はできる | 2026-08-17 |
 | ai-tools-base | メイン（公開） | **AIツールベース**（2026-08-17改名。旧「AIツールラボ／ai-tools-lab」・旧URLは削除済み。**フォルダ名も ai-tools-base に統一**）。新URL https://ai-tools-base.vercel.app。メインPCで受領済み（npm install／validate 通過・Vercel link は brain-dump/ai-tools-base）。サブPCで Search Console 移行（sitemap 28件）とnote2本＋プロフィールのリンク修正まで完了。残: Zenn/note 5本ずつの公開（1日2本・Zenn→note の順） | 2026-08-17 |
 | scrapmemo-petapeta | メイン（ASC） | スクラップ編集の先頭表示を修正＋ボタンを末尾へ。Web版は公開済み。1.0.3/build7 をASCへアップ済み。**残: ASCでビルド7を選び審査提出** | 2026-08-17 |
-| digital-shosai | サブ | **広告を全撤去し、画像をWebP化（PNG比28.5%）・検索をv2で高速化（pageText分離・複数語AND・本で絞り込み）・蔵書画面/library（一覧と削除）を追加**。ブラウザで通し確認済み。次は**バックアップ書き出し**（端末内だけなので端末故障で全消失する） | 2026-08-17 |
+| digital-shosai | **メイン（提出）／サブ（開発）** | **広告を全撤去し、画像をWebP化（PNG比28.5%）・検索をv2で高速化（pageText分離・複数語AND・本で絞り込み）・蔵書画面/library（一覧と削除）を追加**。ブラウザで通し確認済み。索引方式へ作り替え（取り込みは本文だけ・114ページで248KB）＋**本棚（表紙）と読書画面**。**次は App Store 提出＝メインPCで `digital-shosai/HANDOFF-APPSTORE.md` の手順**（アイコンと審査用サンプルPDFは用意済み） | 2026-08-17 |
 | chatwork-ai-manager | メイン | Chatwork/LINE常駐AIエージェント（社内RAG・TODO/案件・Web/国交省API）。**常駐4サービスはメインPCで稼働中／サブPCは引き継ぎ受領済みで画面8540のみ起動**（worker・ngrokは1台のみ・同時起動禁止）。次はアプリ側TODO.mdを現状に更新 | 2026-08-16 |
 
 ## 横断作業（複数アプリにまたがるもの）
