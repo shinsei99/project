@@ -11,6 +11,65 @@
 
 ---
 
+## 2026-08-17（夜・サブPC）— 2台のPCで同じ開発環境にするための整備（調査→修正→統合）
+
+**目的**: 今回のような引き継ぎミス（コミット漏れ・改名の枝分かれ・MCPの取りこぼし）を、
+「気をつける」ではなく**仕組みで検知する**状態にする。Build/Test の実走はご本人の判断で今回は省略。
+
+### 完了したこと
+
+**調査（変更なし・read-onlyのみ）**
+- macOS 15.7.7 / **Intel x86_64** / Python **3.9.6（`/usr/bin/python3` のみ）** / Node **v26.3.1** /
+  npm 11.16.0 / git 2.39.5 / **Docker は無し（リポジトリにも Dockerfile 0件＝不要）** / claude 2.1.233
+- Git: `main` = `origin/main`（差分0）、tracked クリーン。**ローカルにしか無いもの**を発見:
+  `stash@{0} pre-origin-sync` ／ ローカルブランチ `pre-sync-backup-20260626`・`pr-cyborg` ／
+  `gh-pages` が27コミット遅れ。**いずれも触っていない**
+- 依存: requirements.txt 31本 → venv 30本（不足は `business-plan-generator` のみ）。
+  package.json 14本は全部 node_modules と lock あり。**バージョン固定ファイルが1つも無かった**
+- 機密: `secrets-manifest.txt` 18件中17件あり。不足は `digital-shosai/.env.local` のみで**両PCに無い**
+- 自動起動: launchd ロード0本だが **plistが2本ディスクに残存＝再ログインで復活する状態**だった。
+  cron なし・hooks なし・ログイン項目は Dropbox/GoogleDrive のみ
+
+**① 不足の解消**
+- `business-plan-generator` の `.venv` 作成（streamlit 1.50.0 ほか。import 確認済み）→ **31/31本**
+- `.python-version`(3.9.6) / `.nvmrc`(26.3.1) を追加。**現状値の固定**（Python 3.9 はEOLだが、
+  31本のvenvが3.9.6なので揃えることを優先。上げるなら31本の作り直しとセット）
+- launchd 2本を `launchctl disable` で**恒久無効化**（`unload` だけでは再ログインで復活する）
+- 手動起動のまま `*:8540` でLANに出ていた chatwork-ai-manager 管理画面を停止
+
+**② 検知の仕組み（`dev-doctor.py --sync`）** — 新規ツールを作らず既存を拡張
+- Git（未コミット・未追跡・stash・push漏れ・remote未取得・ローカルだけのブランチ）
+- **ignoreされていて git に入っていないソース候補**の検出 ← 2026-08-16の事故の真因を機械化
+- `.python-version` / `.nvmrc` と実際の版の照合、機密の在り無し（**値は出さない**）、
+  launchd・cron・**アプリのポート範囲だけの**LAN公開チェック
+- WARNING を並べるだけで、commit・pull・install は一切しない
+
+**④ ドキュメントの共通化**
+- CLAUDE.md **27,288字 → 14,700字（46%削減）**。アプリ個別 12,999字を10本のREADMEへ移動
+- SESSION_LOG の見出しに **PC名を必須化**（同日衝突の再発防止）、TODO に**担当PC列**
+- SETUP.md に「**同じ環境**の定義表」（コード＋版＋lock＋機密＋常駐の5点）を明記
+- `secrets-manifest.txt` に**リポジトリ外のPC側設定**（`~/.claude.json` の mcpServers 等）を注記
+
+### 発生したエラーと解決策
+- **症状**: `--sync` が「LANに公開されている待受」として `*:7000` `*:17500` などを警告した。
+  **原因**: macOS(AirPlay) と Dropbox 自身の待受を拾っていた。
+  **直し方**: 判定を**このリポジトリのポート範囲**（3000番台 / 5175 / 8500〜8620）に限定。
+- **症状**（訂正）: TODO に「`photo-inpainter/` はフォルダごと無視されREADMEが他PCへ渡らない」とあった。
+  **実測すると `!photo-inpainter/**` の許可行が既にあり、渡る**。古い情報だったのでTODOを訂正した。
+
+### 次回への引き継ぎ事項・未解決の課題
+- **Build/Test の実走は未実施**（ご本人の判断で①②④のみ実行）。したがって
+  「ビルドとテストが通る」ことは**未確認**。確認するときは、外部に出るアプリ
+  （chatwork-ai-manager / mail-merge-pro / flyer-creator・theta-viewer のFTP / ai-tools-base のVercel /
+  building-manager の prisma db push）を**除外**し、Streamlit は `run.sh` を使わず
+  `--server.address 127.0.0.1` を明示して起動すること（`run.sh` は不動産カテゴリだと 0.0.0.0）
+- **メインPCの未コミット変更は、このPCからは確認できない**（見えるのは `origin/main` まで）。
+  メインPC側で最初にやることは `git pull` と `./dev-doctor.py --sync`
+- `VISUAL_AGENT`（MCP）は未受領。`claude mcp get VISUAL_AGENT` の出力待ち
+- `stash@{0}` とローカルブランチ2本、`gh-pages` の27遅れは**そのまま**。中身の判断はご本人待ち
+
+---
+
 ## 2026-08-17（夜・サブPC）— Claude Code に「目」を持たせた（Visual Agent）
 
 ### 完了したこと
