@@ -68,6 +68,9 @@ def migrate() -> None:
         _ensure_column(conn, "tasks", "last_progress_reply", "TEXT")
         _ensure_column(conn, "tasks", "check_count", "INTEGER NOT NULL DEFAULT 0")
         _ensure_column(conn, "tasks", "escalation_stage", "INTEGER NOT NULL DEFAULT 0")
+        # 定時進捗確認から個別に除外するフラグ（例: 社外待ちで確認しても意味がない場合。TASK-20260817-013）
+        _ensure_column(conn, "tasks", "skip_check", "INTEGER NOT NULL DEFAULT 0")
+        _ensure_column(conn, "tasks", "skip_check_reason", "TEXT")
         # Stage 0: メッセージ処理状態（冪等・クラッシュ復旧用）
         _ensure_column(conn, "messages", "process_status", "TEXT NOT NULL DEFAULT 'pending'")
         _ensure_column(conn, "messages", "process_error", "TEXT")

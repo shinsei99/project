@@ -31,6 +31,19 @@ def _detail(task_id: int):
             st.success("更新しました")
             st.rerun()
 
+    with st.form("skip_check"):
+        st.markdown("**定時の進捗確認（13/18/翌10時等）から除外**")
+        skip = st.checkbox("このTODOは定時確認の対象から外す（社外待ちなど確認しても意味がない場合）",
+                            value=bool(t["skip_check"]))
+        reason = st.text_input("理由（任意）", value=t["skip_check_reason"] or "")
+        if st.form_submit_button("除外設定を保存"):
+            T.update_fields(t["id"], {"skip_check": 1 if skip else 0, "skip_check_reason": reason or None},
+                             note="管理画面から定時確認の除外設定を変更")
+            st.success("保存しました")
+            st.rerun()
+    if t["skip_check"]:
+        st.caption(f"⏸ 定時確認から除外中" + (f"（理由: {t['skip_check_reason']}）" if t["skip_check_reason"] else ""))
+
     st.divider()
     st.markdown("**AI判断（透明性・§39,40）**")
     st.write(f"- 判断理由: {t['ai_reason'] or '-'}")

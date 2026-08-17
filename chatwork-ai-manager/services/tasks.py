@@ -21,6 +21,7 @@ _TASK_FIELDS = [
     "requester", "due_date", "due_raw", "priority", "status", "progress",
     "done_condition", "room_id", "source_message_id", "ai_reason", "ai_confidence",
     "conf_assignee", "conf_due", "conf_done", "conf_project", "is_speculative", "dedup_key",
+    "skip_check", "skip_check_reason",
 ]
 
 
