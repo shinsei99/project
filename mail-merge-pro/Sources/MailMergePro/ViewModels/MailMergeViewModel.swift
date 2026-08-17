@@ -89,7 +89,7 @@ final class MailMergeViewModel: ObservableObject {
     /// 本番送信タスク（キャンセル用に保持）。
     private var sendTask: Task<Void, Never>?
 
-    /// 本番送信の開始時刻（送信済みフォルダ仕分けの対象時間範囲の起点）。
+    /// 本番送信の開始時刻（送信済み控えのゴミ箱移動の対象時間範囲の起点）。
     private var batchStartedAt: Date?
 
     /// 依存性注入。既定で本番実装を使う。
@@ -150,6 +150,41 @@ final class MailMergeViewModel: ObservableObject {
     /// 宛先件数。
     var recipientCount: Int { recipients.count }
 
+    /// 送信対象（チェックが入っている宛先）の件数。
+    var selectedCount: Int { recipients.filter { $0.isSelected }.count }
+
+    /// 全宛先にチェックが入っているか（ヘッダの全選択トグル用）。
+    var allSelected: Bool { !recipients.isEmpty && recipients.allSatisfy { $0.isSelected } }
+
+    /// 指定宛先のチェック状態を切り替える。
+    func setSelection(id: Recipient.ID, to isOn: Bool) {
+        guard let idx = recipients.firstIndex(where: { $0.id == id }) else { return }
+        recipients[idx].isSelected = isOn
+    }
+
+    /// 全宛先のチェック状態をまとめて設定する（全選択／全解除）。
+    func setAllSelections(_ isOn: Bool) {
+        for i in recipients.indices { recipients[i].isSelected = isOn }
+    }
+
+    /// 差し込みに使えるキー一覧（差し込みボタン用）。
+    /// `name` / `email` は常に先頭。以降は読み込んだ宛先の任意列（会社名など）を
+    /// 重複なく列挙する。CSV 未読込でも name/email は使える。
+    var availableMergeKeys: [String] {
+        var keys = ["name", "email"]
+        var seen = Set(keys)
+        for r in recipients {
+            for key in r.extraFields.keys.sorted() {
+                let k = key.lowercased()
+                if !seen.contains(k) {
+                    seen.insert(k)
+                    keys.append(k)
+                }
+            }
+        }
+        return keys
+    }
+
     // MARK: - テンプレート操作
 
     /// 新規テンプレートを追加して選択する。
@@ -158,6 +193,24 @@ final class MailMergeViewModel: ObservableObject {
         templates.append(new)
         selectedTemplateID = new.id
         persistTemplates()
+    }
+
+    /// 現在の件名・本文を「名前を付けて」新規テンプレートとして保存する。
+    /// 作成 → 選択 → 永続化までを1操作で行う。
+    /// - Parameter name: テンプレート名（前後空白は除去。空なら既定名）。
+    func saveAsNewTemplate(name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let templateName = trimmed.isEmpty ? "新しいテンプレート" : trimmed
+        let new = Template(name: templateName, subject: subject, body: body)
+        templates.append(new)
+        selectedTemplateID = new.id
+        persistTemplates()
+    }
+
+    /// 件名・本文のどちらかに内容があるか（新規保存ボタンの有効化判定用）。
+    var hasComposableContent: Bool {
+        !subject.trimmingCharacters(in: .whitespaces).isEmpty
+            || !body.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     /// テンプレートを削除する。
@@ -257,9 +310,20 @@ final class MailMergeViewModel: ObservableObject {
             && !subject.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    /// 本番送信が可能か（テスト成功済み＆送信元選択＆宛先あり＆未送信中）。
+    /// 本番送信が可能か（テスト成功済み＆送信元選択＆送信対象あり＆未送信中）。
     var canSendProduction: Bool {
-        testSucceeded && selectedAccount != nil && !recipients.isEmpty && !isSending
+        testSucceeded && selectedAccount != nil && selectedCount > 0 && !isSending
+    }
+
+    /// 本番送信が押せない理由（押せる場合は nil）。画面ヒント表示用。
+    var productionBlockReason: String? {
+        if isSending { return "送信中です" }
+        if selectedAccount == nil { return "送信元アカウントを選択してください" }
+        if recipients.isEmpty { return "CSV で宛先を読み込んでください" }
+        if selectedCount == 0 { return "送信する宛先にチェックを入れてください" }
+        if subject.trimmingCharacters(in: .whitespaces).isEmpty { return "件名を入力してください" }
+        if !testSucceeded { return "先にテスト送信を成功させてください" }
+        return nil
     }
 
     // MARK: - テスト送信
@@ -292,16 +356,16 @@ final class MailMergeViewModel: ObservableObject {
     func startProductionSend() {
         guard canSendProduction else { return }
 
-        // 状態初期化。送信対象は全宛先。
+        // 状態初期化。送信対象はチェックが入っている宛先のみ。
         isSending = true
         summary = nil
         sentProgress = 0
-        totalToSend = recipients.count
+        totalToSend = selectedCount
         currentRecipientName = ""
-        batchStartedAt = Date() // 送信済みフォルダ仕分けの時間範囲の起点
+        batchStartedAt = Date() // 送信済み控えのゴミ箱移動の時間範囲の起点
 
-        // 全宛先のステータスを未送信に戻す（再送対応）。
-        for i in recipients.indices {
+        // 送信対象のステータスを未送信に戻す（再送対応）。除外分は触らない。
+        for i in recipients.indices where recipients[i].isSelected {
             recipients[i].status = .pending
             recipients[i].errorMessage = nil
         }
@@ -316,23 +380,26 @@ final class MailMergeViewModel: ObservableObject {
         let batchSize = settings.batchSize
         let interval = settings.intervalSeconds
         let perMessageDelay = settings.perMessageDelaySeconds
-        let total = recipients.count
+        // 送信対象（チェック済み）の宛先インデックスだけを対象にする。
+        let targets = recipients.indices.filter { recipients[$0].isSelected }
+        let total = targets.count
 
-        var index = 0
-        while index < total {
+        var pos = 0
+        while pos < total {
             // バッチ境界。1バッチ＝batchSize 通。
-            let batchEnd = min(index + batchSize, total)
+            let batchEnd = min(pos + batchSize, total)
 
-            for i in index..<batchEnd {
+            for p in pos..<batchEnd {
                 // キャンセル要求があれば安全に中断。
                 if Task.isCancelled { finishSend(cancelled: true); return }
 
+                let i = targets[p]
                 currentRecipientName = recipients[i].name
                 await sendOne(at: i)
-                sentProgress = i + 1
+                sentProgress = p + 1
 
                 // 連続送信を避け、1通ごとに間隔をあける（バッチ内の最終通・全体最終通の後は不要）。
-                if perMessageDelay > 0 && i < batchEnd - 1 {
+                if perMessageDelay > 0 && p < batchEnd - 1 {
                     do {
                         try await Task.sleep(nanoseconds: UInt64(perMessageDelay * 1_000_000_000))
                     } catch {
@@ -342,10 +409,10 @@ final class MailMergeViewModel: ObservableObject {
                 }
             }
 
-            index = batchEnd
+            pos = batchEnd
 
             // 最終バッチでなければインターバルを挟む。
-            if index < total {
+            if pos < total {
                 do {
                     try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
                 } catch {
@@ -392,17 +459,18 @@ final class MailMergeViewModel: ObservableObject {
         }
     }
 
-    /// 送信終了処理。集計を作って状態を片付け、送信済みフォルダの仕分けを行う。
+    /// 送信終了処理。集計を作って状態を片付け、送信済み控えの後始末を行う。
     private func finishSend(cancelled: Bool) {
-        summary = SendSummary(recipients: recipients)
+        // 集計は送信対象（チェック済み）のみ。除外した宛先は結果に含めない。
+        summary = SendSummary(recipients: recipients.filter { $0.isSelected })
         isSending = false
         currentRecipientName = ""
         sendTask = nil
-        // 実際に送れたメールがあれば、専用フォルダへ隔離する。
+        // 実際に送れたメールがあれば、Mail の送信済みから控えをゴミ箱へ移す。
         organizeSentMessages()
     }
 
-    /// 一斉送信したメールを通常 Sent から専用フォルダへ移動する。
+    /// 一斉送信した控えを通常 Sent から取り除く（ゴミ箱へ移動）。
     /// Mail が Sent へ保存し終えるのを少し待ってから実行する。
     private func organizeSentMessages() {
         guard let account = selectedAccount,
@@ -414,12 +482,9 @@ final class MailMergeViewModel: ObservableObject {
             try? await Task.sleep(nanoseconds: 5 * 1_000_000_000)
             // バッチ所要時間＋バッファ（3分）を遡って対象にする。
             let seconds = Int(Date().timeIntervalSince(start)) + 180
-            do {
-                try SentMessageOrganizer.organize(accountName: account.name, sinceSeconds: seconds)
-            } catch {
-                // 仕分け失敗は送信自体の成否に影響しないため、警告として提示。
-                self?.present(error)
-            }
+            // 後始末（送信済み控え・下書き残骸のゴミ箱移動）は best-effort。
+            // 失敗しても送信は成功しているため、アラートは出さず黙って無視する。
+            try? SentMessageOrganizer.purgeAfterSend(accountName: account.name, sinceSeconds: seconds)
         }
     }
 

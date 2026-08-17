@@ -69,17 +69,25 @@ struct SendControlBar: View {
 
             Spacer()
 
-            // 本番送信ボタン（テスト成功まで無効）。
-            Button {
-                isConfirmPresented = true
-            } label: {
-                Label("本番送信（\(viewModel.recipientCount)件）", systemImage: "paperplane.fill")
-                    .padding(.horizontal, 4)
+            // 本番送信ボタン（テスト成功まで無効）。押せない理由を隣に表示。
+            VStack(alignment: .trailing, spacing: 2) {
+                Button {
+                    isConfirmPresented = true
+                } label: {
+                    Label("本番送信（\(viewModel.selectedCount)件）", systemImage: "paperplane.fill")
+                        .padding(.horizontal, 4)
+                }
+                .controlSize(.large)
+                .buttonStyle(.borderedProminent)
+                .disabled(!viewModel.canSendProduction)
+                .help(viewModel.productionBlockReason ?? "一斉送信を開始します")
+
+                if let reason = viewModel.productionBlockReason {
+                    Label(reason, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption2)
+                        .foregroundStyle(.orange)
+                }
             }
-            .controlSize(.large)
-            .buttonStyle(.borderedProminent)
-            .disabled(!viewModel.canSendProduction)
-            .help(viewModel.testSucceeded ? "一斉送信を開始します" : "先にテスト送信を成功させてください")
         }
         .padding(.horizontal)
         .padding(.vertical, 10)
@@ -97,7 +105,7 @@ struct SendControlBar: View {
         } message: {
             Text("""
             送信元: \(viewModel.selectedAccount?.email ?? "未選択")
-            送信件数: \(viewModel.recipientCount) 件
+            送信件数: \(viewModel.selectedCount) 件
             件名: \(viewModel.subject)
             添付ファイル: \(viewModel.attachments.count) 個
             """)

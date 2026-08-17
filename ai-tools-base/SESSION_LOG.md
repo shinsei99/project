@@ -8,6 +8,33 @@
 
 ---
 
+## 2026-08-17 — 「AIツールラボ」→「AIツールベース」に改名（メインPCで追従）
+
+### 完了したこと
+- 公開中のサイトは **https://ai-tools-base.vercel.app/**、名称は **AIツールベース** であることを実物で確認
+  （h1「AIツールベース」／標語は「Claude Code を主軸に」のまま／制作記録10本）
+- **リポジトリ側が旧名・旧URLのままだった**ので統一した（37ファイル）。
+  `src/lib/site.ts` の `name`/`url`、layout・Hero の表示、`drafts/` の原稿と貼り付け用txt、
+  リポジトリ直下 `articles/` のZenn記事5本、README/CLAUDE/HANDOFF/TODO
+- `npm run validate` と `npm run build` が通ることを確認
+
+### 発生したエラーと解決策
+- **症状**: 公開済みのZenn記事5本・note2本のリンク先が404。
+  **原因**: 旧URL `ai-tools-lab-psi.vercel.app` を意図的に削除したため（ややこしいので、という判断）。
+  記事側のリンクは旧URLのまま残っていた。
+  **直し方**: パス構成は新旧で同じなのでドメインだけ差し替え。`articles/` を push すれば
+  Zennの5本は自動で直る。**noteは手作業**（Markdownが効かないため貼り直しが要る）。
+
+### 次回への引き継ぎ事項・未解決の課題
+- **note の公開済み2本（photo-inpainter / agent-platform）のリンクは手で直す**。
+  `drafts/note/paste/*.txt` は更新済みなので、該当箇所だけ貼り替えればよい
+- ~~フォルダ名は `ai-tools-lab` のまま~~ → **2026-08-17 夜に `ai-tools-base` へ統一**
+  （サブPCが同じ日にフォルダごと改名しており、gitのマージでサブPC側を採用した）
+
+> ↑この節はメインPCでの並行作業（同日）。サブPC側の節（下の「続き」）と内容が重なる。
+
+---
+
 ## 2026-08-17（続き2）— note 公開済み2本の404リンクを修正
 
 ### 完了したこと
@@ -139,7 +166,7 @@
 ### 発生したエラーと解決策
 - **`npx vercel --prod` の出力を `>/dev/null` に捨てて実行し、デプロイが走っていないのに
   成功したと誤認した**（本番に新ページが出ず404のままだった）。
-  → **出力を見て `Aliased https://ai-tools-lab-psi.vercel.app` を目視確認する**
+  → **出力を見て `Aliased https://ai-tools-base.vercel.app` を目視確認する**
 - **theta-viewer の制作記録は書けなかった。** サブPCの `README.md` は Vite の雛形のままで、
   `SESSION_LOG.md` も存在しない（gitにあるSESSION_LOGは5アプリぶんのみ）。
   **メインPCに未コミットの記録がある可能性が高い**ので保留。憶測では書かない
@@ -261,7 +288,7 @@
 ### 完了したこと
 - **Stage 2 完了**: `/tools` `/tools/[slug]` `/works` `/works/[slug]` `/articles`
   `/articles/[slug]` `/history` を作成。**404が全て解消**
-- **Vercel公開**: https://ai-tools-lab-psi.vercel.app （全ページ200確認）
+- **Vercel公開**: https://ai-tools-base.vercel.app （全ページ200確認）
 - ヒーローを2カラム化し、右にターミナル画面のビジュアルを配置。
   h1はサイト名（AIツールラボ）、標語はサブタイトルへ降格（階層が逆転していた）
 - **プロンプトの掲載方針を確定**: 体裁と語調は整えてよいが、

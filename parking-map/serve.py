@@ -10,9 +10,9 @@ import http.server, socketserver, json, webbrowser, threading, datetime, os, re,
 BASE = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE = os.path.join(BASE, "template.html")
 DROPBOX_ROOT = ("/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/"
-                "（★必読★）新共有フォルダ/物件・管理/")
-XLSX_PARKING = DROPBOX_ROOT + "レントロール一覧（駐車場他）.xlsx"
-XLSX_MANSION = DROPBOX_ROOT + "レントロール一覧（マンション）.xlsx"
+                "（★必読★）新共有フォルダ/")
+XLSX_PARKING = DROPBOX_ROOT + "★要更新★レントロール一覧（駐車場他）.xlsx"
+XLSX_MANSION = DROPBOX_ROOT + "★要更新★レントロール一覧（マンション）.xlsx"
 PORT = 8522
 
 # cols = (No, 現況, 契約者, 区分, 賃料, 保証金, 契約日) の列番号（1始まり）

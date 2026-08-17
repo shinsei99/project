@@ -12,5 +12,5 @@ fi
 
 exec .venv/bin/streamlit run app.py \
   --server.port 8532 \
-  --server.address 127.0.0.1 \
+  --server.address 0.0.0.0 \
   --server.headless true

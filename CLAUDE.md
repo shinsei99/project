@@ -51,6 +51,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 同時に、直下の `TODO.md` のそのアプリの行を現状に合わせて1行で書き換える
 （索引なので詳細は書かない。詳細はアプリ側のログにある）。
 
+### 4. PCまたぎの受け渡し — 受け取ったら消す
+
+コードはgit、機密（`.env` / DB / 鍵 / 個人情報を含むデータ）は**個人Dropboxに一時置き場**を作って運ぶ
+（`handoff-YYYYMMDD/` のように日付で切る）。**運び終わったら、置き場ごと必ず消す。**
+
+- 消す前に**受け取り側に実体があることを1件ずつ確認する**（`ls` / `du -sh` で見る。件数と容量まで）
+- 消すのは受け取りを確認した人。「たぶん入っているはず」で消さない
+- 消してよい理由: 機密を同期フォルダに置きっぱなしにしない／容量を食う（実例: ポケカ画像 4.0GB）。
+  Dropboxは削除後30日は復元でき、機密は元PCに原本があるので作り直せる
+- 一時置き場のパスは**アプリ側ではなく直下の `TODO.md`** に書く（受け取り側が起動時に必ず読むため）
+
 ### 書くときの原則
 
 - **憶測を事実として書かない。** 確かめていないことは「未確認」と明記する
@@ -59,17 +70,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## ★ PCの役割分担（2026-08-17確定・全アプリ共通）
+
+**2台とも同じリポジトリを持つが、役割は違う。**
+
+| | メインPC（Mac mini） | サブPC |
+|---|---|---|
+| launchd 常時起動 | **する**。「使う目的」で立ち上げっぱなし | **しない**。作成・改良のときだけ `./run.sh` で都度起動 |
+| 社内LAN共有 | **する**（不動産カテゴリの完成済み） | **しない** |
+| chatwork-ai-manager の worker / LINE / ngrok | **ここだけ**（二重起動禁止） | 管理画面8540のみ可 |
+
+- サブPCで起動するのは**動作確認のため**であって、業務で使うためではない。
+  常駐に登録しない（`launchctl load` しない）。個人情報を含む画面を二重にLANへ出さない
+- したがって「LANに出ているか」の点検（`lsof -nP -iTCP:<port> -sTCP:LISTEN`）は
+  **メインPCの表が正**。サブPCで待ち受けが残っていたら止める側
+
+**run.sh を直しても常駐には効かない。** plistが `run.sh` を呼ばず
+`/usr/bin/python3 -m streamlit run app.py …` を直接叩いている例がある（quote-generator）。
+バインド先やPythonを変えたら、**`launchctl kickstart -k gui/$(id -u)/<label>` で入れ替えて
+`lsof` で見る**まででワンセット（2026-08-17に 8526/8527 がこれでLAN公開のままだった）。
+
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全50本）※不動産30・ツール14・ゲーム6  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全51本）※不動産31・ツール14・ゲーム6  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（30本）
+### 不動産（31本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
 | 手書き検針記録 | handwriting-ocr | — | 開発中 | — |
-| 見積書自動生成ツール | quote-generator | 8503 | ✅ | — |
+| 見積書自動生成ツール | quote-generator | 8503 | ✅ | **別リポジトリ**（下記） |
 | 物件管理案内文ジェネレーター | property-notice-generator | 8504 | ✅ | — |
 | マイソクコンバーター | maisoku-converter | 8505 | ✅ | — |
 | 不動産写真AI | photo-inpainter | 8506 | ✅ | — |
@@ -96,8 +127,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 送付書メーカー | soufu-maker | 8525 | ✅ | — |
 | 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ✅ | — |
 | 書類キャビネット スマホ用（撮影→Dropbox取込） | shorui-mobile | — | ー（Vercel・pass保護） | Vercel（shorui-mobile.vercel.app） |
-| マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | 開発中（完成まで127.0.0.1） | — |
+| マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | ✅ | — |
 | AI業務マネージャー（Chatwork/LINE常駐AIエージェント） | chatwork-ai-manager | 8540(画面)/8530(LINE) | ✅（画面0.0.0.0） | LINE(ngrok) |
+| 事業計画案ジェネレーター（投資収支→Excel） | business-plan-generator | 8533 | ✅ | — |
 
 ### ツール（14本）※社内LAN共有なし
 
@@ -106,7 +138,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 送付書ジェネレーター | soufu-generator | 8518 | — |
 | デジタル書斎 | digital-shosai | 3001 | — |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
-| スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（1.0.2 build6 配信済み） |
+| スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（1.0.2 build6 配信済み・**1.0.3 build7 アップ済み／審査提出待ち**） |
 | 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅ |
 | ママカウンター | mom-counter | — | GitHub Pages / App Store ✅ v1.0.1 |
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
@@ -116,7 +148,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
 | ポケモンカード図鑑（全31,520枚・画像100%収録） | pokecard-dex | 8531 | — |
 | チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
-| AIツールベース（Claude Code主軸の比較メディア＋制作記録） | ai-tools-base | 3004 | — |
+| AIツールベース（Claude Code主軸の比較メディア＋制作記録） | ai-tools-base | 3004 | Vercel（**ai-tools-base.vercel.app**・手動 `npx vercel --prod`） |
 
 ### ゲーム（6本）※社内LAN共有なし
 
@@ -129,9 +161,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | にゃんこのアイス屋さん | nyanko-ice | iOS App Store申請中 |
 | ネオンブロック | neon-blocks | iOS App Store配信済み ✅ |
 
+## ★ 公開サイト（5つ）
+
+**アプリ（動かすもの）とは別軸の索引。** 本数の内訳には入れない
+（AIツールベースは port 3004 のアプリでもあるため、ツール分類に残したまま）。
+
+| 名称 | URL | 実体・更新方法 |
+|---|---|---|
+| AIツールベース（AI開発ガイド） | https://ai-tools-base.vercel.app/ | `ai-tools-base`（3004）／`./publish.sh site` |
+| Zenn（技術記事） | https://zenn.dev/shinsei99 | リポジトリ直下 `articles/` を push（GitHub連携）／`./publish.sh zenn` |
+| note（非技術・読み物） | https://note.com/shinsei99 | `ai-tools-base/drafts/note/`／`./publish.sh note <名前>` |
+| 緑と暮らすスローライフ（物件サイト） | https://daikyocorp.co.jp/slowlife/ | `flyer-creator` が生成→FTP（接続情報は `theta-viewer/server/ftp-config.json`） |
+| 小説「不動産屋、はじめました。」 | https://kakuyomu.jp/works/2912051604243797830 | カクヨム連載・著者名 SHINSEI。**全31話・予約投稿済みで順次自動公開＝放置でよい**。原稿は GoogleDrive/新誠不動産/`カクヨム用/` |
+
+- 上の3つ（サイト・Zenn・note）は**1本の制作記録を3媒体に出す**運用。手順は `ai-tools-base/CLAUDE.md`
+- **THETAパノラマ（daikyocorp.co.jp/vr/）やGitHub Pages公開のゲームはここに載せない。**
+  あれは「アプリの公開先」なので、アプリ一覧の外部公開欄で足りる
+
 ### 業務マニュアル（Web）補足 ※不動産カテゴリに計上
 
 - **大京商事 業務マニュアル（Web）** … 自己完結HTML一枚（22マニュアル）。所在: `gyomu-manual/業務マニュアル.html`（2026-07-10作成）。生成スクリプト: `gyomu-manual/generate.py`（`python3 generate.py` で再生成可）。port無し・ブラウザで直接開く運用。
+
+### quote-generator（見積書自動生成ツール）補足 ※不動産・port 8503
+
+- **このアプリだけ独立したリポジトリ**: `github.com/shinsei99/quote-generator`（public）。
+  直下リポジトリの `git pull` では**来ない**ので、他PCでは別途 `git clone` する。
+  親で追跡しようとすると embedded repository になり中身が渡らないため、`.gitignore` で除外したまま。
+- launchd（`com.shinsei.quote-generator`）は **`run.sh` を経由せず** plist から
+  `/usr/bin/python3 -m streamlit run app.py` を直接叩く。`run.sh` は手動起動・他PC用（venvを作る）。
+- `data/issuers.csv`（発行者マスタ＝社名・担当者名）と `logs/` は先方リポジトリでも gitignore。
+- 2026-08-17: メインPCの作業コピーが 2コミット遅れ、同じ内容が未コミットのまま残っていた
+  （＝**すでにpush済みの内容だった**）。fast-forward で解消。
 
 ### parking-map（駐車場配置図ビューア）補足
 
@@ -160,7 +220,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Vaultをオーダー（提出）別に絞り込み＋鑑定番号ソート（2026-08-07）**: Vaultビューのサイドバーに「オーダー（提出）」selectboxを追加。各カードがどの提出オーダー由来かは `orders.json` の **`certOrders`（cert番号→オーダー情報）** で判定。**重要・再調査不要**: `orders.get` は **進行中(Processing)は `specReviewResults[]`（`certNo`）だが、完了・発送済(Completed/Shipped)は空 → 代わりに `psaCerts[]`（`certNumber`）にカード明細が入る**（`trackingNumber:"Shipped to Vault"`でVault確認可）。`harvest_orders.js` は全オーダーで `orders.get` を叩き両方から `certOrders` を構築（鑑定中タブ用 `cards` は従来どおり進行中のみ）。全オーダー処理で20秒超えるため `update_orders.sh` のポーリングは60秒。並べ替えに「鑑定番号が小さい/大きい順」を追加（`cert_num`＝Cert Numberの数値列。桁数差があるため文字列ソート不可）。
 - **CSVアップロードと同時に画像自動取得（2026-08-07）**: 「📥 データ更新」の「画像も自動取得」チェック（既定ON）で、差し替え後に不足cert分だけ `fetch_new_images.sh`（`harvest_collectors.js`→`import_from_web.py`）をSafari経由で実行。画像はCSVに含まれず `data/images/<cert>.jpg` の別キャッシュのため、CSV差し替え単体では新カードの画像は出ない。未ログイン時は更新のみ成功しフォールバック案内。
 
-### マルチプロダクション（agent-platform）補足 ※不動産・port 8532・開発中
+### マルチプロダクション（agent-platform）補足 ※不動産・port 8532・完成（2026-08-17に社内共有へ）
 
 - 「企画からパワポ・ナレーション音声・解説動画(mp4)・SNS告知文まで全部作って」という**1文の指示**を、**11部隊**（司令塔／リサーチャー／企画構成／画像生成／パワポ／音声／動画／高速チェッカー／SNS／法務／QA）が順に処理して成果物一式を出す。画面はStreamlit（**入力フォーム／実行状況（部隊ごとの進捗ボード＋日本語ログ）／成果物**の3タブ）、CLIは `main_orchestrator.py`。
 - **設計の芯＝縮退モード**: APIキーが1つも無くても全工程が完走する（雛形テキスト・Pillowの簡易画像・無音WAVで代替）。縮退した工程は画面とレポートで ⚠️ 表示。これが無いと1つのキー未設定でパイプライン全体が死んでデバッグ不能になる。
@@ -172,9 +232,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **音が出ないときはまずMac本体のミュートを疑う**（`osascript -e 'get volume settings'`）。実際に`output muted:true`で「音が無い」と誤認した。
 - **ffmpeg未導入のMac**なので `imageio-ffmpeg` 同梱バイナリを `IMAGEIO_FFMPEG_EXE` に流して moviepy に使わせる。moviepy は v1/v2 で API名が違う（`set_audio`→`with_audio`）ため互換シムあり。
 - `.env` と `output/`（生成物）は**gitignore**。
-- **分類は不動産（2026-08-16変更）。ただし開発中なので `run.sh` はまだ `127.0.0.1` バインド・launchd未登録。**
-  社内LAN共有は「不動産カテゴリの**完成済み**のみ」の決まりなので、完成時に `0.0.0.0` へ変えて
-  launchd に登録する（そのとき下の「バインド先のルール」の表も直すこと）。
+- **分類は不動産（2026-08-16変更）。2026-08-17に完成扱いへ移行**し、`run.sh` を `0.0.0.0` に変えて
+  launchd（`com.shinsei.agent-platform`）に登録・社内LAN共有（`192.168.1.105:8532`）。
+  Desktop の `.app` と Dropbox共有フォルダの `.url` は以前から設置済み。
+  **残っているのは作り込みであって通し実行はできる状態**（`agent-platform/TODO.md` 参照。
+  未了は「出来た .pptx の見栄えを目視確認」「OpenAI/Groq/ElevenLabs 経路の未検証」など）。
 
 ### AI業務マネージャー（chatwork-ai-manager）補足 ※不動産・画面8540／LINE8530
 
@@ -232,7 +294,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **経緯（重要・同じ失敗を繰り返さないこと）**: 旧実装は `simple_lama_inpainting` を optional import していたが、これが **requirements.txt に一度も入っていなかった**ため `inpaint_lama()` は常に ImportError → `cv2.inpaint`（TELEA）へ暗黙フォールバックしていた。OpenCVは電線跡が茶色く滲むため「使えない」と判断され開発が止まっていた。**エンジン未導入が原因であってアルゴリズム選定の問題ではなかった。**
 - モデルは初回実行時に `~/.cache/torch/hub/checkpoints` へ自動DL（`big-lama.pt` 約200MB / `mobile_sam.pt` 約40MB）。実測: 1600×1067 の電線消去が **CPUで約4秒**（長辺800px超は `HDStrategy.CROP` でマスク周辺だけ切り出して推論するため、原寸のまま高速かつマスク外は無劣化）。SAMは同一画像なら埋め込みを再利用し2回目以降 0.1秒。
 - **SAMモデルは切替式**（mobile_sam / vit_b / vit_l / vit_h をサイドバーで選択）。既定は `default_sam_model()` が **MPSあり(Apple Silicon)→vit_b / なし(Intel)→mobile_sam** を自動判定。環境変数 `SAM_MODEL` で上書き可。**実測での注意（再検証不要）**: 軽バンを1クリックした場合 mobile_sam=選択14.2%/1.8s だが輪郭がギザギザで車体外にはみ出す、vit_b=選択5.6%/24.1s でスライドドア1枚を境界正確に選択。**大きいモデル＝広く取れる、ではない**。「意味のまとまり」で正確に切る方向に効くので、車1台なら追加クリック前提。
-- `.venv`（1.3GB）と `samples/`（実物件の写真を含む）は**gitignore**。launchd登録済み（`com.shinsei.photo-inpainter`）・`run.sh` は不動産カテゴリのため `0.0.0.0` バインド。
+- `.venv`（1.3GB）と `samples/`（実物件の写真を含む）は**gitignore**。`run.sh` は不動産カテゴリのため `0.0.0.0` バインド。
+- **2026-08-17にメインPCへ設置完了**（開発はサブPC・完成は2026-08-10）。launchd `com.shinsei.photo-inpainter`・
+  社内LAN共有（`192.168.1.105:8506`）・Desktop の `.app` と Dropbox共有フォルダの `.url`＋`.ico` も設置済み。
+- **⚠️ venv は Python 3.9 か 3.11 で作る（3.12は不可・再調査不要）。** `iopaint==1.6.0` が
+  **`Pillow==9.5.0` をハード固定**しており、Pillow 9.5.0 には cp312 のホイールが無い
+  （3.12だとソースビルドに落ちて失敗する）。9.5.0 のmacOS arm64ホイールは cp38〜cp311 まで。
+  実績: `/usr/bin/python3`（3.9.6）で全依存が入り、torch 2.2.2 / streamlit 1.50.0 で稼働。
+- アイコンの生成元は `photo-inpainter/icon-src/make_icon.py`（PILでバイオレットの角丸＋写真＋キラッ。
+  `.icns` と `.ico` を両方出す）。
 
 ### theta-viewer FTP APIサーバー port修正（2026-07-14）
 
@@ -268,7 +338,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8527 | PSA保有カード管理（※ツール・localhost・社内共有なし／常時起動のみ。Desktop/社内ツールに.appショートカット有） | com.shinsei.psa-collection |
 | 8528 | 書類キャビネット（※不動産・社内LAN共有あり・0.0.0.0／要フルディスクアクセス for /bin/bash＝Dropbox取込読取） | com.shinsei.shorui-cabinet |
 | 8529 | チラシクリエーター（※ツール・127.0.0.1・launchd未登録） | （未登録） |
-| 8532 | マルチプロダクション（※不動産・開発中のため127.0.0.1・launchd未登録） | （未登録） |
+| 8532 | マルチプロダクション | com.shinsei.agent-platform |
+| 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
 | 8530 | AI業務マネージャー LINE webhook（※メインPCのみ稼働。ngrok固定ドメイン経由で公開） | com.shinsei.chatwork-ai-manager-line ＋ -ngrok |
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
@@ -280,11 +351,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | 分類 | バインド | 対象 |
 |---|---|---|
-| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の18本＋8528 shorui-cabinet＋8540 chatwork-ai-manager |
-| 不動産だが**開発中** | `--server.address 127.0.0.1` | 8532 agent-platform（完成したら0.0.0.0へ） |
+| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8540 chatwork-ai-manager |
+| 不動産だが**開発中** | `--server.address 127.0.0.1` | （現在なし。8532 agent-platform は2026-08-17に完成扱いへ移行） |
 | ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 3004 ai-tools-base（Next.js） |
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
+
+### 社内への配り方（入口の置き場・2026-08-17整理）
+
+| 置き場 | 中身 |
+|---|---|
+| Dropbox `共有フォルダ/（★必読★）新共有フォルダ/社内ツール/` | 各アプリの `.url`（23本）＋ `icons/*.ico` |
+| その**1つ上**（`（★必読★）新共有フォルダ/` 直下） | `横断ファイル検索.url` と `業務マニュアル.url` の2本だけ。全社員が毎日使う入口なので浅い位置に置く |
+| `Desktop/社内ツール/`（このMacのみ） | `.app`（29本）。Mac用のランチャで、Dropboxには置かない |
+
+- `.url` は **Shift-JIS(CP932)＋CRLF**。`URL=http://192.168.1.105:<port>`、
+  `IconFile=%USERPROFILE%\大京商事　株式会社 Dropbox\…\社内ツール\icons\<名前>.ico`
+  （※このMacは en0=192.168.1.140 / en1=**192.168.1.105** の2枚刺し。**配布は .105 で統一**）
+- **AI業務マネージャー（8540）は社内に配らない。** オーナー管理の情報を扱うため、
+  画面は 0.0.0.0＋パスワードで動かすが `.url` は置かない（2026-08-17判断）
+- `.ico` が無いアプリは、Desktop の `.app` の `AppIcon.icns` を
+  `sips -s format png` → PIL の `save(..., sizes=[...])` で変換すると見た目を揃えられる
 
 ---
 

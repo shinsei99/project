@@ -1,5 +1,27 @@
 # ai-tools-base（AIツールベース）— このアプリの決まり
 
+
+## メインPCから3媒体を更新する（2026-08-17整備）
+
+**入口は `./publish.sh` の1本**。中でやっていることは従来と同じ。
+
+```bash
+./publish.sh status          # 3媒体の現状（まずこれ）
+./publish.sh site            # 本体サイトを本番へ（validate → npx vercel --prod → 反映確認）
+./publish.sh zenn            # articles/ を push して Zenn へ
+./publish.sh note <名前>     # note用のHTMLをクリップボードへ（本文欄で ⌘V）
+```
+
+- **Zenn は GitHub 連携**なので、ログイン無しでも push だけで公開できる（ブラウザは状況確認用）
+- **本体サイトは手動デプロイ**。`npx vercel login` → `npx vercel link` が1回だけ要る（対話式）
+- **note は Markdown が効かない**ので `md2html.py` でHTMLをクリップボードに載せて貼る
+- ブラウザ操作はサブPCと同じく **Chrome拡張（Claude in Chrome）** から端末越しにできる。
+  拡張はメインPCでも接続済み（2026-08-17確認）。ただし **note / Zenn / Vercel の
+  ログインはブラウザ側の状態**なので、各サイトに入り直すこと（2026-08-17時点で3つとも未ログイン）
+- `status` は **Zennの「黙って未反映」を検知する**。`published: true` なのに
+  Zenn API に出てこない記事を ⬜ で表示する（投稿数の上限に当たった状態。空けて再push）
+
+
 ## ★ 制作記録を1本増やしたら、Zenn と note にも同時に出す（2026-08-16決定）
 
 **対象は `category: "realestate"` の公開記録だけ。** ツール・ゲーム分類は本体のみ。

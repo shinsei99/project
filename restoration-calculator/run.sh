@@ -1,8 +1,11 @@
 #!/bin/bash
+# claude を subprocess 呼び出しするため、venv Python ではなく /usr/bin/python3 を使う。
+# （venv Python + launchd/常時起動 の組み合わせで claude が SIGSEGV(-11) で落ちるため。
+#   詳細は feedback_claude_subprocess.md / CLAUDE.md 参照）
 cd "$(dirname "$0")"
-if [ ! -d .venv ]; then
-  python3 -m venv .venv
-  .venv/bin/pip install -q --upgrade pip
-  .venv/bin/pip install -q -r requirements.txt
+PY=/usr/bin/python3
+# 必要パッケージをユーザー領域にインストール（未導入時のみ実体を取りに行く）
+if ! "$PY" -c "import streamlit, pandas, openpyxl, fitz, PIL" 2>/dev/null; then
+  "$PY" -m pip install --user -q -r requirements.txt
 fi
-exec .venv/bin/streamlit run app.py --server.port 8508 --server.address 0.0.0.0 --server.headless true
+exec "$PY" -m streamlit run app.py --server.port 8508 --server.address 0.0.0.0 --server.headless true

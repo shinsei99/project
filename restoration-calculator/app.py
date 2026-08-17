@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 import pandas as pd
 import streamlit as st
 
@@ -153,8 +155,14 @@ with col2:
     room_number = st.text_input("部屋番号", value="")
     deposit = st.number_input("預かり敷金（円）", min_value=0, value=0, step=1000)
 with col3:
-    move_in = st.date_input("入居日（契約開始日）", value=None, format="YYYY/MM/DD")
-    move_out = st.date_input("退去日（明渡し日）", value=None, format="YYYY/MM/DD")
+    # 入居日は長期入居（〜数十年前）も選べるよう下限を大きく広げる
+    # （Streamlit既定だと約10年前までしか遡れない）
+    _today = date.today()
+    _min_date = date(_today.year - 50, 1, 1)
+    move_in = st.date_input("入居日（契約開始日）", value=None, format="YYYY/MM/DD",
+                            min_value=_min_date, max_value=_today)
+    move_out = st.date_input("退去日（明渡し日）", value=None, format="YYYY/MM/DD",
+                             min_value=_min_date, max_value=date(_today.year + 1, 12, 31))
 addr_col, tcontact_col = st.columns(2)
 with addr_col:
     property_address = st.text_input(

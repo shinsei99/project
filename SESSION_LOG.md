@@ -11,6 +11,115 @@
 
 ---
 
+## 2026-08-17 — サブPC（2026-08-16）の作業をメインPCで受領
+
+### 完了したこと
+- **ai-tools-lab をメインPCで動く状態にした**（`HANDOFF.md` §1）。`npm install` 完了、
+  `npm run validate` 通過（警告は既知の「転載がまだ」5件と review 未記入4件のみ）
+- **機密の受け渡しを手動で代替**。`Dropbox-個人/handoff-20260817/` に
+  `psa-collection/data/{orders,albums}.json` と `引き継ぎ-先に読む.txt` を配置
+- 直下 `.gitignore` に許可行を追加（`HANDOFF.md` / `SETUP.md` / `dev-doctor.py` /
+  `dev-setup.sh` / `secrets-sync.sh` / `secrets-manifest.txt`）
+- **メインPCの 8526 / 8527 のLAN公開を解消**（下記）
+- **agent-platform（マルチプロダクション・8532）を完成扱いにして正式に社内LAN共有へ**。
+  もともと `.url` は配られ実際も `*:8532` で公開されていたが、`run.sh` は `127.0.0.1`・launchd未登録で、
+  **手動起動のプロセスが残っているだけの状態**だった（＝再起動したら消える）。
+  `run.sh` を `0.0.0.0` に直し、launchd `com.shinsei.agent-platform` に登録 → 疎通確認（LAN 200）。
+  残件は作り込み（pptxの目視確認・字幕・投稿API等）で、通し実行はできる状態
+- **business-plan-generator（事業計画案ジェネレーター）を社内LAN共有に載せた**（不動産31本目）。
+  2026-07-28 に作られたまま展開されておらず、gitにも載っていなかった。動作は問題なし
+  （`smoke_test.py` が総事業費25,501万・利回り実1.7/経費込4.0/単純6.6・Excel出力9,380バイトまで通り、
+  画面も HTTP 200）。**port は README の 8527 が psa-collection と衝突していたため 8533 へ変更**。
+  launchd `com.shinsei.business-plan-generator` 登録 → `192.168.1.105:8533` で疎通確認、
+  Desktop の `.app`（→29本）と Dropbox共有フォルダの `.url`＋`icons/*.ico`（→22本）も設置
+- **photo-inpainter（不動産写真AI・8506）をメインPCへ設置し、社内LAN共有に載せた**。
+  サブPCで完成（2026-08-10）していたがメインPCには環境が無く、8506は待受なしだった。
+  `.venv` 作成 → launchd `com.shinsei.photo-inpainter` 登録 → `192.168.1.105:8506` で疎通確認、
+  Desktop の `.app`（27本→28本）と Dropbox共有フォルダの `.url`＋`icons/*.ico` も設置
+- **個人Dropboxの受け渡し置き場を片付け**。受け取り済みを1件ずつ確認して削除:
+  `handoff-20260815`（agent-platform の config/knowledge/.env・flyer-creator の .stats_key。
+  5件ともメインPCに実体あり）／`chatwork-ai-manager-handoff` 165MB（サブPCが8/16にimport済み。
+  必要なら `handoff_export.sh` で作り直せる）。残りは `handoff-20260817`(380KB) と
+  `pokecard-dex-handoff`(3.7GB) で、**どちらもサブPCの受け取り確認後に消す**（今夜の手順③）
+- CLAUDE.md に「**PCまたぎの受け渡し — 受け取ったら消す**」を作業ルールとして追加
+- **今週サブPCで全アプリを触れるようにする準備**（依頼: 2026-08-17）。
+  gitに入らない実体をメインPC全体から棚卸しし、`handoff-20260817/` に**リポジトリ直下と
+  同じ形**で詰めた（合計31MB。`rsync --ignore-existing` 1回で復元できる形）。
+  内訳＝鍵・設定10件（agent-platform/.env、building-manager/.env、flyer-creator/.stats_key、
+  jyuusetsu-research・legal-crosscheck・realestate-valuation の secrets.toml、
+  madori-tracer の .env.local と .secret_key、shorui-mobile/.env.local、theta-viewer/.env.local）
+  ＋データ6アプリ（flyer-creator 29M / file-finder 1.5M / tsuikyaku-crm / shorui-cabinet /
+  restoration-calculator / quote-generator）。
+  **入れなかったもの**: psa-collection の画像443MB（サブPCで再取得できる）、
+  pokecard-dex 4.3GB（別tarで受け渡し済み）、chatwork-ai-manager（専用スクリプトが正）
+
+- **メインPCから3媒体（本体サイト / Zenn / note）を更新できるようにした**。
+  入口は `ai-tools-base/publish.sh`（status / site / zenn / note）。
+  ※当時のパスは `ai-tools-lab/`。2026-08-17夜のマージでフォルダ名を `ai-tools-base` に統一した
+  Chromeを新規インストール→Claude拡張を接続、note・Zenn・Vercel にログイン。
+  `npx vercel link` でプロジェクト **brain-dump/ai-tools-base** に紐づけ、
+  `./publish.sh site` で**実際に本番デプロイして確認**（dpl_Ass2Jj9… READY・別名も同IDを配信）
+- **「AIツールラボ」→「AIツールベース」への改名**に追従（37ファイル）。公開URLは
+  `ai-tools-base.vercel.app`。旧URLは意図的に削除されており、公開済み記事のリンクが
+  404になっていたので差し替えた（Zennのデプロイ履歴で反映を確認）
+- **区分に「公開サイト」を追加**（5つ・URL付き。一覧の最後）。アプリの本数には数えない
+- **メモリ（Claudeの記憶）をサブPCへ渡す仕組み**を用意。公開リポジトリに置けないため
+  `handoff-20260817/memory-from-main/`（59ファイル）＋ TODO に取り込み手順（②-b）
+
+### 発生したエラーと解決策
+- **症状**: TODOの「【明日いちばん最初】メインPCで `./secrets-sync.sh export`」が実行できない。
+  メインPCに `secrets-sync.sh` が無い。
+  **原因**: 2026-08-16 にサブPCで作った整備ツール5本
+  （`secrets-sync.sh` / `secrets-manifest.txt` / `dev-doctor.py` / `dev-setup.sh` / `SETUP.md`）は
+  **コミットされていなかった**。コミットメッセージには書かれているが、
+  `git show --stat` の中身は `.gitignore` と requirements の修正だけ。
+  直下 `.gitignore` は**1行目から `*` で全部無視し、`!` で個別に許可する方式**なので、
+  許可行の無い新規ファイルは `git add` しても入らない（`git add` はエラーを出さない）。
+  **直し方**: メインPCで許可行を追加して push。サブPCで `git pull` 後に5本を `git add`→push。
+  → 教訓: **直下に新規ファイルを置いたら `git status` ではなく
+  `git show --stat <コミット>` で実体が入ったかを見る**（`git check-ignore -v <file>` で確認できる）。
+- **症状**: サブPCからの依頼3件のうち `digital-shosai/.env.local` が用意できない。
+  **原因**: メインPCにも存在しない（`.env.local.example` のみ）。運ぶ元が無い＝要件取り下げ。
+- **症状**: photo-inpainter の依存を Python 3.12 の venv に入れようとすると
+  `Failed building wheel for Pillow` で必ず落ちる。
+  **原因**: `iopaint==1.6.0` が **`Pillow==9.5.0` をハード固定**しており、
+  Pillow 9.5.0 には cp312 のホイールが無い（arm64は cp38〜cp311 まで）。
+  pip はホイールが無いのでソースビルドへ落ち、ビルド環境が無いため失敗する。
+  **直し方**: venv を `/usr/bin/python3`（3.9.6）で作り直す → 全依存が入り稼働。
+  → 教訓: 「Pillowのビルド失敗」は**Python が新しすぎる**サイン。requirements の直接指定
+  （`Pillow>=9.0.0`）ではなく、**依存の依存が固定していないか**を見る。
+- **症状**: メインPCで **8527 psa-collection（保有明細・資産額）と 8526 kaitori-dm-maker が
+  `*`（LAN全公開）で待ち受けていた**。どちらもツール分類で 127.0.0.1 が正。
+  **原因**: `run.sh` は 127.0.0.1 に修正済みだったが、**動いているプロセスが 8/8 05:52 起動のまま**で
+  修正前の設定を保持していた。**ファイルを直しても launchd の常駐プロセスは入れ替わらない。**
+  **直し方**: `launchctl kickstart -k gui/$(id -u)/com.shinsei.<label>` で再起動
+  → `lsof -nP -iTCP:<port> -sTCP:LISTEN` が `127.0.0.1:<port>` になり、HTTP 200 も確認。
+  → 教訓: **バインド先を直したら `run.sh` の修正だけで終わらせず、必ず kickstart して lsof で見る。**
+
+### 次回への引き継ぎ事項・未解決の課題
+- サブPCで `git pull` → 整備ツール5本をコミットし直す（上記）
+- **【今夜 19:56以降・メインPCで】Zenn の未反映3本を出し直す**
+  （`./publish.sh zenn` → `./publish.sh status`）。そのあと note。Vercelのリンクとデプロイは完了済み
+- サブPCの launchd 常駐2本（file-finder 8520 / owner-payout-tracker 8519）は**止める方針で確定**（今夜の手順④）
+- **メインPCで残っているバインド違反1件**（未対応）: `3002` brain-dump（ツール／Next.jsの既定が 0.0.0.0。
+  `run.sh` に `-H 127.0.0.1` を足す）。8532 agent-platform は完成扱いにしたので 0.0.0.0 のままで正しい
+- ~~メインPCの未コミット19ファイル~~ → **アプリ単位で5コミットに分けて push 済み**（2026-08-17）。
+  quote-generator は別リポジトリで、未コミットに見えた529行は**すでにpush済みの内容**だった
+  （作業コピーが2コミット遅れていただけ。fast-forwardで解消し、`run.sh` だけ追加）
+- **business-plan-generator の中身が会長の様式に合っているかは未検証**。計算とExcel出力は通るが、
+  実データ1件での目視確認をしていない
+- **社内への配り方を整理**（4本足りないように見えた件の決着）。
+  横断ファイル検索(8520)・業務マニュアル(8521) は**`社内ツール/` の1つ上**（`（★必読★）新共有フォルダ/` 直下）に
+  既に置いてあった＝毎日使う入口なので浅い位置。駐車場配置図ビューア(8522) は今回追加（`.url`＋`.ico`。
+  `.ico` は Desktop の `.app` の `AppIcon.icns` を sips→PIL で変換し見た目を統一）。
+  **AI業務マネージャー(8540) はオーナー管理の情報を扱うため配らない**（画面は 0.0.0.0＋パスワードのまま）
+- **鍵が6本、メインPCに存在しない**（`brain-dump/.env.local` / `pasha-calo/.env.local` /
+  `digital-shosai/.env.local` / `baikai-generator/.streamlit/secrets.toml` /
+  `theta-viewer/server/ftp-config.json` / `kaitori-dm-maker/senders.json`）。
+  CLAUDE.md は「brain-dump と pasha-calo に Geminiキーがある」と書いているが**メインPCには無い**。
+  サブPC側にあるかを今夜確認する（両方に無ければ作り直しが要る＝その6本は今どちらでも動かない）
+- CLAUDE.md のスリム化（メインPCで実施予定）も**未着手のまま**
+
 ## 2026-08-16 — サブPCで全アプリを触れるようにする（横断整備）
 
 ### 完了したこと
