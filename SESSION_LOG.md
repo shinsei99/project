@@ -20,6 +20,7 @@
   `psa-collection/data/{orders,albums}.json` と `引き継ぎ-先に読む.txt` を配置
 - 直下 `.gitignore` に許可行を追加（`HANDOFF.md` / `SETUP.md` / `dev-doctor.py` /
   `dev-setup.sh` / `secrets-sync.sh` / `secrets-manifest.txt`）
+- **メインPCの 8526 / 8527 のLAN公開を解消**（下記）
 
 ### 発生したエラーと解決策
 - **症状**: TODOの「【明日いちばん最初】メインPCで `./secrets-sync.sh export`」が実行できない。
@@ -35,12 +36,23 @@
   `git show --stat <コミット>` で実体が入ったかを見る**（`git check-ignore -v <file>` で確認できる）。
 - **症状**: サブPCからの依頼3件のうち `digital-shosai/.env.local` が用意できない。
   **原因**: メインPCにも存在しない（`.env.local.example` のみ）。運ぶ元が無い＝要件取り下げ。
+- **症状**: メインPCで **8527 psa-collection（保有明細・資産額）と 8526 kaitori-dm-maker が
+  `*`（LAN全公開）で待ち受けていた**。どちらもツール分類で 127.0.0.1 が正。
+  **原因**: `run.sh` は 127.0.0.1 に修正済みだったが、**動いているプロセスが 8/8 05:52 起動のまま**で
+  修正前の設定を保持していた。**ファイルを直しても launchd の常駐プロセスは入れ替わらない。**
+  **直し方**: `launchctl kickstart -k gui/$(id -u)/com.shinsei.<label>` で再起動
+  → `lsof -nP -iTCP:<port> -sTCP:LISTEN` が `127.0.0.1:<port>` になり、HTTP 200 も確認。
+  → 教訓: **バインド先を直したら `run.sh` の修正だけで終わらせず、必ず kickstart して lsof で見る。**
 
 ### 次回への引き継ぎ事項・未解決の課題
 - サブPCで `git pull` → 整備ツール5本をコミットし直す（上記）
 - ai-tools-lab の残り: `npx vercel login` → `npx vercel link`（team: brain-dump / project: ai-tools-lab）。
   公開は Zenn の上限が解ける **8/17 19:56 以降**、`ai-tools-lab/drafts/PUBLISH.md` の順で1日2本
 - サブPCの launchd 常駐2本（file-finder 8520 / owner-payout-tracker 8519）の二重LAN公開は**未判断のまま**
+- **メインPCで残っているバインド違反2件**（未対応）: `3002` brain-dump（ツール／Next.jsの既定が 0.0.0.0）、
+  `8532` agent-platform（開発中＝127.0.0.1が正。`run.sh` は正しいので手動起動と思われる）
+- メインPCに**前からの未コミット作業**が19ファイル分ある（mail-merge-pro / realestate-valuation /
+  restoration-calculator / parking-map / memorandum-generator の icon-src）。素性を確認してから整理する
 - CLAUDE.md のスリム化（メインPCで実施予定）も**未着手のまま**
 
 ## 2026-08-16 — サブPCで全アプリを触れるようにする（横断整備）
