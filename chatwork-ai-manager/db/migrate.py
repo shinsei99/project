@@ -24,6 +24,10 @@ DEFAULT_SETTINGS = {
     "carryover_check_time": "10:00", # 翌日の前日未完了・期限超過確認
     "scheduled_jobs_enabled": "1",   # 0で定時処理を停止
     "manager_room_id": "",           # 期限超過エスカレーションの管理者報告先（空なら発生元ルーム）
+    "due_reminder_check_time": "09:00",  # 期限リマインドの時刻
+    "due_reminder_days": "2",            # 期限の何日前にリマインドするか
+    "weekly_report_mon_time": "10:00",   # 週次棚卸し（月曜・やり残し確認）の時刻
+    "weekly_report_fri_time": "18:00",   # 週次棚卸し（金曜）の時刻
     # 日次ナレッジ増分リフレッシュ（Stage 5）
     "knowledge_refresh_enabled": "1",
     "knowledge_refresh_time": "07:00",

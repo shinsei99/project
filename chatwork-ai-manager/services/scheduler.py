@@ -4,19 +4,26 @@
   progress_1300 (13:00) 昼の進捗確認   … 本日期限・期限間近・未着手で停滞中を中心に「進捗どう？」
   closing_1800  (18:00) 終業前確認     … 本日期限の未完了・未着手・停滞・完了報告なしを確認
   carryover_1000(翌10:00) 前日未完了   … 前日以前が期限のまま未完了＝期限超過を確認・エスカレーション
+  due_reminder  (既定09:00) 期限リマインド … 期限のN日前(既定2日)の未完了に事前リマインド
+
+週次棚卸し（絞り込みなしで未完了TODO全件を報告。上記の日次催促とは別物）:
+  weekly_report_fri (金曜18:00) / weekly_report_mon (月曜10:00)
 
 方針:
   - scheduled_runs(UNIQUE run_date,job_type) を INSERT OR IGNORE で「claim」し、取れた時だけ実行 → 二重実行防止。
   - 対象TODOは progress_tools で機械抽出 → Claude(run_json)が「誰に何を送るか」を優先度判断（全員機械催促しない）。
+    ただし due_reminder は「事前リマインド」なので原則全件送る（プロンプトで指示）。
   - 同じTODOを短時間に何度も催促しない（本日既に確認済みはスキップ）。
   - 段階的エスカレーション（escalation_stage）。超過を繰り返す場合は依頼者/管理者へ報告。
   - 投稿は outbox 経由（post_mode 尊重。confirmなら確認待ち、auto/semiで送信）。
+  - 通知先はTODOが紐づく room_id。room_id が無いものは manager_room_id（オーナーの入口）へ。
 """
 import datetime
 import json
 
 from db.connection import get_conn, query_one
 from services import outbox, settings
+from services import tasks as T
 from services.agent_tools import progress_tools
 from services.chatwork import mention
 
@@ -25,6 +32,13 @@ JOBS = {
     "carryover_1000": ("carryover_check_time", "10:00", "carryover", 3, "前日未完了・期限超過の確認"),
     "progress_1300": ("progress_check_time", "13:00", "due_soon", 1, "昼の進捗確認"),
     "closing_1800": ("closing_check_time", "18:00", "today_open", 2, "終業前の未完了確認"),
+    "due_reminder": ("due_reminder_check_time", "09:00", "due_reminder", 0, "期限リマインド（期限の数日前）"),
+}
+
+# 週次の全件棚卸し（日次の絞り込み催促とは別物）。job_type -> (weekday 0=月〜4=金, 時刻キー, 既定時刻, 見出し)
+WEEKLY_JOBS = {
+    "weekly_report_mon": (0, "weekly_report_mon_time", "10:00", "週始めの棚卸し（月曜10:00・やり残し確認）"),
+    "weekly_report_fri": (4, "weekly_report_fri_time", "18:00", "週次棚卸し（金曜18:00）"),
 }
 
 
@@ -97,13 +111,19 @@ def _decide_prompt(job_type, label, tasks, today):
             f"最終進捗回答={t.get('last_progress_reply') or 'なし'} room_id={t['room_id']}"
         )
     task_block = "\n".join(lines)
+    if job_type == "due_reminder":
+        principle = """- これは「期限の数日前」に送る事前リマインドであり、催促ではない。原則として対象TODOは全件 contact=true にする。
+- 見送ってよいのは、直近(前日以内)に進捗確認済みで順調と分かっている等、明らかに不要な場合のみ。
+- escalate は使わない（常に false）。文面は穏やかに、期限が近づいていることをやさしく伝える。"""
+    else:
+        principle = f"""- 全部を機械的に催促しない。期限・優先度・停滞・確認回数・最終進捗回答を見て、本当に必要なものだけ contact=true。
+- 同じ相手に短時間で何度も同じことを聞かない。確認回数が多く未完了が続くもの（段階3以上）は、担当者への催促ではなく依頼者/管理者への「期限超過の報告」にする（escalate=true）。
+- {job_type}=carryover_1000 は前日期限超過の確認。progress_1300 は昼の進捗確認。closing_1800 は終業前の未完了確認。役割に合った文面にする。"""
     return f"""あなたは不動産管理会社の社内AI社員です。今は「{label}」({job_type})の時間です。
 以下の未完了TODOについて、担当者へChatworkで進捗確認/催促を送るべきか、あなたが優先度と状況で判断してください。
 
 # 判断の原則
-- 全部を機械的に催促しない。期限・優先度・停滞・確認回数・最終進捗回答を見て、本当に必要なものだけ contact=true。
-- 同じ相手に短時間で何度も同じことを聞かない。確認回数が多く未完了が続くもの（段階3以上）は、担当者への催促ではなく依頼者/管理者への「期限超過の報告」にする（escalate=true）。
-- {job_type}=carryover_1000 は前日期限超過の確認。progress_1300 は昼の進捗確認。closing_1800 は終業前の未完了確認。役割に合った文面にする。
+{principle}
 - メッセージは簡潔・丁寧な日本語。宛名やAI接頭辞は付けない（システムが付与）。担当者名は文中で自然に触れてよい。
 
 # 対象TODO
@@ -184,6 +204,64 @@ def run_job(client, job_type, now=None):
     return {"job": job_type, "claimed": True, **result}
 
 
+def _weekly_report_due(now, job_type):
+    """週次棚卸しの実行タイミングか（該当曜日・時刻到達・本日未実行）。"""
+    if settings.get_setting("scheduled_jobs_enabled", "1") != "1":
+        return False
+    weekday, time_key, default, _label = WEEKLY_JOBS[job_type]
+    if now.weekday() != weekday:
+        return False
+    h, m = _parse_hhmm(settings.get_setting(time_key, default), default)
+    target = now.replace(hour=h, minute=m, second=0, microsecond=0)
+    if now < target:
+        return False
+    today = now.date().isoformat()
+    return not query_one("SELECT 1 FROM scheduled_runs WHERE run_date=? AND job_type=?", (today, job_type))
+
+
+def _format_task_line(t):
+    due = t["due_date"] or "期限未設定"
+    return f"・『{t['content']}』 担当:{t['assignee_name'] or '未定'} 依頼者:{t['requester'] or '?'} 期限:{due} 状態:{t['status']}"
+
+
+def run_weekly_report(client, job_type, now=None):
+    """週次の全件棚卸し。progress_tools の絞り込みを通さず、未完了TODOを全件そのまま報告する。"""
+    now = now or datetime.datetime.now()
+    today = now.date().isoformat()
+    _weekday, _time_key, _default, label = WEEKLY_JOBS[job_type]
+    if not _claim(job_type, today):
+        return {"job": job_type, "claimed": False}
+
+    all_tasks = T.open_tasks_all()
+    if not all_tasks:
+        _finish(job_type, today, {"tasks": 0, "rooms": 0})
+        return {"job": job_type, "claimed": True, "tasks": 0, "rooms": 0}
+
+    fallback_room = settings.get_setting("manager_room_id", "")
+    by_room = {}
+    for t in all_tasks:
+        room_id = t["room_id"] or fallback_room
+        if not room_id:
+            continue  # 通知先が無い（room_idも管理者報告先も未設定）
+        by_room.setdefault(room_id, []).append(t)
+
+    sent = 0
+    for room_id, room_tasks in by_room.items():
+        lines = [_format_task_line(t) for t in room_tasks]
+        body = (f"📋 {label}\n未完了TODO {len(room_tasks)}件（期限が決まっているものも含め全件）\n\n"
+                + "\n".join(lines))
+        dedup = f"weekly:{job_type}:{room_id}:{today}"
+        ob = outbox.enqueue(room_id, body, kind="report", reason=label, dedup_key=dedup)
+        if ob:
+            sent += 1
+    if sent:
+        outbox.process_auto(client)
+
+    result = {"tasks": len(all_tasks), "rooms": len(by_room)}
+    _finish(job_type, today, result)
+    return {"job": job_type, "claimed": True, **result}
+
+
 def _knowledge_refresh_due(now):
     """日次ナレッジ増分リフレッシュ（1日1回）。scheduled_runsで冪等。"""
     if settings.get_setting("knowledge_refresh_enabled", "1") != "1":
@@ -226,6 +304,13 @@ def tick(client, now=None):
     for job_type in due_jobs(now):
         try:
             ran.append(run_job(client, job_type, now=now))
+        except Exception as e:
+            ran.append({"job": job_type, "error": f"{type(e).__name__}: {e}"})
+    # 週次の全件棚卸し（金曜18:00・月曜10:00。該当曜日だけ）
+    for job_type in WEEKLY_JOBS:
+        try:
+            if _weekly_report_due(now, job_type):
+                ran.append(run_weekly_report(client, job_type, now=now))
         except Exception as e:
             ran.append({"job": job_type, "error": f"{type(e).__name__}: {e}"})
     # 日次ナレッジ増分リフレッシュ

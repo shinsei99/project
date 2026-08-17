@@ -121,6 +121,16 @@ def open_tasks_in_room(room_id: int):
     )
 
 
+def open_tasks_all():
+    """全ルーム横断の未完了 TODO（週次棚卸しレポート用。期限の有無を問わず全件）。"""
+    ph = ",".join("?" * len(OPEN_STATUSES))
+    return query(
+        f"SELECT * FROM tasks WHERE status IN ({ph}) "
+        f"ORDER BY room_id, (due_date IS NULL), due_date",
+        tuple(OPEN_STATUSES),
+    )
+
+
 def find_by_dedup_key(dedup_key: str):
     if not dedup_key:
         return None

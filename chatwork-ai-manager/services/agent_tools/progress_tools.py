@@ -1,11 +1,12 @@
 """Progress Tool。定時処理（13/18/翌10時）が「確認/催促すべきTODO」を抽出する。
 
 kind:
-  due_soon  … 期限が近い(既定24h以内)＋本日期限で未完了     … 13:00向け
-  overdue   … 期限超過で未完了                              … 汎用
-  stale     … 一定日数(既定3日)動きがない未完了              … 汎用
-  carryover … 前日以前が期限/前日から未完了のまま繰り越し    … 翌10:00向け
-  today_open… 本日期限＋未着手＋停滞（終業前確認）           … 18:00向け
+  due_soon    … 期限が近い(既定24h以内)＋本日期限で未完了     … 13:00向け
+  overdue     … 期限超過で未完了                              … 汎用
+  stale       … 一定日数(既定3日)動きがない未完了              … 汎用
+  carryover   … 前日以前が期限/前日から未完了のまま繰り越し    … 翌10:00向け
+  today_open  … 本日期限＋未着手＋停滞（終業前確認）           … 18:00向け
+  due_reminder… 期限のN日前(既定2日)で未完了                   … 期限リマインド向け
 """
 import datetime
 
@@ -20,6 +21,7 @@ def _open_ph():
 def _fmt(rows):
     return [{
         "id": t["id"], "content": t["content"], "assignee": t["assignee_name"],
+        "assignee_account_id": t["assignee_account_id"],
         "requester": t["requester"], "due_date": t["due_date"], "status": t["status"],
         "room_id": t["room_id"], "check_count": t["check_count"],
         "escalation_stage": t["escalation_stage"], "last_check_at": t["last_check_at"],
@@ -49,6 +51,11 @@ def tasks_needing_attention(kind="overdue", limit=50):
         rows = query(f"SELECT * FROM tasks WHERE status IN ({ph}) "
                      f"AND COALESCE(last_activity_at, created_at) < ? ORDER BY last_activity_at LIMIT ?",
                      (*params, cutoff, limit))
+    elif kind == "due_reminder":
+        reminder_days = settings.get_int("due_reminder_days", 2)
+        target = (datetime.date.today() + datetime.timedelta(days=reminder_days)).isoformat()
+        rows = query(f"SELECT * FROM tasks WHERE due_date = ? "
+                     f"AND status IN ({ph}) ORDER BY due_date LIMIT ?", (target, *params, limit))
     else:
         return {"ok": False, "error": f"unknown kind: {kind}"}
     return {"ok": True, "kind": kind, "count": len(rows), "tasks": _fmt(rows)}
