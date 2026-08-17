@@ -289,9 +289,20 @@ def check_secrets() -> None:
         WARNINGS.append(f"機密が {len(missing)} 件不足（Dropbox の受け渡しで運ぶ。git には入れない）")
 
 
+def pc_role() -> str:
+    """このPCの役割。`.dev-role` に `main` と書けばメインPC扱い（無ければサブPC）。
+
+    **このファイルはPCごとの設定なのでgitに入れない**（直下 `.gitignore` の `*` で自動的に除外）。
+    メインPCは常駐と社内LAN共有を持つのが正しいので、同じ検査で警告を出すと嘘になる。
+    """
+    f = ROOT / ".dev-role"
+    return "main" if f.exists() and f.read_text().strip().startswith("main") else "sub"
+
+
 def check_autostart() -> None:
-    """サブPCの原則は「常駐ゼロ」。ロード済み・plistの残り・無効化の状態を見る。"""
-    print("\n■ 自動起動（このPCはサブPC＝常駐させない）")
+    """常駐の状態を見る。**期待値はPCの役割で逆になる**（メイン=あって正しい／サブ=ゼロが正しい）。"""
+    main = pc_role() == "main"
+    print(f"\n■ 自動起動（このPCは{'メインPC＝常駐と社内LAN共有を持つ' if main else 'サブPC＝常駐させない'}）")
     loaded = [l.split()[-1] for l in
               subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout.splitlines()
               if "com.shinsei" in l]
@@ -301,11 +312,19 @@ def check_autostart() -> None:
                          capture_output=True, text=True).stdout
     disabled = {m.group(1) for m in re.finditer(r'"(com\.shinsei[^"]+)" => (?:disabled|true)', dis)}
 
-    print(f"  ロード済み : {', '.join(loaded) if loaded else 'なし（正しい）'}")
-    if loaded:
-        WARNINGS.append(f"launchd 常駐がロードされている: {', '.join(loaded)}"
-                        f"（`launchctl unload` ＋ `launchctl disable` する）")
+    if main:
+        print(f"  ロード済み : {len(loaded)}本（メインPCなのでこれが正常）")
+    else:
+        print(f"  ロード済み : {', '.join(loaded) if loaded else 'なし（正しい）'}")
+        if loaded:
+            WARNINGS.append(f"launchd 常駐がロードされている: {', '.join(loaded)}"
+                            f"（`launchctl unload` ＋ `launchctl disable` する）")
     for a in agents:
+        if main:
+            print(f"  plist      : {a} … {'⚠️ disabled になっている（メインPCでは enable が正しい）' if a in disabled else '有効（正常）'}")
+            if a in disabled:
+                WARNINGS.append(f"{a} が disabled のまま（メインPCなら `launchctl enable gui/$(id -u)/{a}`）")
+            continue
         mark = "無効化済み" if a in disabled else "**有効（再ログインで起動する）**"
         print(f"  plist      : {a} … {mark}")
         if a not in disabled:
@@ -320,12 +339,15 @@ def check_autostart() -> None:
 
     lan = [f"{v}:{k}" for k, v in listening_ports().items()
            if str(v).startswith("*") and ours(k)]
-    print(f"  LANに出ている待受（アプリのポートだけ） : {', '.join(lan) if lan else 'なし（正しい）'}")
-    if lan:
+    print(f"  LANに出ている待受（アプリのポートだけ） : "
+          f"{', '.join(lan) if lan else 'なし'}{'' if main else '（正しい）'}")
+    if lan and not main:
         WARNINGS.append(f"LANに公開されている待受がある: {', '.join(lan)}（サブPCでは出さない）")
 
 
 def sync_report(do_fetch: bool) -> None:
+    print(f"役割: {'メインPC' if pc_role() == 'main' else 'サブPC'}"
+          f"（`.dev-role` で切り替える。無ければサブPC扱い）")
     check_git(do_fetch)
     check_versions()
     check_secrets()
