@@ -5,4 +5,4 @@ if [ ! -d .venv ]; then
   .venv/bin/pip install -q --upgrade pip
   .venv/bin/pip install -q -r requirements.txt
 fi
-exec .venv/bin/streamlit run app.py --server.port 8527 --server.address 0.0.0.0 --server.headless true
+exec .venv/bin/streamlit run app.py --server.port 8533 --server.address 0.0.0.0 --server.headless true

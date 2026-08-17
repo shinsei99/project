@@ -5,7 +5,7 @@
 自動計算して **Excel（.xlsx）** で出力する。金額の単位は原則 **万円**。
 
 - カテゴリ: 不動産（社内LAN共有・launchd常時起動）
-- port: **8527**
+- port: **8533**
 - 技術: Streamlit + openpyxl（PDF解析は pdfplumber / PyMuPDF）
 
 ## できること
@@ -31,7 +31,7 @@
 ## 起動
 
 ```bash
-./run.sh          # 初回は .venv 作成 + 依存インストール、port 8527 で起動
+./run.sh          # 初回は .venv 作成 + 依存インストール、port 8533 で起動
 ```
 
 ## 疎通確認

@@ -21,6 +21,12 @@
 - 直下 `.gitignore` に許可行を追加（`HANDOFF.md` / `SETUP.md` / `dev-doctor.py` /
   `dev-setup.sh` / `secrets-sync.sh` / `secrets-manifest.txt`）
 - **メインPCの 8526 / 8527 のLAN公開を解消**（下記）
+- **business-plan-generator（事業計画案ジェネレーター）を社内LAN共有に載せた**（不動産31本目）。
+  2026-07-28 に作られたまま展開されておらず、gitにも載っていなかった。動作は問題なし
+  （`smoke_test.py` が総事業費25,501万・利回り実1.7/経費込4.0/単純6.6・Excel出力9,380バイトまで通り、
+  画面も HTTP 200）。**port は README の 8527 が psa-collection と衝突していたため 8533 へ変更**。
+  launchd `com.shinsei.business-plan-generator` 登録 → `192.168.1.105:8533` で疎通確認、
+  Desktop の `.app`（→29本）と Dropbox共有フォルダの `.url`＋`icons/*.ico`（→22本）も設置
 - **photo-inpainter（不動産写真AI・8506）をメインPCへ設置し、社内LAN共有に載せた**。
   サブPCで完成（2026-08-10）していたがメインPCには環境が無く、8506は待受なしだった。
   `.venv` 作成 → launchd `com.shinsei.photo-inpainter` 登録 → `192.168.1.105:8506` で疎通確認、
@@ -82,6 +88,11 @@
 - メインPCに**前からの未コミット作業**が19ファイル分ある（mail-merge-pro / realestate-valuation /
   restoration-calculator / parking-map / memorandum-generator の icon-src）。素性を確認してから整理する
   → **今週はサブPC中心なので、これは先にコミットして push しないとサブPCから触れない**
+- **Dropbox共有フォルダの `.url` が4本足りない**（Desktop の `.app` にはあるのに配っていない）:
+  横断ファイル検索(8520) / 業務マニュアル(8521) / 駐車場配置図ビューア(8522) / AI業務マネージャー(8540)。
+  `icons/` には 横断ファイル検索・業務マニュアル の `.ico` だけある。配るかは未判断
+- **マルチプロダクション(8532)は「開発中＝127.0.0.1」の決まりなのに、共有フォルダに `.url` があり
+  実際も `*:8532` で待ち受けている**。決まりに戻すか、完成扱いにするか要判断
 - **鍵が6本、メインPCに存在しない**（`brain-dump/.env.local` / `pasha-calo/.env.local` /
   `digital-shosai/.env.local` / `baikai-generator/.streamlit/secrets.toml` /
   `theta-viewer/server/ftp-config.json` / `kaitori-dm-maker/senders.json`）。
