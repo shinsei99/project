@@ -21,6 +21,11 @@
 - 直下 `.gitignore` に許可行を追加（`HANDOFF.md` / `SETUP.md` / `dev-doctor.py` /
   `dev-setup.sh` / `secrets-sync.sh` / `secrets-manifest.txt`）
 - **メインPCの 8526 / 8527 のLAN公開を解消**（下記）
+- **agent-platform（マルチプロダクション・8532）を完成扱いにして正式に社内LAN共有へ**。
+  もともと `.url` は配られ実際も `*:8532` で公開されていたが、`run.sh` は `127.0.0.1`・launchd未登録で、
+  **手動起動のプロセスが残っているだけの状態**だった（＝再起動したら消える）。
+  `run.sh` を `0.0.0.0` に直し、launchd `com.shinsei.agent-platform` に登録 → 疎通確認（LAN 200）。
+  残件は作り込み（pptxの目視確認・字幕・投稿API等）で、通し実行はできる状態
 - **business-plan-generator（事業計画案ジェネレーター）を社内LAN共有に載せた**（不動産31本目）。
   2026-07-28 に作られたまま展開されておらず、gitにも載っていなかった。動作は問題なし
   （`smoke_test.py` が総事業費25,501万・利回り実1.7/経費込4.0/単純6.6・Excel出力9,380バイトまで通り、
@@ -91,8 +96,6 @@
 - **Dropbox共有フォルダの `.url` が4本足りない**（Desktop の `.app` にはあるのに配っていない）:
   横断ファイル検索(8520) / 業務マニュアル(8521) / 駐車場配置図ビューア(8522) / AI業務マネージャー(8540)。
   `icons/` には 横断ファイル検索・業務マニュアル の `.ico` だけある。配るかは未判断
-- **マルチプロダクション(8532)は「開発中＝127.0.0.1」の決まりなのに、共有フォルダに `.url` があり
-  実際も `*:8532` で待ち受けている**。決まりに戻すか、完成扱いにするか要判断
 - **鍵が6本、メインPCに存在しない**（`brain-dump/.env.local` / `pasha-calo/.env.local` /
   `digital-shosai/.env.local` / `baikai-generator/.streamlit/secrets.toml` /
   `theta-viewer/server/ftp-config.json` / `kaitori-dm-maker/senders.json`）。

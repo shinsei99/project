@@ -127,7 +127,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 送付書メーカー | soufu-maker | 8525 | ✅ | — |
 | 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ✅ | — |
 | 書類キャビネット スマホ用（撮影→Dropbox取込） | shorui-mobile | — | ー（Vercel・pass保護） | Vercel（shorui-mobile.vercel.app） |
-| マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | 開発中（完成まで127.0.0.1） | — |
+| マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | ✅ | — |
 | AI業務マネージャー（Chatwork/LINE常駐AIエージェント） | chatwork-ai-manager | 8540(画面)/8530(LINE) | ✅（画面0.0.0.0） | LINE(ngrok) |
 | 事業計画案ジェネレーター（投資収支→Excel） | business-plan-generator | 8533 | ✅ | — |
 
@@ -203,7 +203,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Vaultをオーダー（提出）別に絞り込み＋鑑定番号ソート（2026-08-07）**: Vaultビューのサイドバーに「オーダー（提出）」selectboxを追加。各カードがどの提出オーダー由来かは `orders.json` の **`certOrders`（cert番号→オーダー情報）** で判定。**重要・再調査不要**: `orders.get` は **進行中(Processing)は `specReviewResults[]`（`certNo`）だが、完了・発送済(Completed/Shipped)は空 → 代わりに `psaCerts[]`（`certNumber`）にカード明細が入る**（`trackingNumber:"Shipped to Vault"`でVault確認可）。`harvest_orders.js` は全オーダーで `orders.get` を叩き両方から `certOrders` を構築（鑑定中タブ用 `cards` は従来どおり進行中のみ）。全オーダー処理で20秒超えるため `update_orders.sh` のポーリングは60秒。並べ替えに「鑑定番号が小さい/大きい順」を追加（`cert_num`＝Cert Numberの数値列。桁数差があるため文字列ソート不可）。
 - **CSVアップロードと同時に画像自動取得（2026-08-07）**: 「📥 データ更新」の「画像も自動取得」チェック（既定ON）で、差し替え後に不足cert分だけ `fetch_new_images.sh`（`harvest_collectors.js`→`import_from_web.py`）をSafari経由で実行。画像はCSVに含まれず `data/images/<cert>.jpg` の別キャッシュのため、CSV差し替え単体では新カードの画像は出ない。未ログイン時は更新のみ成功しフォールバック案内。
 
-### マルチプロダクション（agent-platform）補足 ※不動産・port 8532・開発中
+### マルチプロダクション（agent-platform）補足 ※不動産・port 8532・完成（2026-08-17に社内共有へ）
 
 - 「企画からパワポ・ナレーション音声・解説動画(mp4)・SNS告知文まで全部作って」という**1文の指示**を、**11部隊**（司令塔／リサーチャー／企画構成／画像生成／パワポ／音声／動画／高速チェッカー／SNS／法務／QA）が順に処理して成果物一式を出す。画面はStreamlit（**入力フォーム／実行状況（部隊ごとの進捗ボード＋日本語ログ）／成果物**の3タブ）、CLIは `main_orchestrator.py`。
 - **設計の芯＝縮退モード**: APIキーが1つも無くても全工程が完走する（雛形テキスト・Pillowの簡易画像・無音WAVで代替）。縮退した工程は画面とレポートで ⚠️ 表示。これが無いと1つのキー未設定でパイプライン全体が死んでデバッグ不能になる。
@@ -215,9 +215,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **音が出ないときはまずMac本体のミュートを疑う**（`osascript -e 'get volume settings'`）。実際に`output muted:true`で「音が無い」と誤認した。
 - **ffmpeg未導入のMac**なので `imageio-ffmpeg` 同梱バイナリを `IMAGEIO_FFMPEG_EXE` に流して moviepy に使わせる。moviepy は v1/v2 で API名が違う（`set_audio`→`with_audio`）ため互換シムあり。
 - `.env` と `output/`（生成物）は**gitignore**。
-- **分類は不動産（2026-08-16変更）。ただし開発中なので `run.sh` はまだ `127.0.0.1` バインド・launchd未登録。**
-  社内LAN共有は「不動産カテゴリの**完成済み**のみ」の決まりなので、完成時に `0.0.0.0` へ変えて
-  launchd に登録する（そのとき下の「バインド先のルール」の表も直すこと）。
+- **分類は不動産（2026-08-16変更）。2026-08-17に完成扱いへ移行**し、`run.sh` を `0.0.0.0` に変えて
+  launchd（`com.shinsei.agent-platform`）に登録・社内LAN共有（`192.168.1.105:8532`）。
+  Desktop の `.app` と Dropbox共有フォルダの `.url` は以前から設置済み。
+  **残っているのは作り込みであって通し実行はできる状態**（`agent-platform/TODO.md` 参照。
+  未了は「出来た .pptx の見栄えを目視確認」「OpenAI/Groq/ElevenLabs 経路の未検証」など）。
 
 ### AI業務マネージャー（chatwork-ai-manager）補足 ※不動産・画面8540／LINE8530
 
@@ -319,7 +321,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | 8527 | PSA保有カード管理（※ツール・localhost・社内共有なし／常時起動のみ。Desktop/社内ツールに.appショートカット有） | com.shinsei.psa-collection |
 | 8528 | 書類キャビネット（※不動産・社内LAN共有あり・0.0.0.0／要フルディスクアクセス for /bin/bash＝Dropbox取込読取） | com.shinsei.shorui-cabinet |
 | 8529 | チラシクリエーター（※ツール・127.0.0.1・launchd未登録） | （未登録） |
-| 8532 | マルチプロダクション（※不動産・開発中のため127.0.0.1・launchd未登録） | （未登録） |
+| 8532 | マルチプロダクション | com.shinsei.agent-platform |
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
 | 8530 | AI業務マネージャー LINE webhook（※メインPCのみ稼働。ngrok固定ドメイン経由で公開） | com.shinsei.chatwork-ai-manager-line ＋ -ngrok |
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
@@ -332,8 +334,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | 分類 | バインド | 対象 |
 |---|---|---|
-| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8533 business-plan-generator＋8540 chatwork-ai-manager |
-| 不動産だが**開発中** | `--server.address 127.0.0.1` | 8532 agent-platform（完成したら0.0.0.0へ） |
+| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8540 chatwork-ai-manager |
+| 不動産だが**開発中** | `--server.address 127.0.0.1` | （現在なし。8532 agent-platform は2026-08-17に完成扱いへ移行） |
 | ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 3004 ai-tools-lab（Next.js） |
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
