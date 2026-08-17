@@ -267,7 +267,8 @@ def _file_hash(path) -> str:
     return h.hexdigest()
 
 
-def ingest_file(path, category=None, title=None, force=False, ocr_fallback=False) -> dict:
+def ingest_file(path, category=None, title=None, force=False, ocr_fallback=False,
+                 ocr_max_pages=15) -> dict:
     """1 ファイルを取込。増分更新: 内容ハッシュが前回と同じならスキップ（変更なし）。
 
     バージョン管理は filepath 単位（同じ物理ファイルの旧版を無効化し version+1）。
@@ -297,7 +298,7 @@ def ingest_file(path, category=None, title=None, force=False, ocr_fallback=False
     sections = extract(path)
     used_ocr = False
     if not sections and ocr_fallback and ext == ".pdf":
-        sections = ocr_pdf(path)
+        sections = ocr_pdf(path, max_pages=ocr_max_pages)
         used_ocr = bool(sections)
     if not sections:
         return {"skipped": True, "reason": "テキスト抽出なし（スキャン画像PDF等の可能性）"}

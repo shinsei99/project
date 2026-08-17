@@ -219,9 +219,40 @@ def _weekly_report_due(now, job_type):
     return not query_one("SELECT 1 FROM scheduled_runs WHERE run_date=? AND job_type=?", (today, job_type))
 
 
-def _format_task_line(t):
+# 状態 -> 一目でわかる絵文字（担当者別グルーピング表示用）
+_STATUS_EMOJI = {
+    T.STATUS_TODO: "⬜", T.STATUS_DOING: "🔵", T.STATUS_WAITING: "🟡",
+    T.STATUS_OVERDUE: "🔴", T.STATUS_HOLD: "⏸",
+}
+
+
+def _format_task_block(t):
     due = t["due_date"] or "期限未設定"
-    return f"・『{t['content']}』 担当:{t['assignee_name'] or '未定'} 依頼者:{t['requester'] or '?'} 期限:{due} 状態:{t['status']}"
+    emoji = _STATUS_EMOJI.get(t["status"], "・")
+    requester = t["requester"] or "?"
+    return (f"{emoji} {t['content']}\n"
+            f"　　期限:{due}｜{t['status']}｜依頼:{requester}")
+
+
+def _format_weekly_body(label, room_tasks):
+    """担当者ごとにまとめ、期限が近いものが先に来るよう並べて読みやすく整形する。"""
+    groups = {}
+    for t in room_tasks:
+        groups.setdefault(t["assignee_name"] or "未定", []).append(t)
+
+    def group_sort_key(item):
+        _name, tasks = item
+        dues = [t["due_date"] for t in tasks if t["due_date"]]
+        return min(dues) if dues else "9999-99-99"
+
+    lines = [f"📋 {label}", f"未完了TODO {len(room_tasks)}件（期限が決まっているものも含め全件）"]
+    for assignee, tasks in sorted(groups.items(), key=group_sort_key):
+        tasks_sorted = sorted(tasks, key=lambda t: t["due_date"] or "9999-99-99")
+        lines.append("")
+        lines.append(f"👤 {assignee}（{len(tasks_sorted)}件）")
+        for t in tasks_sorted:
+            lines.append(_format_task_block(t))
+    return "\n".join(lines)
 
 
 def run_weekly_report(client, job_type, now=None):
@@ -247,9 +278,7 @@ def run_weekly_report(client, job_type, now=None):
 
     sent = 0
     for room_id, room_tasks in by_room.items():
-        lines = [_format_task_line(t) for t in room_tasks]
-        body = (f"📋 {label}\n未完了TODO {len(room_tasks)}件（期限が決まっているものも含め全件）\n\n"
-                + "\n".join(lines))
+        body = _format_weekly_body(label, room_tasks)
         dedup = f"weekly:{job_type}:{room_id}:{today}"
         ob = outbox.enqueue(room_id, body, kind="report", reason=label, dedup_key=dedup)
         if ob:

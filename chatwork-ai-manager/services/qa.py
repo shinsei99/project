@@ -199,6 +199,10 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork"):
    - 入居者/契約者/家賃/共益費/空室/更新＝レントロール一覧(マンション/ビル/駐車場他。入居者の正典はマンション版)。
    - 物件の基本情報(所在地/構造/戸数)＝管理物件台帳。書類の保管場所＝全ファイル一覧。手順＝業務マニュアル。
    - 「○○を作りたい」等の作業系＝該当する社内ツール(社内Webアプリ)をURL付きで案内(kb_search "社内ツール ○○")。
+   - kb_search が空振りでも、全ファイル一覧やフォルダ構成・過去の回答等から該当資料の**フルパス**が
+     分かる場合（契約書・申込書などのスキャン画像PDF＝未OCR）は、ユーザーに「開いて確認してください」と
+     案内する前に **必ず kb_read_document でその場を読み**、内容から直接回答する
+     （OCR結果は索引にも自動登録されるので次回以降 kb_search でもヒットするようになる）。
 2. 【不動産の公的データ】地価・不動産取引価格の相場など客観的な数値根拠 → reinfolib_transactions / reinfolib_cities(国交省)。
 3. 【Web検索】社内・公的で足りない最新の外部情報 → WebSearch/WebFetch。
    - ポータル(SUUMO/HOME'S/at home等)の最新募集状況、設備メーカー情報、行政通達、最新ニュース、一般の調べもの・雑談。
@@ -214,6 +218,20 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork"):
 1. 質問の意図を判断（社内情報／公的データ／Web／TODO操作／案件 など）。
 2. 上の優先順位で最適なツールを選び実行→結果を読み→足りなければ別ツール/別検索語で最大8回まで反復（諦めない）。
 3. 物件名・号室・人名の略称/表記ゆれは正式名称を推測して再検索（例「メゾン501」→"メゾンドール都島"501号室の契約者）。同じ号室番号が複数物件にあるため対象物件を正しく特定する。
+
+# 位置・地図の質問（GIS）
+「近い/遠い」「周辺」「半径」「エリア」「地図」「どこにある」といった**場所の話が出たら GIS ツールを使う**。
+記憶や推測で距離や位置関係を答えない（管理物件108件の住所と座標はDBにあり、88件は座標取得済み）。
+- 「○○の近くに自社物件ある？」→ gis_nearby_properties（radius_m は言われた値。指定がなければ1000）
+- 「○○と△△はどれくらい離れてる？」→ gis_distance
+- 「管理物件を地図にして」「都島区の物件を地図で」→ gis_create_map（作った地図の見方は open_hint をそのまま伝える）
+- 「このエリアに何件ある？」「どこに集中してる？」→ gis_area_stats
+- 物件名があいまいなときは先に gis_property_search で特定する。
+- **相場と重ねる場合は既存の reinfolib_transactions で数値を取り**、必要なら gis_create_map の
+  extra_points に渡す（市場データ取得をGIS側で二重に作らない）。
+- 座標が無い物件を聞かれたら gis_status で状況を確認し、「台帳の住所欄が空です」等の事実を正直に伝える。
+- LINEには地図の画像を送れない。**要点（件数・近い順の物件名と距離）を文章で答え**、
+  地図ファイル名と管理画面の見方を添える。
 
 # 業務タスクと開発タスクの振り分け（重要・混同しないこと）
 - 【業務】人への依頼・TODO・検索・質問・案件・相場・物件探しなど → 上のツールでその場で処理する。
@@ -239,7 +257,12 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork"):
 - 情報が見つからないときは「現時点で該当するデータや情報は見つかりませんでした」と正直に伝える。
 - TODO作成/投稿をした場合は実際に行った操作（「登録しました」等）を回答に含める。
 - 宛先（[To:...]）や『🤖AI業務マネージャー』等の見出しは付けない（本文のみ。システムが付与）。
-- 検索過程の実況・独り言（「Found it」等）は書かず、最終回答本文だけを出力する。
+- **回答は必ず日本語で書く。英語で書き出さない。**（相手は日本語話者の社員。英語の技術用語は必要最小限）
+- **1文目から用件に入る。** 調べた経緯・自分の状況説明・独り言を前置きにしない。
+  ✗ 悪い例: 「Content not indexed — the actual contract is a scanned PDF. I confirmed ...」
+  ✗ 悪い例: 「Found it」「確認しました。これを踏まえて回答します。」
+  ○ 良い例: 「コーポ・ラ・ベリエール801号室の契約者は森田様です。電話番号は…」
+  資料が見つからない・OCR未処理といった事情は、**結論を述べた後**に日本語で補足する。
 {coverage}
 
 # コンテキスト
@@ -252,6 +275,45 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork"):
 
 # 社員からの質問・依頼
 {question}"""
+
+
+# 「Content not indexed — the actual contract ...」のような**英語の内部メモが冒頭に漏れる**問題への保険。
+# プロンプトでも禁じているが、モデルが独り言を書き出すことが実際にあった（2026-08-17・塚本さんへの回答）。
+# 誤爆を避けるため、**先頭の文が英単語3語以上で始まる場合だけ**落とす
+# （「SUUMOによると」「Google Mapsで」のような日本語文は英単語1〜2語なので消えない）。
+_EN_STRICT_RE = re.compile(r"^[A-Za-z][A-Za-z'’]*(?:[\s,\-—/]+[A-Za-z][A-Za-z'’]*){2,}")  # 英単語3語以上
+_EN_LOOSE_RE = re.compile(r"^[A-Za-z][A-Za-z'’]*(?:[\s,\-—/]+[A-Za-z][A-Za-z'’]*){1,}")   # 英単語2語以上
+_SENT_SPLIT_RE = re.compile(r"(?<=[。．\.\!\?！？])\s*|\n+")
+
+
+def strip_english_preamble(text: str):
+    """冒頭に紛れ込んだ英語の内部メモを落とす。戻り: (本文, 落とした行のリスト)。
+
+    1文目は**英単語3語以上**でないと落とさない（「Google Mapsで確認したところ」等の
+    正当な日本語文を消さないため）。いったん前置きと判定できたら、続く文は
+    2語以上で落とす（「I confirmed 801号室の…」のような混在文が続くのが実際のパターン）。
+    """
+    if not text:
+        return text, []
+    parts = [p for p in _SENT_SPLIT_RE.split(text) if p is not None]
+    dropped = []
+    i = 0
+    while i < len(parts):
+        s = parts[i].strip()
+        if not s:
+            i += 1
+            continue
+        pattern = _EN_LOOSE_RE if dropped else _EN_STRICT_RE
+        if pattern.match(s):
+            dropped.append(s)
+            i += 1
+            continue
+        break
+    if not dropped:
+        return text, []
+    rest = "\n".join(p for p in parts[i:] if p and p.strip()).strip()
+    # 全部消えてしまうなら触らない（英語で答えるのが正しい質問だった可能性）
+    return (rest, dropped) if rest else (text, [])
 
 
 def answer(question: str, room_id=None, asker=None, channel="chatwork",
@@ -280,6 +342,10 @@ def answer(question: str, room_id=None, asker=None, channel="chatwork",
         # フォールバック: 従来の一発RAG
         chunks = search(question)
         text, env = run_text(build_prompt(question, chunks, room_id=room_id), timeout=180)
+    text, dropped = strip_english_preamble(text)
+    if dropped:
+        # 何を落としたかは残す（過剰に消していないか後から検証できるように）
+        _log(room_id, f"[前置き除去] {question}", "落とした行: " + " / ".join(dropped), None, [])
     _log(room_id, question, text, env, [])
     return {"answer": text, "sources": [], "chunk_count": 0}
 
