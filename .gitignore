@@ -187,6 +187,14 @@ tsuikyaku-crm/*.db.bak
 owner-payout-tracker/.venv/
 owner-payout-tracker/tracker.db
 
+# quote-generator（見積書自動生成ツール）は**独立したリポジトリ**。
+# github.com/shinsei99/quote-generator を clone する。ここでは追跡しない
+# （追跡すると embedded repository になり、中身が渡らない）
+
+!business-plan-generator/
+!business-plan-generator/**
+business-plan-generator/logs_run.txt
+
 !file-finder/
 !file-finder/**
 file-finder/.venv/
