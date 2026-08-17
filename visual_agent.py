@@ -243,8 +243,22 @@ with sync_playwright() as p:
         print(json.dumps({"clicked": args[0], "box": box, "url": page.url}, ensure_ascii=False))
 
     elif action == "upload":
-        # ファイル選択（<input type=file>）。ダイアログを開かずに直接渡す
-        page.set_input_files(args[0], args[1], timeout=15000)
+        # ファイル選択（<input type=file>）。ダイアログを開かずに直接渡す。
+        # ★多くのUIは input を隠している（class="hidden"）。隠れたままだと
+        #   set_input_files が待ち続けてタイムアウトするので、**一時的に見える状態に戻す**。
+        page.eval_on_selector(args[0], """el => {
+            el.classList.remove('hidden');
+            el.removeAttribute('hidden');
+            el.style.display = 'block';
+            el.style.visibility = 'visible';
+            el.style.opacity = '1';
+            el.style.position = 'fixed';
+            el.style.left = '0px';
+            el.style.top = '0px';
+            el.style.width = '200px';
+            el.style.height = '30px';
+        }""")
+        page.set_input_files(args[0], args[1], timeout=20000)
         page.wait_for_timeout(500)
         print(json.dumps({"uploaded": args[1], "to": args[0]}, ensure_ascii=False))
 
