@@ -12,6 +12,7 @@
 # .mcp.json が定義の実体、VISUAL_AGENT.md が使い方。**秘密情報は含まない**ので他PCへも配る
 !.mcp.json
 !VISUAL_AGENT.md
+!visual-agent-check.sh
 # PCまたぎの整備ツール（2026-08-16にサブPCで作ったが、この許可行が無く
 # コミットされていなかった。commitメッセージには載っているのに実体が来ない）
 !SETUP.md

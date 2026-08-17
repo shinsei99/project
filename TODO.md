@@ -105,6 +105,26 @@
 > - `chatwork-ai-manager` の worker / LINE webhook / ngrok … メインPCで稼働中。**同時起動禁止**
 >
 
+> ## 🖥 サブPCへ: Visual Agent（AIがブラウザを見て操作する機能）を使えるようにする
+>
+> **2026-08-17 メインPCで追加。引き継ぎに必要なのはコードだけで、機密もAPIキーもDropboxも要らない。**
+>
+> ```bash
+> cd ~ && git pull origin main     # ~/.mcp.json と VISUAL_AGENT.md が届く
+> ./visual-agent-check.sh          # 動くかどうか最後まで自動で確かめる
+> ```
+>
+> 全部 ✅ なら `cd ~ && claude` でそのまま使える（`/mcp` に playwright が出る）。
+> `❌` が出たらメッセージのとおりに直す。よくあるのは次の3つ。
+>
+> - **Node.js が古い/無い** … `brew install node`（18以上が必要）
+> - **Google Chrome が無い** … 入れる。または `~/.mcp.json` の `--browser` を変える
+> - **承認がまだ** … `cd ~ && claude` を一度対話で起動し、「.mcp.json のMCPサーバーを使うか」に承認する（PCごとに1回だけ）
+>
+> 使い方・つまずき所は `VISUAL_AGENT.md`。**サブPCでは常駐サービスを立てないので、
+> ターミナルのClaude Codeから使う形になる**（それで設計上の意図どおり）。
+> 終わったらこの節を消す。
+
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
 詳細は各アプリの `<アプリ>/TODO.md` と `<アプリ>/SESSION_LOG.md` にある。
 
