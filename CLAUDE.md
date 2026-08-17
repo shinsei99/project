@@ -90,6 +90,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 バインド先やPythonを変えたら、**`launchctl kickstart -k gui/$(id -u)/<label>` で入れ替えて
 `lsof` で見る**まででワンセット（2026-08-17に 8526/8527 がこれでLAN公開のままだった）。
 
+## ★ Claude Code の「目」— Visual Agent（`./va.sh`・2026-08-17追加）
+
+**画面を見ずに「直りました」と言わない。** UIを触ったら、実際に開いて撮って確かめる。
+
+```bash
+./va.sh start                      # ブラウザを起動（headless。--headed で画面あり）
+./va.sh goto localhost:3004        # 開く   ./va.sh click "text=ツール比較"   ./va.sh fill "#q" 検索語
+./va.sh shot [名前] [--full]        # 撮る → 出た .png のパスを Read すると中身が見える
+./va.sh check                      # UI崩れの機械検出（はみ出し・文字の重なり・小さすぎる文字/ボタン）
+./va.sh responsive <url>           # 390 / 768 / 1440 幅で撮って比べる
+./va.sh console --errors           # Console（起動時から拾い続けている）
+./va.sh network --failed           # 通信の失敗・4xx/5xx
+./va.sh dom / a11y / text / eval <js> / scroll / press / size / status / stop
+```
+
+- 実体は `visual_agent.py`。詳しい使い方と限界は `./va.sh --help`（先頭のdocstring）
+- Chromium は **agent-platform の `.venv`** を借りる（重複導入しない）。無いPCでは
+  `pip install playwright && playwright install chromium`
+- **専用プロファイル**（`.see/profile`）で開くので普段のログイン状態は無い。
+  ログイン済みの実ブラウザで見たいときは **Chrome拡張（Claude in Chrome）** のほう
+- **パスワードは入力しない。** ログインが要る画面は人が入る
+- Mac の画面そのものや `.pptx` の見た目は `./see.sh screen` / `./see.sh file <ファイル>`
+- 撮った画像は `.see/`（gitignore。個人情報が写り得るので**コミットしない**）
+
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
 **カテゴリ:** 不動産 / ツール / ゲーム の3分類（全51本）※不動産31・ツール14・ゲーム6  

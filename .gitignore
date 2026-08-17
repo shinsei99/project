@@ -15,6 +15,11 @@
 !dev-setup.sh
 !secrets-sync.sh
 !secrets-manifest.txt
+# Claude Code の「目」（Visual Agent）。撮った画像とプロファイルは .see/ で無視される
+!see.sh
+!see.py
+!va.sh
+!visual_agent.py
 !handwriting-ocr/
 !handwriting-ocr/**
 !swim-tracker-react/
