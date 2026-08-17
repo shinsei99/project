@@ -7,9 +7,12 @@ import { FileUp, FileText } from "lucide-react";
 export function UploadArea({
   disabled,
   onFile,
+  onReject,
 }: {
   disabled?: boolean;
   onFile: (file: File) => void;
+  /** PDF以外を選んだときの通知。**alert は使わない**（操作を止めるうえ唐突なので画面内に出す） */
+  onReject?: (message: string) => void;
 }) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -18,7 +21,7 @@ export function UploadArea({
     if (!files || files.length === 0) return;
     const file = files[0];
     if (!file.name.toLowerCase().endsWith(".pdf")) {
-      alert("PDFファイルを選択してください");
+      onReject?.(`「${file.name}」はPDFではありません。PDFファイルを選んでください。`);
       return;
     }
     onFile(file);

@@ -23,6 +23,7 @@
     触る
       click <セレクタ|"text=文字">     クリック（ボタン・リンク・メニュー・モーダル）
       fill <セレクタ> <文字>           フォーム入力
+      upload <セレクタ> <ファイル>      ファイル選択（input[type=file] に直接渡す）
       press <キー>                    Enter / Escape（モーダルを閉じる）/ Tab など
       scroll <down|up|top|bottom> [回数]
       wait <秒>
@@ -240,6 +241,12 @@ with sync_playwright() as p:
         el.click(timeout=10000)
         page.wait_for_timeout(600)
         print(json.dumps({"clicked": args[0], "box": box, "url": page.url}, ensure_ascii=False))
+
+    elif action == "upload":
+        # ファイル選択（<input type=file>）。ダイアログを開かずに直接渡す
+        page.set_input_files(args[0], args[1], timeout=15000)
+        page.wait_for_timeout(500)
+        print(json.dumps({"uploaded": args[1], "to": args[0]}, ensure_ascii=False))
 
     elif action == "fill":
         target(page, args[0]).fill(args[1], timeout=10000)
@@ -487,6 +494,8 @@ def main(argv: list[str]) -> int:
         return rc
     if cmd == "click" and pos:
         return _act("click", pos[0])
+    if cmd == "upload" and len(pos) >= 2:
+        return _act("upload", pos[0], str(Path(pos[1]).expanduser().resolve()))
     if cmd == "fill" and len(pos) >= 2:
         return _act("fill", pos[0], " ".join(pos[1:]))
     if cmd == "press" and pos:

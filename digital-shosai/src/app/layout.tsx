@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BookMarked, Upload, Search } from "lucide-react";
+import { BookMarked, Upload, Search, Library } from "lucide-react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,6 +30,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 className="flex items-center gap-1 rounded-lg px-3 py-1.5 hover:bg-slate-800"
               >
                 <Search className="h-4 w-4" /> 検索
+              </Link>
+              <Link
+                href="/library"
+                className="flex items-center gap-1 rounded-lg px-3 py-1.5 hover:bg-slate-800"
+              >
+                <Library className="h-4 w-4" /> 蔵書
               </Link>
             </div>
           </nav>
