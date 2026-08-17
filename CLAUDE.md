@@ -90,23 +90,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 バインド先やPythonを変えたら、**`launchctl kickstart -k gui/$(id -u)/<label>` で入れ替えて
 `lsof` で見る**まででワンセット（2026-08-17に 8526/8527 がこれでLAN公開のままだった）。
 
-## ★ 公開サイト（5つ）
-
-**アプリ（動かすもの）とは別軸の索引。** 本数の内訳には入れない
-（AIツールベースは port 3004 のアプリでもあるため、ツール分類に残したまま）。
-
-| 名称 | URL | 実体・更新方法 |
-|---|---|---|
-| AIツールベース（AI開発ガイド） | https://ai-tools-base.vercel.app/ | `ai-tools-lab`（3004）／`./publish.sh site` |
-| Zenn（技術記事） | https://zenn.dev/shinsei99 | リポジトリ直下 `articles/` を push（GitHub連携）／`./publish.sh zenn` |
-| note（非技術・読み物） | https://note.com/shinsei99 | `ai-tools-lab/drafts/note/`／`./publish.sh note <名前>` |
-| 緑と暮らすスローライフ（物件サイト） | https://daikyocorp.co.jp/slowlife/ | `flyer-creator` が生成→FTP（接続情報は `theta-viewer/server/ftp-config.json`） |
-| 小説「不動産屋、はじめました。」 | https://kakuyomu.jp/works/2912051604243797830 | カクヨム連載・著者名 SHINSEI。**全31話・予約投稿済みで順次自動公開＝放置でよい**。原稿は GoogleDrive/新誠不動産/`カクヨム用/` |
-
-- 上の3つ（サイト・Zenn・note）は**1本の制作記録を3媒体に出す**運用。手順は `ai-tools-lab/CLAUDE.md`
-- **THETAパノラマ（daikyocorp.co.jp/vr/）やGitHub Pages公開のゲームはここに載せない。**
-  あれは「アプリの公開先」なので、アプリ一覧の外部公開欄で足りる
-
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
 **カテゴリ:** 不動産 / ツール / ゲーム の3分類（全51本）※不動産31・ツール14・ゲーム6  
@@ -177,6 +160,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | にゃんこ大脱出 | neko-escape | GitHub Pages |
 | にゃんこのアイス屋さん | nyanko-ice | iOS App Store申請中 |
 | ネオンブロック | neon-blocks | iOS App Store配信済み ✅ |
+
+## ★ 公開サイト（5つ）
+
+**アプリ（動かすもの）とは別軸の索引。** 本数の内訳には入れない
+（AIツールベースは port 3004 のアプリでもあるため、ツール分類に残したまま）。
+
+| 名称 | URL | 実体・更新方法 |
+|---|---|---|
+| AIツールベース（AI開発ガイド） | https://ai-tools-base.vercel.app/ | `ai-tools-lab`（3004）／`./publish.sh site` |
+| Zenn（技術記事） | https://zenn.dev/shinsei99 | リポジトリ直下 `articles/` を push（GitHub連携）／`./publish.sh zenn` |
+| note（非技術・読み物） | https://note.com/shinsei99 | `ai-tools-lab/drafts/note/`／`./publish.sh note <名前>` |
+| 緑と暮らすスローライフ（物件サイト） | https://daikyocorp.co.jp/slowlife/ | `flyer-creator` が生成→FTP（接続情報は `theta-viewer/server/ftp-config.json`） |
+| 小説「不動産屋、はじめました。」 | https://kakuyomu.jp/works/2912051604243797830 | カクヨム連載・著者名 SHINSEI。**全31話・予約投稿済みで順次自動公開＝放置でよい**。原稿は GoogleDrive/新誠不動産/`カクヨム用/` |
+
+- 上の3つ（サイト・Zenn・note）は**1本の制作記録を3媒体に出す**運用。手順は `ai-tools-lab/CLAUDE.md`
+- **THETAパノラマ（daikyocorp.co.jp/vr/）やGitHub Pages公開のゲームはここに載せない。**
+  あれは「アプリの公開先」なので、アプリ一覧の外部公開欄で足りる
 
 ### 業務マニュアル（Web）補足 ※不動産カテゴリに計上
 
