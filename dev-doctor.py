@@ -5,11 +5,21 @@
     python3 dev-doctor.py 不動産      # カテゴリで絞る（不動産 / ツール / ゲーム）
     python3 dev-doctor.py baikai     # 名前の一部で絞る
 
+    python3 dev-doctor.py --sync     # 2台の環境差・コミット漏れを検知（作業の終わりに叩く）
+    python3 dev-doctor.py --sync --fetch   # remoteを取りに行ってから比較
+
 見るのは4点:
   依存    … `.venv` / `node_modules` があるか（**gitで来ないので各PCで作る**）
   機密    … `.env` などが要るアプリか、あるか（**gitで来ない。メインPCから運ぶ**）
   待受    … `run.sh` のバインド先。ツール分類が `0.0.0.0` なら**LANに晒されている**
   起動    … 実際に待ち受けているか（launchd常駐や手動起動の確認）
+
+`--sync` で見るのはこの4点（**2台のPCで差が出るのはここだけ**）:
+  Git       … branch / HEAD / remoteとの差 / 未コミット / stash / ローカルだけのブランチ
+              ＋**ignoreされていてgitに入っていないソース候補**（許可行が無いと他PCへ渡らない）
+  バージョン … `.python-version` / `.nvmrc` と実際の python3 / node の照合
+  機密       … `secrets-manifest.txt` の在り・不足（**値は絶対に表示しない**）
+  自動起動   … launchd のロード状況・plistの残り・無効化の有無・cron・LANに出ている待受
 
 不足の直し方は `./dev-setup.sh <アプリ名>`。詳細は SETUP.md。
 """
@@ -33,6 +43,7 @@ CATEGORIES: dict[str, list[str]] = {
         "baikai-generator", "ai-ticket-counter", "building-manager", "owner-payout-tracker",
         "file-finder", "realestate-calc", "gyomu-manual", "parking-map", "memorandum-generator",
         "soufu-maker", "shorui-cabinet", "shorui-mobile", "agent-platform", "chatwork-ai-manager",
+        "business-plan-generator",
     ],
     "ツール": [
         "soufu-generator", "digital-shosai", "brain-dump", "scrapmemo-petapeta", "petapeta-extension",
@@ -143,8 +154,198 @@ def scan(app: str, live: dict[int, str]) -> dict:
     return info
 
 
+# ============================================================================
+# 環境の同一性チェック（2台のPCで差が出る場所だけを見る）
+#   ここが `--sync`。**作業の終わりに毎回これを叩く**のが今の運用の要。
+#   直すのは人。ここでは勝手にcommit・pull・installはしない。
+# ============================================================================
+
+WARNINGS: list[str] = []
+
+
+def _git(*args: str) -> str:
+    try:
+        r = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, timeout=60)
+        return r.stdout.strip()
+    except Exception:
+        return ""
+
+
+def _looks_like_source(path: str) -> bool:
+    """「本来gitに入れるべきなのに ignore されている」候補か。
+
+    直下 `.gitignore` は 1行目から `*` で全部無視し `!` で個別に許可する方式なので、
+    **新規ファイルは `git add` してもエラーを出さずに無視される**（2026-08-16に実際に踏んだ）。
+    生成物・依存・データ・機密は除いて、ソースと文書だけを候補に出す。
+    """
+    if not path.endswith((".py", ".sh", ".ts", ".tsx", ".js", ".jsx", ".md", ".toml", ".yml", ".yaml")):
+        return False
+    skip = ("node_modules/", ".venv/", ".next/", "dist/", "build/", "/data/", "output/", "site/",
+            "samples/", ".see/", "__pycache__", ".claude/", "next-env.d.ts", "secrets.toml",
+            ".streamlit/", "chatwork-ai-manager/")   # chatwork の文書は意図的にgit外
+    return not any(s in path for s in skip)
+
+
+def check_git(do_fetch: bool) -> None:
+    print("\n■ Git")
+    branch = _git("rev-parse", "--abbrev-ref", "HEAD")
+    head = _git("log", "-1", "--format=%h %ad %s", "--date=short")
+    print(f"  branch : {branch}")
+    print(f"  HEAD   : {head}")
+
+    if do_fetch:
+        _git("fetch", "--prune")
+        print("  remote : fetch した（最新と比較）")
+    else:
+        print("  remote : fetch していない（--fetch を付けると取りに行く）")
+    counts = _git("rev-list", "--left-right", "--count", f"origin/{branch}...HEAD")
+    if counts:
+        behind, ahead = (counts.split() + ["?", "?"])[:2]
+        state = "同期" if behind == "0" and ahead == "0" else f"remoteより {ahead} 進み / {behind} 遅れ"
+        print(f"  差分   : {state}")
+        if ahead != "0":
+            WARNINGS.append(f"push していないコミットが {ahead} 件ある（`git push origin {branch}`）")
+        if behind != "0":
+            WARNINGS.append(f"remote に {behind} 件の未取得コミットがある（`git pull origin {branch}`）")
+
+    porcelain = _git("status", "--porcelain")
+    tracked = [l for l in porcelain.splitlines() if not l.startswith("??")]
+    untracked = [l[3:] for l in porcelain.splitlines() if l.startswith("??")]
+    print(f"  未コミット変更 : {len(tracked)} 件")
+    print(f"  未追跡ファイル : {len(untracked)} 件")
+    if tracked:
+        WARNINGS.append(f"未コミット変更が {len(tracked)} 件ある（`git diff --stat` で中身を見る）")
+        for l in tracked[:10]:
+            print(f"    {l}")
+    if untracked:
+        WARNINGS.append(f"未追跡ファイルが {len(untracked)} 件ある（要るものなら add する）")
+
+    # ★ 今回の事故の真因を検知する部分
+    ignored = [l[3:] for l in _git("status", "--ignored", "--porcelain").splitlines()
+               if l.startswith("!!")]
+    suspects = [p for p in ignored if _looks_like_source(p)]
+    print(f"  ignoreされているソース候補 : {len(suspects)} 件"
+          f"{'（.gitignore に許可行 `!path` が必要かもしれない）' if suspects else ''}")
+    for p in suspects[:10]:
+        print(f"    {p}")
+    if suspects:
+        WARNINGS.append(f"gitに入っていないソース候補が {len(suspects)} 件（許可行が無いと他PCへ渡らない）")
+
+    stash = [l for l in _git("stash", "list").splitlines() if l]
+    print(f"  stash  : {len(stash)} 件")
+    for l in stash:
+        print(f"    {l}")
+    if stash:
+        WARNINGS.append(f"stash が {len(stash)} 件ある（他PCへは渡らない。中身を確認すること）")
+
+    # remote に無いローカルブランチ＝このPCにしか無い作業
+    local_only = [b.strip() for b in _git("branch", "--format=%(refname:short) %(upstream)").splitlines()
+                  if b and len(b.split()) == 1 and b.split()[0] != branch]
+    if local_only:
+        print(f"  remoteを追跡していないローカルブランチ : {', '.join(local_only)}")
+        WARNINGS.append(f"ローカルだけのブランチがある: {', '.join(local_only)}（消さずに確認）")
+
+
+def check_versions() -> None:
+    print("\n■ バージョン（.python-version / .nvmrc が基準）")
+
+    def actual(cmd: list[str]) -> str:
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+            return re.sub(r"[^0-9.]", "", (r.stdout or r.stderr).split()[-1])
+        except Exception:
+            return "不明"
+
+    for name, pin_file, cmd in (("Python", ".python-version", ["/usr/bin/python3", "-V"]),
+                                ("Node", ".nvmrc", ["node", "-v"])):
+        pin_path = ROOT / pin_file
+        pin = pin_path.read_text().strip() if pin_path.exists() else None
+        got = actual(cmd)
+        if pin is None:
+            print(f"  {name:7}: {got}（基準ファイル {pin_file} が無い）")
+            WARNINGS.append(f"{pin_file} が無い（2台でバージョンが揃っている保証がない）")
+        elif pin == got:
+            print(f"  {name:7}: {got}  = 基準どおり")
+        else:
+            print(f"  {name:7}: {got}  ≠ 基準 {pin}")
+            WARNINGS.append(f"{name} が基準({pin})と違う: {got}")
+    print("  ※ pyenv / nvm は入っていないので自動切替はしない。**差を知らせるだけ**")
+
+
+def check_secrets() -> None:
+    """secrets-manifest.txt に載っているものが在るか。**値は絶対に表示しない。**"""
+    man = ROOT / "secrets-manifest.txt"
+    print("\n■ 機密（値は表示しない。在るか無いかだけ）")
+    if not man.exists():
+        print("  secrets-manifest.txt が無い")
+        return
+    paths = [l.strip() for l in man.read_text(encoding="utf-8").splitlines()
+             if l.strip() and not l.strip().startswith("#")]
+    missing = [p for p in paths if not (ROOT / p).exists()]
+    print(f"  一覧 {len(paths)} 件 → 設定済み {len(paths)-len(missing)} 件 / 不足 {len(missing)} 件")
+    for p in missing:
+        print(f"    不足: {p}")
+    if missing:
+        WARNINGS.append(f"機密が {len(missing)} 件不足（Dropbox の受け渡しで運ぶ。git には入れない）")
+
+
+def check_autostart() -> None:
+    """サブPCの原則は「常駐ゼロ」。ロード済み・plistの残り・無効化の状態を見る。"""
+    print("\n■ 自動起動（このPCはサブPC＝常駐させない）")
+    loaded = [l.split()[-1] for l in
+              subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout.splitlines()
+              if "com.shinsei" in l]
+    agents = sorted(p.stem for p in (Path.home() / "Library/LaunchAgents").glob("com.shinsei.*.plist"))
+    uid = subprocess.run(["id", "-u"], capture_output=True, text=True).stdout.strip()
+    dis = subprocess.run(["launchctl", "print-disabled", f"gui/{uid}"],
+                         capture_output=True, text=True).stdout
+    disabled = {m.group(1) for m in re.finditer(r'"(com\.shinsei[^"]+)" => (?:disabled|true)', dis)}
+
+    print(f"  ロード済み : {', '.join(loaded) if loaded else 'なし（正しい）'}")
+    if loaded:
+        WARNINGS.append(f"launchd 常駐がロードされている: {', '.join(loaded)}"
+                        f"（`launchctl unload` ＋ `launchctl disable` する）")
+    for a in agents:
+        mark = "無効化済み" if a in disabled else "**有効（再ログインで起動する）**"
+        print(f"  plist      : {a} … {mark}")
+        if a not in disabled:
+            WARNINGS.append(f"{a} が無効化されていない（`launchctl disable gui/$(id -u)/{a}`）")
+    cron = subprocess.run(["crontab", "-l"], capture_output=True, text=True).stdout.strip()
+    print(f"  cron       : {'あり（中身を確認）' if cron else 'なし（正しい）'}")
+
+    # macOS や Dropbox 自身も *:7000 / *:17500 などでLANに出るが、それは対象外。
+    # **このリポジトリのアプリが使う範囲だけ**を見る（3000番台 / 5175 / 8500〜8620）
+    def ours(port: int) -> bool:
+        return 3000 <= port <= 3010 or 5170 <= port <= 5180 or 8500 <= port <= 8620
+
+    lan = [f"{v}:{k}" for k, v in listening_ports().items()
+           if str(v).startswith("*") and ours(k)]
+    print(f"  LANに出ている待受（アプリのポートだけ） : {', '.join(lan) if lan else 'なし（正しい）'}")
+    if lan:
+        WARNINGS.append(f"LANに公開されている待受がある: {', '.join(lan)}（サブPCでは出さない）")
+
+
+def sync_report(do_fetch: bool) -> None:
+    check_git(do_fetch)
+    check_versions()
+    check_secrets()
+    check_autostart()
+    print("\n" + "=" * 68)
+    if WARNINGS:
+        print(f"WARNING: 対応が必要なことが {len(WARNINGS)} 件あります")
+        for i, w in enumerate(WARNINGS, 1):
+            print(f"  {i}. {w}")
+        print("\n※ 勝手に直しません。上を見て、必要なものだけ人が実行してください")
+    else:
+        print("問題なし: git・バージョン・機密・自動起動のすべてが期待どおりです")
+    print("=" * 68)
+
+
 def main() -> None:
-    filt = sys.argv[1] if len(sys.argv) > 1 else ""
+    if "--sync" in sys.argv:
+        sync_report("--fetch" in sys.argv)
+        return
+    filt = next((a for a in sys.argv[1:] if not a.startswith("--")), "")
     live = listening_ports()
     total = {"要作成": 0, "要機密": 0}
 

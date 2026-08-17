@@ -15,6 +15,9 @@
 !dev-setup.sh
 !secrets-sync.sh
 !secrets-manifest.txt
+# 開発環境のバージョン基準（2台で揃えるため。pyenv/nvm が無くても dev-doctor が照合する）
+!.python-version
+!.nvmrc
 # Claude Code の「目」（Visual Agent）。撮った画像とプロファイルは .see/ で無視される
 !see.sh
 !see.py
