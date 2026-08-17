@@ -9,6 +9,7 @@ REGISTRY は「実装済みToolの唯一の真実」。System Prompt はこれ�
 """
 from services.agent_tools import (
     chatwork_tools,
+    dev_tools,
     knowledge_tools,
     progress_tools,
     project_tools,
@@ -82,6 +83,38 @@ REGISTRY = {
         "func": progress_tools.tasks_needing_attention,
         "desc": "確認/催促が必要なTODOを抽出（kind: due_soon/overdue/stale/carryover）",
         "usage": 'tasks_needing_attention {"kind":"overdue"}',
+    },
+    # ---- 開発（アプリ制作・改修。業務TODOとは別系統） ----
+    "dev_task_create": {
+        "func": dev_tools.dev_task_create,
+        "desc": "アプリ/システムの制作・改修の依頼を開発タスクとして受け付ける（実装は裏で開発エージェントが行う）。"
+                "業務のTODO（人への依頼）とは別物なので混同しないこと",
+        "usage": 'dev_task_create {"request":"簡単なTODOアプリを作って","title":"TODOアプリ","kind":"NEW_APP"}',
+    },
+    "dev_task_list": {
+        "func": dev_tools.dev_task_list,
+        "desc": "開発タスクの一覧（新しい順）。「開発の状況は？」「さっきのアプリ」を特定するのに使う",
+        "usage": 'dev_task_list {"status":null,"limit":10}',
+    },
+    "dev_task_status": {
+        "func": dev_tools.dev_task_status,
+        "desc": "開発タスク1件の詳細（状態・対象プロジェクト・質問・結果・経過）",
+        "usage": 'dev_task_status {"task_id":"TASK-20260817-001"}',
+    },
+    "dev_task_answer": {
+        "func": dev_tools.dev_task_answer,
+        "desc": "開発エージェントからの質問（WAITING_USER）にユーザーの回答を渡して続きを再開させる",
+        "usage": 'dev_task_answer {"task_id":"TASK-20260817-001","answer":"1でお願いします"}',
+    },
+    "dev_task_cancel": {
+        "func": dev_tools.dev_task_cancel,
+        "desc": "開発タスクを中止する",
+        "usage": 'dev_task_cancel {"task_id":"TASK-20260817-001","reason":"不要になった"}',
+    },
+    "dev_task_progress": {
+        "func": dev_tools.dev_task_progress,
+        "desc": "【開発エージェント専用】自分の進捗を記録する（phase: PLANNING/RUNNING/TESTING）",
+        "usage": 'dev_task_progress {"task_id":"TASK-20260817-001","phase":"TESTING","note":"ブラウザ確認中"}',
     },
     # ---- 国交省API（公的な不動産データ） ----
     "reinfolib_cities": {

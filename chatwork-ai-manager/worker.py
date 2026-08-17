@@ -89,7 +89,14 @@ def run_forever():
     # クラッシュ復旧: 前回中断された'processing'を'pending'へ戻す（再起動耐性・Stage4）
     _recover_processing()
     print(f"[worker] start. AIアカウント: {name}(account_id={ai_id})", flush=True)
-    from services import scheduler
+    from services import dev_runner, scheduler
+    # 開発タスクの再起動復元（中断された実行を実行待ちへ戻す。回答待ちはそのまま）
+    try:
+        restored = dev_runner.recover()
+        if restored:
+            print(f"[worker] 開発タスク復元: {restored}", flush=True)
+    except Exception as e:
+        print(f"[worker] dev recover error: {type(e).__name__}: {e}", flush=True)
     while True:
         interval = settings.get_int("poll_interval_sec", 90)
         try:
@@ -106,6 +113,13 @@ def run_forever():
                     print(f"[worker] scheduled {r}", flush=True)
         except Exception as e:
             print(f"[worker] scheduler error: {type(e).__name__}: {e}", flush=True)
+        # 開発タスク（DEVELOPMENT Agent）。実行は別スレッド・同時1本。ループは止めない。
+        try:
+            r = dev_runner.tick()
+            if r.get("started") or r.get("gave_up"):
+                print(f"[worker] dev {r}", flush=True)
+        except Exception as e:
+            print(f"[worker] dev error: {type(e).__name__}: {e}", flush=True)
         time.sleep(interval)
 
 

@@ -172,6 +172,8 @@ tsuikyaku-crm/*.db
 tsuikyaku-crm/*.db.bak
 
 # --- Build artifacts (all apps) — safety net, never commit these ---
+# .claude/ … claude CLI がフォルダごとに作るローカル設定（許可リスト等）。PCごとのものなので配らない
+**/.claude/
 **/node_modules/
 **/.next/
 **/dist/

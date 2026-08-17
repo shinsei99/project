@@ -90,6 +90,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 バインド先やPythonを変えたら、**`launchctl kickstart -k gui/$(id -u)/<label>` で入れ替えて
 `lsof` で見る**まででワンセット（2026-08-17に 8526/8527 がこれでLAN公開のままだった）。
 
+## ★ 共通 Visual Agent（Claude Code がブラウザを見て操作する・2026-08-17）
+
+**定義は `~/.mcp.json` の1ファイルだけ。ここ以外にブラウザ操作の設定を作らない。**
+Playwright MCP を npx で起動（Chrome・`--isolated`＝普段のプロファイルに触れない・`--headless`）。
+**追加インストール不要・APIキー不要・無料。**
+
+- ターミナルで `cd ~ && claude` … 自動で有効。別フォルダなら `claude --mcp-config ~/.mcp.json`
+- AI業務マネージャーの開発エージェント … 同じファイルを `--mcp-config` で読む（二重管理しない）
+- 業務QA（社内Q&A・TODO抽出・定時処理）には**意図的に付けていない**（`--strict-mcp-config`）。
+  ブラウザ道具は業務回答に不要で、ツール定義が毎回コンテキストと定額枠を食うため
+- 使い方・つまずき所は `~/VISUAL_AGENT.md`
+
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
 **カテゴリ:** 不動産 / ツール / ゲーム の3分類（全51本）※不動産31・ツール14・ゲーム6  
@@ -249,6 +261,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
   `handoff_export.sh` → Dropbox-個人 → `handoff_import.sh`。**DBは双方向マージできない**ので、
   常駐を移す直前に必ず export→import で最新へ揃える。
 - Python は **`/usr/bin/python3` 固定**（venv Python だと `claude` サブプロセスが SIGSEGV）。
+- **2026-08-17: アプリ開発能力（DEVELOPMENT Agent）を追加。** LINE/Chatworkで「○○アプリを作って」
+  と言うと、裏で Claude Code が Workspace（`/Users/apple`）に実装し、**実際のChromeで画面を見て操作して
+  確認**し、直して、Gitコミットまでやる。新しい常駐は増やしておらず、既存 worker のループに間借り。
+  Task ID は `TASK-YYYYMMDD-XXX`、進捗と質問は依頼元の入口へ返る。管理画面に「🛠 開発タスク」。
+  Chatworkからの依頼は既定で**管理者のみ**（`dev_allowed_account_ids`）。
+  ブラウザ操作の共通基盤は下の「共通 Visual Agent」。
 
 ### チラシクリエーター（flyer-creator）補足 ※ツール・port 8529
 

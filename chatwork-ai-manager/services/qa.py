@@ -215,6 +215,18 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork"):
 2. 上の優先順位で最適なツールを選び実行→結果を読み→足りなければ別ツール/別検索語で最大8回まで反復（諦めない）。
 3. 物件名・号室・人名の略称/表記ゆれは正式名称を推測して再検索（例「メゾン501」→"メゾンドール都島"501号室の契約者）。同じ号室番号が複数物件にあるため対象物件を正しく特定する。
 
+# 業務タスクと開発タスクの振り分け（重要・混同しないこと）
+- 【業務】人への依頼・TODO・検索・質問・案件・相場・物件探しなど → 上のツールでその場で処理する。
+- 【開発】**アプリやシステムを作る/直す**依頼（例「TODO管理アプリを作って」「請求書アプリ作って」
+  「さっきのアプリにログイン機能を追加して」「昨日作ったアプリのバグを直して」「この画面をもっと使いやすくして」
+  「iPhoneでも使えるようにして」）→ **自分で実装しようとしない。** dev_task_create で開発タスクを登録する。
+  実装・Build・テスト・ブラウザでの動作確認・修正・Gitは、裏で動く開発エージェントが行い、
+  進捗と完了はこの入口に自動で通知される。登録したら「TASK-… として開発を始めます（完了したら通知します）」と伝える。
+- 見分け方: 「田中さんに○○を依頼して」＝業務TODO（task_create）。「○○アプリを作って」＝開発（dev_task_create）。
+- 「開発の状況は？」「さっきのアプリは？」→ dev_task_list / dev_task_status で調べて答える。
+- 開発エージェントから質問（WAITING_USER）が来ている状態でユーザーが答えたら、
+  dev_task_list で対象のtask_idを特定し dev_task_answer で回答を渡す（新しい開発タスクを作らない）。
+
 # 依頼・TODO操作の指針
 - 「田中さんに○○を明日までにお願いして」等の依頼 → まず task_search で重複確認 → 無ければ task_create（依頼者=質問者, 担当者, 期限, room_id, source_message_id を保存）。必要なら chatwork_post_message で担当者へ依頼を投稿。
 - 期限変更・担当変更・内容修正は task_update（新規作成しない）。完了報告は task_complete。進捗報告は task_progress_update。
@@ -242,16 +254,27 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork"):
 {question}"""
 
 
-def answer(question: str, room_id=None, asker=None, channel="chatwork") -> dict:
+def answer(question: str, room_id=None, asker=None, channel="chatwork",
+           asker_account_id=None, line_user_id=None) -> dict:
     """エージェント型: claude が共通Tool層(agent_tool.py)を反復的に使って回答/操作する。
 
     channel: "chatwork"（既定）/ "line"。Agent本体・Tool・DBは共通（LINE専用処理を作らない）。
+    asker_account_id / line_user_id: 「依頼がどこから来たか」。開発タスク(dev_task_create)が
+      結果の返し先と権限判定に使う。**プロンプトには入れず環境変数で子プロセスへ渡す**（識別子を出力しない）。
     """
     from services.claude_client import ClaudeError, run_agent
     from services.settings import get_setting
     prompt = _agent_prompt(question, room_id, asker=asker, channel=channel)
+    env_extra = {
+        "CWAI_CHANNEL": channel,
+        "CWAI_ROOM_ID": room_id,
+        "CWAI_REQUESTER": asker,
+        "CWAI_REQUESTER_ACCOUNT_ID": asker_account_id,
+        "CWAI_LINE_USER_ID": line_user_id,
+    }
     try:
-        env = run_agent(prompt, cwd=APP_DIR, timeout=600, model=get_setting("model_qa", "sonnet"))
+        env = run_agent(prompt, cwd=APP_DIR, timeout=600, model=get_setting("model_qa", "sonnet"),
+                        env_extra=env_extra)
         text = (env.get("result") or "").strip()
     except ClaudeError as e:
         # フォールバック: 従来の一発RAG

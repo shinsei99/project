@@ -233,3 +233,47 @@ CREATE TABLE IF NOT EXISTS scheduled_runs (
     result     TEXT,
     UNIQUE(run_date, job_type)
 );
+
+-- ============================================================
+-- 開発タスク（DEVELOPMENT Agent）。既存の tasks（業務TODO）とは別物。混同しないこと。
+-- status: RECEIVED / PLANNING / RUNNING / WAITING_USER / TESTING / FAILED / COMPLETED / CANCELLED
+-- kind:   NEW_APP / EXISTING_APP / FEATURE_ADD / BUG_FIX / UI_CHANGE / API_DEVELOPMENT /
+--         DATABASE_CHANGE / INVESTIGATION / OTHER
+-- ============================================================
+CREATE TABLE IF NOT EXISTS dev_tasks (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id       TEXT NOT NULL UNIQUE,               -- TASK-YYYYMMDD-XXX（人が読む一意ID）
+    title         TEXT,
+    request       TEXT NOT NULL,                      -- ユーザー指示の原文
+    kind          TEXT,
+    status        TEXT NOT NULL DEFAULT 'RECEIVED',
+    project_dir   TEXT,                               -- 対象プロジェクト（workspace配下の絶対パス）
+    workspace     TEXT,
+    channel       TEXT,                               -- chatwork / line / admin（結果の返し先）
+    room_id       INTEGER,
+    line_user_id  TEXT,
+    requester     TEXT,
+    requester_account_id INTEGER,                    -- Chatwork の依頼者（宛先メンション用）
+    session_id    TEXT,                             -- claude CLI のセッション（中断からの再開用）
+    question      TEXT,                               -- INTERRUPT の質問文
+    answer        TEXT,                               -- ユーザーからの回答
+    result        TEXT,                               -- 完了報告
+    error         TEXT,
+    log_path      TEXT,
+    attempts      INTEGER NOT NULL DEFAULT 0,         -- 実行回数（再起動復元でも増える）
+    started_at    TEXT,
+    finished_at   TEXT,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_dev_tasks_status ON dev_tasks(status);
+
+-- 開発タスクの経過（監査・引き継ぎ用）
+CREATE TABLE IF NOT EXISTS dev_task_events (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id    TEXT NOT NULL,                         -- dev_tasks.task_id
+    event_type TEXT,                                  -- created/status/note/interrupt/answer/completed/failed
+    note       TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_dev_task_events ON dev_task_events(task_id, created_at);

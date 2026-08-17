@@ -31,6 +31,16 @@ DEFAULT_SETTINGS = {
     "model_analyzer": "haiku",   # TODO抽出・進捗・完了判定（分類タスク）
     "model_scheduler": "haiku",  # 定時の催促文生成（定型）
     "model_qa": "sonnet",        # @Claude質問回答・エージェント（多段推論）
+    # ---- DEVELOPMENT Agent（アプリ開発。既存の業務TODOとは別系統）----
+    "dev_agent_enabled": "1",           # 0 で開発タスクの実行を停止（受付は残る）
+    "dev_model": "sonnet",              # 開発エージェントのモデル
+    "dev_timeout_sec": "3600",          # 1タスク1回あたりの上限（秒）
+    "dev_workspace": "/Users/apple",    # 成果物を置く場所。Desktop/Downloads へは作らせない
+    "dev_mcp_config": "/Users/apple/.mcp.json",   # 共通Visual Agent（Playwright MCP）の定義
+    # 開発タスクを作ってよい Chatwork アカウント（csv）。空なら LINE と管理画面のみ。
+    # 既定は管理者=鷲見慎一(7426045)。社員が勝手にコードを書かせないための制限。
+    "dev_allowed_account_ids": "7426045",
+    "dev_max_attempts": "3",            # 再起動復元での再実行上限
 }
 
 

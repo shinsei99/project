@@ -68,7 +68,8 @@ def process_questions(client, room, ai_account_id) -> int:
             if ack_id:
                 outbox.send_one(client, ack_id)
         try:
-            res = qa.answer(question, room_id=rid, asker=m["account_name"])
+            res = qa.answer(question, room_id=rid, asker=m["account_name"],
+                            asker_account_id=m["account_id"])
         except Exception as e:
             _log_error(rid, e)
             continue

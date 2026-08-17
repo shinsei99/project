@@ -42,6 +42,7 @@ if not _check_password():
 PAGES = {
     "📊 ダッシュボード": "dashboard",
     "✅ TODO一覧": "todos",
+    "🛠 開発タスク": "dev_tasks",
     "❓ AI確認待ち": "ai_confirm",
     "📤 投稿承認（outbox）": "outbox",
     "⏰ 定時処理ログ": "scheduled",
@@ -71,12 +72,13 @@ st.sidebar.info(f"投稿モード: **{_mode_label.get(post_mode(), post_mode())}
 
 page = PAGES[choice]
 from views import (  # noqa: E402
-    ai_confirm, analysis_log, dashboard, knowledge, outbox, rooms,
+    ai_confirm, analysis_log, dashboard, dev_tasks, knowledge, outbox, rooms,
     scheduled, settings as settings_view, todos,
 )
 
 _RENDER = {
     "dashboard": dashboard.render, "todos": todos.render, "ai_confirm": ai_confirm.render,
+    "dev_tasks": dev_tasks.render,
     "outbox": outbox.render, "scheduled": scheduled.render, "knowledge": knowledge.render,
     "rooms": rooms.render, "analysis_log": analysis_log.render, "settings": settings_view.render,
 }

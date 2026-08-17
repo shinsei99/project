@@ -12,7 +12,8 @@ from services import settings
 # semi モードで自動送信してよい種別（定型・低リスク）
 SEMI_AUTO_KINDS = {"progress_check", "overdue", "stale", "report"}
 # post_mode に関係なく常に送信してよい種別（社員の質問への直接返信・受付確認は保留しない）
-ALWAYS_SEND_KINDS = {"qa_reply", "ack"}
+# dev_report: 本人が依頼した開発タスクの進捗・完了報告（AIの自発投稿ではないため保留しない）
+ALWAYS_SEND_KINDS = {"qa_reply", "ack", "dev_report"}
 
 
 def enqueue(room_id, body, kind, reason=None, to_account_ids=None,

@@ -61,7 +61,7 @@ def _handle_event(ev):
         line_client.reply(reply_token, "受け付けました。調べています…🔎")
 
     try:
-        res = qa.answer(text, channel="line", asker="オーナー(LINE)")
+        res = qa.answer(text, channel="line", asker="オーナー(LINE)", line_user_id=user_id)
         answer_text = res.get("answer") or "（回答を生成できませんでした）"
     except Exception as e:
         answer_text = f"処理中にエラーが発生しました: {type(e).__name__}"

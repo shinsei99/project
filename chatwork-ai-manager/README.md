@@ -48,6 +48,37 @@ task_search / task_create / task_update / task_complete / task_progress_update /
 project_search / project_update / tasks_needing_attention。
 QA/自動解析/定時処理が**同じTool層**を共有する。
 
+## アプリ開発（DEVELOPMENT Agent ＋ Visual Agent）※2026-08-17 追加
+LINE / Chatwork から「○○アプリを作って」と言うだけで、**設計→実装→Build→起動→ブラウザで動作確認→
+修正→テスト→README→Gitコミット**までAIが自分でやる。業務機能（TODO/検索/案件）とは別系統。
+
+```
+LINE/Chatwork → 既存Agent(qa) ─┬─ 業務 → 既存Tool層（変更なし）
+                               └─ 開発 → dev_task_create（受付だけ・即応答）
+                                            ↓ DB: dev_tasks
+                                worker のループ → dev_runner.tick()（同時1本）
+                                            ↓
+                              claude（全ツール＋Playwright MCP）→ Workspace で開発
+                                            ↓
+                              進捗・質問・完了を依頼元の入口へ通知（notify）
+```
+
+- **新しい常駐プロセスは増やしていない。** 既存 worker のループに間借りする（scheduler と同じ流儀）。
+- Task ID = `TASK-YYYYMMDD-XXX`。状態は
+  `RECEIVED/PLANNING/RUNNING/WAITING_USER/TESTING/FAILED/COMPLETED/CANCELLED`
+  （業務TODOの「未着手/進行中/完了」とは**別体系。混同しない**）。
+- **再起動耐性**: 状態は全部DB。worker が落ちても起動時に `RUNNING → RECEIVED` へ戻し、
+  claude の `session_id` を使って `--resume` で続きから再開する（最初からやり直さない）。
+- **INTERRUPT**: 人の判断が要るとき（本番デプロイ・課金・不可逆操作・重大な仕様判断）だけ
+  `WAITING_USER` で止まり、質問が入口へ届く。返事をすると同じTaskが再開する（`dev_task_answer`）。
+- **Visual Agent**: 実際のChrome（headless）を操作して表示・操作・コンソール・レスポンシブを確認する。
+  定義は `~/.mcp.json` の1ファイルで、**ターミナルのClaude Codeと共通**（→ `~/VISUAL_AGENT.md`）。
+- **権限**: Chatworkは `dev_allowed_account_ids`（既定は管理者のみ）。社員が勝手にコードを書かせられない。
+  LINEは既存の userId 許可制をそのまま使う。
+- 管理画面の「🛠 開発タスク」で一覧・実行ログ・質問への回答・タスク直接投入ができる。
+- 関連設定（システム設定）: `dev_agent_enabled` / `dev_model` / `dev_timeout_sec` /
+  `dev_workspace`（既定 `/Users/apple`）/ `dev_mcp_config` / `dev_allowed_account_ids` / `dev_max_attempts`。
+
 ## 投稿モード（安全設計）
 `confirm`（既定・AIの自発投稿はすべて管理画面で承認）/ `semi`（進捗確認等は自動）/ `auto`（全自動）。
 管理画面「システム設定」で切替。@Claudeへの直接返信は常に送信。
@@ -77,5 +108,6 @@ QA/自動解析/定時処理が**同じTool層**を共有する。
 
 ## 主要ファイル
 `worker.py`（デーモン）/ `app.py`＋`views/`（管理画面）/ `services/`（sync, analyzer, qa, scheduler,
-chatwork, tasks, projects, knowledge, outbox, settings, agent_tools/）/ `agent_tool.py`（Tool CLI）/
+chatwork, tasks, projects, knowledge, outbox, settings, agent_tools/,
+**dev_tasks, dev_runner, notify**）/ `agent_tool.py`（Tool CLI）/
 `db/`（schema, migrate, connection）/ `kb_search.py` / `ingest_knowledge.py` / `ocr_ingest.py` / `install-launchd.sh`。

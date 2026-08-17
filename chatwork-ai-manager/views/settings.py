@@ -66,5 +66,36 @@ def render():
         st.success("保存しました")
 
     st.divider()
+    st.subheader("🛠 開発エージェント（アプリ制作・改修）")
+    st.caption("LINE/Chatworkからの「○○アプリを作って」を、裏でClaude Codeが実装・ブラウザ検証・"
+               "Gitまで行う機能。業務機能とは別系統です。")
+    dev_on = st.checkbox("開発エージェントを有効にする",
+                         value=S.get_setting("dev_agent_enabled", "1") == "1")
+    cd = st.columns(3)
+    dev_model = cd[0].selectbox(
+        "モデル", _models,
+        index=_models.index(S.get_setting("dev_model", "sonnet"))
+        if S.get_setting("dev_model", "sonnet") in _models else 1)
+    dev_to = cd[1].text_input("1回あたりの上限(秒)", S.get_setting("dev_timeout_sec", "3600"))
+    dev_try = cd[2].text_input("再試行の上限(回)", S.get_setting("dev_max_attempts", "3"))
+    dev_ws = st.text_input("Workspace（成果物の置き場所）", S.get_setting("dev_workspace", "/Users/apple"))
+    dev_mcp = st.text_input("Visual Agent の定義ファイル（Playwright MCP）",
+                            S.get_setting("dev_mcp_config", "/Users/apple/.mcp.json"))
+    dev_ids = st.text_input(
+        "開発を依頼してよい Chatwork account_id（カンマ区切り・空ならLINEと管理画面のみ）",
+        S.get_setting("dev_allowed_account_ids", ""))
+    st.caption("⚠️ 開発エージェントはWorkspace内のファイルを書き換えます。"
+               "社員が誰でも依頼できる状態にしないこと。")
+    if st.button("開発設定を保存"):
+        S.set_setting("dev_agent_enabled", "1" if dev_on else "0")
+        S.set_setting("dev_model", dev_model)
+        S.set_setting("dev_timeout_sec", dev_to)
+        S.set_setting("dev_max_attempts", dev_try)
+        S.set_setting("dev_workspace", dev_ws)
+        S.set_setting("dev_mcp_config", dev_mcp)
+        S.set_setting("dev_allowed_account_ids", dev_ids)
+        st.success("保存しました（次の開発タスクから反映）")
+
+    st.divider()
     with st.expander("現在の全設定（デバッグ）"):
         st.json(S.all_settings())
