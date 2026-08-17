@@ -233,6 +233,19 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork"):
 - LINEには地図の画像を送れない。**要点（件数・近い順の物件名と距離）を文章で答え**、
   地図ファイル名と管理画面の見方を添える。
 
+# ★あなたの役割の境界（最重要）
+あなたは**調べて答える担当**です。**このシステムや他のアプリのファイルを書き換えてはいけません。**
+- コードの修正・機能追加・設定ファイルの変更・スクリプトの実行による書き込みを、自分でやらない。
+  「気を利かせて直しておく」もしない。**必ず dev_task_create で開発エージェントに渡す。**
+- 理由: 開発エージェントには安全策（Task ID・進捗記録・危険操作での確認・Gitの作法・
+  Build/テスト/ブラウザ確認・再起動の承認）が付いている。あなたにはそれが無い。
+  稼働中の業務システムを、検証なしに書き換えると会社の業務が止まる。
+- Bash は**調べるため**（agent_tool.py の実行・ファイルの閲覧・状況確認）に使う。
+  書き込み（ファイル作成/編集/削除、git commit、プロセスの起動停止）はしない。
+- 「不具合がある」「ここを直して」と言われたら → 原因の見立てまでは答えてよいが、
+  修正は dev_task_create に回し「TASK-… として開発エージェントが対応します」と伝える。
+- **例外なし。** 1行の修正でも、緊急に見えても、自分では直さない。
+
 # 業務タスクと開発タスクの振り分け（重要・混同しないこと）
 - 【業務】人への依頼・TODO・検索・質問・案件・相場・物件探しなど → 上のツールでその場で処理する。
 - 【開発】**アプリやシステムを作る/直す**依頼（例「TODO管理アプリを作って」「請求書アプリ作って」
@@ -316,6 +329,48 @@ def strip_english_preamble(text: str):
     return (rest, dropped) if rest else (text, [])
 
 
+def _workspace_snapshot():
+    """QAエージェント実行中にコードが書き換えられていないか見張るための足跡。
+
+    QAには Write/Edit ツールを渡していないが、**Bash がある以上は書けてしまう**ので、
+    プロンプトの禁止は「お願い」でしかない（2026-08-17、実際にQAが本番コードを直した）。
+    強制はできないので、代わりに**破られたら必ず分かる**ようにする。
+    """
+    import subprocess
+    try:
+        p = subprocess.run(
+            ["git", "-C", APP_DIR, "status", "--porcelain", "--", APP_DIR],
+            capture_output=True, text=True, timeout=15)
+        return p.stdout if p.returncode == 0 else None
+    except Exception:
+        return None      # git が無い・リポジトリ外なら見張りを諦める（本処理は止めない）
+
+
+def _check_workspace_untouched(before, question, room_id):
+    """実行前後で差分が増えていたら記録する（QAは書かない約束のため）。"""
+    if before is None:
+        return
+    after = _workspace_snapshot()
+    if after is None or after == before:
+        return
+    b = set(before.splitlines())
+    changed = [ln for ln in after.splitlines() if ln not in b]
+    if not changed:
+        return
+    note = ("QAエージェントの実行中にファイルが変更されました（本来は開発エージェントの仕事）:\n"
+            + "\n".join(changed[:40]))
+    print(f"[qa] ⚠️ {note}", flush=True)
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO ai_analysis_logs (room_id, kind, model, prompt, raw_output) "
+                "VALUES (?, 'guard', 'qa', ?, ?)",
+                (room_id, question[:2000], note),
+            )
+    except Exception:
+        pass
+
+
 def answer(question: str, room_id=None, asker=None, channel="chatwork",
            asker_account_id=None, line_user_id=None) -> dict:
     """エージェント型: claude が共通Tool層(agent_tool.py)を反復的に使って回答/操作する。
@@ -334,6 +389,7 @@ def answer(question: str, room_id=None, asker=None, channel="chatwork",
         "CWAI_REQUESTER_ACCOUNT_ID": asker_account_id,
         "CWAI_LINE_USER_ID": line_user_id,
     }
+    snapshot = _workspace_snapshot()   # 実行前の足跡（QAがコードを触っていないかの見張り）
     try:
         env = run_agent(prompt, cwd=APP_DIR, timeout=600, model=get_setting("model_qa", "sonnet"),
                         env_extra=env_extra)
@@ -342,6 +398,7 @@ def answer(question: str, room_id=None, asker=None, channel="chatwork",
         # フォールバック: 従来の一発RAG
         chunks = search(question)
         text, env = run_text(build_prompt(question, chunks, room_id=room_id), timeout=180)
+    _check_workspace_untouched(snapshot, question, room_id)
     text, dropped = strip_english_preamble(text)
     if dropped:
         # 何を落としたかは残す（過剰に消していないか後から検証できるように）

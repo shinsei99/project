@@ -55,6 +55,19 @@ def render():
         st.warning("開発エージェントは停止中です（システム設定 dev_agent_enabled）。"
                    "受付はできますが実行されません。")
 
+    # QA（調べて答える担当）がコードを触ったら、ここに出す。
+    # Bash がある以上プロンプトの禁止は強制力が無いので、破られたら分かるようにしてある。
+    from db.connection import query as _q
+    guards = _q("SELECT id, created_at, prompt, raw_output FROM ai_analysis_logs "
+                "WHERE kind='guard' ORDER BY id DESC LIMIT 5")
+    if guards:
+        with st.expander(f"⚠️ QAエージェントがファイルを変更した記録（{len(guards)}件）", expanded=True):
+            st.caption("業務QAは調べて答える担当で、改修は開発エージェントの仕事です。"
+                       "ここに出ている場合は、意図しない書き換えが起きていないか確認してください。")
+            for g in guards:
+                st.markdown(f"**{g['created_at']}** — 質問: {(g['prompt'] or '')[:80]}")
+                st.code(g["raw_output"] or "", language=None)
+
     _new_task_form()
 
     # --- 回答待ち（最優先で見せる） ---
