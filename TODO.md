@@ -14,11 +14,22 @@
 > git commit -m "サブPC整備の道具一式（.gitignore許可漏れで未コミットだったもの）"
 > git push origin main
 >
-> # ② メインPCから渡した機密2件を取り込む
-> mkdir -p psa-collection/data
-> cp ~/Library/CloudStorage/Dropbox-個人/handoff-20260817/psa-collection/data/*.json \
->    psa-collection/data/
-> ls -la psa-collection/data/*.json    # ← 入ったことを目で見てから③へ
+> # ② メインPCから渡した鍵・データ一式（31MB）を取り込む
+> #    ★今週サブPCで全アプリを触れるようにするためのもの。中身は
+> #      handoff-20260817/引き継ぎ-先に読む.txt に一覧がある
+> #    ★--ignore-existing 必須。サブPCに既にあるファイルは上書きしない
+> rsync -av --ignore-existing --exclude '引き継ぎ-先に読む.txt' \
+>   ~/Library/CloudStorage/Dropbox-個人/handoff-20260817/ ~/
+>
+> #    メインPCに無かった6本がサブPCにあるか確認する（あるなら何もしなくてよい）
+> for f in brain-dump/.env.local pasha-calo/.env.local digital-shosai/.env.local \
+>          baikai-generator/.streamlit/secrets.toml theta-viewer/server/ftp-config.json \
+>          kaitori-dm-maker/senders.json; do
+>   printf '%-45s ' "$f"; [ -e ~/"$f" ] && echo あり || echo 無し
+> done
+>
+> #    仕上げに全体を点検（8/16に作った道具。①でコミットしたもの）
+> ./dev-doctor.py
 >
 > # ③ 使い終わった受け渡しファイルを Dropbox から消す（機密を置きっぱなしにしない）
 > D=~/Library/CloudStorage/Dropbox-個人
@@ -48,7 +59,12 @@
 >
 > **やらなくてよくなったもの**
 > - `digital-shosai/.env.local` の受け取り … **メインPCにも存在しない**（あるのは `.env.local.example` だけ）
-> - `./secrets-sync.sh import` … 道具がメインPCに無く使えないため、②の手コピーで代替済み
+> - `./secrets-sync.sh import` … 道具がメインPCに無く使えないため、②の rsync で代替済み
+>
+> **今週の前提**: 作業はサブPC中心。**メインPCに置いたままにするのは chatwork-ai-manager の
+> 常駐（worker / LINE webhook / ngrok）だけ**。それ以外の46本はサブPCで改良できる状態にした
+> （②で鍵10件＋データ6アプリぶんが入る）。メインPCに実体が無くて渡せなかった6本は
+> ②の確認ループで「無し」と出たものだけ、サブPCで作り直す。
 >
 > **触らないもの**
 > - `ai-tools-lab` … メインPCへ移管済み。サブPCでは開発も公開もしない

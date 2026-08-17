@@ -27,6 +27,16 @@
   必要なら `handoff_export.sh` で作り直せる）。残りは `handoff-20260817`(380KB) と
   `pokecard-dex-handoff`(3.7GB) で、**どちらもサブPCの受け取り確認後に消す**（今夜の手順③）
 - CLAUDE.md に「**PCまたぎの受け渡し — 受け取ったら消す**」を作業ルールとして追加
+- **今週サブPCで全アプリを触れるようにする準備**（依頼: 2026-08-17）。
+  gitに入らない実体をメインPC全体から棚卸しし、`handoff-20260817/` に**リポジトリ直下と
+  同じ形**で詰めた（合計31MB。`rsync --ignore-existing` 1回で復元できる形）。
+  内訳＝鍵・設定10件（agent-platform/.env、building-manager/.env、flyer-creator/.stats_key、
+  jyuusetsu-research・legal-crosscheck・realestate-valuation の secrets.toml、
+  madori-tracer の .env.local と .secret_key、shorui-mobile/.env.local、theta-viewer/.env.local）
+  ＋データ6アプリ（flyer-creator 29M / file-finder 1.5M / tsuikyaku-crm / shorui-cabinet /
+  restoration-calculator / quote-generator）。
+  **入れなかったもの**: psa-collection の画像443MB（サブPCで再取得できる）、
+  pokecard-dex 4.3GB（別tarで受け渡し済み）、chatwork-ai-manager（専用スクリプトが正）
 
 ### 発生したエラーと解決策
 - **症状**: TODOの「【明日いちばん最初】メインPCで `./secrets-sync.sh export`」が実行できない。
@@ -59,6 +69,12 @@
   `8532` agent-platform（開発中＝127.0.0.1が正。`run.sh` は正しいので手動起動と思われる）
 - メインPCに**前からの未コミット作業**が19ファイル分ある（mail-merge-pro / realestate-valuation /
   restoration-calculator / parking-map / memorandum-generator の icon-src）。素性を確認してから整理する
+  → **今週はサブPC中心なので、これは先にコミットして push しないとサブPCから触れない**
+- **鍵が6本、メインPCに存在しない**（`brain-dump/.env.local` / `pasha-calo/.env.local` /
+  `digital-shosai/.env.local` / `baikai-generator/.streamlit/secrets.toml` /
+  `theta-viewer/server/ftp-config.json` / `kaitori-dm-maker/senders.json`）。
+  CLAUDE.md は「brain-dump と pasha-calo に Geminiキーがある」と書いているが**メインPCには無い**。
+  サブPC側にあるかを今夜確認する（両方に無ければ作り直しが要る＝その6本は今どちらでも動かない）
 - CLAUDE.md のスリム化（メインPCで実施予定）も**未着手のまま**
 
 ## 2026-08-16 — サブPCで全アプリを触れるようにする（横断整備）
