@@ -37,7 +37,7 @@ CATEGORIES: dict[str, list[str]] = {
     "ツール": [
         "soufu-generator", "digital-shosai", "brain-dump", "scrapmemo-petapeta", "petapeta-extension",
         "swim-tracker-react", "mom-counter", "mail-merge-pro", "photo-remake", "kaitori-dm-maker",
-        "psa-collection", "pasha-calo", "pokecard-dex", "flyer-creator", "ai-tools-lab",
+        "psa-collection", "pasha-calo", "pokecard-dex", "flyer-creator", "ai-tools-base",
     ],
     "ゲーム": ["piyo-defense", "color-gravity", "cyborg-defense", "neko-escape", "nyanko-ice", "neon-blocks"],
 }

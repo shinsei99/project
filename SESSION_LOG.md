@@ -11,6 +11,51 @@
 
 ---
 
+## 2026-08-17（夜・サブPC）— メインPCからの引き継ぎを受領し、改名の枝分かれを統合
+
+### 完了したこと
+- **メインPCの30コミットを取り込み、サブPCの4コミットとマージ**（`954844d`）。
+  両PCが同じ日に「AIツールラボ→AIツールベース」の改名を別々にやっていたため、
+  **フォルダ名を `ai-tools-base` に統一**（サブPC側を採用・ご本人の判断）。
+  メインPC側の中身（`publish.sh`・3媒体の更新手順・公開サイトの索引・PCの役割分担）は全部取り込んだ
+- **整備ツール5本を git に載せ直した**（`9935f9d`。`SETUP.md` / `dev-doctor.py` / `dev-setup.sh` /
+  `secrets-sync.sh` / `secrets-manifest.txt` ＝ **575行が実体として入ったことを `git show --stat` で確認**）
+- push 済み（`80ee5e9..9935f9d`）。Zenn は GitHub 連携なので、これで公開済み5本のリンクも新URLに直る
+- **鍵・データ一式を受領**（`handoff-20260817` 31.6MB・101ファイルを `rsync --ignore-existing`）。
+  `./dev-doctor.py` → **依存の作成が必要 0本 / 機密が足りないのは digital-shosai だけ**
+  （それはメインPCにも実体が無いので取り下げ済み）
+- **Claudeの記憶を受領**（59ファイル）。索引 `MEMORY.md` は**上書きせずマージ**した（22行追加）。
+  重複していた古い記憶2本を整理（`project_app_catalog`=36本の古い一覧 → `app_list_master`=51本に統合、
+  `project_restoration_calculator` → 詳しい `project_restoration_calc` に統合）。退避は `~/memory-backup`
+- **Dropboxの受け渡し置き場を2つとも削除**（`handoff-20260817` 31.6MB ／ `pokecard-dex-handoff` 3.8GB）。
+  消す前に確認: 鍵・データは上記のとおり着弾、`pokecard-dex/data` は 4.3GB・81,120ファイルで在る
+- **サブPCの launchd 常駐を0本にした**（file-finder 8520 / owner-payout-tracker 8519 を unload）。
+  8519/8520 の待受なし・`launchctl list | grep shinsei` が空。個人情報を含む画面の二重LAN公開も解消
+- quote-generator（別リポジトリ）を `git pull` で最新化（`run.sh` が増えた）。`data/issuers.csv` も在る
+
+### 発生したエラーと解決策
+- **症状**: `git pull` が改名で衝突（`CONFLICT (file location): ai-tools-lab/publish.sh added in
+  origin/main inside a directory that was renamed in HEAD`）ほか6ファイルが競合。
+  **原因**: 同じ改名を2台で別々にコミットしたため（サブPCは**フォルダごと** `git mv`、
+  メインPCは**中身だけ**書き換えてフォルダ名は据え置き）。**捨てて解決してはいけない**
+  ケースだった（メインPC側だけに `publish.sh` と3媒体の手順があり、サブPC側だけに
+  Search Console 移行と note リンク修正のログがあった）。
+  **直し方**: 各ファイルを見比べて手で統合。`publish.sh` は `git add ai-tools-base/publish.sh` で
+  新パスへ置き、`ai-tools-lab` の残り参照（`dev-doctor.py` のアプリ一覧・CLAUDE.md の表・
+  公開サイトの節）を新名へ直した。**過去ログの旧名はそのまま残す**（当時の事実なので）
+
+### 次回への引き継ぎ事項・未解決の課題
+- **メインPCで1回だけ手作業が要る**（TODO の横断作業に記載）。`git pull` 後、gitに入らない実体を
+  `ai-tools-lab/` → `ai-tools-base/` へ手で移す（`node_modules` / `.next` / `.vercel` / `.env*`）。
+  Vercel のプロジェクト名は既に `ai-tools-base` なので、これで名前が全部揃う
+- Zenn の未反映3本の出し直しと note の公開は**メインPCの担当**（ブラウザのログイン状態がある）
+- `baikai-generator/.streamlit/secrets.toml` は両PCに無い。`dev-doctor.py` は「不要」と判定
+  （このアプリは `claude` CLI を使いAPIキー不要）。**必要になったら作る**という理解で未確認
+- 8540（chatwork-ai-manager の管理画面）はサブPCで手動起動のまま稼働中。役割分担の表で
+  「サブPCは画面8540のみ可」なので止めていないが、**`*:8540` でLANに出ている**点は認識しておく
+
+---
+
 ## 2026-08-17 — サブPC（2026-08-16）の作業をメインPCで受領
 
 ### 完了したこと
