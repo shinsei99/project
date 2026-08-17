@@ -19,7 +19,10 @@
     {% for l in logs %}
     <tr class="{% if not l.returned_at and l.due_at and l.due_at < now %}overdue{% endif %}">
       <td class="num small">{{ l.checkout_at | dt }}</td>
-      <td><a href="/assets/{{ l.asset_id }}">{{ l.asset_name }}</a></td>
+      <td>
+        {% if l.asset_property %}<span class="prop">{{ l.asset_property }}</span>{% endif %}
+        <a href="/assets/{{ l.asset_id }}">{{ l.asset_name }}</a>
+      </td>
       <td>
         {{ l.borrower_name }}
         <span class="badge b-kind">{{ KIND_LABEL.get(l.borrower_kind, l.borrower_kind) }}</span>

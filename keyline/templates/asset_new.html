@@ -8,42 +8,12 @@
 
 <div class="card small muted">
   <strong>NFCタグ1枚 = 1つの貸出管理単位</strong>です。<br>
-  鍵3本セットなら、3本まとめて1つの管理対象にして、鍵番号を3つ登録します。
+  「大京本社ビルの1階エントランスキー」で1件。鍵が3本セットならその3本をここに登録します。
 </div>
 
 <form method="post" action="/assets-new" id="f">
   <div class="card">
-    <label for="name">管理対象の名前 <span style="color:#c0392b">*</span></label>
-    <input type="text" id="name" name="name" required placeholder="本社正面入口" autofocus>
-
-    <label for="asset_type">種類</label>
-    <select id="asset_type" name="asset_type">
-      {% for k, v in TYPE_LABEL.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}
-    </select>
-
-    <label for="item_numbers">鍵番号（鍵に刻印されている番号。複数可）</label>
-    <input type="text" id="item_numbers" name="item_numbers"
-           placeholder="12345, 12346, 12347" autocomplete="off">
-    <p class="small muted" style="margin:.3rem 0 0">
-      システムが採番する番号ではなく、<strong>鍵本体に刻印されている番号</strong>を入れてください。
-    </p>
-
-    <label for="box_id">保管ボックス</label>
-    <select id="box_id" name="box_id">
-      <option value="">（未設定）</option>
-      {% for b in boxes %}<option value="{{ b.id }}">{{ b.code }} — {{ b.name }}</option>{% endfor %}
-    </select>
-    {% if not boxes %}
-    <p class="small muted" style="margin:.3rem 0 0">
-      ボックスがまだありません。<a href="/boxes">ボックスを登録する</a>
-    </p>
-    {% endif %}
-
-    <label for="box_position">ボックス内の位置</label>
-    <input type="text" id="box_position" name="box_position" placeholder="03" autocomplete="off">
-
-    <label for="note">メモ</label>
-    <textarea id="note" name="note" placeholder="（任意）"></textarea>
+    {% include "_asset_form.html" %}
 
     <label style="margin-top:1.2rem;display:flex;align-items:center;gap:.5rem;font-size:1rem;color:var(--ink)">
       <input type="checkbox" name="issue_tag" value="1" checked style="width:auto">
@@ -60,6 +30,7 @@
 {% endblock %}
 
 {% block script %}
+{% include "_asset_form_js.html" %}
 <script>
 document.getElementById('f').addEventListener('submit', () => {
   const b = document.getElementById('go');

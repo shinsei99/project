@@ -9,8 +9,9 @@
 <div class="card">
   <div class="asset-head">
     <span class="badge b-other">{{ STATUS_LABEL.get(asset.status, asset.status) }}</span>
+    {% if asset.property_name %}<div class="prop" style="margin-top:.35rem">{{ asset.property_name }}</div>{% endif %}
     <div class="nm">{{ asset.name }}</div>
-    {% if asset.item_numbers %}<div class="keys">{{ asset.item_numbers }}</div>{% endif %}
+    {% if asset.item_numbers %}<div class="keys">{{ asset.item_numbers }}{% if asset.total_keys > 1 %}<span class="muted" style="font-size:.85rem"> 計{{ asset.total_keys }}本</span>{% endif %}</div>{% endif %}
   </div>
 
   <p style="text-align:center;font-weight:700;color:#c0392b">

@@ -53,7 +53,7 @@ class Client:
         return self._do(urllib.request.Request(self.base + path))
 
     def post(self, path: str, data: dict = None):
-        body = urllib.parse.urlencode(data or {}).encode()
+        body = urllib.parse.urlencode(data or {}, doseq=True).encode()
         return self._do(urllib.request.Request(self.base + path, data=body, method="POST"))
 
     def _do(self, req):
@@ -103,8 +103,9 @@ def main() -> int:
     auth.create_user(con, oid, "t@test.local", "password-term", "鍵管理端末", "operator")
     box = svc.create_box(con, oid, "BOX-01", "本社1F鍵ボックス")
     tok = svc.issue_nfc_token(con)
-    aid = svc.create_asset(con, oid, "本社正面入口", "key", nfc_token=tok, box_id=box,
-                           box_position="03", item_numbers=["12345", "12346", "12347"])
+    aid = svc.create_asset(con, oid, "1階エントランスキー", "key", nfc_token=tok, box_id=box,
+                           box_position="03", property_name="大京本社ビル",
+                           items=[("12345", 1), ("12346", 1), ("10003", 3)])
     bid = svc.create_borrower(con, oid, "山田 太郎", "employee")
     con.close()
 
@@ -166,7 +167,7 @@ def run(base: str, tok: str, aid: str, bid: str) -> None:
     print("\n── NFCをかざす（ご指示9・15）")
     _, _, html = term.get(f"/t/{tok}")
     check("保管中なら貸出画面が出る", "保管中" in html and "貸出する" in html)
-    check("鍵番号3本がまとめて出る", "12345 / 12346 / 12347" in html)
+    check("鍵番号が本数つきでまとめて出る", "12345 / 12346 / 10003 ×3" in html, html.count("12345"))
     check("戻す場所が出る", "BOX-01" in html and "03" in html)
     _, _, html = term.get("/t/notregistered999")
     check("未登録タグはその場で登録できる", "未登録のNFCタグ" in html)
@@ -211,9 +212,11 @@ def run(base: str, tok: str, aid: str, bid: str) -> None:
     _, _, html = admin.get("/")
     check("ダッシュボードが開く", "ダッシュボード" in html)
     _, _, html = admin.get("/assets")
-    check("管理対象一覧に鍵番号が出る", "12345 / 12346 / 12347" in html)
-    _, _, html = admin.get(f"/assets?q=12346")
-    check("鍵番号で検索できる", "本社正面入口" in html)
+    check("管理対象一覧に鍵番号が出る", "12345 / 12346 / 10003 ×3" in html)
+    _, _, html = admin.get("/assets?q=12346")
+    check("鍵番号で検索できる", "1階エントランスキー" in html)
+    _, _, html = admin.get("/assets?q=%E5%A4%A7%E4%BA%AC%E6%9C%AC%E7%A4%BE%E3%83%93%E3%83%AB")
+    check("物件名称で検索できる", "1階エントランスキー" in html)
     _, _, html = admin.get(f"/assets/{aid}")
     check("詳細にタグURLが出る", f"{base}/t/{tok}" in html, "URLが違う")
     check("履歴が出る（ご指示12）", "貸出履歴" in html and "田中 一郎" in html)
@@ -225,10 +228,13 @@ def run(base: str, tok: str, aid: str, bid: str) -> None:
 
     print("\n── 登録（ご指示15）")
     _, loc, _ = term.post("/t/freshtag12345678/register",
-                          {"name": "テスト201号室", "item_numbers": "A-1, A-2", "asset_type": "key"})
+                          {"name": "テスト201号室", "property_name": "サンプル物件",
+                           "item_number": ["A-1", "A-2"], "item_qty": ["1", "1"],
+                           "asset_type": "key"})
     check("未登録タグから登録できる", msg_of(loc) == "登録しました", loc)
     _, _, html = term.get("/t/freshtag12345678")
     check("登録したタグで貸出画面が開く", "テスト201号室" in html and "A-1 / A-2" in html)
+    check("登録した物件名称が出る", "サンプル物件" in html)
 
     print("\n── タグ交換（ご指示5）")
     _, loc, _ = admin.post(f"/assets/{aid}/issue-tag")
@@ -236,6 +242,7 @@ def run(base: str, tok: str, aid: str, bid: str) -> None:
     _, _, html = admin.get(f"/assets/{aid}")
     check("交換後も履歴が残る", "田中 一郎" in html)
     check("交換後も鍵番号が残る", "12345" in html)
+    check("交換後も物件名称が残る", "大京本社ビル" in html)
     # 交換すると古いトークンはどの管理対象にも紐づかなくなる＝拾われても中身が見えない
     _, _, html = term.get(f"/t/{tok}")
     check("交換した古いタグは未登録扱いになる", "未登録のNFCタグ" in html)

@@ -1,0 +1,74 @@
+{# 管理対象の入力欄（新規登録・未登録タグからの登録・編集で共用）
+
+   実務の形に合わせてある（2026-08-17・利用者からの指摘）:
+       BOX 01 / 位置 03
+         物件名称  大京本社ビル
+         鍵の名称  1階エントランスキー
+         鍵番号    10001 ×1 / 10002 ×1   （番号違いが1本ずつ）
+                   10003 ×3              （同じ番号が3本）
+
+   鍵番号は「番号＋本数」の行を足していく形。同じ番号を何度も打たせない。
+#}
+
+<label for="property_name">物件名称</label>
+<input type="text" id="property_name" name="property_name" list="proplist"
+       autocomplete="off" placeholder="大京本社ビル"
+       value="{{ (asset.property_name if asset else '') or '' }}">
+{# すでに使われている物件名を候補に出して表記ゆれを抑える #}
+<datalist id="proplist">
+  {% for p in properties or [] %}<option value="{{ p }}">{% endfor %}
+</datalist>
+
+<label for="name">鍵の名称 <span style="color:#c0392b">*</span></label>
+<input type="text" id="name" name="name" required autocomplete="off"
+       placeholder="1階エントランスキー"
+       value="{{ (asset.name if asset else '') or '' }}">
+<p class="small muted" style="margin:.3rem 0 0">
+  何の鍵かが分かる名前。例: 1階エントランスキー / 機械室 / 201号室 / 駐車場ゲート
+</p>
+
+<label for="asset_type">種類</label>
+<select id="asset_type" name="asset_type">
+  {% for k, v in TYPE_LABEL.items() %}
+  <option value="{{ k }}" {% if asset and asset.asset_type == k %}selected{% endif %}>{{ v }}</option>
+  {% endfor %}
+</select>
+
+<label>鍵番号と本数</label>
+<div id="keyrows">
+  {% for i in items or [] %}
+  <div class="keyrow">
+    <input type="text" name="item_number" value="{{ i.item_number or '' }}"
+           placeholder="10001" autocomplete="off" inputmode="text">
+    <span class="x">×</span>
+    <input type="number" name="item_qty" value="{{ i.quantity or 1 }}" min="1" max="99">
+    <span class="u">本</span>
+    <button type="button" class="del" title="この行を消す">×</button>
+  </div>
+  {% endfor %}
+</div>
+<button type="button" class="btn ghost" id="addrow" style="margin-top:.5rem">＋ 鍵番号を追加</button>
+<p class="small muted" style="margin:.4rem 0 0">
+  <strong>鍵に刻印されている番号</strong>を入れてください（システムの採番ではありません）。<br>
+  同じ番号が3本なら「10003 ×3本」と1行で。番号が違うなら行を分けます。
+</p>
+
+<label for="box_id">保管ボックス</label>
+<select id="box_id" name="box_id">
+  <option value="">（未設定）</option>
+  {% for b in boxes %}
+  <option value="{{ b.id }}" {% if asset and asset.box_id == b.id %}selected{% endif %}>{{ b.code }} — {{ b.name }}</option>
+  {% endfor %}
+</select>
+{% if not boxes %}
+<p class="small muted" style="margin:.3rem 0 0">
+  ボックスがまだありません。<a href="/boxes">先にボックスを登録してください</a>
+</p>
+{% endif %}
+
+<label for="box_position">ボックス内の位置</label>
+<input type="text" id="box_position" name="box_position" autocomplete="off" placeholder="03"
+       value="{{ (asset.box_position if asset else '') or '' }}">
+
+<label for="note">メモ</label>
+<textarea id="note" name="note" placeholder="（任意）">{{ (asset.note if asset else '') or '' }}</textarea>

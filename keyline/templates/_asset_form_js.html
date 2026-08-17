@@ -1,0 +1,61 @@
+<script>
+// 鍵番号の行を足す／消す。
+// 空の行のまま送信されても services.parse_items が捨てるので、行数の管理はしていない。
+(function(){
+  const box = document.getElementById('keyrows');
+  const add = document.getElementById('addrow');
+  if (!box || !add) return;
+
+  function row(num, qty){
+    const d = document.createElement('div');
+    d.className = 'keyrow';
+    d.innerHTML =
+      '<input type="text" name="item_number" placeholder="10001" autocomplete="off">' +
+      '<span class="x">×</span>' +
+      '<input type="number" name="item_qty" value="1" min="1" max="99">' +
+      '<span class="u">本</span>' +
+      '<button type="button" class="del" title="この行を消す">×</button>';
+    if (num !== undefined) d.querySelector('[name=item_number]').value = num;
+    if (qty !== undefined) d.querySelector('[name=item_qty]').value = qty;
+    return d;
+  }
+
+  // 行が1つも無ければ空の行を1つ出しておく（何を入れる欄か分かるように）
+  if (!box.querySelector('.keyrow')) box.appendChild(row());
+
+  add.addEventListener('click', () => {
+    const d = row();
+    box.appendChild(d);
+    d.querySelector('[name=item_number]').focus();
+  });
+
+  box.addEventListener('click', e => {
+    if (!e.target.classList.contains('del')) return;
+    const rows = box.querySelectorAll('.keyrow');
+    if (rows.length <= 1) {           // 最後の1行は消さずに空にする
+      rows[0].querySelectorAll('input').forEach((i, n) => i.value = n ? '1' : '');
+      return;
+    }
+    e.target.closest('.keyrow').remove();
+  });
+
+  // 番号欄で Enter を押したら次の行を足す（60本を続けて打つときのため）
+  box.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.target.name !== 'item_number') return;
+    e.preventDefault();
+    const d = row();
+    box.appendChild(d);
+    d.querySelector('[name=item_number]').focus();
+  });
+
+  // '10003 x3' と番号欄に打たれたら、本数欄へ移し替える（打ちやすい方で入れてもらう）
+  box.addEventListener('change', e => {
+    if (e.target.name !== 'item_number') return;
+    const m = e.target.value.match(/^(.*?)\s*[xX×*]\s*(\d{1,2})$/);
+    if (!m) return;
+    e.target.value = m[1].trim();
+    const q = e.target.closest('.keyrow').querySelector('[name=item_qty]');
+    if (q) q.value = Math.min(Math.max(parseInt(m[2], 10) || 1, 1), 99);
+  });
+})();
+</script>

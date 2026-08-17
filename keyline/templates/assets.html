@@ -8,6 +8,11 @@
   <h1 style="margin:0">管理対象（{{ assets|length }}件）</h1>
   {% if user.role == 'admin' %}
   <a class="btn primary" href="/assets-new" style="margin-left:auto">＋ 新規登録</a>
+  {% else %}
+  {# ボタンを黙って消すと「無い」のか「権限が無い」のか分からない。理由を出す。 #}
+  <span class="small muted" style="margin-left:auto">
+    新規登録は管理者アカウントで行います（いまは {{ user.display_name }} でログイン中）
+  </span>
   {% endif %}
 </div>
 
@@ -37,17 +42,21 @@
   <div class="scroll">
   <table>
     <thead><tr>
-      <th>管理対象</th><th>鍵番号</th><th>ボックス</th><th>位置</th>
+      <th>物件 / 鍵</th><th>鍵番号</th><th>ボックス</th><th>位置</th>
       <th>状態</th><th>利用者</th><th>返却予定</th><th>タグ</th>
     </tr></thead>
     <tbody>
     {% for a in assets %}
     <tr class="{% if a.is_overdue %}overdue{% endif %}">
       <td>
+        {% if a.property_name %}<span class="prop">{{ a.property_name }}</span>{% endif %}
         <a href="/assets/{{ a.id }}"><strong>{{ a.name }}</strong></a>
         {% if a.asset_type != 'key' %}<span class="badge b-kind">{{ TYPE_LABEL.get(a.asset_type, a.asset_type) }}</span>{% endif %}
       </td>
-      <td class="num small">{{ a.item_numbers or '-' }}</td>
+      <td class="num small">
+        {{ a.item_numbers or '-' }}
+        {% if a.total_keys > 1 %}<br><span class="muted">計{{ a.total_keys }}本</span>{% endif %}
+      </td>
       <td class="small">{{ a.box_code or '-' }}</td>
       <td class="num small">{{ a.box_position or '-' }}</td>
       <td>

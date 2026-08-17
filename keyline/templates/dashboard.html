@@ -21,13 +21,16 @@
   <div class="scroll">
   <table>
     <thead><tr>
-      <th>管理対象</th><th>鍵番号</th><th>利用者</th><th>貸出日時</th>
+      <th>物件 / 鍵</th><th>鍵番号</th><th>利用者</th><th>貸出日時</th>
       <th>経過</th><th>返却予定</th><th>戻す場所</th><th></th>
     </tr></thead>
     <tbody>
     {% for a in out %}
     <tr class="{% if a.is_overdue %}overdue{% endif %}">
-      <td><a href="/assets/{{ a.id }}"><strong>{{ a.name }}</strong></a></td>
+      <td>
+        {% if a.property_name %}<span class="prop">{{ a.property_name }}</span>{% endif %}
+        <a href="/assets/{{ a.id }}"><strong>{{ a.name }}</strong></a>
+      </td>
       <td class="num small">{{ a.item_numbers or '-' }}</td>
       <td>
         {{ a.borrower_name }}
@@ -70,7 +73,10 @@
     {% for l in recent %}
     <tr>
       <td class="num small">{{ l.checkout_at | dt_short }}</td>
-      <td><a href="/assets/{{ l.asset_id }}">{{ l.asset_name }}</a></td>
+      <td>
+        {% if l.asset_property %}<span class="prop">{{ l.asset_property }}</span>{% endif %}
+        <a href="/assets/{{ l.asset_id }}">{{ l.asset_name }}</a>
+      </td>
       <td>{{ l.borrower_name }}{% if l.borrower_company %} <span class="muted small">/ {{ l.borrower_company }}</span>{% endif %}</td>
       <td class="small">
         {% if l.returned_at %}

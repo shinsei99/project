@@ -116,6 +116,18 @@ td.num{font-variant-numeric:tabular-nums}
 .asset-head .keys{font-size:1.05rem;color:var(--navy-2);font-variant-numeric:tabular-nums;margin-top:.3rem}
 .asset-head .where{color:var(--muted);margin-top:.35rem}
 
+/* 鍵番号＋本数の入力行。同じ番号を何度も打たせないための形 */
+.keyrow{display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem}
+.keyrow input[type=text]{flex:1;min-width:0}
+.keyrow input[type=number]{width:4.2rem;text-align:center}
+.keyrow .x,.keyrow .u{color:var(--muted);font-size:.9rem;white-space:nowrap}
+.keyrow .del{border:1px solid var(--line);background:#fff;color:var(--muted);
+  border-radius:8px;width:2.1rem;height:2.1rem;cursor:pointer;font-size:1rem;flex:none}
+.keyrow .del:hover{border-color:var(--danger);color:var(--danger)}
+
+/* 一覧の物件名称（鍵の名称より少し小さく、上に添える） */
+.prop{display:block;font-size:.8rem;color:var(--muted);font-weight:600}
+
 dl.kv{display:grid;grid-template-columns:7.5rem 1fr;gap:.35rem .8rem;margin:0}
 dl.kv dt{color:var(--muted);font-size:.85rem}
 dl.kv dd{margin:0}
@@ -148,7 +160,10 @@ code.token{background:#f0f2f7;padding:.2rem .45rem;border-radius:6px;
       <a href="/boxes">ボックス</a>
       <a href="/borrowers">貸出先</a>
       <a href="/history">履歴</a>
-      <span class="small" style="color:#8d99b8">{{ user.display_name }}</span>
+      {# 「誰で入っているか」が見えないと、権限で消えたボタンを探して迷う #}
+      <span class="small" style="color:#c9d2e8">
+        {{ user.display_name }}<span style="color:#8d99b8">（{{ '管理者' if user.role == 'admin' else '鍵管理端末' }}）</span>
+      </span>
       <form method="post" action="/logout"><button class="link" type="submit">ログアウト</button></form>
     </nav>
   </header>

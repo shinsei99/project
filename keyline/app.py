@@ -12,7 +12,7 @@ import asyncio
 import json
 import sqlite3
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import FastAPI, Form, Request, UploadFile, File
 from fastapi.responses import (HTMLResponse, JSONResponse, RedirectResponse,
@@ -204,7 +204,8 @@ def tag_view(request: Request, token: str):
         if asset is None:
             # 未登録のNFCタグ（ご指示15）。その場で登録に進める
             return render(request, "tag_unknown.html", user, token=token,
-                          boxes=svc.list_boxes(con, org))
+                          boxes=svc.list_boxes(con, org),
+                          properties=svc.property_names(con, org))
 
         if asset["status"] == "checked_out":
             return render(request, "tag_return.html", user, asset=asset,
@@ -288,8 +289,11 @@ def tag_return(request: Request, token: str):
 @app.post("/t/{token}/register")
 def tag_register(request: Request, token: str,
                  name: str = Form(...), asset_type: str = Form("key"),
+                 property_name: Optional[str] = Form(None),
                  box_id: Optional[str] = Form(None),
                  box_position: Optional[str] = Form(None),
+                 item_number: List[str] = Form(default=[]),
+                 item_qty: List[str] = Form(default=[]),
                  item_numbers: str = Form(""),
                  note: Optional[str] = Form(None)):
     """未登録タグをその場で管理対象として登録する（ご指示15）。"""
@@ -301,7 +305,8 @@ def tag_register(request: Request, token: str,
         try:
             svc.create_asset(con, user["organization_id"], name, asset_type,
                              nfc_token=token, box_id=box_id, box_position=box_position,
-                             item_numbers=_split_numbers(item_numbers), note=note)
+                             items=_items(item_number, item_qty, item_numbers),
+                             note=note, property_name=property_name)
         except (Conflict, svc.InvalidInput) as e:
             return back(f"/t/{token}", err=str(e))
         bus.notify()
@@ -310,10 +315,16 @@ def tag_register(request: Request, token: str,
         con.close()
 
 
-def _split_numbers(raw: str) -> list:
-    """『12345, 12346 12347』のような入力を配列にする。区切りは何でも受ける。"""
-    import re
-    return [s for s in re.split(r"[,\s、/・]+", (raw or "").strip()) if s]
+def _items(numbers: List[str], quantities: List[str], raw_text: str = "") -> list:
+    """画面から来た鍵番号を `[(番号, 本数), …]` にする。
+
+    入力欄（番号＋本数の行）を優先し、無ければ1行テキストとして読む。
+    現場で素早く打ちたいときは『10001, 10003 x3』のような書き方も通る。
+    """
+    items = svc.parse_items(numbers, quantities)
+    if items:
+        return items
+    return svc.split_item_text(raw_text)
 
 
 # ---------------------------------------------------------------------------
@@ -395,6 +406,7 @@ def asset_detail(request: Request, asset_id: str):
                       items=svc.list_items(con, asset_id),
                       logs=svc.history(con, org, asset_id=asset_id),
                       boxes=svc.list_boxes(con, org),
+                      properties=svc.property_names(con, org),
                       # ★アクセス中のURLではなくLANのIPを使う。localhostで開いている
                       #   管理者が localhost 入りのURLをタグに書く事故を防ぐ（services参照）
                       base_url=svc.lan_base_url())
@@ -405,8 +417,11 @@ def asset_detail(request: Request, asset_id: str):
 @app.post("/assets/{asset_id}/edit")
 def asset_edit(request: Request, asset_id: str,
                name: str = Form(...), asset_type: str = Form("key"),
+               property_name: Optional[str] = Form(None),
                box_id: Optional[str] = Form(None),
                box_position: Optional[str] = Form(None),
+               item_number: List[str] = Form(default=[]),
+               item_qty: List[str] = Form(default=[]),
                item_numbers: str = Form(""), note: Optional[str] = Form(None),
                status: Optional[str] = Form(None)):
     con = get_con()
@@ -418,7 +433,8 @@ def asset_edit(request: Request, asset_id: str,
             return back(f"/assets/{asset_id}", err="管理者のみ編集できます")
         try:
             svc.update_asset(con, user["organization_id"], asset_id, name, asset_type,
-                             box_id, box_position, _split_numbers(item_numbers), note, status)
+                             box_id, box_position, _items(item_number, item_qty, item_numbers),
+                             note, status, property_name=property_name)
         except (Conflict, svc.NotFound, svc.InvalidInput) as e:
             return back(f"/assets/{asset_id}", err=str(e))
         bus.notify()
@@ -457,14 +473,18 @@ def asset_new_form(request: Request):
         if user["role"] != "admin":
             return back("/assets", err="管理者のみ登録できます")
         return render(request, "asset_new.html", user,
-                      boxes=svc.list_boxes(con, user["organization_id"]))
+                      boxes=svc.list_boxes(con, user["organization_id"]),
+                      properties=svc.property_names(con, user["organization_id"]))
     finally:
         con.close()
 
 
 @app.post("/assets-new")
 def asset_new(request: Request, name: str = Form(...), asset_type: str = Form("key"),
+              property_name: Optional[str] = Form(None),
               box_id: Optional[str] = Form(None), box_position: Optional[str] = Form(None),
+              item_number: List[str] = Form(default=[]),
+              item_qty: List[str] = Form(default=[]),
               item_numbers: str = Form(""), note: Optional[str] = Form(None),
               issue_tag: Optional[str] = Form(None)):
     con = get_con()
@@ -478,7 +498,8 @@ def asset_new(request: Request, name: str = Form(...), asset_type: str = Form("k
             token = svc.issue_nfc_token(con) if issue_tag else None
             aid = svc.create_asset(con, user["organization_id"], name, asset_type,
                                    nfc_token=token, box_id=box_id, box_position=box_position,
-                                   item_numbers=_split_numbers(item_numbers), note=note)
+                                   items=_items(item_number, item_qty, item_numbers),
+                                   note=note, property_name=property_name)
         except (Conflict, svc.InvalidInput) as e:
             return back("/assets-new", err=str(e))
         bus.notify()

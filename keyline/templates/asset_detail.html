@@ -5,6 +5,7 @@
 <p class="small"><a href="/assets">← 管理対象一覧</a></p>
 
 <div class="card">
+  {% if asset.property_name %}<div class="prop">{{ asset.property_name }}</div>{% endif %}
   <div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap">
     <h1 style="margin:0">{{ asset.name }}</h1>
     {% if asset.status == 'in_stock' %}<span class="badge b-in">保管中</span>
@@ -20,9 +21,9 @@
     <dd>
       {% if items %}
         {% for i in items %}
-          <span class="num">{{ i.item_number or '（番号なし）' }}</span>{% if i.label %} <span class="muted small">{{ i.label }}</span>{% endif %}{% if not loop.last %} / {% endif %}
+          <span class="num">{{ i.item_number or '（番号なし）' }}</span>{% if i.quantity > 1 %} <strong>×{{ i.quantity }}</strong>{% endif %}{% if not loop.last %} / {% endif %}
         {% endfor %}
-        <span class="muted small">（{{ items|length }}本）</span>
+        <span class="muted small">（合計 {{ asset.total_keys }}本）</span>
       {% else %}<span class="muted">未登録</span>{% endif %}
     </dd>
     <dt>保管場所</dt>
@@ -91,30 +92,7 @@
 <details class="card">
   <summary style="cursor:pointer;font-weight:700">この管理対象を編集する</summary>
   <form method="post" action="/assets/{{ asset.id }}/edit">
-    <label for="name">名前</label>
-    <input type="text" id="name" name="name" value="{{ asset.name }}" required>
-
-    <label for="asset_type">種類</label>
-    <select id="asset_type" name="asset_type">
-      {% for k, v in TYPE_LABEL.items() %}
-      <option value="{{ k }}" {% if asset.asset_type == k %}selected{% endif %}>{{ v }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="item_numbers">鍵番号（カンマ・スペース区切り）</label>
-    <input type="text" id="item_numbers" name="item_numbers"
-           value="{% for i in items %}{{ i.item_number }}{% if not loop.last %}, {% endif %}{% endfor %}">
-
-    <label for="box_id">保管ボックス</label>
-    <select id="box_id" name="box_id">
-      <option value="">（未設定）</option>
-      {% for b in boxes %}
-      <option value="{{ b.id }}" {% if asset.box_id == b.id %}selected{% endif %}>{{ b.code }} — {{ b.name }}</option>
-      {% endfor %}
-    </select>
-
-    <label for="box_position">ボックス内の位置</label>
-    <input type="text" id="box_position" name="box_position" value="{{ asset.box_position or '' }}">
+    {% include "_asset_form.html" %}
 
     <label for="status">状態</label>
     <select id="status" name="status" {% if asset.status == 'checked_out' %}disabled{% endif %}>
@@ -127,9 +105,6 @@
     {% if asset.status == 'checked_out' %}
     <p class="small muted" style="margin:.3rem 0 0">貸出中は状態を変えられません。先に返却してください。</p>
     {% endif %}
-
-    <label for="note">メモ</label>
-    <textarea id="note" name="note">{{ asset.note or '' }}</textarea>
 
     <button class="btn primary" style="margin-top:1rem">保存する</button>
   </form>
@@ -176,6 +151,7 @@
 {% endblock %}
 
 {% block script %}
+{% include "_asset_form_js.html" %}
 <script>
 function copyUrl(){
   const t = document.getElementById('tagurl').textContent.trim();

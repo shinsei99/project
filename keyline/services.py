@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import re
 import secrets
 import sqlite3
 from typing import Any, Optional
@@ -131,11 +132,12 @@ def list_assets(con: sqlite3.Connection, org_id: str, status: Optional[str] = No
         args.append(status)
     if q:
         # 名前・鍵番号・ボックス・借主のどれでも引っかかるようにする
-        sql.append("""AND (name LIKE ? OR IFNULL(item_numbers,'') LIKE ?
+        sql.append("""AND (full_name LIKE ? OR IFNULL(item_numbers,'') LIKE ?
                           OR IFNULL(box_code,'') LIKE ? OR IFNULL(borrower_name,'') LIKE ?
-                          OR IFNULL(borrower_company,'') LIKE ?)""")
-        args += [f"%{q}%"] * 5
-    sql.append("ORDER BY is_overdue DESC, status = 'checked_out' DESC, due_at ASC, name ASC")
+                          OR IFNULL(borrower_company,'') LIKE ? OR IFNULL(box_position,'') LIKE ?)""")
+        args += [f"%{q}%"] * 6
+    sql.append("ORDER BY is_overdue DESC, status = 'checked_out' DESC, due_at ASC,"
+               " IFNULL(property_name, ''), name")
     return con.execute(" ".join(sql), args).fetchall()
 
 
@@ -186,7 +188,8 @@ def history(con: sqlite3.Connection, org_id: str, asset_id: Optional[str] = None
     ★ORDER BY に rowid を必ず添える。checkout_at だけでは同一時刻の順序が決まらない
       （README「7. 時刻だけでは履歴の全順序を保証できない」参照）。
     """
-    sql = ["""SELECT c.*, a.name AS asset_name, b.name AS borrower_name,
+    sql = ["""SELECT c.*, a.name AS asset_name, a.property_name AS asset_property,
+                     b.name AS borrower_name,
                      b.company AS borrower_company, b.kind AS borrower_kind
                 FROM checkout_logs c
                 JOIN assets a    ON a.id = c.asset_id
@@ -352,11 +355,17 @@ def return_asset(con: sqlite3.Connection, org_id: str, asset_id: str,
 def create_asset(con: sqlite3.Connection, org_id: str, name: str,
                  asset_type: str = "key", nfc_token: Optional[str] = None,
                  box_id: Optional[str] = None, box_position: Optional[str] = None,
-                 item_numbers: Optional[list] = None, note: Optional[str] = None) -> str:
-    """管理対象を作る。未登録タグからその場で登録する導線もここを通る。"""
+                 items: Optional[list] = None, note: Optional[str] = None,
+                 property_name: Optional[str] = None) -> str:
+    """管理対象を作る。未登録タグからその場で登録する導線もここを通る。
+
+    name は「1階エントランスキー」のような**鍵の名称**、
+    property_name は「大京本社ビル」のような**物件名称**。
+    箱には複数物件の鍵が同居するので、この2つは分けて持つ。
+    """
     name = (name or "").strip()
     if not name:
-        raise InvalidInput("管理対象の名前を入力してください")
+        raise InvalidInput("鍵の名称を入力してください")
 
     con.execute("BEGIN IMMEDIATE")
     try:
@@ -368,14 +377,14 @@ def create_asset(con: sqlite3.Connection, org_id: str, name: str,
         aid = dbmod.new_id()
         con.execute(
             """INSERT INTO assets (id, organization_id, name, asset_type, nfc_identifier,
-                                   nfc_source, box_id, box_position, note)
-               VALUES (?,?,?,?,?,?,?,?,?)""",
+                                   nfc_source, box_id, box_position, note, property_name)
+               VALUES (?,?,?,?,?,?,?,?,?,?)""",
             (aid, org_id, name, asset_type, nfc_token,
              "written_token" if nfc_token else None,
              box_id or None, (box_position or "").strip() or None,
-             (note or "").strip() or None),
+             (note or "").strip() or None, (property_name or "").strip() or None),
         )
-        _replace_items(con, org_id, aid, item_numbers or [])
+        _replace_items(con, org_id, aid, items or [])
         con.execute("COMMIT")
         return aid
     except Exception:
@@ -385,8 +394,9 @@ def create_asset(con: sqlite3.Connection, org_id: str, name: str,
 
 def update_asset(con: sqlite3.Connection, org_id: str, asset_id: str, name: str,
                  asset_type: str = "key", box_id: Optional[str] = None,
-                 box_position: Optional[str] = None, item_numbers: Optional[list] = None,
-                 note: Optional[str] = None, status: Optional[str] = None) -> None:
+                 box_position: Optional[str] = None, items: Optional[list] = None,
+                 note: Optional[str] = None, status: Optional[str] = None,
+                 property_name: Optional[str] = None) -> None:
     con.execute("BEGIN IMMEDIATE")
     try:
         cur = con.execute("SELECT status FROM assets WHERE id = ? AND organization_id = ?",
@@ -402,38 +412,90 @@ def update_asset(con: sqlite3.Connection, org_id: str, asset_id: str, name: str,
 
         con.execute(
             """UPDATE assets SET name = ?, asset_type = ?, box_id = ?, box_position = ?,
-                                 note = ?, status = COALESCE(?, status)
+                                 note = ?, status = COALESCE(?, status), property_name = ?
                 WHERE id = ? AND organization_id = ?""",
             ((name or "").strip(), asset_type, box_id or None,
              (box_position or "").strip() or None, (note or "").strip() or None,
-             status, asset_id, org_id),
+             status, (property_name or "").strip() or None, asset_id, org_id),
         )
-        if item_numbers is not None:
-            _replace_items(con, org_id, asset_id, item_numbers)
+        if items is not None:
+            _replace_items(con, org_id, asset_id, items)
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")
         raise
 
 
+def parse_items(numbers: list, quantities: Optional[list] = None) -> list:
+    """画面から来た鍵番号と本数を `[(番号, 本数), …]` に整える。
+
+    受け付ける形は2つ:
+      * 番号の配列＋本数の配列（登録画面の入力欄。「10003」「3」）
+      * `'10001, 10002 x2'` のような1行テキスト（貼り付け・現場での素早い入力）
+
+    本数の書き方は `x` `×` `*` のどれでもよい。現場で打ちやすい方で入れてもらう。
+    """
+    out: list = []
+    for i, raw in enumerate(numbers or []):
+        num = (raw or "").strip()
+        if not num:
+            continue
+        qty = None
+        # 番号の中に '10003 x3' と書かれていたら、そちらを優先して読む
+        m = re.match(r"^(.*?)\s*[xX×*]\s*(\d{1,2})$", num)
+        if m:
+            num, qty = m.group(1).strip(), int(m.group(2))
+        if qty is None and quantities and i < len(quantities):
+            try:
+                qty = int(str(quantities[i]).strip() or 1)
+            except ValueError:
+                qty = 1
+        out.append((num, min(max(qty or 1, 1), 99)))
+    return out
+
+
+def split_item_text(raw: str) -> list:
+    """『10001, 10002 x2』のような1行を `[(番号, 本数), …]` にする。"""
+    parts = [s for s in re.split(r"[,\s、/・]+", (raw or "").strip()) if s]
+    # 'x3' が独立して切れてしまった場合は直前の番号にくっつける
+    merged: list = []
+    for p in parts:
+        if re.fullmatch(r"[xX×*]\s*\d{1,2}", p) and merged:
+            merged[-1] = merged[-1] + p
+        else:
+            merged.append(p)
+    return parse_items(merged)
+
+
 def _replace_items(con: sqlite3.Connection, org_id: str, asset_id: str,
-                   item_numbers: list) -> None:
-    """構成品を入れ替える。**呼び出し側がトランザクションを張っている前提。**
+                   items: list) -> None:
+    """構成品を入れ替える。`items` は `[(番号, 本数), …]`。
+
+    **呼び出し側がトランザクションを張っている前提。**
 
     差分更新ではなく全消し＋入れ直しにしている。構成品には履歴が紐づいておらず、
     行のIDを保つ意味がないため。差分計算のバグで鍵が消える方が怖い。
     """
     con.execute("DELETE FROM asset_items WHERE asset_id = ?", (asset_id,))
-    for n, num in enumerate(item_numbers):
+    for n, item in enumerate(items):
+        num, qty = item if isinstance(item, (tuple, list)) else (item, 1)
         num = (num or "").strip()
         if not num:
             continue
         con.execute(
             """INSERT INTO asset_items (id, organization_id, asset_id, item_type,
-                                        item_number, sort_order)
-               VALUES (?,?,?,'key',?,?)""",
-            (dbmod.new_id(), org_id, asset_id, num, n),
+                                        item_number, quantity, sort_order)
+               VALUES (?,?,?,'key',?,?,?)""",
+            (dbmod.new_id(), org_id, asset_id, num, int(qty), n),
         )
+
+
+def property_names(con: sqlite3.Connection, org_id: str) -> list:
+    """すでに使われている物件名称の一覧。入力欄の候補に出して表記ゆれを抑える。"""
+    return [r[0] for r in con.execute(
+        """SELECT DISTINCT property_name FROM assets
+            WHERE organization_id = ? AND property_name IS NOT NULL AND property_name <> ''
+            ORDER BY property_name""", (org_id,))]
 
 
 def attach_tag(con: sqlite3.Connection, org_id: str, asset_id: str, token: str) -> None:

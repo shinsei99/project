@@ -14,8 +14,9 @@
     {% else %}
       <span class="badge b-out">貸出中</span>
     {% endif %}
+    {% if asset.property_name %}<div class="prop" style="margin-top:.35rem">{{ asset.property_name }}</div>{% endif %}
     <div class="nm">{{ asset.name }}</div>
-    {% if asset.item_numbers %}<div class="keys">{{ asset.item_numbers }}</div>{% endif %}
+    {% if asset.item_numbers %}<div class="keys">{{ asset.item_numbers }}{% if asset.total_keys > 1 %}<span class="muted" style="font-size:.85rem"> 計{{ asset.total_keys }}本</span>{% endif %}</div>{% endif %}
   </div>
 
   <dl class="kv">
@@ -52,6 +53,7 @@
 </form>
 
 <p class="small muted" style="text-align:center;margin-top:1rem">
+  {% if asset.total_keys > 1 %}<strong>{{ asset.total_keys }}本すべて</strong>揃っているか確かめて、{% endif %}
   鍵を {% if asset.box_code %}{{ asset.box_code }}{% if asset.box_position %} の {{ asset.box_position }} 番{% endif %}{% else %}所定の位置{% endif %}
   に戻してから押してください。
 </p>

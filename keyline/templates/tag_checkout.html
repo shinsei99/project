@@ -10,8 +10,9 @@
 <div class="card">
   <div class="asset-head">
     <span class="badge b-in">保管中</span>
+    {% if asset.property_name %}<div class="prop" style="margin-top:.35rem">{{ asset.property_name }}</div>{% endif %}
     <div class="nm">{{ asset.name }}</div>
-    {% if asset.item_numbers %}<div class="keys">{{ asset.item_numbers }}</div>{% endif %}
+    {% if asset.item_numbers %}<div class="keys">{{ asset.item_numbers }}{% if asset.total_keys > 1 %}<span class="muted" style="font-size:.85rem"> 計{{ asset.total_keys }}本</span>{% endif %}</div>{% endif %}
     <div class="where">
       {% if asset.box_code %}{{ asset.box_code }}{% if asset.box_position %} — 位置 {{ asset.box_position }}{% endif %}
       {% else %}保管場所は未設定{% endif %}

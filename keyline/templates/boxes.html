@@ -50,6 +50,10 @@
     </div>
   </form>
 </div>
+{% else %}
+<p class="small muted">
+  ボックスの追加は管理者アカウントで行います（いまは {{ user.display_name }} でログイン中）。
+</p>
 {% endif %}
 
 {% endblock %}
