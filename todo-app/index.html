@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TODOアプリ</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <h1>TODOアプリ</h1>
+    <form id="add-form" class="add-form">
+      <input id="todo-input" type="text" placeholder="やることを入力…" autocomplete="off" required>
+      <button type="submit">追加</button>
+    </form>
+    <ul id="todo-list" class="todo-list"></ul>
+    <p id="empty-message" class="empty-message">TODOはまだありません</p>
+  </main>
+  <script src="script.js"></script>
+</body>
+</html>

@@ -8,6 +8,10 @@
 !SESSION_LOG.md
 !HANDOFF.md
 !ios-build-guard.sh
+# 共通Visual Agent（Claude Codeがブラウザを見て操作する仕組み）。
+# .mcp.json が定義の実体、VISUAL_AGENT.md が使い方。**秘密情報は含まない**ので他PCへも配る
+!.mcp.json
+!VISUAL_AGENT.md
 # PCまたぎの整備ツール（2026-08-16にサブPCで作ったが、この許可行が無く
 # コミットされていなかった。commitメッセージには載っているのに実体が来ない）
 !SETUP.md
@@ -306,6 +310,10 @@ ai-tools-lab/.env*
 # Zenn の記事（GitHub連携がリポジトリ直下の articles/ を見る）
 !articles/
 !articles/**
+
+# TODOアプリ（todo-app）… 静的HTML/CSS/JSのみ、機密なし
+!todo-app/
+!todo-app/**
 
 # ── 依存関係・ログはPCごとに作るもの。**全アプリまとめて除外**
 # （以前はアプリごとに1行ずつ書いていたため、新しく作った .venv が載りかけた）
