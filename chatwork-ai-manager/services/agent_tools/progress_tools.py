@@ -5,7 +5,7 @@ kind:
   overdue     … 期限超過で未完了                              … 汎用
   stale       … 一定日数(既定3日)動きがない未完了              … 汎用
   carryover   … 前日以前が期限/前日から未完了のまま繰り越し    … 翌10:00向け
-  today_open  … 本日期限＋未着手＋停滞（終業前確認）           … 18:00向け
+  today_open  … 本日期限＋未着手＋期限未設定全件（終業前確認）  … 18:00向け
   due_reminder… 期限のN日前(既定2日)で未完了                   … 期限リマインド向け
 """
 import datetime
@@ -39,7 +39,8 @@ def tasks_needing_attention(kind="overdue", limit=50):
         rows = query(f"SELECT * FROM tasks WHERE due_date IS NOT NULL AND due_date <= ? "
                      f"AND status IN ({ph}) ORDER BY due_date LIMIT ?", (today, *params, limit))
     elif kind == "today_open":
-        rows = query(f"SELECT * FROM tasks WHERE (due_date = ? OR status='未着手') "
+        # 本日期限 or 未着手 or 期限未設定（期限未設定は毎日18時の確認対象に常に含める）
+        rows = query(f"SELECT * FROM tasks WHERE (due_date = ? OR status='未着手' OR due_date IS NULL) "
                      f"AND status IN ({ph}) ORDER BY (due_date IS NULL), due_date LIMIT ?",
                      (today, *params, limit))
     elif kind == "carryover":
