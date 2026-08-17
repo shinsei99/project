@@ -70,6 +70,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ---
 
+## ★ PCの役割分担（2026-08-17確定・全アプリ共通）
+
+**2台とも同じリポジトリを持つが、役割は違う。**
+
+| | メインPC（Mac mini） | サブPC |
+|---|---|---|
+| launchd 常時起動 | **する**。「使う目的」で立ち上げっぱなし | **しない**。作成・改良のときだけ `./run.sh` で都度起動 |
+| 社内LAN共有 | **する**（不動産カテゴリの完成済み） | **しない** |
+| chatwork-ai-manager の worker / LINE / ngrok | **ここだけ**（二重起動禁止） | 管理画面8540のみ可 |
+
+- サブPCで起動するのは**動作確認のため**であって、業務で使うためではない。
+  常駐に登録しない（`launchctl load` しない）。個人情報を含む画面を二重にLANへ出さない
+- したがって「LANに出ているか」の点検（`lsof -nP -iTCP:<port> -sTCP:LISTEN`）は
+  **メインPCの表が正**。サブPCで待ち受けが残っていたら止める側
+
+**run.sh を直しても常駐には効かない。** plistが `run.sh` を呼ばず
+`/usr/bin/python3 -m streamlit run app.py …` を直接叩いている例がある（quote-generator）。
+バインド先やPythonを変えたら、**`launchctl kickstart -k gui/$(id -u)/<label>` で入れ替えて
+`lsof` で見る**まででワンセット（2026-08-17に 8526/8527 がこれでLAN公開のままだった）。
+
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
 **カテゴリ:** 不動産 / ツール / ゲーム の3分類（全50本）※不動産30・ツール14・ゲーム6  
@@ -80,10 +100,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
 | 手書き検針記録 | handwriting-ocr | — | 開発中 | — |
-| 見積書自動生成ツール | quote-generator | 8503 | ✅ | — |
+| 見積書自動生成ツール | quote-generator | 8503 | ✅ | **別リポジトリ**（下記） |
 | 物件管理案内文ジェネレーター | property-notice-generator | 8504 | ✅ | — |
 | マイソクコンバーター | maisoku-converter | 8505 | ✅ | — |
-| 不動産写真AI | photo-inpainter | 8506 | ✅ | — |
+| 不動産写真AI | photo-inpainter | 8506 | ⚠️メインPC未設置 | — |
 | 原状回復費用自動精算 | restoration-calculator | 8508 | ✅ | — |
 | AI不動産価格査定 | realestate-valuation | 8509 | ✅ | — |
 | 決済案内書自動作成 | settlement-creator | 8510 | ✅ | — |
@@ -143,6 +163,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### 業務マニュアル（Web）補足 ※不動産カテゴリに計上
 
 - **大京商事 業務マニュアル（Web）** … 自己完結HTML一枚（22マニュアル）。所在: `gyomu-manual/業務マニュアル.html`（2026-07-10作成）。生成スクリプト: `gyomu-manual/generate.py`（`python3 generate.py` で再生成可）。port無し・ブラウザで直接開く運用。
+
+### quote-generator（見積書自動生成ツール）補足 ※不動産・port 8503
+
+- **このアプリだけ独立したリポジトリ**: `github.com/shinsei99/quote-generator`（public）。
+  直下リポジトリの `git pull` では**来ない**ので、他PCでは別途 `git clone` する。
+  親で追跡しようとすると embedded repository になり中身が渡らないため、`.gitignore` で除外したまま。
+- launchd（`com.shinsei.quote-generator`）は **`run.sh` を経由せず** plist から
+  `/usr/bin/python3 -m streamlit run app.py` を直接叩く。`run.sh` は手動起動・他PC用（venvを作る）。
+- `data/issuers.csv`（発行者マスタ＝社名・担当者名）と `logs/` は先方リポジトリでも gitignore。
+- 2026-08-17: メインPCの作業コピーが 2コミット遅れ、同じ内容が未コミットのまま残っていた
+  （＝**すでにpush済みの内容だった**）。fast-forward で解消。
 
 ### parking-map（駐車場配置図ビューア）補足
 
@@ -243,7 +274,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **経緯（重要・同じ失敗を繰り返さないこと）**: 旧実装は `simple_lama_inpainting` を optional import していたが、これが **requirements.txt に一度も入っていなかった**ため `inpaint_lama()` は常に ImportError → `cv2.inpaint`（TELEA）へ暗黙フォールバックしていた。OpenCVは電線跡が茶色く滲むため「使えない」と判断され開発が止まっていた。**エンジン未導入が原因であってアルゴリズム選定の問題ではなかった。**
 - モデルは初回実行時に `~/.cache/torch/hub/checkpoints` へ自動DL（`big-lama.pt` 約200MB / `mobile_sam.pt` 約40MB）。実測: 1600×1067 の電線消去が **CPUで約4秒**（長辺800px超は `HDStrategy.CROP` でマスク周辺だけ切り出して推論するため、原寸のまま高速かつマスク外は無劣化）。SAMは同一画像なら埋め込みを再利用し2回目以降 0.1秒。
 - **SAMモデルは切替式**（mobile_sam / vit_b / vit_l / vit_h をサイドバーで選択）。既定は `default_sam_model()` が **MPSあり(Apple Silicon)→vit_b / なし(Intel)→mobile_sam** を自動判定。環境変数 `SAM_MODEL` で上書き可。**実測での注意（再検証不要）**: 軽バンを1クリックした場合 mobile_sam=選択14.2%/1.8s だが輪郭がギザギザで車体外にはみ出す、vit_b=選択5.6%/24.1s でスライドドア1枚を境界正確に選択。**大きいモデル＝広く取れる、ではない**。「意味のまとまり」で正確に切る方向に効くので、車1台なら追加クリック前提。
-- `.venv`（1.3GB）と `samples/`（実物件の写真を含む）は**gitignore**。launchd登録済み（`com.shinsei.photo-inpainter`）・`run.sh` は不動産カテゴリのため `0.0.0.0` バインド。
+- `.venv`（1.3GB）と `samples/`（実物件の写真を含む）は**gitignore**。`run.sh` は不動産カテゴリのため `0.0.0.0` バインド。
+- **⚠️ 2026-08-17時点、メインPCには設置されていない**（ソース4本のみ・`.venv` 無し・plist 無し・8506は待受なし）。
+  開発したのはサブPC側。**役割分担では「使うもの＝メインPCで常時起動」なので、メインPCで
+  `./run.sh`（初回に .venv 作成＋モデル約240MBのDL）→ launchd 登録が要る。** 未実施。
 
 ### theta-viewer FTP APIサーバー port修正（2026-07-14）
 

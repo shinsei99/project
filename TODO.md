@@ -41,7 +41,23 @@
 > rm -rf "$D/pokecard-dex-handoff"                    # 確認できてから実行（3.7GB空く）
 >
 > ls -d "$D"/*handoff* 2>/dev/null                    # ← 何も出なければ片付け完了
+>
+> # ④ サブPCの常駐2本を止める（2026-08-17に方針確定）
+> #    メインPC＝「使う目的」で常時起動し、必要なものを社内共有する担当。
+> #    サブPC＝アプリの作成・改良のときだけ起動する。常駐は持たない。
+> launchctl unload ~/Library/LaunchAgents/com.shinsei.file-finder.plist
+> launchctl unload ~/Library/LaunchAgents/com.shinsei.owner-payout-tracker.plist
+> lsof -nP -iTCP:8519 -iTCP:8520 -sTCP:LISTEN   # ← 何も出なければ完了
+>
+> # ⑤ 見積書自動生成ツールは**別リポジトリ**。親の git pull では来ないので clone する
+> [ -d ~/quote-generator ] || git clone https://github.com/shinsei99/quote-generator.git ~/quote-generator
+> cd ~/quote-generator && git pull && cd ~
+> #   data/issuers.csv（発行者マスタ）は先方も .gitignore。②の rsync で入る
 > ```
+>
+> ④の補足: 開発中に画面が要るときは `cd <アプリ> && ./run.sh` で都度立ち上げる（常駐に戻さない）。
+> 止める2本はどちらも個人情報を含み（共有ドライブの棚卸しExcel／オーナー送金の明細）、
+> メインPCと二重にLAN公開されていた。その解消も兼ねる。
 >
 > **メインPC側の受け渡しファイルは 2026-08-17 に削除済み**（`handoff-20260815` ＝
 > agent-platform の config/knowledge/.env と flyer-creator の .stats_key、5件とも
@@ -70,9 +86,6 @@
 > - `ai-tools-lab` … メインPCへ移管済み。サブPCでは開発も公開もしない
 > - `chatwork-ai-manager` の worker / LINE webhook / ngrok … メインPCで稼働中。**同時起動禁止**
 >
-> **ついでに判断してほしい**: サブPCの launchd 常駐2本（file-finder 8520 /
-> owner-payout-tracker 8519）がメインPCと二重にLAN公開されている（どちらも個人情報を含む）。
-> 止めるなら `launchctl unload ~/Library/LaunchAgents/com.shinsei.<アプリ>.plist`。
 
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
 詳細は各アプリの `<アプリ>/TODO.md` と `<アプリ>/SESSION_LOG.md` にある。
