@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}連続登録 — KeyLine{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% block content %}
+
+{# 鍵ボックスの前に立って、鍵を1本ずつ手に取りながら登録していく画面。
+   物件名とボックスは同じ物件の間ずっと同じなので上で固定し、
+   下では「鍵の名称・番号・位置」だけを打つ。位置は登録のたびに繰り上がる。
+
+   ★将来ネイティブアプリを作ったら、［登録する］が［タグをかざして登録］に変わるだけ。
+     登録そのものは /api/register を叩いており、そこは共通で使える。 #}
+
+<p class="small"><a href="/assets">← 管理対象一覧</a></p>
+<h1>連続登録</h1>
+
+<div class="card" id="fixed">
+  <h2 style="margin-bottom:.2rem">この物件の鍵をまとめて登録</h2>
+  <p class="small muted" style="margin-top:0">
+    物件名とボックスは登録しても消えません。鍵ごとに違うところだけ打ってください。
+  </p>
+
+  <label for="property_name">物件名称</label>
+  <input type="text" id="property_name" list="proplist" autocomplete="off"
+         placeholder="大京本社ビル">
+  <datalist id="proplist">
+    {% for p in properties %}<option value="{{ p }}">{% endfor %}
+  </datalist>
+
+  <label for="box_id">保管ボックス</label>
+  <select id="box_id">
+    <option value="">（未設定）</option>
+    {% for b in boxes %}<option value="{{ b.id }}">{{ b.code }} — {{ b.name }}</option>{% endfor %}
+  </select>
+  {% if not boxes %}
+  <p class="small muted" style="margin:.3rem 0 0">
+    ボックスがまだありません。<a href="/boxes">先にボックスを登録してください</a>
+  </p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>鍵</h2>
+
+  <label for="name">鍵の名称 <span style="color:#c0392b">*</span></label>
+  <input type="text" id="name" autocomplete="off" placeholder="1階エントランスキー">
+
+  <label>鍵番号と本数</label>
+  <div id="keyrows"></div>
+  <button type="button" class="btn ghost" id="addrow" style="margin-top:.5rem">＋ 鍵番号を追加</button>
+
+  <label for="box_position">ボックス内の位置</label>
+  <input type="text" id="box_position" autocomplete="off" placeholder="03"
+         inputmode="numeric">
+  <p class="small muted" style="margin:.3rem 0 0">
+    登録するたびに自動で次の番号へ進みます。
+  </p>
+
+  <button type="button" class="btn primary big" id="go" style="margin-top:1.2rem">
+    登録する
+  </button>
+  <p class="small muted" id="msg" style="margin:.6rem 0 0;min-height:1.2rem"></p>
+</div>
+
+{# 登録したものを上から積んでいく。タグに書く内容もここに出すので、
+   NFC Tools で書くときはこの一覧を上から潰していけばよい。 #}
+<div class="card" id="donecard" style="display:none">
+  <h2>この画面で登録した鍵（<span id="count">0</span>本）</h2>
+  <p class="small muted" style="margin-top:0">
+    タグに書き込むまで消さないでください。書いたら ☑ を付けると分かりやすくなります。
+  </p>
+  <div id="done"></div>
+</div>
+
+{% endblock %}
+
+{% block script %}
+{% include "_asset_form_js.html" %}
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  const go = $('go'), msg = $('msg'), done = $('done'), donecard = $('donecard');
+  let count = 0;
+
+  // ボックスを選んだら、そのボックスで次に空いていそうな位置を初期値に入れる
+  $('box_id').addEventListener('change', async () => {
+    const id = $('box_id').value;
+    if (!id) return;
+    try {
+      const r = await fetch('/api/next-position?box_id=' + encodeURIComponent(id));
+      const d = await r.json();
+      if (d.ok && d.position && !$('box_position').value) $('box_position').value = d.position;
+    } catch (e) { /* 取れなくても手で入れれば済む */ }
+  });
+
+  function rows(){
+    return [...document.querySelectorAll('#keyrows .keyrow')].map(r => ({
+      num: r.querySelector('[name=item_number]').value.trim(),
+      qty: r.querySelector('[name=item_qty]').value || '1',
+    })).filter(x => x.num);
+  }
+
+  go.addEventListener('click', async () => {
+    const name = $('name').value.trim();
+    if (!name) { msg.textContent = '⚠️ 鍵の名称を入れてください'; $('name').focus(); return; }
+
+    const rs = rows();
+    go.disabled = true; go.textContent = '登録中…'; msg.textContent = '';
+    try {
+      const r = await fetch('/api/register', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          property_name: $('property_name').value.trim(),
+          name: name,
+          box_id: $('box_id').value,
+          box_position: $('box_position').value.trim(),
+          item_number: rs.map(x => x.num),
+          item_qty: rs.map(x => x.qty),
+        })
+      });
+      const d = await r.json();
+      if (!d.ok) { msg.textContent = '⚠️ ' + (d.error || '登録できませんでした'); return; }
+
+      add(d);
+      count++; $('count').textContent = count; donecard.style.display = '';
+
+      // 次の鍵へ。物件名とボックスは残し、鍵ごとの欄だけ空にする
+      $('name').value = '';
+      $('keyrows').innerHTML = '';
+      document.getElementById('addrow').click();
+      if (d.next_position) $('box_position').value = d.next_position;
+      $('name').focus();
+      msg.textContent = '✅ ' + d.label + ' を登録しました';
+    } catch (e) {
+      msg.textContent = '⚠️ 通信に失敗しました。もう一度お試しください';
+    } finally {
+      go.disabled = false; go.textContent = '登録する';
+    }
+  });
+
+  function add(d){
+    const el = document.createElement('div');
+    el.style.cssText = 'border-top:1px solid var(--line);padding:.7rem 0';
+    el.innerHTML =
+      '<label style="display:flex;gap:.6rem;align-items:flex-start;margin:0;font-weight:400;color:var(--ink)">' +
+        '<input type="checkbox" style="width:auto;margin-top:.25rem;flex:none">' +
+        '<span style="flex:1;min-width:0">' +
+          '<strong></strong>' +
+          '<br><code class="token" style="font-size:.78rem;word-break:break-all"></code>' +
+          '<br><span class="small muted"></span>' +
+        '</span>' +
+        '<button type="button" class="btn ghost" style="padding:.35rem .6rem;font-size:.8rem;flex:none">コピー</button>' +
+      '</label>';
+    el.querySelector('strong').textContent = d.label + (d.box ? '（' + d.box + '）' : '');
+    el.querySelector('code').textContent = d.url;
+    el.querySelector('.small').textContent =
+      'タグに書く内容: ' + (d.ndef.text || 'URLのみ') +
+      '  [' + d.ndef.bytes + '/' + d.ndef.capacity + 'B' +
+      (d.ndef.truncated ? '・名前を短縮' : '') + ']';
+    el.querySelector('button').addEventListener('click', e => {
+      e.preventDefault();
+      navigator.clipboard.writeText(d.url).then(
+        () => { e.target.textContent = 'コピー済'; },
+        () => prompt('このURLをコピーしてください', d.url));
+    });
+    // チェックしたら薄くして、書き終わったものが一目で分かるようにする
+    el.querySelector('input').addEventListener('change', e => {
+      el.style.opacity = e.target.checked ? '.45' : '1';
+    });
+    done.insertBefore(el, done.firstChild);
+  }
+})();
+</script>
+{% endblock %}

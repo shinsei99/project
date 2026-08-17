@@ -67,9 +67,34 @@
       <button class="btn ghost" type="button" onclick="copyUrl()">URLをコピー</button>
       <a class="btn ghost" href="/t/{{ asset.nfc_identifier }}">貸出画面を開く</a>
     </div>
-    <p class="small muted" style="margin-bottom:0">
+    <p class="small muted" style="margin-bottom:.8rem">
       NFC番号：<code class="token">{{ asset.nfc_identifier }}</code>
     </p>
+
+    {% if tagplan %}
+    {# NTAG213は144バイトしかない。何が書けるかを登録時点で見せて、
+       60本書いた後に「入っていなかった」と気づく事故を防ぐ。 #}
+    <div style="border-top:1px solid var(--line);padding-top:.8rem">
+      <div class="small" style="font-weight:700;margin-bottom:.3rem">
+        タグに書き込む内容（{{ tagplan.tag }}）
+      </div>
+      {% if tagplan.text %}
+      <p style="margin:.2rem 0"><code class="token">{{ tagplan.text }}</code></p>
+      {% else %}
+      <p class="small muted" style="margin:.2rem 0">URLのみ（付帯情報は入りません）</p>
+      {% endif %}
+      <p class="small" style="margin:.3rem 0 0">
+        <span class="muted">{{ tagplan.bytes }} / {{ tagplan.capacity }} バイト（残り {{ tagplan.free }}）</span>
+        {% if tagplan.truncated %}
+        <br><span style="color:#a86500">
+          ⚠️ 容量が足りないため、名前を短くしてタグに書きます。
+          <strong>鍵番号とボックスは必ず残ります。</strong>
+          KeyLine側の記録は元のまま変わりません。
+        </span>
+        {% endif %}
+      </p>
+    </div>
+    {% endif %}
   {% else %}
     <p class="muted" style="margin-top:0">まだタグが割り当てられていません。</p>
   {% endif %}

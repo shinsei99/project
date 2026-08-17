@@ -563,3 +563,58 @@ def due_choices() -> list:
     out.append(("3日後", dbmod.ts_plus(days=3)))
     out.append(("指定しない", ""))
     return out
+
+
+# ---------------------------------------------------------------------------
+# 連続登録（箱の前で鍵を持ちながら、次々に登録する導線）
+#
+# 60本を「PCで入力 → あとでタグに書く」の2往復でやると、転記ミスも起きるし手間も倍。
+# 物件名とボックスは同じ物件の鍵を続けて登録する間ずっと同じなので固定し、
+# 鍵ごとに違うところ（名称・番号・位置）だけを打たせる。
+# ---------------------------------------------------------------------------
+def box_label(code: Optional[str], position: Optional[str]) -> str:
+    """『BOX-01-03』の形。ボックス未設定なら『位置03』とだけ書く。
+
+    素直に連結すると、ボックスが無いときに『-03』という意味不明な表示になる。
+    """
+    code, position = (code or "").strip(), (position or "").strip()
+    if code and position:
+        return f"{code}-{position}"
+    if code:
+        return code
+    return f"位置{position}" if position else ""
+
+
+def next_position(pos: Optional[str]) -> str:
+    """『03』の次は『04』。桁数（ゼロ埋め）は維持する。
+
+    数字でない位置（'上段左' など）は繰り上げようがないのでそのまま返す。
+    """
+    pos = (pos or "").strip()
+    m = re.fullmatch(r"(\D*)(\d+)(\D*)", pos)
+    if not m:
+        return pos
+    head, num, tail = m.groups()
+    return f"{head}{str(int(num) + 1).zfill(len(num))}{tail}"
+
+
+def suggest_position(con: sqlite3.Connection, org_id: str, box_id: str) -> str:
+    """そのボックスで次に空いていそうな位置を返す。
+
+    いちばん大きい数字の位置の次を出すだけ。歯抜けは埋めない
+    （埋めると『03の次は05』のような分かりにくい挙動になるため）。
+    """
+    if not box_id:
+        return ""
+    rows = con.execute(
+        """SELECT box_position FROM assets
+            WHERE organization_id = ? AND box_id = ? AND box_position IS NOT NULL""",
+        (org_id, box_id)).fetchall()
+    best, width = 0, 2
+    for r in rows:
+        m = re.fullmatch(r"\D*(\d+)\D*", (r["box_position"] or "").strip())
+        if m:
+            n = int(m.group(1))
+            if n >= best:
+                best, width = n, len(m.group(1))
+    return str(best + 1).zfill(width)

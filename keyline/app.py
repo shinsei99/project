@@ -22,6 +22,7 @@ from fastapi.templating import Jinja2Templates
 
 import auth
 import db as dbmod
+import ndef
 import ocr
 import services as svc
 from db import Conflict
@@ -402,7 +403,14 @@ def asset_detail(request: Request, asset_id: str):
             asset = svc.get_asset(con, org, asset_id)
         except svc.NotFound as e:
             return back("/assets", err=str(e))
-        return render(request, "asset_detail.html", user, asset=asset,
+        # タグに何が書けるか（NTAG213は144バイトしかないので、登録時点で見せる）
+        tagplan = None
+        if asset["nfc_identifier"]:
+            tagplan = ndef.plan(
+                svc.tag_url(svc.lan_base_url(), asset["nfc_identifier"]),
+                asset["property_name"], asset["name"], asset["item_numbers"],
+                asset["box_code"], asset["box_position"])
+        return render(request, "asset_detail.html", user, asset=asset, tagplan=tagplan,
                       items=svc.list_items(con, asset_id),
                       logs=svc.history(con, org, asset_id=asset_id),
                       boxes=svc.list_boxes(con, org),
@@ -459,6 +467,90 @@ def asset_force_return(request: Request, asset_id: str):
             return back(f"/assets/{asset_id}", err=str(e))
         bus.notify()
         return back(f"/assets/{asset_id}", msg="強制返却しました")
+    finally:
+        con.close()
+
+
+# ---------------------------------------------------------------------------
+# 連続登録（箱の前でスマホから、鍵を持ちながら次々に登録する）
+#
+# ★60本を一度に登録するための画面。物件名とボックスは固定したまま、
+#   鍵ごとに違うところだけ打つ。位置は自動で繰り上がる。
+#   将来ネイティブアプリが「かざす」を足すときも、登録APIはこれをそのまま使う。
+# ---------------------------------------------------------------------------
+@app.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    con = get_con()
+    try:
+        user = viewer(request, con)
+        if not user:
+            return login_redirect(request)
+        org = user["organization_id"]
+        return render(request, "register.html", user,
+                      boxes=svc.list_boxes(con, org),
+                      properties=svc.property_names(con, org))
+    finally:
+        con.close()
+
+
+@app.post("/api/register")
+async def api_register(request: Request):
+    """鍵を1件登録して、タグに書く内容まで返す。
+
+    画面もアプリもこのAPIを叩く。返り値の `ndef` をそのままタグに書けばよい。
+    """
+    con = get_con()
+    try:
+        user = viewer(request, con)
+        if not user:
+            return JSONResponse({"ok": False, "error": "ログインし直してください"}, 401)
+        org = user["organization_id"]
+        d = await request.json()
+
+        try:
+            token = svc.issue_nfc_token(con)
+            aid = svc.create_asset(
+                con, org,
+                name=(d.get("name") or "").strip(),
+                asset_type=d.get("asset_type") or "key",
+                nfc_token=token,
+                box_id=d.get("box_id") or None,
+                box_position=(d.get("box_position") or "").strip() or None,
+                items=svc.parse_items(d.get("item_number") or [], d.get("item_qty") or []),
+                note=d.get("note"),
+                property_name=d.get("property_name"))
+        except (Conflict, svc.InvalidInput) as e:
+            return JSONResponse({"ok": False, "error": str(e)}, 400)
+
+        asset = svc.get_asset(con, org, aid)
+        url = svc.tag_url(svc.lan_base_url(), token)
+        plan = ndef.plan(url, asset["property_name"], asset["name"], asset["item_numbers"],
+                         asset["box_code"], asset["box_position"])
+        bus.notify()
+        return JSONResponse({
+            "ok": True, "asset_id": aid, "token": token, "url": url,
+            "label": (asset["property_name"] + " / " if asset["property_name"] else "") + asset["name"],
+            "item_numbers": asset["item_numbers"] or "", "total_keys": asset["total_keys"],
+            "box": svc.box_label(asset["box_code"], asset["box_position"]),
+            "next_position": svc.next_position(asset["box_position"]),
+            "ndef": {"text": plan["text"], "bytes": plan["bytes"],
+                     "capacity": plan["capacity"], "truncated": plan["truncated"],
+                     "tag": plan["tag"]},
+        })
+    finally:
+        con.close()
+
+
+@app.get("/api/next-position")
+def api_next_position(request: Request, box_id: str = ""):
+    """そのボックスで次に空いていそうな位置。画面の初期値に使う。"""
+    con = get_con()
+    try:
+        user = viewer(request, con)
+        if not user:
+            return JSONResponse({"ok": False}, 401)
+        return JSONResponse({"ok": True,
+                             "position": svc.suggest_position(con, user["organization_id"], box_id)})
     finally:
         con.close()
 
