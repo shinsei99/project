@@ -82,7 +82,7 @@ AIを業務に入れるとき、私はずっと「精度」を気にしていま
 
 AIで業務用のアプリを作ってきた記録をまとめています。実際に投げた指示や、他にどこでつまずいたかも公開しています。
 
-👉 AIツールラボ https://ai-tools-lab-psi.vercel.app
+👉 AIツールベース https://ai-tools-base.vercel.app
 
 この動画づくりの仕組み（1つの指示から企画・スライド・音声・動画まで作るもの）の制作記録はこちらです。
-👉 制作記録：企画から動画まで自動生成するパイプライン https://ai-tools-lab-psi.vercel.app/works/agent-platform
+👉 制作記録：企画から動画まで自動生成するパイプライン https://ai-tools-base.vercel.app/works/agent-platform

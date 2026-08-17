@@ -55,7 +55,7 @@ export function Hero({
               名前がヘッダーの小さな文字にしか無い状態になり階層が逆転する。
               標語はサブタイトルとして直下に置く。
             */}
-            <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">AIツールラボ</h1>
+            <h1 className="text-5xl font-bold tracking-tight sm:text-6xl">AIツールベース</h1>
             <p className="mt-4 text-xl font-semibold text-muted sm:text-2xl">
               Claude Code を主軸に、AIに<span className="text-accent">任せる範囲</span>を広げる。
             </p>

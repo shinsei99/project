@@ -126,4 +126,4 @@ TCCは「どのプロセスの責任か」で判定します。常駐サービ�
 AIに内部処理を直接触らせず共通ツール層を通す、投稿は承認制から始める）は
 本体にまとめています。
 
-👉 [制作記録：チャットを見張り続けるAI常駐エージェント](https://ai-tools-lab-psi.vercel.app/works/chatwork-ai-manager)
+👉 [制作記録：チャットを見張り続けるAI常駐エージェント](https://ai-tools-base.vercel.app/works/chatwork-ai-manager)

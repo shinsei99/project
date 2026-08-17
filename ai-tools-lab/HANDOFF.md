@@ -1,4 +1,4 @@
-# HANDOFF — AIツールラボをメインPCへ引き継ぐ
+# HANDOFF — AIツールベースをメインPCへ引き継ぐ
 
 **2026-08-16、サブPC（`/Users/apple`）からメインPCへ移管する。**
 以後の開発・公開はメインPCで行う。サブPC側では触らない。
@@ -57,7 +57,7 @@ npx vercel --prod
 
 **出力を捨てないこと。** サブPCで `>/dev/null` に流して実行した結果、
 デプロイが走っていないのに成功したと勘違いした（実際に1回やらかした）。
-最後に `Aliased https://ai-tools-lab-psi.vercel.app` が出るのを目で見る。
+最後に `Aliased https://ai-tools-base.vercel.app` が出るのを目で見る。
 
 ### (2) Zenn は「直近24時間の投稿数」で制限がある
 

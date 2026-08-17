@@ -113,4 +113,4 @@ LLMは「常識的にどちらでもよい」ものを揃えてはくれませ�
 この機能を載せているアプリ（紙の原本の所在を棚単位で管理しつつ、PDF側を書類単位で整理する）
 の全体像は本体にまとめています。
 
-👉 [制作記録：まとめてスキャンした1つのPDFを、書類ごとに切り分ける](https://ai-tools-lab-psi.vercel.app/works/shorui-cabinet)
+👉 [制作記録：まとめてスキャンした1つのPDFを、書類ごとに切り分ける](https://ai-tools-base.vercel.app/works/shorui-cabinet)

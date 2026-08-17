@@ -106,4 +106,4 @@ AIを呼べない環境向けに、正規表現で主要項目だけを拾うフ
 このツール（登記簿PDFを読んで契約書の別表へ転記する）の全体像と、
 「全自動にしない」と決めた理由は本体にまとめています。
 
-👉 [制作記録：逆さにスキャンされた登記簿を、AIに読ませて契約書へ転記する](https://ai-tools-lab-psi.vercel.app/works/baikai-generator)
+👉 [制作記録：逆さにスキャンされた登記簿を、AIに読ませて契約書へ転記する](https://ai-tools-base.vercel.app/works/baikai-generator)

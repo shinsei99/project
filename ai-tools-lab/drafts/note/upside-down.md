@@ -81,10 +81,10 @@
 AIで業務用のアプリを作ってきた記録をまとめています。実際に投げた指示や、
 他にどこでつまずいたかも公開しています。
 
-👉 **[AIツールラボ](https://ai-tools-lab-psi.vercel.app)**
+👉 **[AIツールベース](https://ai-tools-base.vercel.app)**
 
 このツールの制作記録はこちらです。
-👉 [制作記録：逆さにスキャンされた登記簿を、AIに読ませて契約書へ転記する](https://ai-tools-lab-psi.vercel.app/works/baikai-generator)
+👉 [制作記録：逆さにスキャンされた登記簿を、AIに読ませて契約書へ転記する](https://ai-tools-base.vercel.app/works/baikai-generator)
 
 技術的な詳細（向き補正の入れ方）はこちらに書きました。
 👉 [Zenn の記事](https://zenn.dev/shinsei99/articles/scanned-pdf-orientation)

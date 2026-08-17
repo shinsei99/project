@@ -83,10 +83,10 @@ AIには賢さの段階があり、賢いものほど費用がかかります。
 
 AIで業務用のアプリを作ってきた記録をまとめています。実際に投げた指示や、他にどこでつまずいたかも公開しています。
 
-👉 AIツールラボ https://ai-tools-lab-psi.vercel.app
+👉 AIツールベース https://ai-tools-base.vercel.app
 
 この機能の制作記録はこちらです。
-👉 制作記録：まとめてスキャンした1つのPDFを、書類ごとに切り分ける https://ai-tools-lab-psi.vercel.app/works/shorui-cabinet
+👉 制作記録：まとめてスキャンした1つのPDFを、書類ごとに切り分ける https://ai-tools-base.vercel.app/works/shorui-cabinet
 
 技術的な詳細（ページが消える現象の潰し方）はこちらに書きました。
 👉 Zenn の記事 https://zenn.dev/shinsei99/articles/llm-pdf-split-gaps

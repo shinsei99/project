@@ -85,4 +85,4 @@ streamlit run app.py --server.address 127.0.0.1 --server.port 8527
 
 このときの点検（常駐サービスの一覧化と、待ち受けアドレスの明示）は本体にまとめています。
 
-👉 [制作記録：常駐サービスが再起動ループしていたのに誰も気づかなかった話](https://ai-tools-lab-psi.vercel.app/works/port-conflict)
+👉 [制作記録：常駐サービスが再起動ループしていたのに誰も気づかなかった話](https://ai-tools-base.vercel.app/works/port-conflict)

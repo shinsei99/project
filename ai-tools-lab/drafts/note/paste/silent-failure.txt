@@ -72,10 +72,10 @@
 
 AIで業務用のアプリを作ってきた記録をまとめています。実際に投げた指示や、他にどこでつまずいたかも公開しています。
 
-👉 AIツールラボ https://ai-tools-lab-psi.vercel.app
+👉 AIツールベース https://ai-tools-base.vercel.app
 
 このときの点検の記録はこちらです。
-👉 制作記録：常駐サービスが再起動ループしていた話 https://ai-tools-lab-psi.vercel.app/works/port-conflict
+👉 制作記録：常駐サービスが再起動ループしていた話 https://ai-tools-base.vercel.app/works/port-conflict
 
 技術的な詳細はこちらに書きました。
 👉 Zenn の記事 https://zenn.dev/shinsei99/articles/launchd-restart-loop

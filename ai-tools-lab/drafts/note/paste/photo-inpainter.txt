@@ -85,7 +85,7 @@
 
 この件を含め、AIを使って業務用のアプリを作ってきた記録をまとめています。実際に投げた指示の文面や、他にどんなところでつまずいたかも公開しています。
 
-👉 AIツールラボ https://ai-tools-lab-psi.vercel.app
+👉 AIツールベース https://ai-tools-base.vercel.app
 
 技術的な詳細（何をどう直したのか）はこちらに書きました。
 👉 Zenn の記事 https://zenn.dev/shinsei99/articles/photo-inpainter

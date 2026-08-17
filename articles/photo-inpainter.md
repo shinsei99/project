@@ -111,7 +111,7 @@ vit_b で追加クリックする方が結局きれいでした。
 このツールの**開発の全過程**（最初に投げたプロンプト、完成までの判断、他のつまずき）は
 本体サイトにまとめています。
 
-👉 [制作記録：写真から電線・電柱を消すツール](https://ai-tools-lab-psi.vercel.app/works/photo-inpainter)
+👉 [制作記録：写真から電線・電柱を消すツール](https://ai-tools-base.vercel.app/works/photo-inpainter)
 
 Claude Code を主軸に業務アプリを作った記録を置いています。
 「原因は分かった。で、**どう指示したらそこに辿り着いたのか**」に興味があればどうぞ。

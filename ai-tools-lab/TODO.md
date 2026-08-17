@@ -1,4 +1,4 @@
-# TODO — AIツールラボ（ai-tools-lab）計画
+# TODO — AIツールベース（ai-tools-lab）計画
 
 記号: `[ ]`未着手 / `[~]`着手中 / `[x]`完了
 

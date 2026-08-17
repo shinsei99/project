@@ -90,10 +90,10 @@ AIが報告書を作り、メールの下書きまで用意します。送信ボ
 
 AIで業務用のアプリを作ってきた記録をまとめています。実際に投げた指示や、他にどこでつまずいたかも公開しています。
 
-👉 AIツールラボ https://ai-tools-lab-psi.vercel.app
+👉 AIツールベース https://ai-tools-base.vercel.app
 
 この受付システムの制作記録はこちらです。
-👉 制作記録：「なんか動かない」を、AIが聞き出して起票する受付カウンター https://ai-tools-lab-psi.vercel.app/works/ai-ticket-counter
+👉 制作記録：「なんか動かない」を、AIが聞き出して起票する受付カウンター https://ai-tools-base.vercel.app/works/ai-ticket-counter
 
 技術的な詳細（対話の切り方と、任せる範囲の決め方）はこちらに書きました。
 👉 Zenn の記事 https://zenn.dev/shinsei99/articles/ai-intake-hearing

@@ -55,7 +55,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <header className="sticky top-0 z-20 border-b border-border bg-bg/85 backdrop-blur">
           <Container className="flex h-16 items-center justify-between gap-6">
             <Link href="/" className="font-bold tracking-tight">
-              AIツールラボ
+              AIツールベース
               <span className="ml-2 hidden text-xs font-normal text-muted sm:inline">
                 Claude Code を主軸に
               </span>
@@ -75,7 +75,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="border-t border-border py-10 text-sm text-muted">
           <Container>
             <div className="flex flex-wrap items-center justify-between gap-4">
-              <p>AIツールラボ — 掲載する評価は実際に触った範囲のものです。</p>
+              <p>AIツールベース — 掲載する評価は実際に触った範囲のものです。</p>
               <p>料金・仕様は変動します。契約前に公式サイトで確認してください。</p>
             </div>
             <PhotoCredits />

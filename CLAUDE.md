@@ -148,7 +148,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
 | ポケモンカード図鑑（全31,520枚・画像100%収録） | pokecard-dex | 8531 | — |
 | チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
-| AIツールラボ（Claude Code主軸の比較メディア＋制作記録） | ai-tools-lab | 3004 | Vercel（ai-tools-lab-psi.vercel.app・手動 `npx vercel --prod`） |
+| AIツールベース（Claude Code主軸の比較メディア＋制作記録） | ai-tools-lab | 3004 | Vercel（**ai-tools-base.vercel.app**・手動 `npx vercel --prod`） |
 
 ### ゲーム（6本）※社内LAN共有なし
 

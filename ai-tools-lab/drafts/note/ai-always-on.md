@@ -89,10 +89,10 @@ AIの性能を上げるより、**渡すデータを掃除する方が効いた*
 AIで業務用のアプリを作ってきた記録をまとめています。実際に投げた指示や、
 他にどこでつまずいたかも公開しています。
 
-👉 **[AIツールラボ](https://ai-tools-lab-psi.vercel.app)**
+👉 **[AIツールベース](https://ai-tools-base.vercel.app)**
 
 このエージェントの制作記録はこちらです。
-👉 [制作記録：チャットを見張り続けるAI常駐エージェント](https://ai-tools-lab-psi.vercel.app/works/chatwork-ai-manager)
+👉 [制作記録：チャットを見張り続けるAI常駐エージェント](https://ai-tools-base.vercel.app/works/chatwork-ai-manager)
 
 技術的な詳細（常駐させて踏んだ4つの罠）はこちらに書きました。
 👉 [Zenn の記事](https://zenn.dev/shinsei99/articles/ai-agent-always-on)

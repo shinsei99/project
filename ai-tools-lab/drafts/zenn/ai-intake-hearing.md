@@ -98,4 +98,4 @@ AIが作った文章が、確認されないまま人に届く経路を作らな
 
 このシステムの全体像（対話→構造化→起票→報告書メール）は本体にまとめています。
 
-👉 [制作記録：「なんか動かない」を、AIが聞き出して起票する受付カウンター](https://ai-tools-lab-psi.vercel.app/works/ai-ticket-counter)
+👉 [制作記録：「なんか動かない」を、AIが聞き出して起票する受付カウンター](https://ai-tools-base.vercel.app/works/ai-ticket-counter)

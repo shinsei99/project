@@ -20,7 +20,7 @@
 
 | 媒体 | 原稿 | URL |
 |---|---|---|
-| 本体 | （公開済み） | https://ai-tools-lab-psi.vercel.app/works/photo-inpainter |
+| 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/photo-inpainter |
 | Zenn | `articles/photo-inpainter.md` | ✅ https://zenn.dev/shinsei99/articles/photo-inpainter |
 | note | `note/photo-inpainter.md` | ⬜ 公開後にここへ記入 |
 
@@ -39,7 +39,7 @@
 
 | 媒体 | 原稿 | URL |
 |---|---|---|
-| 本体 | （公開済み） | https://ai-tools-lab-psi.vercel.app/works/agent-platform |
+| 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/agent-platform |
 | Zenn | `articles/gemini-api-traps.md` | ✅ https://zenn.dev/shinsei99/articles/gemini-api-traps |
 | note | `note/ai-generated-building.md` | ⬜ 公開後にここへ記入 |
 
@@ -54,7 +54,7 @@
 
 | 媒体 | 原稿 | URL |
 |---|---|---|
-| 本体 | （公開済み） | https://ai-tools-lab-psi.vercel.app/works/chatwork-ai-manager |
+| 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/chatwork-ai-manager |
 | Zenn | `zenn/ai-agent-always-on.md` | ⬜ 公開後にここへ記入（slugは `ai-agent-always-on`） |
 | note | `note/ai-always-on.md` | ⬜ 公開後にここへ記入 |
 
@@ -64,7 +64,7 @@
 
 | 媒体 | 原稿 | URL |
 |---|---|---|
-| 本体 | （公開済み） | https://ai-tools-lab-psi.vercel.app/works/port-conflict |
+| 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/port-conflict |
 | Zenn | `zenn/launchd-restart-loop.md` | ⬜ 公開後にここへ記入（slugは `launchd-restart-loop`） |
 | note | `note/silent-failure.md` | ⬜ 公開後にここへ記入 |
 
@@ -74,7 +74,7 @@
 
 | 媒体 | 原稿 | URL |
 |---|---|---|
-| 本体 | （公開済み） | https://ai-tools-lab-psi.vercel.app/works/shorui-cabinet |
+| 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/shorui-cabinet |
 | Zenn | `zenn/llm-pdf-split-gaps.md` | ⬜ 公開後にここへ記入（slugは `llm-pdf-split-gaps`） |
 | note | `note/scanned-pile.md` | ⬜ 公開後にここへ記入 |
 
@@ -91,7 +91,7 @@
 
 | 媒体 | 原稿 | URL |
 |---|---|---|
-| 本体 | （公開済み） | https://ai-tools-lab-psi.vercel.app/works/baikai-generator |
+| 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/baikai-generator |
 | Zenn | `zenn/scanned-pdf-orientation.md` | ⬜ 公開後に記入（slug `scanned-pdf-orientation`） |
 | note | `note/upside-down.md` | ⬜ 公開後に記入 |
 
@@ -101,7 +101,7 @@
 
 | 媒体 | 原稿 | URL |
 |---|---|---|
-| 本体 | （公開済み） | https://ai-tools-lab-psi.vercel.app/works/ai-ticket-counter |
+| 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/ai-ticket-counter |
 | Zenn | `zenn/ai-intake-hearing.md` | ⬜ 公開後に記入（slug `ai-intake-hearing`） |
 | note | `note/nanka-ugokanai.md` | ⬜ 公開後に記入 |
 

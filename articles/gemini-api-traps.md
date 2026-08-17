@@ -113,7 +113,7 @@ osascript -e 'get volume settings'
 このパイプライン（1文の指示から企画・スライド・音声・動画・SNS告知文まで作る）の
 全体設計と、他のつまずきは本体サイトにまとめています。
 
-👉 [制作記録：企画から動画まで自動生成する11部隊構成のパイプライン](https://ai-tools-lab-psi.vercel.app/works/agent-platform)
+👉 [制作記録：企画から動画まで自動生成する11部隊構成のパイプライン](https://ai-tools-base.vercel.app/works/agent-platform)
 
 **「APIキーが1つも無くても全工程が完走する」**という設計にしているのですが、
 その理由（1つのキー未設定でパイプライン全体が死ぬとデバッグ不能になる）も書いています。

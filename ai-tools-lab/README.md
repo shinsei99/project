@@ -1,4 +1,4 @@
-# AIツールラボ（ai-tools-lab）
+# AIツールベース（ai-tools-lab）
 
 **「Claude Code を主軸に」**を旗印に、チャット型AI → 自律型AIエージェントへの変革期を
 開発者・副業ワーカー・IT初心者へ翻訳するメディア兼Webアプリ。
