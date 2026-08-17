@@ -6,7 +6,15 @@
 !CLAUDE.md
 !TODO.md
 !SESSION_LOG.md
+!HANDOFF.md
 !ios-build-guard.sh
+# PCまたぎの整備ツール（2026-08-16にサブPCで作ったが、この許可行が無く
+# コミットされていなかった。commitメッセージには載っているのに実体が来ない）
+!SETUP.md
+!dev-doctor.py
+!dev-setup.sh
+!secrets-sync.sh
+!secrets-manifest.txt
 !handwriting-ocr/
 !handwriting-ocr/**
 !swim-tracker-react/

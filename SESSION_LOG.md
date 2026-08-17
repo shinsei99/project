@@ -11,6 +11,38 @@
 
 ---
 
+## 2026-08-17 — サブPC（2026-08-16）の作業をメインPCで受領
+
+### 完了したこと
+- **ai-tools-lab をメインPCで動く状態にした**（`HANDOFF.md` §1）。`npm install` 完了、
+  `npm run validate` 通過（警告は既知の「転載がまだ」5件と review 未記入4件のみ）
+- **機密の受け渡しを手動で代替**。`Dropbox-個人/handoff-20260817/` に
+  `psa-collection/data/{orders,albums}.json` と `引き継ぎ-先に読む.txt` を配置
+- 直下 `.gitignore` に許可行を追加（`HANDOFF.md` / `SETUP.md` / `dev-doctor.py` /
+  `dev-setup.sh` / `secrets-sync.sh` / `secrets-manifest.txt`）
+
+### 発生したエラーと解決策
+- **症状**: TODOの「【明日いちばん最初】メインPCで `./secrets-sync.sh export`」が実行できない。
+  メインPCに `secrets-sync.sh` が無い。
+  **原因**: 2026-08-16 にサブPCで作った整備ツール5本
+  （`secrets-sync.sh` / `secrets-manifest.txt` / `dev-doctor.py` / `dev-setup.sh` / `SETUP.md`）は
+  **コミットされていなかった**。コミットメッセージには書かれているが、
+  `git show --stat` の中身は `.gitignore` と requirements の修正だけ。
+  直下 `.gitignore` は**1行目から `*` で全部無視し、`!` で個別に許可する方式**なので、
+  許可行の無い新規ファイルは `git add` しても入らない（`git add` はエラーを出さない）。
+  **直し方**: メインPCで許可行を追加して push。サブPCで `git pull` 後に5本を `git add`→push。
+  → 教訓: **直下に新規ファイルを置いたら `git status` ではなく
+  `git show --stat <コミット>` で実体が入ったかを見る**（`git check-ignore -v <file>` で確認できる）。
+- **症状**: サブPCからの依頼3件のうち `digital-shosai/.env.local` が用意できない。
+  **原因**: メインPCにも存在しない（`.env.local.example` のみ）。運ぶ元が無い＝要件取り下げ。
+
+### 次回への引き継ぎ事項・未解決の課題
+- サブPCで `git pull` → 整備ツール5本をコミットし直す（上記）
+- ai-tools-lab の残り: `npx vercel login` → `npx vercel link`（team: brain-dump / project: ai-tools-lab）。
+  公開は Zenn の上限が解ける **8/17 19:56 以降**、`ai-tools-lab/drafts/PUBLISH.md` の順で1日2本
+- サブPCの launchd 常駐2本（file-finder 8520 / owner-payout-tracker 8519）の二重LAN公開は**未判断のまま**
+- CLAUDE.md のスリム化（メインPCで実施予定）も**未着手のまま**
+
 ## 2026-08-16 — サブPCで全アプリを触れるようにする（横断整備）
 
 ### 完了したこと
