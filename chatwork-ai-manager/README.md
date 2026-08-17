@@ -79,3 +79,18 @@ QA/自動解析/定時処理が**同じTool層**を共有する。
 `worker.py`（デーモン）/ `app.py`＋`views/`（管理画面）/ `services/`（sync, analyzer, qa, scheduler,
 chatwork, tasks, projects, knowledge, outbox, settings, agent_tools/）/ `agent_tool.py`（Tool CLI）/
 `db/`（schema, migrate, connection）/ `kb_search.py` / `ingest_knowledge.py` / `ocr_ingest.py` / `install-launchd.sh`。
+
+## 運用メモ（ルート CLAUDE.md から移動・2026-08-17）
+
+> 元の見出し: 「AI業務マネージャー（chatwork-ai-manager）補足 ※不動産・画面8540／LINE8530」
+> **他PCと共有される情報。** ここを直せば2台で同じ内容になる。
+
+- 詳細は `chatwork-ai-manager/README.md`（gitに入っている）と、同フォルダの `CLAUDE.md` / `TODO.md` /
+  `SESSION_LOG.md`（識別子を含むため**gitignore**。Dropbox-個人のtarで運ぶ）。
+- **⚠️ worker / LINE webhook / ngrok は「同時に1台のPCだけ」。** 2台で動かすとChatwork・LINEへ
+  二重返信し、ngrok固定ドメインを奪い合う。移すときは先に旧PCで
+  `launchctl unload ~/Library/LaunchAgents/com.shinsei.chatwork-ai-manager*.plist`。
+- **PCをまたぐ引き継ぎ**: コードはgit、機密（secrets・`data/app.db`・内部docs・ngrok token）は
+  `handoff_export.sh` → Dropbox-個人 → `handoff_import.sh`。**DBは双方向マージできない**ので、
+  常駐を移す直前に必ず export→import で最新へ揃える。
+- Python は **`/usr/bin/python3` 固定**（venv Python だと `claude` サブプロセスが SIGSEGV）。
