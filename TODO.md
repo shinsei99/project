@@ -137,7 +137,7 @@
 | agent-platform | **完成扱いへ移行（2026-08-17）**: launchd 登録・0.0.0.0・社内LAN共有（8532）。残るのは作り込み（出来た .pptx 11枚の見栄え目視確認／字幕焼き込み／投稿API）で、通し実行はできる | 2026-08-17 |
 | ai-tools-lab | **AIツールベース**（2026-08-17改名。旧「AIツールラボ」・旧URLは削除済み）。**メインPCで受領済み（2026-08-17: npm install／validate 通過）**。残: `npx vercel login` → `npx vercel link`（team: brain-dump / project: ai-tools-lab）と、Zenn/note 5本ずつの公開（8/17 19:56以降・1日2本まで）。Vercelは手動デプロイ `npx vercel --prod` | 2026-08-17 |
 | scrapmemo-petapeta | スクラップ編集の先頭表示を修正＋ボタンを末尾へ。Web版は公開済み。1.0.3/build7 をASCへアップ済み。**残: ASCでビルド7を選び審査提出** | 2026-08-17 |
-| chatwork-ai-manager | Chatwork/LINE常駐AIエージェント。**常駐4サービスはメインPCで稼働中**（worker・ngrokは1台のみ）。**2026-08-17: 開発エージェント＋共通Visual Agent＋GIS/地図（管理物件108件・座標88件）＋会話履歴（1日分）を追加し本番反映済み**。次は①台帳の住所欄が空の20件を埋めて座標化 ②周辺施設（駅・コンビニ等）検索の要否判断 ③検証用 `todo-app` の要否判断 | 2026-08-17 |
+| chatwork-ai-manager | Chatwork/LINE常駐AIエージェント。**常駐4サービスはメインPCで稼働中**（worker・ngrokは1台のみ）。**2026-08-17: 開発エージェント＋共通Visual Agent＋GIS/地図（管理物件108件・座標88件）＋会話履歴（1日分）を追加し本番反映済み**。次は①台帳の住所欄が空の20件を埋めて座標化 ②周辺施設（駅・コンビニ等）検索の要否判断 | 2026-08-17 |
 
 ## 横断作業（複数アプリにまたがるもの）
 

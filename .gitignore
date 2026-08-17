@@ -316,10 +316,6 @@ ai-tools-lab/.env*
 !articles/
 !articles/**
 
-# TODOアプリ（todo-app）… 静的HTML/CSS/JSのみ、機密なし
-!todo-app/
-!todo-app/**
-
 # ── 依存関係・ログはPCごとに作るもの。**全アプリまとめて除外**
 # （以前はアプリごとに1行ずつ書いていたため、新しく作った .venv が載りかけた）
 **/.venv/
