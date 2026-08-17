@@ -31,9 +31,21 @@
   原因未特定だが、`try{...}catch(e){"ERR:"+e.message}` で包むと原因が見えるので、
   以後の確認はこの形で実行するとよい
 
+### 完了したこと（続き・同日夕方）
+- **1.0.3 / build 7 で再配信の準備まで完了**
+  - `CURRENT_PROJECT_VERSION` 6→7 / `MARKETING_VERSION` 1.0.2→1.0.3（Debug/Release両方）
+  - `npm run sync` → `xcodebuild ... archive` で **ARCHIVE SUCCEEDED**
+    （`~/Library/Developer/Xcode/Archives/2026-08-17/scrapmemo-1.0.3-7.xcarchive`。
+    bundleId・1.0.3・build7・同梱`public/index.html`に修正が入っていることを検証済み）
+  - commit f47056c を push。**Web版（GitHub Pages）も同じ修正が公開済み**（Actions success）
+  - ユーザーが Organizer から **App Store Connect へアップロード完了**（本人申告）
+
 ### 次回への引き継ぎ事項・未解決の課題
-- **App Store へ出すなら build 番号 +1 が必須**（現在 1.0.2 / build 6 → 次は 1.0.3 / build 7）。
-  未実施。Web版（GitHub Pages）は `main` へ push すれば Actions が自動反映する（未 push）
+- **App Store の審査提出が完了したかは未確認。** ASCで「新バージョン1.0.3を作成 → ビルド7を選択 →
+  『このバージョンの最新情報』を記入 → 審査へ提出」まで進んだかを次回まず確認する。
+  審査通過後、`CLAUDE.md` のアプリ一覧（現在「1.0.3 build7 アップロード待ち」）と
+  メモリ `project_scrapmemo.md` を「1.0.3 配信済み ✅」へ更新すること
+- 次に出すときは build 8 から（[[feedback-ios-build-bump]]）
 - **未確認**: iOS 実機／シミュレータでの確認はしていない（今回は Safari で確認）。
   特に**ソフトキーボードが出た状態**での見え方は未確認
 - 仕様上の注意: 「完了」を押さずにシート外（オーバーレイ）をタップすると**編集は破棄**される。
