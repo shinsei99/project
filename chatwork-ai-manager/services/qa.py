@@ -102,17 +102,112 @@ def _clean_body(b: str) -> str:
     return b.strip()
 
 
-def _chat_context(room_id, limit=12):
+# 会話履歴の方針（2026-08-17 オーナー判断）:
+#   「1日の中の流れが分かればよい。それより古い話は、必要になったら検索して読み解けばよい」
+#   → 直近 context_hours(既定24時間) 以内を最大 context_max(既定30件) まで渡す。
+#     24時間以内に何も無ければ、冷えた状態でも最低限の流れが分かるよう直近数件だけ渡す。
+#   古い話は chatwork_search / kb_search で調べる（毎回の固定費にしない）。
+def _context_window():
+    from services.settings import get_int
+    return get_int("context_hours", 24), get_int("context_max_messages", 30)
+
+
+def _chat_context(room_id, limit=None):
+    """Chatworkの直近の流れ。発言時刻つき（いつの話か分からないと指示語を誤解するため）。"""
     if not room_id:
         return "（ルーム指定なし）"
+    hours, cap = _context_window()
+    cap = limit or cap
+    cutoff = int(__import__("time").time()) - hours * 3600
     rows = query(
-        "SELECT account_name, body FROM messages WHERE room_id=? ORDER BY send_time DESC, message_id DESC LIMIT ?",
-        (room_id, limit),
+        "SELECT account_name, body, send_time FROM messages "
+        "WHERE room_id=? AND send_time>=? ORDER BY send_time DESC, message_id DESC LIMIT ?",
+        (room_id, cutoff, cap),
     )
-    rows = list(reversed(rows))
+    if not rows:   # 今日はまだ動きが無いルーム → 直近数件だけ（会話の切れ目を作らない）
+        rows = query(
+            "SELECT account_name, body, send_time FROM messages WHERE room_id=? "
+            "ORDER BY send_time DESC, message_id DESC LIMIT 6", (room_id,))
     if not rows:
         return "（なし）"
-    return "\n".join(f"  {r['account_name'] or '?'}: {_clean_body(r['body'])[:200]}" for r in rows)
+    import datetime as _dt
+    out, total = [], 0
+    for r in reversed(rows):
+        ts = _dt.datetime.fromtimestamp(r["send_time"]).strftime("%m/%d %H:%M")
+        body = _clean_body(r["body"])[:250]
+        line = f"  [{ts}] {r['account_name'] or '?'}: {body}"
+        total += len(line)
+        if total > 5000:      # プロンプトが膨らみすぎないよう頭打ちにする
+            break
+        out.append(line)
+    return "\n".join(out)
+
+
+def _line_history(user_id, limit=8) -> str:
+    """LINEの直近のやり取りを会話履歴として返す。
+
+    LINEには room_id が無いため `_chat_context` が「（ルーム指定なし）」を返し、
+    **毎回まっさらな状態で考えていた**（2026-08-17に発覚。「1」と答えても
+    何への回答か分からない／「さっきの話」が通じない、という実害が出ていた）。
+    やり取りは既に ai_analysis_logs(kind='line') に保存されているので、
+    新しいテーブルは作らずここから組み立てる。
+    """
+    if not user_id:
+        return "（履歴なし）"
+    hours, cap = _context_window()
+    rows = query(
+        "SELECT prompt, raw_output, created_at FROM ai_analysis_logs "
+        "WHERE kind='line' AND prompt LIKE ? AND created_at >= datetime('now', ?) "
+        "ORDER BY id DESC LIMIT ?",
+        (f"[{user_id}]%", f"-{hours} hours", min(cap, 15)),
+    )
+    if not rows:   # 今日はまだ話していない → 直近数往復だけ（唐突に忘れたように見せない）
+        rows = query(
+            "SELECT prompt, raw_output, created_at FROM ai_analysis_logs "
+            "WHERE kind='line' AND prompt LIKE ? ORDER BY id DESC LIMIT 3",
+            (f"[{user_id}]%",))
+    if not rows:
+        return "（これが最初のやり取りです）"
+    lines, total = [], 0
+    for r in reversed(rows):
+        q = re.sub(r"^\[[^\]]*\]\s*", "", r["prompt"] or "").strip()
+        a = (r["raw_output"] or "").strip()
+        ts = (r["created_at"] or "")[5:16]
+        block = ""
+        if q:
+            block += f"  [{ts}] オーナー: {q[:300]}\n"
+        if a:
+            block += f"  [{ts}] あなた(AI): {a[:300]}\n"
+        total += len(block)
+        if total > 5000:
+            break
+        lines.append(block.rstrip())
+    return "\n".join(lines)
+
+
+def _pending_dev_question(channel, user_id, room_id) -> str:
+    """回答待ちの開発タスクがあれば、その質問を文脈として渡す。
+
+    これが無いと、ユーザーが選択肢に「1」とだけ答えたときに何の話か分からない
+    （2026-08-17に実際に発生し、オーナーの承認が弾かれた）。
+    """
+    try:
+        from services import dev_tasks as DT
+        for t in DT.list_tasks(status=DT.WAITING_USER, limit=5):
+            if channel == "line" and t.get("line_user_id") and t["line_user_id"] != user_id:
+                continue
+            if channel == "chatwork" and room_id and t.get("room_id") != room_id:
+                continue
+            return (f"\n# ⚠️ 回答待ちの開発タスクがあります\n"
+                    f"{t['task_id']}「{t['title']}」で、あなたが次の質問を投げて返事を待っています:\n"
+                    f"{(t.get('question') or '')[:800]}\n"
+                    f"ユーザーの発言がこの質問への回答（「1」「はい」「それで」等の短い返事を含む）だと"
+                    f"判断できるなら、**新しい開発タスクを作らず** "
+                    f"dev_task_answer {{\"task_id\":\"{t['task_id']}\",\"answer\":\"（ユーザーの回答）\"}} "
+                    f"で渡して再開させること。")
+    except Exception:
+        pass
+    return ""
 
 
 def _coverage_rule() -> str:
@@ -166,7 +261,7 @@ def build_prompt(question, chunks, room_id=None):
 APP_DIR = __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__)))
 
 
-def _agent_prompt(question, room_id=None, asker=None, channel="chatwork"):
+def _agent_prompt(question, room_id=None, asker=None, channel="chatwork", line_user_id=None):
     from services import agent_tools
     coverage = _coverage_rule()
     catalog = agent_tools.catalog()
@@ -178,10 +273,12 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork"):
             "これはLINE経由でオーナー本人からの直接指示です。回答はLINEに返信されます。\n"
             "- 依頼で担当者へChatwork投稿する場合、投稿先ルーム/担当のaccount_idを chatwork_search 等で特定してから chatwork_post_message する。\n"
             "- 「今日やること」「重要な未完了」等は task_search / tasks_needing_attention で調べ、優先度を判断して要点だけ簡潔に返す。\n"
-            "- LINEだからと権限は強くしない（投稿は post_mode に従う）。"
+            "- LINEだからと権限は強くしない（投稿は post_mode に従う）。\n"
+            "- **下の「このLINEでの直近のやり取り」は同じ相手との続きの会話。「さっきの」「それ」「1」等の指示語は必ずそこを見て解釈する。**"
         )
     else:
         channel_note = ""
+    channel_note += _pending_dev_question(channel, line_user_id, room_id)
     return f"""あなたは不動産管理のプロフェッショナルであり、大京商事のオーナー/スタッフを強力に支援する優秀なAIエージェント「claude」です。LINE/Chatworkで受け取る指示に対し、最適なツールや情報源を自律的に選び、正確かつ実用的に回答します。Claude Codeのように複数ツールを反復実行してよい。
 {channel_note}
 
@@ -280,8 +377,8 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork"):
 
 # コンテキスト
 {asker_line}{room_line}
-## 直近のChatwork会話
-{_chat_context(room_id)}
+## {'このLINEでの直近のやり取り（同じ相手との続きの会話）' if channel == 'line' else '直近のChatwork会話'}
+{_line_history(line_user_id) if channel == 'line' else _chat_context(room_id)}
 
 ## 現在の未完了TODO
 {_open_tasks_context(room_id)}
@@ -381,7 +478,8 @@ def answer(question: str, room_id=None, asker=None, channel="chatwork",
     """
     from services.claude_client import ClaudeError, run_agent
     from services.settings import get_setting
-    prompt = _agent_prompt(question, room_id, asker=asker, channel=channel)
+    prompt = _agent_prompt(question, room_id, asker=asker, channel=channel,
+                           line_user_id=line_user_id)
     env_extra = {
         "CWAI_CHANNEL": channel,
         "CWAI_ROOM_ID": room_id,
