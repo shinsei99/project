@@ -110,7 +110,8 @@
     <p class="lede">
       スキャン本 77冊・約3万ページを iPhone から検索できるようにするために、
       この端末のブラウザで<strong>何が使えて、何が使えないか</strong>を実測します。
-      Safari と Chrome の両方で開いて、最後に「結果をコピー」を押してください。
+      <strong>プライベートブラウズでは保存が制限されます。通常のタブで試してください。</strong>
+      ボタンを押してから、最後に「結果をコピー」を押してください。
     </p>
   </header>
 
@@ -124,11 +125,11 @@
     <div class="rows" id="measured"></div>
     <div class="actions">
       <button id="btnSpeed">ページ画像の速さを測る</button>
-      <button id="btnQuota" class="ghost">保存できる量を試す（30MB書いて消す）</button>
+      <button id="btnQuota" class="ghost">保存できるかを段階的に試す</button>
     </div>
     <p class="note">
       速さの測定は、本1ページ分（992×1454px）を描いて圧縮する時間です。3万ページの見込み時間もここから出します。
-      容量の試験は Blob と ArrayBuffer の2通りで5MBずつ試し、そのあと20MBずつ増やして上限を探ります（最大200MB）。すべて<strong>その場で削除</strong>します。
+      容量の試験は「1KB → 1MB → 5MB → 20MB」と小さい方から順に試し、<strong>落ちた段階とその理由</strong>を表示します。Blob と ArrayBuffer の両方を別々に試します。書いたものは<strong>その場で削除</strong>します。
     </p>
   </section>
 
@@ -300,83 +301,94 @@
     btn.disabled = false;
   });
 
-  function errText(e) {
-    if (e == null) return "エラー情報なし（null）";
-    if (typeof e === "string") return e;
-    return [e.name, e.message || String(e)].filter(Boolean).join(": ");
+  // エラーの中身を取れるだけ取る（Safariは error が null で来ることがある）
+  function errText(e, ev) {
+    const bits = [];
+    if (e) bits.push([e.name, e.message].filter(Boolean).join(": ") || String(e));
+    if (ev && ev.target && ev.target.error) bits.push("target.error: " + ev.target.error.name);
+    if (!bits.length) bits.push("エラー情報なし（null）");
+    return bits.join(" / ");
   }
 
-  function openProbe(name) {
+  function openDB(name) {
     return new Promise((res, rej) => {
-      const r = indexedDB.open(name, 1);
-      r.onupgradeneeded = () => r.result.createObjectStore("s");
+      let r;
+      try { r = indexedDB.open(name, 1); } catch (e) { rej("open() が例外: " + errText(e)); return; }
+      r.onupgradeneeded = () => { try { r.result.createObjectStore("s"); } catch (e) { rej("createObjectStore: " + errText(e)); } };
       r.onsuccess = () => res(r.result);
-      r.onerror = () => rej(r.error);
-      r.onblocked = () => rej(new Error("blocked"));
+      r.onerror = (ev) => rej("open が失敗: " + errText(r.error, ev));
+      r.onblocked = () => rej("open が blocked（他のタブで同じDBを開いている？）");
+      setTimeout(() => rej("open が20秒応答なし（プライベートブラウズだとここで止まることがある）"), 20000);
     });
   }
 
-  function putOnce(db, key, value) {
+  function put(db, key, value) {
     return new Promise((res, rej) => {
-      let tx;
-      try { tx = db.transaction("s", "readwrite"); } catch (e) { rej(e); return; }
+      let tx, req;
+      try { tx = db.transaction("s", "readwrite"); } catch (e) { rej("transaction が例外: " + errText(e)); return; }
+      try { req = tx.objectStore("s").put(value, key); } catch (e) { rej("put が例外: " + errText(e)); return; }
+      req.onerror = (ev) => rej("put が失敗: " + errText(req.error, ev));
+      tx.onabort = (ev) => rej("transaction 中断: " + errText(tx.error, ev) + "（容量上限のときはこれ）");
       tx.oncomplete = () => res();
-      tx.onabort = () => rej(tx.error || new Error("transaction aborted（容量上限の可能性）"));
-      tx.onerror = () => rej(tx.error);
-      try { tx.objectStore("s").put(value, key); } catch (e) { rej(e); }
     });
   }
 
   document.getElementById("btnQuota").addEventListener("click", async (e) => {
     const btn = e.currentTarget;
     btn.disabled = true;
-    btn.textContent = "試しています…";
-    const DB = "shosai-capacity-probe";
-    try { indexedDB.deleteDatabase(DB); } catch (_) {}
+    btn.textContent = "調べています…";
 
-    // ① Blob で保存できるか（Safari は昔から苦手という説の検証）
-    // ② ArrayBuffer で保存できるか（①が駄目ならこちらで実装する）
-    for (const kind of ["Blob", "ArrayBuffer"]) {
+    // 0. 前提の確認（保存が止められていないか）
+    let lsOk = false;
+    try { localStorage.setItem("probe", "1"); localStorage.removeItem("probe"); lsOk = true; } catch (_) {}
+    addRow("measured", "簡易保存(localStorage)", lsOk ? "ok" : "bad", lsOk ? "書けた" : "書けない",
+      lsOk ? "" : "保存が全面的に止められています。プライベートブラウズか、Safariの設定を確認してください。");
+    addRow("measured", "Cookie/サイトデータ", navigator.cookieEnabled ? "ok" : "bad",
+      "cookieEnabled: " + navigator.cookieEnabled, navigator.cookieEnabled ? "" : "サイトデータが無効です。");
+
+    // 1. データベースを開けるか（名前は毎回変えて、前回の残りに影響されないようにする）
+    const name = "shosai-probe-" + Date.now();
+    let db = null;
+    try {
+      db = await openDB(name);
+      addRow("measured", "データベースを開く", "ok", name);
+    } catch (err) {
+      addRow("measured", "データベースを開く", "bad", String(err),
+        "ここで落ちるなら、書き込み以前の問題です（プライベートブラウズ／ストレージ無効が濃厚）。");
+      btn.textContent = "もう一度試す"; btn.disabled = false; return;
+    }
+
+    // 2. 小さい方から段階的に。どこで落ちたかを必ず記録する
+    const steps = [
+      ["文字1KB", "text", 1024],
+      ["ArrayBuffer 1MB", "ab", 1024 * 1024],
+      ["Blob 1MB", "blob", 1024 * 1024],
+      ["ArrayBuffer 5MB", "ab", 5 * 1024 * 1024],
+      ["Blob 5MB", "blob", 5 * 1024 * 1024],
+      ["ArrayBuffer 20MB", "ab", 20 * 1024 * 1024],
+    ];
+    for (const [label, kind, size] of steps) {
+      let value;
+      if (kind === "text") value = "あ".repeat(size / 2);
+      else if (kind === "ab") value = new Uint8Array(size).buffer;
+      else value = new Blob([new Uint8Array(size)]);
+      const t0 = performance.now();
       try {
-        const db = await openProbe(DB + "-" + kind);
-        const bytes = new Uint8Array(5 * 1024 * 1024);   // 5MB
-        const value = kind === "Blob" ? new Blob([bytes]) : bytes.buffer;
-        const t0 = performance.now();
-        await putOnce(db, "k", value);
-        const ms = performance.now() - t0;
-        db.close();
-        indexedDB.deleteDatabase(DB + "-" + kind);
-        addRow("measured", kind + " を5MB保存", "ok", (ms).toFixed(0) + "ms で成功（削除済み）",
-          kind === "Blob" ? "画像をそのまま置ける形です。" : "画像をこの形に変えれば置けます。");
+        await put(db, label, value);
+        addRow("measured", label, "ok", (performance.now() - t0).toFixed(0) + "ms で書けた");
       } catch (err) {
-        addRow("measured", kind + " を5MB保存", "bad", errText(err),
-          kind === "Blob" ? "Blobは使えません。ArrayBuffer の結果を見てください。" : "どちらも駄目なら画像は端末に置けません。");
+        addRow("measured", label, "bad", String(err), "ここが上限、またはこの形式が扱えません。");
+        break;
       }
     }
 
-    // ③ どこまで入るか（20MBずつ増やして、失敗した所で止める。上限200MBまで試す）
-    btn.textContent = "容量の上限を探っています…";
-    const DB2 = DB + "-grow";
-    let written = 0, stopped = "";
-    try {
-      const db = await openProbe(DB2);
-      const bytes = new Uint8Array(20 * 1024 * 1024).buffer;   // ArrayBuffer で20MBずつ
-      for (let i = 0; i < 10; i++) {
-        try {
-          await putOnce(db, "c" + i, bytes.slice(0));
-          written += 20;
-        } catch (err) { stopped = errText(err); break; }
-      }
-      db.close();
-    } catch (err) { stopped = errText(err); }
-    indexedDB.deleteDatabase(DB2);
-
     let est = null;
     try { est = navigator.storage && navigator.storage.estimate ? await navigator.storage.estimate() : null; } catch (_) {}
-    addRow("measured", "実際に入った量", written >= 200 ? "ok" : written > 0 ? "warn" : "bad",
-      written + " MB まで書けた" + (stopped ? "（そこで停止: " + stopped + "）" : "（200MBまで試して全部成功）") +
-      (est ? " ／ 申告 " + fmt(est.quota) : ""),
-      "テキスト索引は約60MB。ここが60MBを超えていれば、索引は問題なく持ち込めます。");
+    if (est) addRow("measured", "書き込み後の使用量", "ok", "使用 " + fmt(est.usage) + " / 上限 " + fmt(est.quota));
+
+    db.close();
+    indexedDB.deleteDatabase(name);
+    addRow("measured", "後片付け", "ok", "試験用データベースを削除した");
 
     btn.textContent = "もう一度試す";
     btn.disabled = false;
