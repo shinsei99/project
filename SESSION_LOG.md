@@ -21,6 +21,12 @@
 - 直下 `.gitignore` に許可行を追加（`HANDOFF.md` / `SETUP.md` / `dev-doctor.py` /
   `dev-setup.sh` / `secrets-sync.sh` / `secrets-manifest.txt`）
 - **メインPCの 8526 / 8527 のLAN公開を解消**（下記）
+- **個人Dropboxの受け渡し置き場を片付け**。受け取り済みを1件ずつ確認して削除:
+  `handoff-20260815`（agent-platform の config/knowledge/.env・flyer-creator の .stats_key。
+  5件ともメインPCに実体あり）／`chatwork-ai-manager-handoff` 165MB（サブPCが8/16にimport済み。
+  必要なら `handoff_export.sh` で作り直せる）。残りは `handoff-20260817`(380KB) と
+  `pokecard-dex-handoff`(3.7GB) で、**どちらもサブPCの受け取り確認後に消す**（今夜の手順③）
+- CLAUDE.md に「**PCまたぎの受け渡し — 受け取ったら消す**」を作業ルールとして追加
 
 ### 発生したエラーと解決策
 - **症状**: TODOの「【明日いちばん最初】メインPCで `./secrets-sync.sh export`」が実行できない。

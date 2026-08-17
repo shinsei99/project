@@ -18,7 +18,24 @@
 > mkdir -p psa-collection/data
 > cp ~/Library/CloudStorage/Dropbox-個人/handoff-20260817/psa-collection/data/*.json \
 >    psa-collection/data/
+> ls -la psa-collection/data/*.json    # ← 入ったことを目で見てから③へ
+>
+> # ③ 使い終わった受け渡しファイルを Dropbox から消す（機密を置きっぱなしにしない）
+> D=~/Library/CloudStorage/Dropbox-個人
+> rm -rf "$D/handoff-20260817"                       # ②が終わっていれば用済み
+>
+> #   ポケモンカード図鑑の 4.0GB tar。**data/ が入っていることを確認してから**消す
+> du -sh ~/pokecard-dex/data 2>/dev/null              # 4GB前後あればOK。無ければ先に展開する
+> #   → 展開がまだなら: tar -xf "$D/pokecard-dex-handoff/pokecard-dex-data.tar" -C ~/pokecard-dex/
+> rm -rf "$D/pokecard-dex-handoff"                    # 確認できてから実行（3.7GB空く）
+>
+> ls -d "$D"/*handoff* 2>/dev/null                    # ← 何も出なければ片付け完了
 > ```
+>
+> **メインPC側の受け渡しファイルは 2026-08-17 に削除済み**（`handoff-20260815` ＝
+> agent-platform の config/knowledge/.env と flyer-creator の .stats_key、5件とも
+> メインPCに入っているのを確認済み ／ `chatwork-ai-manager-handoff` 165MB ＝
+> サブPCが 8/16 に import 済み。必要になれば `handoff_export.sh` で作り直せる）。
 >
 > **なぜ①が要るのか（同じ失敗を繰り返さないため）**
 > 8/16のコミットは**メッセージに5本が書いてあるのに、中身が入っていなかった**。
