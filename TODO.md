@@ -34,12 +34,19 @@
 > #   ※キーを含む可能性があるので**Dropbox経由・gitには入れない**。サブPCが取り込んだら置き場ごと削除
 > #   サーバー本体がローカルのスクリプトなら、その実体も同じ置き場に入れる
 >
-> # ⑥ 新しい道具（使うなら）
+> # ⑥ Claudeの記憶（メモリ）の差分を取り込む ← **gitに乗らないのでこれだけDropbox経由**
+> #    置き場: ~/Library/CloudStorage/Dropbox-個人/handoff-20260818-sub-to-main/
+> #    手順はその中の「先に読む.txt」に書いてある（MEMORY.md は上書きせず diff を見てから）
+> #    取り込んだら置き場ごと削除する
+>
+> # ⑦ 新しい道具（使うなら）
 > ./va.sh --help          # Visual Agent: ブラウザを見て操作しUIを検証する
 > ./see.sh --help         # Macの画面・pptx/pdfの見た目を見る
 > #   Chromium は agent-platform/.venv の playwright を借りる。無ければ:
 > #   agent-platform/.venv/bin/python -m playwright install chromium
 > ```
+>
+> **この節を消す前に、⑥のDropbox置き場を削除したか確認する。**
 >
 > ### 今回サブPCで変えたこと（コミット7本・`954844d`〜`a86116d`＋SESSION_LOG）
 >
