@@ -1,5 +1,46 @@
 # TODO — 全アプリの索引
 
+> ## 🖥 サブPCで今夜やること（2026-08-17 メインPCから依頼）
+>
+> **この節を読んだら、まず `git pull` してから下を上から順に実行する。終わったらこの節ごと消す。**
+>
+> ```bash
+> cd ~
+> git pull origin main    # ← 先にこれ。8/17にメインPCで .gitignore に許可行を追加してある
+>
+> # ① 8/16に作った整備ツール5本を、git に載せ直す
+> git add SETUP.md dev-doctor.py dev-setup.sh secrets-sync.sh secrets-manifest.txt
+> git status --short      # ← 5本が「A 」で並ぶことを目で見る（並ばないなら下の「確認」へ）
+> git commit -m "サブPC整備の道具一式（.gitignore許可漏れで未コミットだったもの）"
+> git push origin main
+>
+> # ② メインPCから渡した機密2件を取り込む
+> mkdir -p psa-collection/data
+> cp ~/Library/CloudStorage/Dropbox-個人/handoff-20260817/psa-collection/data/*.json \
+>    psa-collection/data/
+> ```
+>
+> **なぜ①が要るのか（同じ失敗を繰り返さないため）**
+> 8/16のコミットは**メッセージに5本が書いてあるのに、中身が入っていなかった**。
+> 直下 `.gitignore` は1行目が `*`（全部無視）で、`!` で個別に許可する方式のため、
+> 許可行の無い新規ファイルは `git add` してもエラーを出さずに無視される。
+> → 直下に新規ファイルを置いたら `git show --stat <コミット>` で実体が入ったか必ず見る。
+>
+> **確認**: `git add` しても `A ` が出ない場合は `git check-ignore -v secrets-sync.sh` を実行。
+> `.gitignore:2:*` と出たら①のpullがまだ効いていない（`git log --oneline -1` が `247d839` 以降か確認）。
+>
+> **やらなくてよくなったもの**
+> - `digital-shosai/.env.local` の受け取り … **メインPCにも存在しない**（あるのは `.env.local.example` だけ）
+> - `./secrets-sync.sh import` … 道具がメインPCに無く使えないため、②の手コピーで代替済み
+>
+> **触らないもの**
+> - `ai-tools-lab` … メインPCへ移管済み。サブPCでは開発も公開もしない
+> - `chatwork-ai-manager` の worker / LINE webhook / ngrok … メインPCで稼働中。**同時起動禁止**
+>
+> **ついでに判断してほしい**: サブPCの launchd 常駐2本（file-finder 8520 /
+> owner-payout-tracker 8519）がメインPCと二重にLAN公開されている（どちらも個人情報を含む）。
+> 止めるなら `launchctl unload ~/Library/LaunchAgents/com.shinsei.<アプリ>.plist`。
+
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
 詳細は各アプリの `<アプリ>/TODO.md` と `<アプリ>/SESSION_LOG.md` にある。
 
