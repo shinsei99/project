@@ -15,7 +15,7 @@ import streamlit as st
 
 from services import satei_core as sc
 from services import case_extractor, satei_report, explanation_service, ryutsu_service
-from services import geo_service, market_research_service
+from services import geo_service, market_research_service, registry_parser, satei_store
 
 st.set_page_config(page_title="不動産査定書 作成システム", page_icon="🏠", layout="wide")
 
@@ -91,10 +91,166 @@ def num(v, default=0.0):
         return default
 
 
+# ── 謄本（登記簿PDF）→ 査定対象物件の自動入力 ────────────────────────────────
+# ①査定対象物件の各ウィジェットのキー（自動入力で上書きする対象）
+AUTOFILL_KEYS = [
+    "w_ptype", "w_addr", "w_chiban", "w_chimoku", "w_kaoku_no",
+    "w_build_ym", "w_station", "w_access", "w_structure",
+    "w_madori", "w_land_area", "w_building_area",
+    "w_mansion_name", "w_exclusive_area", "w_balcony_area", "w_floor_no", "w_direction",
+]
+
+
+def build_subject_from_registries(infos):
+    """複数の RegistryInfo を1物件に統合し (fill, ptype) を返す。
+
+    土地謄本（地積）＋建物謄本（床面積・構造・築年）＋区分建物謄本（専有面積・名称）を
+    まとめて1つの査定対象にする。1枚でも区分建物なら種別＝マンションと判定する。
+    各項目は最初に得られた非空の値を採用（先勝ち）。
+    """
+    fill: dict = {}
+    is_mansion = False
+
+    def setk(key, value):
+        if value in (None, "", 0, 0.0):
+            return
+        if not fill.get(key):
+            fill[key] = value
+
+    for info in infos:
+        cls = registry_parser.classify(info)
+        if cls == "mansion":
+            is_mansion = True
+        # 所在（土地・建物は地番を付す。区分建物は所在のみ）
+        addr = info.location or ""
+        if cls != "mansion" and info.chiban:
+            addr = f"{addr}{info.chiban}".strip()
+        setk("address", addr)
+        setk("chiban", info.chiban)
+        setk("chimoku", info.chimoku)
+        setk("kaoku_no", info.kaoku_no)
+        setk("structure", info.structure)
+        setk("build_ym", info.build_ym)
+        setk("land_area", info.land_area)
+        setk("building_area", info.floor_area)
+        if cls == "mansion":
+            setk("mansion_name", info.mansion_name)
+            setk("exclusive_area", info.exclusive_area)
+            floor = f"{info.floor_no or ''}/{info.total_floors or ''}".strip("/")
+            setk("floor_no", floor)
+
+    ptype = sc.TYPE_MANSION if is_mansion else sc.TYPE_KODATE
+    return fill, ptype
+
+
+def apply_autofill(fill, ptype):
+    """統合結果を①各ウィジェットの session_state キーへ書き込む（次回描画で反映）。"""
+    ss["w_ptype"] = ptype
+    text_map = {
+        "address": "w_addr", "chiban": "w_chiban", "chimoku": "w_chimoku",
+        "kaoku_no": "w_kaoku_no", "structure": "w_structure", "build_ym": "w_build_ym",
+        "mansion_name": "w_mansion_name", "floor_no": "w_floor_no",
+    }
+    for src, wk in text_map.items():
+        if src in fill:
+            ss[wk] = str(fill[src])
+    num_map = {
+        "land_area": "w_land_area", "building_area": "w_building_area",
+        "exclusive_area": "w_exclusive_area",
+    }
+    for src, wk in num_map.items():
+        if src in fill:
+            ss[wk] = float(fill[src])
+
+
+# 謄本読取結果パネルの列（RegistryInfo属性 → 表示名）
+REG_VIEW_COLS = [
+    ("_file", "ファイル"), ("_cls", "分類"),
+    ("location", "所在"), ("chiban", "地番"), ("chimoku", "地目"),
+    ("land_area", "地積㎡"), ("kaoku_no", "家屋番号"), ("floor_area", "床面積㎡"),
+    ("structure", "構造"), ("build_ym", "築年月"), ("build_year", "築年(西暦)"),
+    ("mansion_name", "建物名称"), ("exclusive_area", "専有面積㎡"),
+    ("floor_no", "所在階"), ("total_floors", "総階数"), ("total_units", "総戸数"),
+]
+
+_CLS_LABEL = {"mansion": "区分建物", "building": "建物", "land": "土地"}
+
+
+def registry_view_df(reg_infos):
+    """[(filename, RegistryInfo)] を読取結果一覧の DataFrame に整形（空欄は空文字）。"""
+    rows = []
+    for fname, info in reg_infos:
+        d = vars(info)
+        row = {}
+        for attr, label in REG_VIEW_COLS:
+            if attr == "_file":
+                row[label] = fname
+            elif attr == "_cls":
+                row[label] = _CLS_LABEL.get(registry_parser.classify(info), "")
+            else:
+                v = d.get(attr, "")
+                row[label] = "" if v in (None, "", 0, 0.0) else v
+        rows.append(row)
+    return pd.DataFrame(rows, columns=[label for _, label in REG_VIEW_COLS])
+
+
+# ── 査定の保存・呼び出し（任意の名前で丸ごと保存／復元） ──────────────────────
+# スナップショットに含めるウィジェットキー（①各欄＋種別＋顧客/日付）
+SNAPSHOT_WIDGET_KEYS = AUTOFILL_KEYS + [
+    "w_rights", "w_customer", "w_satei_date", "w_expiry_date",
+]
+_SNAPSHOT_DATE_KEYS = {"w_satei_date", "w_expiry_date"}
+
+
+def collect_snapshot():
+    """現在の入力一式を JSON 化可能な dict にまとめる。"""
+    widgets = {}
+    for k in SNAPSHOT_WIDGET_KEYS:
+        if k not in ss:
+            continue
+        v = ss[k]
+        if k in _SNAPSHOT_DATE_KEYS and isinstance(v, date):
+            v = v.isoformat()
+        widgets[k] = v
+    return {
+        "widgets": widgets,
+        "trades": ss.get("trades", []),
+        "sales": ss.get("sales", []),
+        "plus": ss.get("plus", []),
+        "minus": ss.get("minus", []),
+        "explanation": ss.get("explanation", ""),
+        "ryutsu": ss.get("ryutsu", 100),
+        "ryutsu_reason": ss.get("ryutsu_reason", ""),
+    }
+
+
+def apply_snapshot(snap):
+    """保存スナップショットを session_state へ書き戻す（次回描画で復元）。"""
+    for k, v in (snap.get("widgets") or {}).items():
+        if k in _SNAPSHOT_DATE_KEYS and isinstance(v, str):
+            try:
+                v = date.fromisoformat(v)
+            except Exception:
+                continue
+        ss[k] = v
+    ss["trades"] = snap.get("trades", []) or []
+    ss["sales"] = snap.get("sales", []) or []
+    ss["plus"] = snap.get("plus", []) or [sc.empty_point() for _ in range(2)]
+    ss["minus"] = snap.get("minus", []) or [sc.empty_point() for _ in range(2)]
+    ss["explanation"] = snap.get("explanation", "")
+    ss["ryutsu"] = snap.get("ryutsu", 100)
+    ss["ryutsu_reason"] = snap.get("ryutsu_reason", "")
+    # データエディタ／流通性選択の内部状態はリセットし、復元データで作り直させる
+    for k in ("ed_trades", "ed_sales", "ed_plus", "ed_minus", "ryutsu_choice"):
+        ss.pop(k, None)
+    ss["ryutsu_choice_prev"] = None
+
+
 # ── セッション初期化 ──────────────────────────────────────────────────────────
 ss = st.session_state
 ss.setdefault("trades", [])
 ss.setdefault("sales", [])
+ss.setdefault("reg_infos", [])   # [(filename, RegistryInfo)] 謄本の読取結果
 ss.setdefault("plus", [sc.empty_point() for _ in range(2)])
 ss.setdefault("minus", [sc.empty_point() for _ in range(2)])
 ss.setdefault("explanation", "")
@@ -103,6 +259,10 @@ ss.setdefault("ryutsu_reason", "")
 ss.setdefault("ryutsu_trades", None)   # {ratio, reason, basis}
 ss.setdefault("ryutsu_ai", None)       # {ratio, reason}
 ss.setdefault("ryutsu_choice_prev", None)
+# 顧客名・日付（保存/呼び出しで復元できるようキー付き管理）
+ss.setdefault("w_customer", "")
+ss.setdefault("w_satei_date", date.today())
+ss.setdefault("w_expiry_date", add_months(date.today(), 3))
 # 会社セレクトの保留適用（ウィジェット生成前に行う）
 if "_pending_company_sel" in ss:
     ss["company_sel"] = ss.pop("_pending_company_sel")
@@ -175,6 +335,37 @@ with st.sidebar:
             st.info("APIキー未設定。参考相場は利用できません。")
         st.caption("査定は事例・売出のPDF入力が主、API相場は参考扱いです。")
 
+    st.divider()
+    st.header("💾 査定の保存・呼び出し")
+    st.caption("入力内容一式を任意の名前で保存し、後で呼び出して続きから編集できます。")
+    save_name = st.text_input("保存名", placeholder="例：上田様_網島町戸建",
+                              key="satei_save_name")
+    if st.button("💾 現在の内容を保存", use_container_width=True,
+                 disabled=not save_name.strip()):
+        satei_store.save_satei(save_name.strip(), collect_snapshot())
+        st.success(f"「{save_name.strip()}」を保存しました")
+        st.rerun()
+
+    _saved = satei_store.list_saved()
+    if _saved:
+        pick = st.selectbox("保存済みから呼び出し", ["— 選択 —"] + _saved,
+                            key="satei_pick")
+        picked = pick != "— 選択 —"
+        lc1, lc2 = st.columns(2)
+        if lc1.button("📂 呼び出し", use_container_width=True, disabled=not picked):
+            snap = satei_store.load_satei(pick)
+            if snap:
+                apply_snapshot(snap)
+                st.success(f"「{pick}」を呼び出しました")
+                st.rerun()
+            else:
+                st.error("読み込みに失敗しました")
+        if lc2.button("🗑 削除", use_container_width=True, disabled=not picked):
+            satei_store.delete_satei(pick)
+            st.rerun()
+    else:
+        st.caption("保存済みの査定はまだありません。")
+
 
 # ============================================================
 # メイン
@@ -182,14 +373,55 @@ with st.sidebar:
 st.title("🏠 不動産査定書 作成システム")
 st.caption("取引事例・売出物件PDFをAIで読み込み → 評点方式で査定 → 3枚セットの査定書(Excel)を出力")
 
-ptype = st.radio("物件種別", sc.PROPERTY_TYPES, horizontal=True)
+# ── 0. 謄本（登記簿PDF）から自動入力 ──
+with st.expander("📄 謄本（登記簿PDF）から自動入力 — 複数枚まとめてOK（土地＋建物など）", expanded=True):
+    st.caption("土地・建物の謄本をまとめてアップ→AIが読み取り、専有面積や建物名称の有無から"
+               "種別（戸建／マンション）を自動判別して、下の①各欄に反映します。")
+    reg_pdfs = st.file_uploader("謄本PDF（複数可）", type=["pdf"], accept_multiple_files=True,
+                                key="reg_up", label_visibility="collapsed")
+    ra, rb = st.columns([3, 1])
+    do_reg = ra.button("🤖 謄本を読み取り→①に自動入力", use_container_width=True,
+                       disabled=not reg_pdfs)
+    if rb.button("🧹 ①をクリア", use_container_width=True):
+        for _k in AUTOFILL_KEYS:
+            ss.pop(_k, None)
+        st.rerun()
+    if do_reg:
+        infos, errs = [], []
+        with st.spinner(f"{len(reg_pdfs)}件の謄本を解析中…（スキャンPDFはAI-OCRのため時間がかかります）"):
+            for f in reg_pdfs:
+                try:
+                    info, _m = registry_parser.parse_auto(f.getvalue(), f.name, mode="auto")
+                    infos.append((f.name, info))
+                except (registry_parser.RegistryParseError,
+                        registry_parser.PdfExtractionError) as e:
+                    errs.append(f"{f.name}: {e}")
+                except Exception as e:  # 想定外も個別ファイル単位で握る
+                    errs.append(f"{f.name}: {e}")
+        for e in errs:
+            st.error(e)
+        if infos:
+            ss.reg_infos = infos
+            fill, det_ptype = build_subject_from_registries([i for _, i in infos])
+            apply_autofill(fill, det_ptype)
+            st.success(f"{len(infos)}件を読み取り、種別「{det_ptype}」と判定して①に反映しました。"
+                       "内容を確認・補正してください。")
+            st.rerun()
+
+    # 読取結果一覧（謄本の重要情報をそのまま表示・確認用）
+    if ss.get("reg_infos"):
+        st.markdown("**📋 謄本の読取結果（原文の重要項目）**")
+        st.caption("アップした謄本ごとの抽出結果です。①への反映内容と突き合わせて確認してください。")
+        st.dataframe(registry_view_df(ss.reg_infos), use_container_width=True, hide_index=True)
+
+ptype = st.radio("物件種別", sc.PROPERTY_TYPES, horizontal=True, key="w_ptype")
 is_mansion = ptype == sc.TYPE_MANSION
 spec = colspec(ptype)
 
 c1, c2, c3 = st.columns(3)
-customer = c1.text_input("お客様氏名", placeholder="例：上田")
-satei_d = c2.date_input("査定年月日", value=date.today())
-expiry_d = c3.date_input("有効期限", value=add_months(date.today(), 3))
+customer = c1.text_input("お客様氏名", placeholder="例：上田", key="w_customer")
+satei_d = c2.date_input("査定年月日", key="w_satei_date")
+expiry_d = c3.date_input("有効期限", key="w_expiry_date")
 
 st.divider()
 
@@ -197,25 +429,34 @@ st.divider()
 st.subheader("① 査定対象物件")
 subj = sc.empty_case()
 s1, s2, s3 = st.columns([2, 1, 1])
-subj["address"] = s1.text_input("物件所在地")
-subj["rights"] = s2.selectbox("権利", ["所有権", "地上権", "賃借権", "定期借地権"])
-subj["build_ym"] = s3.text_input("築年月", placeholder="例 平成10年3月")
+subj["address"] = s1.text_input("物件所在地", key="w_addr")
+subj["rights"] = s2.selectbox("権利", ["所有権", "地上権", "賃借権", "定期借地権"], key="w_rights")
+subj["build_ym"] = s3.text_input("築年月", placeholder="例 平成10年3月", key="w_build_ym")
 s4, s5, s6, s7 = st.columns(4)
-subj["station"] = s4.text_input("最寄駅・路線")
-subj["access"] = s5.text_input("アクセス", placeholder="徒歩8分")
-subj["structure"] = s6.text_input("建物構造", placeholder="木造2F")
-subj["madori"] = s7.text_input("間取り", placeholder="3LDK")
+subj["station"] = s4.text_input("最寄駅・路線", key="w_station")
+subj["access"] = s5.text_input("アクセス", placeholder="徒歩8分", key="w_access")
+subj["structure"] = s6.text_input("建物構造", placeholder="木造2F", key="w_structure")
+subj["madori"] = s7.text_input("間取り", placeholder="3LDK", key="w_madori")
+# 登記情報（謄本の重要項目：地番・地目・家屋番号）
+r1, r2, r3 = st.columns(3)
+subj["chiban"] = r1.text_input("地番（登記）", placeholder="例 9番56", key="w_chiban")
+subj["chimoku"] = r2.text_input("地目（登記）", placeholder="例 宅地", key="w_chimoku")
+subj["kaoku_no"] = r3.text_input("家屋番号（登記）", placeholder="例 9番56", key="w_kaoku_no")
 if is_mansion:
     m1, m2, m3, m4 = st.columns(4)
-    subj["mansion_name"] = m1.text_input("マンション名・号室")
-    subj["exclusive_area"] = m2.number_input("専有面積(㎡)", min_value=0.0, step=0.01, format="%.2f")
-    subj["balcony_area"] = m3.number_input("バルコニー(㎡)", min_value=0.0, step=0.01, format="%.2f")
-    subj["floor_no"] = m4.text_input("階／階建", placeholder="6/11")
-    subj["direction"] = st.text_input("向き", placeholder="南")
+    subj["mansion_name"] = m1.text_input("マンション名・号室", key="w_mansion_name")
+    subj["exclusive_area"] = m2.number_input("専有面積(㎡)", min_value=0.0, step=0.01,
+                                             format="%.2f", key="w_exclusive_area")
+    subj["balcony_area"] = m3.number_input("バルコニー(㎡)", min_value=0.0, step=0.01,
+                                           format="%.2f", key="w_balcony_area")
+    subj["floor_no"] = m4.text_input("階／階建", placeholder="6/11", key="w_floor_no")
+    subj["direction"] = st.text_input("向き", placeholder="南", key="w_direction")
 else:
     k1, k2 = st.columns(2)
-    subj["land_area"] = k1.number_input("土地面積(㎡)", min_value=0.0, step=0.01, format="%.2f")
-    subj["building_area"] = k2.number_input("建物面積(㎡)", min_value=0.0, step=0.01, format="%.2f")
+    subj["land_area"] = k1.number_input("土地面積(㎡)", min_value=0.0, step=0.01,
+                                        format="%.2f", key="w_land_area")
+    subj["building_area"] = k2.number_input("建物面積(㎡)", min_value=0.0, step=0.01,
+                                            format="%.2f", key="w_building_area")
 
 st.divider()
 

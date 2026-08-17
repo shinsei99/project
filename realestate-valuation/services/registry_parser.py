@@ -10,7 +10,9 @@ pdfplumber でテキストを抽出し、正規表現で登記事項
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -163,7 +165,27 @@ def parse(pdf_bytes: bytes) -> RegistryInfo:
 #   Claude Pro/Max サブスクリプションのみで動作する。）
 # ===========================================================================
 
-CLAUDE_BIN = "claude"
+def _resolve_claude_bin() -> str:
+    """`claude` の実行パスを解決する。
+
+    launchd 常時起動では PATH が最小化され `~/.local/bin` や `/opt/homebrew/bin`
+    が含まれないため、PATH 頼みの素の "claude" では見つからない。
+    which → 既知の設置先 の順に絶対パスを探し、最後に素の名前へフォールバックする。
+    """
+    p = shutil.which("claude")
+    if p:
+        return p
+    for cand in (
+        "/opt/homebrew/bin/claude",
+        os.path.expanduser("~/.local/bin/claude"),
+        "/usr/local/bin/claude",
+    ):
+        if os.path.exists(cand):
+            return cand
+    return "claude"
+
+
+CLAUDE_BIN = _resolve_claude_bin()
 CLAUDE_TIMEOUT_SEC = 1800  # 30分（混雑時も対応できる範囲）
 
 _CLAUDE_PROMPT = """\
@@ -283,6 +305,19 @@ def parse_with_claude(pdf_bytes: bytes, filename: str = "registry.pdf") -> Regis
     info.floor_no = _to_int(raw.get("所在階"))
     info.total_floors = _to_int(raw.get("総階数"))
     return info
+
+
+def classify(info: RegistryInfo) -> str:
+    """1枚の謄本から読み取った RegistryInfo を種別分類する。
+
+    戻り値: "mansion"（区分建物）/ "building"（一戸建て等の建物）/ "land"（土地のみ）。
+    複数枚を統合して物件種別を自動判別する材料に使う。
+    """
+    if info.exclusive_area > 0 or info.mansion_name:
+        return "mansion"
+    if info.floor_area > 0 or info.structure or info.build_year:
+        return "building"
+    return "land"
 
 
 def parse_auto(

@@ -4,3 +4,5 @@ __pycache__/
 .DS_Store
 # APIキー等のローカル設定（各PCに保持・公開しない）
 .streamlit/secrets.toml
+# 保存した査定（顧客名・住所を含むため公開しない・各PCローカル保持）
+saved_satei.json

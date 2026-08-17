@@ -160,6 +160,9 @@ def empty_case() -> dict:
     """取引事例・売出物件・査定対象 共通の1物件レコード。"""
     return {
         "address": "",          # 物件所在地
+        "chiban": "",            # 地番（登記）
+        "chimoku": "",           # 地目（登記）
+        "kaoku_no": "",          # 家屋番号（登記）
         "price_man": 0.0,        # 取引/売出/査定 価格（万円）
         "land_price_man": 0.0,   # うち土地価格（万円）
         "land_area": 0.0,        # 土地面積（㎡）
