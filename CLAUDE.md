@@ -104,10 +104,10 @@ Playwright MCP を npx で起動（Chrome・`--isolated`＝普段のプロファ
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全51本）※不動産31・ツール14・ゲーム6  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全52本）※不動産32・ツール14・ゲーム6  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（31本）
+### 不動産（32本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
@@ -142,6 +142,7 @@ Playwright MCP を npx で起動（Chrome・`--isolated`＝普段のプロファ
 | マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | ✅ | — |
 | AI業務マネージャー（Chatwork/LINE常駐AIエージェント） | chatwork-ai-manager | 8540(画面)/8530(LINE) | ✅（画面0.0.0.0） | LINE(ngrok) |
 | 事業計画案ジェネレーター（投資収支→Excel） | business-plan-generator | 8533 | ✅ | — |
+| KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | — |
 
 ### ツール（14本）※社内LAN共有なし
 
@@ -268,6 +269,34 @@ Playwright MCP を npx で起動（Chrome・`--isolated`＝普段のプロファ
   Chatworkからの依頼は既定で**管理者のみ**（`dev_allowed_account_ids`）。
   ブラウザ操作の共通基盤は下の「共通 Visual Agent」。
 
+### KeyLine（NFC鍵・備品貸出管理）補足 ※不動産・port 8534
+
+- 鍵・重要備品を「NFCタグにかざすだけで、誰が・いつ持ち出し、いつ返したか」記録する社内ツール。
+  **NFCタグ1枚 = 1つの貸出管理単位**（鍵3本セットでもタグ1枚・1行）。鍵番号は**鍵に刻印された番号**で、
+  システムの採番でもNFC識別子でもない。詳細は `keyline/README.md`。
+- **⚠️ Safari は Web NFC に非対応**（iOS/iPadOS/macOS すべて。`NDEFReader` が undefined・フラグも無い）。
+  したがって**ブラウザからNFCは絶対に触れない**。→ 代わりに **iOSのバックグラウンドタグ読み取り**を使う。
+  タグに `http://192.168.1.105:8534/t/<token>` を **NDEFのURLレコード**として書いておくと、
+  かざす→通知タップ→Safariが開く。**アプリのインストール不要**（iPhone XS以降）。
+  **iPad はNFCリーダー非搭載で読めない。共用端末にするなら iPhone。**
+- **画面は2つだがアプリは1本。** `/` が管理画面（PC）、`/t/<token>` が貸出画面（鍵管理スマホ）。
+  スマホには何もインストールしないので、メインPCを直せばスマホ側も即座に最新になる。
+- **「操作する人（users）」と「借りる人（borrowers）」を分けてある。** 社外の業者・内見客にも貸すため、
+  借主をログインできる人に紐づけると破綻する。社員も borrowers 側に入る。
+  共用端末なので**操作した社員は記録しない**（現場で1タップ減らす判断・2026-08-17）。
+- **免許証・名刺のOCRは `claude` CLI のビジョン**（`baikai-generator/services/registry_parser.py` と同じ経路・
+  APIキー不要）。**撮った画像は返却から30日で自動削除**（`purge.py` を launchd が毎日3:30に実行）。
+  読み取りの瞬間だけ画像はAnthropicへ送られる。`data/` は個人情報を含むため**gitignore**。
+- **⚠️ タグに書くURLを「アクセス中のURL」から作らないこと。** 管理者が localhost で開いていると
+  localhost 入りのURLが出て、それを書いたタグはスマホから永久に開けない（**物理的な書き直しになる**）。
+  `services.lan_base_url()` が常にLANのIPを返し、`run.sh` が **en1（.105）** を明示している。
+- 依存は `pip install --user`（Python は `/usr/bin/python3` 固定）。Streamlit ではなく **FastAPI** なのは、
+  Streamlit だと ①`/t/<token>` のURLルーティングが作れない ②再読み込みでセッションが消える
+  ③Cookieを扱えない ——NFCタップ起点では致命的だから。
+- **🔴 未確認（タグ到着後に最優先で検証）**: 平文 `http://` のLAN内IPでもバックグラウンドタグ読み取りが
+  通知を出すか。黒なら ①`keyline.daikyocorp.co.jp` を .105 に向けて Let's Encrypt（DNS-01）で
+  LAN内正規HTTPS ②自己署名＋構成プロファイル。HTTPS化したら `app.py` の `set_cookie` に `secure=True` を付ける。
+
 ### チラシクリエーター（flyer-creator）補足 ※ツール・port 8529
 
 - 旧称「加東 貸家チラシメーカー」・旧フォルダ名 `kato-flyer`（**2026-08-15 に改称**）。加東市秋津の貸家の客付け一式（A4チラシ＋物件サイト＋看板の元データ）。紙とWebが同じ `properties.py` を読むので、片方を直せば両方に反映される。
@@ -358,6 +387,7 @@ Playwright MCP を npx で起動（Chrome・`--isolated`＝普段のプロファ
 | 8529 | チラシクリエーター（※ツール・127.0.0.1・launchd未登録） | （未登録） |
 | 8532 | マルチプロダクション | com.shinsei.agent-platform |
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
+| 8534 | KeyLine（NFC鍵・備品貸出管理／※画像自動削除は -purge が毎日3:30） | com.shinsei.keyline ＋ -purge |
 | 8530 | AI業務マネージャー LINE webhook（※メインPCのみ稼働。ngrok固定ドメイン経由で公開） | com.shinsei.chatwork-ai-manager-line ＋ -ngrok |
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
@@ -369,7 +399,7 @@ Playwright MCP を npx で起動（Chrome・`--isolated`＝普段のプロファ
 
 | 分類 | バインド | 対象 |
 |---|---|---|
-| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8540 chatwork-ai-manager |
+| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8534 keyline＋8540 chatwork-ai-manager |
 | 不動産だが**開発中** | `--server.address 127.0.0.1` | （現在なし。8532 agent-platform は2026-08-17に完成扱いへ移行） |
 | ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 3004 ai-tools-lab（Next.js） |
 

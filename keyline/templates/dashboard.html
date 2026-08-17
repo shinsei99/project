@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}ダッシュボード — KeyLine{% endblock %}
+{% block content %}
+
+{# ご指示13の管理者ダッシュボード。開いた瞬間に「いま外に出ている鍵」と
+   「期限を過ぎている鍵」が分かることだけを狙う。 #}
+
+<h1>ダッシュボード</h1>
+
+<div class="stats">
+  <div class="stat"><div class="n">{{ stats.total }}</div><div class="l">管理対象</div></div>
+  <div class="stat"><div class="n">{{ stats.out }}</div><div class="l">貸出中</div></div>
+  <div class="stat {% if stats.overdue %}alert{% endif %}">
+    <div class="n">{{ stats.overdue }}</div><div class="l">返却期限超過</div></div>
+  <div class="stat"><div class="n">{{ stats.no_tag }}</div><div class="l">タグ未発行</div></div>
+</div>
+
+<div class="card">
+  <h2>いま貸出中（{{ out|length }}件）</h2>
+  {% if out %}
+  <div class="scroll">
+  <table>
+    <thead><tr>
+      <th>管理対象</th><th>鍵番号</th><th>利用者</th><th>貸出日時</th>
+      <th>経過</th><th>返却予定</th><th>戻す場所</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for a in out %}
+    <tr class="{% if a.is_overdue %}overdue{% endif %}">
+      <td><a href="/assets/{{ a.id }}"><strong>{{ a.name }}</strong></a></td>
+      <td class="num small">{{ a.item_numbers or '-' }}</td>
+      <td>
+        {{ a.borrower_name }}
+        {% if a.borrower_company %}<br><span class="muted small">{{ a.borrower_company }}</span>{% endif %}
+      </td>
+      <td class="num small">{{ a.checked_out_at | dt_short }}</td>
+      <td class="num small">{{ a.elapsed_minutes | elapsed }}</td>
+      <td class="num small">
+        {% if a.due_at %}
+          {% if a.is_overdue %}<strong style="color:#c0392b">{{ a.due_at | dt_short }} 超過</strong>
+          {% else %}{{ a.due_at | dt_short }}{% endif %}
+        {% else %}<span class="muted">-</span>{% endif %}
+      </td>
+      <td class="small">{{ a.box_code or '-' }}{% if a.box_position %} / {{ a.box_position }}{% endif %}</td>
+      <td>
+        {% if user.role == 'admin' %}
+        <form method="post" action="/assets/{{ a.id }}/force-return"
+              onsubmit="return confirm('「{{ a.name }}」を強制返却します。よろしいですか？')">
+          <button class="btn ghost small" style="padding:.3rem .6rem;font-size:.8rem">強制返却</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">貸出中の鍵はありません。すべて戻っています。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>最近の動き</h2>
+  {% if recent %}
+  <div class="scroll">
+  <table>
+    <thead><tr><th>日時</th><th>管理対象</th><th>相手</th><th>状態</th></tr></thead>
+    <tbody>
+    {% for l in recent %}
+    <tr>
+      <td class="num small">{{ l.checkout_at | dt_short }}</td>
+      <td><a href="/assets/{{ l.asset_id }}">{{ l.asset_name }}</a></td>
+      <td>{{ l.borrower_name }}{% if l.borrower_company %} <span class="muted small">/ {{ l.borrower_company }}</span>{% endif %}</td>
+      <td class="small">
+        {% if l.returned_at %}
+          <span class="badge b-in">返却済</span> {{ l.returned_at | dt_short }}
+          {% if l.return_type == 'admin_force' %}<span class="muted small">（強制）</span>{% endif %}
+        {% else %}<span class="badge b-out">貸出中</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p style="margin:.8rem 0 0"><a href="/history">すべての履歴を見る →</a></p>
+  {% else %}
+  <p class="muted">まだ貸出の記録がありません。</p>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script>
+// ご指示27：貸出・返却があったら管理画面を自動で更新する。
+// 差分は送らず「変わった」とだけ受け取って読み直す。表示のずれが起きない。
+(function(){
+  if (!window.EventSource) return;
+  const es = new EventSource('/events');
+  let timer = null;
+  es.addEventListener('changed', () => {
+    // 連続した操作でリロードが重ならないよう少しまとめる
+    clearTimeout(timer);
+    timer = setTimeout(() => location.reload(), 600);
+  });
+})();
+</script>
+{% endblock %}

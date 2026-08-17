@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}ログイン — KeyLine{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% set slim = true %}
+{% block content %}
+
+<div style="text-align:center;margin:2rem 0 1.5rem">
+  <div style="font-size:2.4rem">🔑</div>
+  <h1 style="margin:.3rem 0">KeyLine</h1>
+  <p class="muted small" style="margin:0">鍵・備品の貸出管理</p>
+</div>
+
+<form method="post" action="/login" class="card">
+  <input type="hidden" name="next" value="{{ next }}">
+
+  <label for="email">メールアドレス</label>
+  <input type="email" id="email" name="email" required autocomplete="username"
+         autocapitalize="none" autocorrect="off" autofocus>
+
+  <label for="password">パスワード</label>
+  <input type="password" id="password" name="password" required
+         autocomplete="current-password">
+
+  <button type="submit" class="btn primary big" style="margin-top:1.2rem">ログイン</button>
+</form>
+
+<p class="small muted" style="text-align:center">
+  鍵管理用のスマホは一度ログインすれば、以降ログインは不要です。
+</p>
+
+{% endblock %}

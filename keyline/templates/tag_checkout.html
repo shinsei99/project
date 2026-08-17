@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.name }} — 貸出{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% set slim = true %}
+{% block content %}
+
+{# 現場で一番使う画面。狙いは「かざす → 相手を選ぶ → 貸出する」の3手で終わらせること。
+   相手が常連なら上のボタン1つで済み、初見の人だけ入力や撮影に降りる。 #}
+
+<div class="card">
+  <div class="asset-head">
+    <span class="badge b-in">保管中</span>
+    <div class="nm">{{ asset.name }}</div>
+    {% if asset.item_numbers %}<div class="keys">{{ asset.item_numbers }}</div>{% endif %}
+    <div class="where">
+      {% if asset.box_code %}{{ asset.box_code }}{% if asset.box_position %} — 位置 {{ asset.box_position }}{% endif %}
+      {% else %}保管場所は未設定{% endif %}
+    </div>
+  </div>
+</div>
+
+<form method="post" action="/t/{{ token }}/checkout" id="f">
+  <input type="hidden" name="borrower_id" id="borrower_id">
+  <input type="hidden" name="image_path"  id="image_path">
+  <input type="hidden" name="image_kind"  id="image_kind">
+
+  <div class="card">
+    <h2>誰に貸しますか？</h2>
+
+    {% if recent %}
+    <div class="picks" id="picks">
+      {% for b in recent %}
+      <button type="button" class="pick" data-id="{{ b.id }}">
+        <span class="nm">{{ b.name }}</span>
+        <span class="co">
+          {% if b.company %}{{ b.company }}{% else %}{{ KIND_LABEL.get(b.kind, b.kind) }}{% endif %}
+          {% if b.open_count %} ・貸出中{{ b.open_count }}件{% endif %}
+        </span>
+      </button>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="muted small">まだ貸出先が登録されていません。下から追加してください。</p>
+    {% endif %}
+
+    <details id="newbox" {% if not recent %}open{% endif %} style="margin-top:1rem">
+      <summary style="cursor:pointer;font-weight:700;padding:.5rem 0">
+        ＋ はじめての相手に貸す
+      </summary>
+
+      {% if ocr_ok %}
+      <div style="margin-top:.6rem">
+        <label style="margin-top:0">免許証・名刺を撮ると自動で入力されます</label>
+        <div class="btn-row">
+          <label class="btn ghost" style="margin:0">
+            📇 名刺を撮る
+            <input type="file" accept="image/*" capture="environment"
+                   data-kind="business_card" class="shot" hidden>
+          </label>
+          <label class="btn ghost" style="margin:0">
+            🪪 免許証を撮る
+            <input type="file" accept="image/*" capture="environment"
+                   data-kind="drivers_license" class="shot" hidden>
+          </label>
+        </div>
+        <p class="small muted" id="ocrmsg" style="margin:.5rem 0 0"></p>
+      </div>
+      {% endif %}
+
+      <label for="new_name">お名前 <span style="color:#c0392b">*</span></label>
+      <input type="text" id="new_name" name="new_name" autocomplete="off"
+             placeholder="田中 一郎">
+
+      <label for="new_kind">区分</label>
+      <select id="new_kind" name="new_kind">
+        <option value="vendor">業者</option>
+        <option value="customer">お客様</option>
+        <option value="employee">社員</option>
+        <option value="other">その他</option>
+      </select>
+
+      <label for="new_company">会社名</label>
+      <input type="text" id="new_company" name="new_company" placeholder="〇〇工務店">
+
+      <label for="new_phone">電話番号</label>
+      <input type="tel" id="new_phone" name="new_phone" placeholder="090-1234-5678">
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>返却予定</h2>
+    <div class="dues">
+      {% for label, value in dues %}
+      <label>
+        <input type="radio" name="due_at" value="{{ value }}"
+               {% if loop.first %}checked{% endif %}>
+        <span>{{ label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <button type="submit" class="btn primary big" id="go">貸出する</button>
+</form>
+
+{% endblock %}
+
+{% block script %}
+<script>
+(function(){
+  const picks = document.getElementById('picks');
+  const hid   = document.getElementById('borrower_id');
+  const nb    = document.getElementById('newbox');
+  const name  = document.getElementById('new_name');
+  const form  = document.getElementById('f');
+  const go    = document.getElementById('go');
+
+  // 一覧から選ぶ：選ぶと新規入力欄は閉じて中身も消す。
+  // 両方埋まった状態で送ると「どちらに貸したのか」が曖昧になるため。
+  if (picks) picks.addEventListener('click', e => {
+    const b = e.target.closest('.pick'); if (!b) return;
+    const already = b.classList.contains('sel');
+    picks.querySelectorAll('.pick').forEach(x => x.classList.remove('sel'));
+    if (already) { hid.value = ''; return; }
+    b.classList.add('sel'); hid.value = b.dataset.id;
+    nb.open = false;
+    ['new_name','new_company','new_phone'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('image_path').value = '';
+  });
+
+  // 新規入力に触ったら一覧の選択を外す（同上の理由）
+  ['new_name','new_company','new_phone'].forEach(id =>
+    document.getElementById(id).addEventListener('input', () => {
+      if (!hid.value) return;
+      hid.value = '';
+      picks && picks.querySelectorAll('.pick').forEach(x => x.classList.remove('sel'));
+    }));
+
+  // 撮影 → OCR
+  const msg = document.getElementById('ocrmsg');
+  document.querySelectorAll('.shot').forEach(inp => {
+    inp.addEventListener('change', async () => {
+      const file = inp.files && inp.files[0]; if (!file) return;
+      msg.textContent = '読み取り中…（10〜30秒かかります）';
+      go.disabled = true;
+      const fd = new FormData();
+      fd.append('image', file);
+      fd.append('kind', inp.dataset.kind);
+      try {
+        const r = await fetch('/api/ocr', {method:'POST', body: fd});
+        const d = await r.json();
+        if (d.image_path) {
+          document.getElementById('image_path').value = d.image_path;
+          document.getElementById('image_kind').value = d.image_kind;
+        }
+        if (d.ok) {
+          // ★上書きせず、空欄だけ埋める。人が直した内容を消さない
+          if (d.name    && !name.value)                                name.value = d.name;
+          if (d.company && !document.getElementById('new_company').value)
+              document.getElementById('new_company').value = d.company;
+          if (d.phone   && !document.getElementById('new_phone').value)
+              document.getElementById('new_phone').value = d.phone;
+          hid.value = '';
+          picks && picks.querySelectorAll('.pick').forEach(x => x.classList.remove('sel'));
+          msg.textContent = d.confidence === 'low'
+            ? '⚠️ うまく読めませんでした。内容を確認して直してください。'
+            : '読み取りました。内容を確認してください。';
+        } else {
+          msg.textContent = '⚠️ ' + (d.error || '読み取れませんでした') + ' 手入力してください。';
+        }
+      } catch (e) {
+        msg.textContent = '⚠️ 通信に失敗しました。手入力してください。';
+      } finally {
+        go.disabled = false;
+        inp.value = '';
+      }
+    });
+  });
+
+  // 送信前の確認と、二重送信の防止
+  form.addEventListener('submit', e => {
+    if (!hid.value && !name.value.trim()) {
+      e.preventDefault();
+      nb.open = true; name.focus();
+      alert('貸出先を選ぶか、お名前を入力してください');
+      return;
+    }
+    go.disabled = true; go.textContent = '処理中…';
+  });
+})();
+</script>
+{% endblock %}

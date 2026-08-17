@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}管理対象 — KeyLine{% endblock %}
+{% block content %}
+
+{# ご指示14の管理対象一覧。管理対象・鍵番号・ボックス・位置・状態・利用者を1画面で。 #}
+
+<div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+  <h1 style="margin:0">管理対象（{{ assets|length }}件）</h1>
+  {% if user.role == 'admin' %}
+  <a class="btn primary" href="/assets-new" style="margin-left:auto">＋ 新規登録</a>
+  {% endif %}
+</div>
+
+<form method="get" action="/assets" class="card" style="margin-top:1rem">
+  <div style="display:flex;gap:.6rem;flex-wrap:wrap;align-items:flex-end">
+    <div style="flex:1;min-width:200px">
+      <label for="q" style="margin-top:0">検索</label>
+      <input type="text" id="q" name="q" value="{{ q }}"
+             placeholder="名前・鍵番号・ボックス・利用者">
+    </div>
+    <div style="min-width:150px">
+      <label for="status" style="margin-top:0">状態</label>
+      <select id="status" name="status">
+        <option value="">すべて</option>
+        {% for k, v in STATUS_LABEL.items() %}
+        <option value="{{ k }}" {% if status == k %}selected{% endif %}>{{ v }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button class="btn">絞り込む</button>
+    {% if q or status %}<a class="btn ghost" href="/assets">解除</a>{% endif %}
+  </div>
+</form>
+
+<div class="card">
+  {% if assets %}
+  <div class="scroll">
+  <table>
+    <thead><tr>
+      <th>管理対象</th><th>鍵番号</th><th>ボックス</th><th>位置</th>
+      <th>状態</th><th>利用者</th><th>返却予定</th><th>タグ</th>
+    </tr></thead>
+    <tbody>
+    {% for a in assets %}
+    <tr class="{% if a.is_overdue %}overdue{% endif %}">
+      <td>
+        <a href="/assets/{{ a.id }}"><strong>{{ a.name }}</strong></a>
+        {% if a.asset_type != 'key' %}<span class="badge b-kind">{{ TYPE_LABEL.get(a.asset_type, a.asset_type) }}</span>{% endif %}
+      </td>
+      <td class="num small">{{ a.item_numbers or '-' }}</td>
+      <td class="small">{{ a.box_code or '-' }}</td>
+      <td class="num small">{{ a.box_position or '-' }}</td>
+      <td>
+        {% if a.status == 'in_stock' %}<span class="badge b-in">保管中</span>
+        {% elif a.status == 'checked_out' %}
+          {% if a.is_overdue %}<span class="badge b-over">超過</span>
+          {% else %}<span class="badge b-out">貸出中</span>{% endif %}
+        {% else %}<span class="badge b-other">{{ STATUS_LABEL.get(a.status, a.status) }}</span>{% endif %}
+      </td>
+      <td class="small">
+        {% if a.borrower_name %}{{ a.borrower_name }}
+          {% if a.borrower_company %}<br><span class="muted">{{ a.borrower_company }}</span>{% endif %}
+        {% else %}-{% endif %}
+      </td>
+      <td class="num small">
+        {% if a.due_at %}{{ a.due_at | dt_short }}{% else %}-{% endif %}
+      </td>
+      <td class="small">
+        {% if a.nfc_identifier %}<span class="badge b-in">有</span>
+        {% else %}<span class="badge b-other">未</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">
+    {% if q or status %}条件に合う管理対象がありません。{% else %}まだ管理対象が登録されていません。{% endif %}
+  </p>
+  {% endif %}
+</div>
+
+{% endblock %}

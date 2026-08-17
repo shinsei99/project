@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}未登録のNFCタグ{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% set slim = true %}
+{% block content %}
+
+{# 未登録タグをかざしたとき（ご指示15）。事務所に戻らずその場で登録できるようにする。 #}
+
+<div class="card">
+  <h1 style="margin-bottom:.5rem">未登録のNFCタグです</h1>
+  <p class="muted small" style="margin-top:0">
+    NFC番号：<code class="token">{{ token }}</code>
+  </p>
+  <p class="small">この鍵をいま登録できます。</p>
+</div>
+
+<form method="post" action="/t/{{ token }}/register" id="f">
+  <div class="card">
+    <label for="name">管理対象の名前 <span style="color:#c0392b">*</span></label>
+    <input type="text" id="name" name="name" required placeholder="本社正面入口" autofocus>
+
+    <label for="asset_type">種類</label>
+    <select id="asset_type" name="asset_type">
+      <option value="key">鍵</option>
+      <option value="tool">工具</option>
+      <option value="card">カード</option>
+      <option value="device">機器</option>
+      <option value="other">その他</option>
+    </select>
+
+    <label for="item_numbers">鍵番号（鍵に刻印されている番号。複数可）</label>
+    <input type="text" id="item_numbers" name="item_numbers"
+           placeholder="12345, 12346, 12347" autocomplete="off">
+    <p class="small muted" style="margin:.3rem 0 0">
+      3本セットなら3つとも入れてください。カンマ・スペースどちらでも区切れます。
+    </p>
+
+    <label for="box_id">保管ボックス</label>
+    <select id="box_id" name="box_id">
+      <option value="">（未設定）</option>
+      {% for b in boxes %}<option value="{{ b.id }}">{{ b.code }} — {{ b.name }}</option>{% endfor %}
+    </select>
+
+    <label for="box_position">ボックス内の位置</label>
+    <input type="text" id="box_position" name="box_position" placeholder="03" autocomplete="off">
+
+    <label for="note">メモ</label>
+    <textarea id="note" name="note" placeholder="（任意）"></textarea>
+  </div>
+
+  <button type="submit" class="btn primary big" id="go">この内容で登録する</button>
+</form>
+
+{% endblock %}
+
+{% block script %}
+<script>
+document.getElementById('f').addEventListener('submit', () => {
+  const b = document.getElementById('go');
+  b.disabled = true; b.textContent = '登録中…';
+});
+</script>
+{% endblock %}

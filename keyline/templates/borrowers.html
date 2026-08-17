@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}貸出先 — KeyLine{% endblock %}
+{% block content %}
+
+<h1>貸出先（{{ borrowers|length }}件）</h1>
+
+<form method="get" action="/borrowers" class="card">
+  <div style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap">
+    <div style="flex:1;min-width:200px">
+      <label for="q" style="margin-top:0">検索</label>
+      <input type="text" id="q" name="q" value="{{ q }}" placeholder="名前・会社名・電話番号">
+    </div>
+    <button class="btn">検索</button>
+    {% if q %}<a class="btn ghost" href="/borrowers">解除</a>{% endif %}
+  </div>
+</form>
+
+<div class="card">
+  {% if borrowers %}
+  <div class="scroll">
+  <table>
+    <thead><tr>
+      <th>名前</th><th>区分</th><th>会社名</th><th>電話</th>
+      <th>貸出回数</th><th>最終貸出</th><th>貸出中</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for b in borrowers %}
+    <tr class="{% if b.open_count %}overdue{% endif %}">
+      <td><strong>{{ b.name }}</strong></td>
+      <td><span class="badge b-kind">{{ KIND_LABEL.get(b.kind, b.kind) }}</span></td>
+      <td class="small">{{ b.company or '-' }}</td>
+      <td class="small num">{% if b.phone %}<a href="tel:{{ b.phone }}">{{ b.phone }}</a>{% else %}-{% endif %}</td>
+      <td class="num small">{{ b.checkout_count }}</td>
+      <td class="num small">{% if b.last_checkout_at %}{{ b.last_checkout_at | dt_short }}{% else %}-{% endif %}</td>
+      <td class="num small">
+        {% if b.open_count %}<span class="badge b-out">{{ b.open_count }}件</span>{% else %}-{% endif %}
+      </td>
+      <td class="small"><a href="/history?borrower_id={{ b.id }}">履歴</a></td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">
+    {% if q %}条件に合う貸出先がありません。{% else %}まだ貸出先が登録されていません。貸出時にその場で追加できます。{% endif %}
+  </p>
+  {% endif %}
+</div>
+
+<p class="small muted">
+  貸出先は、鍵管理スマホの貸出画面から「はじめての相手に貸す」で追加されます。
+</p>
+
+{% endblock %}

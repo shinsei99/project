@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.name }} — 返却{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% set slim = true %}
+{% block content %}
+
+{# 貸出中のタグをかざしたときの画面（ご指示10・11）。
+   「いま誰が持っているか」を最初に大きく見せる。返す前に人が確認できることが大事。 #}
+
+<div class="card">
+  <div class="asset-head">
+    {% if asset.is_overdue %}
+      <span class="badge b-over">返却予定を過ぎています</span>
+    {% else %}
+      <span class="badge b-out">貸出中</span>
+    {% endif %}
+    <div class="nm">{{ asset.name }}</div>
+    {% if asset.item_numbers %}<div class="keys">{{ asset.item_numbers }}</div>{% endif %}
+  </div>
+
+  <dl class="kv">
+    <dt>現在の利用者</dt>
+    <dd>
+      <strong style="font-size:1.1rem">{{ asset.borrower_name }}</strong>
+      {% if asset.borrower_kind %}<span class="badge b-kind">{{ KIND_LABEL.get(asset.borrower_kind, asset.borrower_kind) }}</span>{% endif %}
+      {% if asset.borrower_company %}<br><span class="muted">{{ asset.borrower_company }}</span>{% endif %}
+      {% if asset.borrower_phone %}<br><a href="tel:{{ asset.borrower_phone }}">{{ asset.borrower_phone }}</a>{% endif %}
+    </dd>
+
+    <dt>貸出日時</dt>
+    <dd>{{ asset.checked_out_at | dt }}（{{ asset.elapsed_minutes | elapsed }}経過）</dd>
+
+    <dt>返却予定</dt>
+    <dd>
+      {% if asset.due_at %}
+        <span {% if asset.is_overdue %}style="color:#c0392b;font-weight:700"{% endif %}>{{ asset.due_at | dt }}</span>
+      {% else %}<span class="muted">指定なし</span>{% endif %}
+    </dd>
+
+    <dt>戻す場所</dt>
+    <dd>
+      {% if asset.box_code %}
+        <strong>{{ asset.box_code }}</strong>{% if asset.box_position %} — 位置 <strong>{{ asset.box_position }}</strong>{% endif %}
+        {% if asset.box_name %}<br><span class="muted small">{{ asset.box_name }}</span>{% endif %}
+      {% else %}<span class="muted">未設定</span>{% endif %}
+    </dd>
+  </dl>
+</div>
+
+<form method="post" action="/t/{{ token }}/return" id="f">
+  <button type="submit" class="btn primary big" id="go">返却する</button>
+</form>
+
+<p class="small muted" style="text-align:center;margin-top:1rem">
+  鍵を {% if asset.box_code %}{{ asset.box_code }}{% if asset.box_position %} の {{ asset.box_position }} 番{% endif %}{% else %}所定の位置{% endif %}
+  に戻してから押してください。
+</p>
+
+{% endblock %}
+
+{% block script %}
+<script>
+document.getElementById('f').addEventListener('submit', e => {
+  const b = document.getElementById('go');
+  b.disabled = true; b.textContent = '処理中…';   // 二重送信の防止
+});
+</script>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}鍵ボックス — KeyLine{% endblock %}
+{% block content %}
+
+<h1>鍵ボックス</h1>
+
+<div class="card">
+  {% if boxes %}
+  <div class="scroll">
+  <table>
+    <thead><tr><th>記号</th><th>名前</th><th>設置場所</th><th>管理対象</th></tr></thead>
+    <tbody>
+    {% for b in boxes %}
+    <tr>
+      <td><strong>{{ b.code }}</strong></td>
+      <td>{{ b.name }}</td>
+      <td class="small muted">{{ b.location or '-' }}</td>
+      <td class="num small">
+        {% if b.asset_count %}<a href="/assets?q={{ b.code }}">{{ b.asset_count }}件</a>
+        {% else %}0件{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">まだボックスが登録されていません。</p>
+  {% endif %}
+</div>
+
+{% if user.role == 'admin' %}
+<div class="card">
+  <h2>ボックスを追加</h2>
+  <form method="post" action="/boxes">
+    <div style="display:flex;gap:.7rem;flex-wrap:wrap;align-items:flex-end">
+      <div style="min-width:130px">
+        <label for="code" style="margin-top:0">記号 <span style="color:#c0392b">*</span></label>
+        <input type="text" id="code" name="code" required placeholder="BOX-01">
+      </div>
+      <div style="flex:1;min-width:200px">
+        <label for="name" style="margin-top:0">名前 <span style="color:#c0392b">*</span></label>
+        <input type="text" id="name" name="name" required placeholder="本社1F鍵ボックス">
+      </div>
+      <div style="flex:1;min-width:200px">
+        <label for="location" style="margin-top:0">設置場所</label>
+        <input type="text" id="location" name="location" placeholder="本社1F 事務所奥">
+      </div>
+      <button class="btn primary">追加</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+{% endblock %}

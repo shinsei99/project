@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.name }} — KeyLine{% endblock %}
+{% block content %}
+
+<p class="small"><a href="/assets">← 管理対象一覧</a></p>
+
+<div class="card">
+  <div style="display:flex;align-items:center;gap:.7rem;flex-wrap:wrap">
+    <h1 style="margin:0">{{ asset.name }}</h1>
+    {% if asset.status == 'in_stock' %}<span class="badge b-in">保管中</span>
+    {% elif asset.status == 'checked_out' %}
+      {% if asset.is_overdue %}<span class="badge b-over">返却期限超過</span>
+      {% else %}<span class="badge b-out">貸出中</span>{% endif %}
+    {% else %}<span class="badge b-other">{{ STATUS_LABEL.get(asset.status, asset.status) }}</span>{% endif %}
+  </div>
+
+  <dl class="kv" style="margin-top:1rem">
+    <dt>種類</dt><dd>{{ TYPE_LABEL.get(asset.asset_type, asset.asset_type) }}</dd>
+    <dt>鍵番号</dt>
+    <dd>
+      {% if items %}
+        {% for i in items %}
+          <span class="num">{{ i.item_number or '（番号なし）' }}</span>{% if i.label %} <span class="muted small">{{ i.label }}</span>{% endif %}{% if not loop.last %} / {% endif %}
+        {% endfor %}
+        <span class="muted small">（{{ items|length }}本）</span>
+      {% else %}<span class="muted">未登録</span>{% endif %}
+    </dd>
+    <dt>保管場所</dt>
+    <dd>
+      {% if asset.box_code %}{{ asset.box_code }} {{ asset.box_name }}{% if asset.box_position %} — 位置 <strong>{{ asset.box_position }}</strong>{% endif %}
+      {% else %}<span class="muted">未設定</span>{% endif %}
+    </dd>
+    {% if asset.status == 'checked_out' %}
+    <dt>現在の利用者</dt>
+    <dd>
+      <strong>{{ asset.borrower_name }}</strong>
+      <span class="badge b-kind">{{ KIND_LABEL.get(asset.borrower_kind, asset.borrower_kind) }}</span>
+      {% if asset.borrower_company %}<br><span class="muted">{{ asset.borrower_company }}</span>{% endif %}
+      {% if asset.borrower_phone %}<br><a href="tel:{{ asset.borrower_phone }}">{{ asset.borrower_phone }}</a>{% endif %}
+    </dd>
+    <dt>貸出日時</dt><dd>{{ asset.checked_out_at | dt }}（{{ asset.elapsed_minutes | elapsed }}経過）</dd>
+    <dt>返却予定</dt>
+    <dd>{% if asset.due_at %}<span {% if asset.is_overdue %}style="color:#c0392b;font-weight:700"{% endif %}>{{ asset.due_at | dt }}</span>{% else %}<span class="muted">指定なし</span>{% endif %}</dd>
+    {% endif %}
+    {% if asset.note %}<dt>メモ</dt><dd>{{ asset.note }}</dd>{% endif %}
+  </dl>
+
+  {% if asset.status == 'checked_out' and user.role == 'admin' %}
+  <form method="post" action="/assets/{{ asset.id }}/force-return" style="margin-top:1rem"
+        onsubmit="return confirm('「{{ asset.name }}」を強制返却します。よろしいですか？')">
+    <button class="btn danger">強制返却する</button>
+  </form>
+  {% endif %}
+</div>
+
+{# ---- NFCタグ ---- #}
+<div class="card">
+  <h2>NFCタグ</h2>
+  {% if asset.nfc_identifier %}
+    <p class="small muted" style="margin-top:0">
+      下のURLを NFCタグに <strong>NDEFのURLレコード</strong>として書き込んでください。<br>
+      iPhoneの無料アプリ「NFC Tools」などで書けます。
+    </p>
+    <p><code class="token" id="tagurl">{{ base_url }}/t/{{ asset.nfc_identifier }}</code></p>
+    <div class="btn-row">
+      <button class="btn ghost" type="button" onclick="copyUrl()">URLをコピー</button>
+      <a class="btn ghost" href="/t/{{ asset.nfc_identifier }}">貸出画面を開く</a>
+    </div>
+    <p class="small muted" style="margin-bottom:0">
+      NFC番号：<code class="token">{{ asset.nfc_identifier }}</code>
+    </p>
+  {% else %}
+    <p class="muted" style="margin-top:0">まだタグが割り当てられていません。</p>
+  {% endif %}
+
+  {% if user.role == 'admin' %}
+  <form method="post" action="/assets/{{ asset.id }}/issue-tag" style="margin-top:.8rem"
+        onsubmit="return confirm({% if asset.nfc_identifier %}'新しいURLを発行すると、いま貼ってあるタグは使えなくなります。よろしいですか？'{% else %}'新しいタグURLを発行します。よろしいですか？'{% endif %})">
+    <button class="btn ghost">
+      {% if asset.nfc_identifier %}タグを交換する（新しいURLを発行）{% else %}タグURLを発行する{% endif %}
+    </button>
+  </form>
+  <p class="small muted" style="margin-bottom:0">
+    タグを交換しても、この管理対象の履歴と鍵番号はそのまま残ります。
+  </p>
+  {% endif %}
+</div>
+
+{# ---- 編集 ---- #}
+{% if user.role == 'admin' %}
+<details class="card">
+  <summary style="cursor:pointer;font-weight:700">この管理対象を編集する</summary>
+  <form method="post" action="/assets/{{ asset.id }}/edit">
+    <label for="name">名前</label>
+    <input type="text" id="name" name="name" value="{{ asset.name }}" required>
+
+    <label for="asset_type">種類</label>
+    <select id="asset_type" name="asset_type">
+      {% for k, v in TYPE_LABEL.items() %}
+      <option value="{{ k }}" {% if asset.asset_type == k %}selected{% endif %}>{{ v }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="item_numbers">鍵番号（カンマ・スペース区切り）</label>
+    <input type="text" id="item_numbers" name="item_numbers"
+           value="{% for i in items %}{{ i.item_number }}{% if not loop.last %}, {% endif %}{% endfor %}">
+
+    <label for="box_id">保管ボックス</label>
+    <select id="box_id" name="box_id">
+      <option value="">（未設定）</option>
+      {% for b in boxes %}
+      <option value="{{ b.id }}" {% if asset.box_id == b.id %}selected{% endif %}>{{ b.code }} — {{ b.name }}</option>
+      {% endfor %}
+    </select>
+
+    <label for="box_position">ボックス内の位置</label>
+    <input type="text" id="box_position" name="box_position" value="{{ asset.box_position or '' }}">
+
+    <label for="status">状態</label>
+    <select id="status" name="status" {% if asset.status == 'checked_out' %}disabled{% endif %}>
+      {% for k, v in STATUS_LABEL.items() %}
+      {% if k != 'checked_out' %}
+      <option value="{{ k }}" {% if asset.status == k %}selected{% endif %}>{{ v }}</option>
+      {% endif %}
+      {% endfor %}
+    </select>
+    {% if asset.status == 'checked_out' %}
+    <p class="small muted" style="margin:.3rem 0 0">貸出中は状態を変えられません。先に返却してください。</p>
+    {% endif %}
+
+    <label for="note">メモ</label>
+    <textarea id="note" name="note">{{ asset.note or '' }}</textarea>
+
+    <button class="btn primary" style="margin-top:1rem">保存する</button>
+  </form>
+</details>
+{% endif %}
+
+{# ---- 履歴（ご指示12） ---- #}
+<div class="card">
+  <h2>貸出履歴（{{ logs|length }}件）</h2>
+  {% if logs %}
+  <div class="scroll">
+  <table>
+    <thead><tr><th>貸出</th><th>相手</th><th>返却予定</th><th>返却</th><th>身分証</th></tr></thead>
+    <tbody>
+    {% for l in logs %}
+    <tr>
+      <td class="num small">{{ l.checkout_at | dt }}</td>
+      <td>
+        {{ l.borrower_name }}
+        <span class="badge b-kind">{{ KIND_LABEL.get(l.borrower_kind, l.borrower_kind) }}</span>
+        {% if l.borrower_company %}<br><span class="muted small">{{ l.borrower_company }}</span>{% endif %}
+      </td>
+      <td class="num small">{% if l.due_at %}{{ l.due_at | dt_short }}{% else %}-{% endif %}</td>
+      <td class="num small">
+        {% if l.returned_at %}{{ l.returned_at | dt }}
+          {% if l.return_type == 'admin_force' %}<br><span class="muted small">強制返却</span>{% endif %}
+        {% else %}<span class="badge b-out">貸出中</span>{% endif %}
+      </td>
+      <td class="small">
+        {% if not l.id_image_path %}<span class="muted">-</span>
+        {% elif l.id_image_purged_at %}<span class="muted">撮影あり（削除済）</span>
+        {% else %}<span class="badge b-in">保管中</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  {% else %}
+  <p class="muted">まだ貸出の記録がありません。</p>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block script %}
+<script>
+function copyUrl(){
+  const t = document.getElementById('tagurl').textContent.trim();
+  navigator.clipboard.writeText(t).then(
+    () => alert('コピーしました：\n' + t),
+    () => prompt('このURLをコピーしてください', t)   // 平文HTTPではclipboardが使えない場合がある
+  );
+}
+</script>
+{% endblock %}

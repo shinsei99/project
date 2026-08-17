@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="KeyLine">
+<meta name="theme-color" content="#1b2340">
+{# ホーム画面に追加したときのアイコン。鍵管理スマホはこれで「アプリらしく」なる #}
+<link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+<link rel="icon" href="/static/favicon.png" type="image/png">
+<title>{% block title %}KeyLine{% endblock %}</title>
+<style>
+/* 鍵ボックスの前で立ったまま片手で操作する画面と、事務所のPCで眺める一覧を
+   同じCSSで賄う。スマホ側はボタンを大きく、PC側は情報密度を上げる。 */
+:root{
+  --navy:#1b2340; --navy-2:#2a3558; --orange:#f07c1e;
+  --bg:#f4f5f8; --card:#fff; --line:#dfe3ec; --ink:#1f2430; --muted:#6b7385;
+  --ok:#177245; --danger:#c0392b; --warn:#a86500;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif;
+  line-height:1.6;-webkit-text-size-adjust:100%}
+a{color:var(--navy-2)}
+header.top{background:var(--navy);color:#fff;padding:.6rem 1rem;
+  display:flex;align-items:center;gap:1rem;flex-wrap:wrap;
+  padding-top:calc(.6rem + env(safe-area-inset-top))}
+header.top .brand{font-weight:700;letter-spacing:.04em;color:#fff;text-decoration:none}
+header.top nav{display:flex;gap:.9rem;flex-wrap:wrap;margin-left:auto;align-items:center}
+header.top nav a{color:#c9d2e8;text-decoration:none;font-size:.9rem}
+header.top nav a:hover,header.top nav a.on{color:#fff}
+header.top form{margin:0}
+header.top button.link{background:none;border:0;color:#c9d2e8;font-size:.9rem;cursor:pointer;padding:0}
+main{max-width:1100px;margin:0 auto;padding:1rem;
+  padding-bottom:calc(2rem + env(safe-area-inset-bottom))}
+main.narrow{max-width:560px}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+  padding:1rem;margin-bottom:1rem}
+h1{font-size:1.3rem;margin:.2rem 0 1rem}
+h2{font-size:1.05rem;margin:0 0 .7rem}
+.muted{color:var(--muted)}
+.small{font-size:.85rem}
+
+/* 通知 */
+.flash,.err{padding:.7rem 1rem;border-radius:10px;margin-bottom:1rem;font-weight:600}
+.flash{background:#e5f4ea;color:var(--ok);border:1px solid #b9e0c6}
+.err{background:#fdecea;color:var(--danger);border:1px solid #f5c2bd}
+
+/* ボタン。スマホで押す前提なので高さを確保する */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.4rem;
+  border:0;border-radius:10px;padding:.7rem 1.1rem;font-size:1rem;font-weight:700;
+  cursor:pointer;text-decoration:none;background:var(--navy);color:#fff;
+  -webkit-appearance:none;font-family:inherit}
+.btn:disabled{opacity:.5}
+.btn.primary{background:var(--orange)}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid var(--line)}
+.btn.danger{background:var(--danger)}
+.btn.big{width:100%;padding:1.15rem;font-size:1.2rem;border-radius:14px}
+.btn-row{display:flex;gap:.6rem;flex-wrap:wrap}
+
+/* 入力 */
+label{display:block;font-size:.85rem;font-weight:700;color:var(--muted);margin:.8rem 0 .25rem}
+input[type=text],input[type=email],input[type=password],input[type=tel],select,textarea{
+  width:100%;padding:.7rem;border:1px solid var(--line);border-radius:10px;
+  font-size:1rem;font-family:inherit;background:#fff;color:var(--ink);-webkit-appearance:none}
+textarea{min-height:4rem}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--orange);outline-offset:1px}
+
+/* 状態バッジ */
+.badge{display:inline-block;padding:.15rem .55rem;border-radius:999px;
+  font-size:.78rem;font-weight:700;white-space:nowrap}
+.b-in{background:#e5f4ea;color:var(--ok)}
+.b-out{background:#fff2e0;color:var(--warn)}
+.b-over{background:#fdecea;color:var(--danger)}
+.b-other{background:#eceef4;color:var(--muted)}
+.b-kind{background:#eceef4;color:var(--muted);font-weight:600}
+
+/* 一覧表（PC） */
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{padding:.55rem .5rem;border-bottom:1px solid var(--line);text-align:left;
+  vertical-align:top}
+th{color:var(--muted);font-size:.8rem;white-space:nowrap}
+tr.overdue td{background:#fff6f5}
+td.num{font-variant-numeric:tabular-nums}
+.scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+/* 統計 */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.7rem;margin-bottom:1rem}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:.8rem;text-align:center}
+.stat .n{font-size:1.7rem;font-weight:800;line-height:1.1}
+.stat .l{font-size:.78rem;color:var(--muted)}
+.stat.alert .n{color:var(--danger)}
+
+/* 貸出先の選択ボタン（現場で一番使う導線） */
+.picks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.5rem}
+.pick{border:2px solid var(--line);background:#fff;border-radius:12px;padding:.7rem;
+  text-align:left;cursor:pointer;font-family:inherit;font-size:.95rem;color:var(--ink)}
+.pick:hover{border-color:var(--navy-2)}
+.pick.sel{border-color:var(--orange);background:#fff7ef}
+.pick .nm{font-weight:700;display:block}
+.pick .co{font-size:.8rem;color:var(--muted);display:block}
+
+/* 返却予定のラジオ */
+.dues{display:flex;gap:.5rem;flex-wrap:wrap}
+.dues label{margin:0}
+.dues input{position:absolute;opacity:0;pointer-events:none}
+.dues span{display:inline-block;border:2px solid var(--line);border-radius:999px;
+  padding:.5rem .95rem;cursor:pointer;background:#fff;font-weight:700;font-size:.95rem}
+.dues input:checked + span{border-color:var(--orange);background:#fff7ef;color:#8a4204}
+
+/* 鍵の大見出し（スマホの貸出画面） */
+.asset-head{text-align:center;padding:.5rem 0 1rem}
+.asset-head .nm{font-size:1.6rem;font-weight:800;line-height:1.3}
+.asset-head .keys{font-size:1.05rem;color:var(--navy-2);font-variant-numeric:tabular-nums;margin-top:.3rem}
+.asset-head .where{color:var(--muted);margin-top:.35rem}
+
+dl.kv{display:grid;grid-template-columns:7.5rem 1fr;gap:.35rem .8rem;margin:0}
+dl.kv dt{color:var(--muted);font-size:.85rem}
+dl.kv dd{margin:0}
+
+code.token{background:#f0f2f7;padding:.2rem .45rem;border-radius:6px;
+  font-size:.9rem;word-break:break-all}
+
+@media(max-width:600px){
+  .stats{grid-template-columns:repeat(2,1fr)}
+  main{padding:.8rem}
+  h1{font-size:1.15rem}
+}
+</style>
+</head>
+<body>
+{% if user %}
+  {# 現場の貸出画面（/t/…）はナビを出さない。鍵ボックスの前で見るのは
+     「この鍵をどうするか」だけで、他の画面へ移る用事がないため。
+     小さい画面で操作の的が減ると押し間違いも減る。 #}
+  {% if slim %}
+  <header class="top" style="justify-content:center">
+    <span class="brand">🔑 KeyLine</span>
+  </header>
+  {% else %}
+  <header class="top">
+    <a class="brand" href="/">🔑 KeyLine</a>
+    <nav>
+      <a href="/">ダッシュボード</a>
+      <a href="/assets">管理対象</a>
+      <a href="/boxes">ボックス</a>
+      <a href="/borrowers">貸出先</a>
+      <a href="/history">履歴</a>
+      <span class="small" style="color:#8d99b8">{{ user.display_name }}</span>
+      <form method="post" action="/logout"><button class="link" type="submit">ログアウト</button></form>
+    </nav>
+  </header>
+  {% endif %}
+{% endif %}
+
+<main class="{% block main_class %}{% endblock %}">
+  {% if flash %}<div class="flash">{{ flash }}</div>{% endif %}
+  {% if error %}<div class="err">{{ error }}</div>{% endif %}
+  {% block content %}{% endblock %}
+</main>
+{% block script %}{% endblock %}
+</body>
+</html>

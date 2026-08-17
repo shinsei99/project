@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.shinsei.keyline</string>
+
+    <!-- ★ run.sh を経由して起動する。
+         plist から python を直接叩くと、run.sh を直しても常駐に反映されない
+         （quote-generator で実際に起きた事故。CLAUDE.md 参照）。
+         バインド先・KEYLINE_BASE_URL・依存チェックを run.sh 1箇所に集約する。 -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/apple/keyline/run.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/apple/keyline</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/apple/keyline/logs/stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/apple/keyline/logs/stderr.log</string>
+</dict>
+</plist>

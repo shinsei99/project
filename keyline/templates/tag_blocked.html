@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ asset.name }}{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% set slim = true %}
+{% block content %}
+
+{# 紛失・修理中・無効の鍵をかざしたとき。貸せない理由をはっきり出す。 #}
+
+<div class="card">
+  <div class="asset-head">
+    <span class="badge b-other">{{ STATUS_LABEL.get(asset.status, asset.status) }}</span>
+    <div class="nm">{{ asset.name }}</div>
+    {% if asset.item_numbers %}<div class="keys">{{ asset.item_numbers }}</div>{% endif %}
+  </div>
+
+  <p style="text-align:center;font-weight:700;color:#c0392b">
+    この鍵はいま貸し出せません。
+  </p>
+  <p class="small muted" style="text-align:center">
+    状態が「{{ STATUS_LABEL.get(asset.status, asset.status) }}」になっています。<br>
+    貸し出すには管理者が状態を「保管中」に戻す必要があります。
+  </p>
+
+  {% if asset.note %}
+  <dl class="kv" style="margin-top:1rem"><dt>メモ</dt><dd>{{ asset.note }}</dd></dl>
+  {% endif %}
+</div>
+
+<a class="btn ghost big" href="/assets/{{ asset.id }}">管理画面で開く</a>
+
+{% endblock %}

@@ -316,6 +316,15 @@ ai-tools-lab/.env*
 !articles/
 !articles/**
 
+# KeyLine（NFC鍵・備品貸出管理）… コードと文書だけ入れる
+# ★data/ は社員名・物件名・鍵番号を含むため絶対に追跡しない（公開リポジトリ）
+!keyline/
+!keyline/**
+keyline/data/
+keyline/.secret_key
+keyline/*.db
+keyline/**/*.db
+
 # ── 依存関係・ログはPCごとに作るもの。**全アプリまとめて除外**
 # （以前はアプリごとに1行ずつ書いていたため、新しく作った .venv が載りかけた）
 **/.venv/
