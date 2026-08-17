@@ -97,14 +97,16 @@
 
 ### 次回への引き継ぎ事項・未解決の課題
 - サブPCで `git pull` → 整備ツール5本をコミットし直す（上記）
-- ai-tools-lab の残り: `npx vercel login` → `npx vercel link`（team: brain-dump / project: ai-tools-lab）。
-  公開は Zenn の上限が解ける **8/17 19:56 以降**、`ai-tools-lab/drafts/PUBLISH.md` の順で1日2本
-- サブPCの launchd 常駐2本（file-finder 8520 / owner-payout-tracker 8519）の二重LAN公開は**未判断のまま**
-- **メインPCで残っているバインド違反2件**（未対応）: `3002` brain-dump（ツール／Next.jsの既定が 0.0.0.0）、
-  `8532` agent-platform（開発中＝127.0.0.1が正。`run.sh` は正しいので手動起動と思われる）
-- メインPCに**前からの未コミット作業**が19ファイル分ある（mail-merge-pro / realestate-valuation /
-  restoration-calculator / parking-map / memorandum-generator の icon-src）。素性を確認してから整理する
-  → **今週はサブPC中心なので、これは先にコミットして push しないとサブPCから触れない**
+- **【今夜 19:56以降・メインPCで】Zenn の未反映3本を出し直す**
+  （`./publish.sh zenn` → `./publish.sh status`）。そのあと note。Vercelのリンクとデプロイは完了済み
+- サブPCの launchd 常駐2本（file-finder 8520 / owner-payout-tracker 8519）は**止める方針で確定**（今夜の手順④）
+- **メインPCで残っているバインド違反1件**（未対応）: `3002` brain-dump（ツール／Next.jsの既定が 0.0.0.0。
+  `run.sh` に `-H 127.0.0.1` を足す）。8532 agent-platform は完成扱いにしたので 0.0.0.0 のままで正しい
+- ~~メインPCの未コミット19ファイル~~ → **アプリ単位で5コミットに分けて push 済み**（2026-08-17）。
+  quote-generator は別リポジトリで、未コミットに見えた529行は**すでにpush済みの内容**だった
+  （作業コピーが2コミット遅れていただけ。fast-forwardで解消し、`run.sh` だけ追加）
+- **business-plan-generator の中身が会長の様式に合っているかは未検証**。計算とExcel出力は通るが、
+  実データ1件での目視確認をしていない
 - **社内への配り方を整理**（4本足りないように見えた件の決着）。
   横断ファイル検索(8520)・業務マニュアル(8521) は**`社内ツール/` の1つ上**（`（★必読★）新共有フォルダ/` 直下）に
   既に置いてあった＝毎日使う入口なので浅い位置。駐車場配置図ビューア(8522) は今回追加（`.url`＋`.ico`。
