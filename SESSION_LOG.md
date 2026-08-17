@@ -53,6 +53,18 @@
   **入れなかったもの**: psa-collection の画像443MB（サブPCで再取得できる）、
   pokecard-dex 4.3GB（別tarで受け渡し済み）、chatwork-ai-manager（専用スクリプトが正）
 
+- **メインPCから3媒体（本体サイト / Zenn / note）を更新できるようにした**。
+  入口は `ai-tools-lab/publish.sh`（status / site / zenn / note）。
+  Chromeを新規インストール→Claude拡張を接続、note・Zenn・Vercel にログイン。
+  `npx vercel link` でプロジェクト **brain-dump/ai-tools-base** に紐づけ、
+  `./publish.sh site` で**実際に本番デプロイして確認**（dpl_Ass2Jj9… READY・別名も同IDを配信）
+- **「AIツールラボ」→「AIツールベース」への改名**に追従（37ファイル）。公開URLは
+  `ai-tools-base.vercel.app`。旧URLは意図的に削除されており、公開済み記事のリンクが
+  404になっていたので差し替えた（Zennのデプロイ履歴で反映を確認）
+- **区分に「公開サイト」を追加**（5つ・URL付き。一覧の最後）。アプリの本数には数えない
+- **メモリ（Claudeの記憶）をサブPCへ渡す仕組み**を用意。公開リポジトリに置けないため
+  `handoff-20260817/memory-from-main/`（59ファイル）＋ TODO に取り込み手順（②-b）
+
 ### 発生したエラーと解決策
 - **症状**: TODOの「【明日いちばん最初】メインPCで `./secrets-sync.sh export`」が実行できない。
   メインPCに `secrets-sync.sh` が無い。
