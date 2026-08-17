@@ -8,13 +8,40 @@
 </head>
 <body>
   <main class="app">
-    <h1>TODOアプリ</h1>
-    <form id="add-form" class="add-form">
-      <input id="todo-input" type="text" placeholder="やることを入力…" autocomplete="off" required>
-      <button type="submit">追加</button>
-    </form>
-    <ul id="todo-list" class="todo-list"></ul>
-    <p id="empty-message" class="empty-message">TODOはまだありません</p>
+    <section id="auth-screen" class="auth-screen">
+      <h1>TODOアプリ</h1>
+      <div class="auth-tabs">
+        <button type="button" id="tab-login" class="auth-tab active">ログイン</button>
+        <button type="button" id="tab-register" class="auth-tab">新規登録</button>
+      </div>
+      <form id="login-form" class="auth-form">
+        <input id="login-username" type="text" placeholder="ユーザー名" autocomplete="username" required>
+        <input id="login-password" type="password" placeholder="パスワード" autocomplete="current-password" required>
+        <button type="submit">ログイン</button>
+      </form>
+      <form id="register-form" class="auth-form hidden">
+        <input id="register-username" type="text" placeholder="ユーザー名" autocomplete="username" required>
+        <input id="register-password" type="password" placeholder="パスワード（4文字以上）" autocomplete="new-password" required>
+        <button type="submit">登録してはじめる</button>
+      </form>
+      <p id="auth-error" class="auth-error hidden"></p>
+    </section>
+
+    <section id="app-screen" class="app-screen hidden">
+      <div class="app-header">
+        <h1>TODOアプリ</h1>
+        <div class="user-bar">
+          <span id="current-user"></span>
+          <button type="button" id="logout-btn">ログアウト</button>
+        </div>
+      </div>
+      <form id="add-form" class="add-form">
+        <input id="todo-input" type="text" placeholder="やることを入力…" autocomplete="off" required>
+        <button type="submit">追加</button>
+      </form>
+      <ul id="todo-list" class="todo-list"></ul>
+      <p id="empty-message" class="empty-message">TODOはまだありません</p>
+    </section>
   </main>
   <script src="script.js"></script>
 </body>
