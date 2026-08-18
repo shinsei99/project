@@ -94,17 +94,20 @@
 
 ## 横断作業（複数アプリにまたがるもの）
 
-- **KeyLine の制作記録を新規作成し、3媒体へ出した（2026-08-18 夜・サブPC）。**
-  - 本体 ✅ https://ai-tools-base.vercel.app/works/keyline （lint/build/validate＋3幅の目視まで実施）
-  - Zenn ⬜ `articles/ios-nfc-safari-entitlement.md` を **push 済みだが未反映**。
-    **この日3本目のため投稿数の上限に当たったと考えられる**（Zennは上限だと黙って落とす）。
-    → **8/19 に空コミットで再push すれば通る**。`cd ai-tools-base && ./publish.sh zenn`
-  - note ⬜ `drafts/note/who-has-the-key.md`。**投稿はメインPC**（サブPCはChrome拡張が未接続）。
-    `python3 drafts/note/md2html.py who-has-the-key` → 本文欄で ⌘V → 見出し画像 → 投稿
-  - **公開後は `content/works/keyline.json` の `links` に両URLを足して `./publish.sh site`**
-- **Zenn: 原稿8本中6本が公開済み。**残りは `ios-nfc-safari-entitlement`（上記・再push待ち）と
-  `ai-intake-hearing` の2本。**note は6本とも未公開**（ブラウザ操作＝メインPC担当）。
-  確認は `cd ai-tools-base && ./publish.sh status`
+- **★ 8/19 にやること: KeyLine の Zenn と note を「まとめて」出す**（2026-08-18 本人判断）。
+  本体はもう公開済み → https://ai-tools-base.vercel.app/works/keyline
+  1. **20:47 以降**に `cd ai-tools-base && ./publish.sh zenn` → `./publish.sh status` が ✅ になるまで確認
+  2. ✅ を見てから `python3 drafts/note/md2html.py who-has-the-key` → note の本文欄で ⌘V → 投稿
+  3. `content/works/keyline.json` の `links` に2本のURLを足して `./publish.sh site`
+  **手順の詳細と「なぜ20:47以降なのか」は `ai-tools-base/drafts/PUBLISH.md` の8本目の節にある。**
+- **Zennの上限は「pushした本数」ではなく「直近24時間に公開された本数」で数えられる**（8/18に実測）。
+  メインPCが前日pushした `llm-pdf-split-gaps` の反映が 8/18 20:47 だったため、その日の枠を消費し、
+  3本目の `ios-nfc-safari-entitlement` が弾かれた。**デプロイ履歴のお知らせ欄に理由が明記される**
+  （https://zenn.dev/dashboard/deploys ・要ログイン）。`./publish.sh status` の ⬜ でも検知できる
+- **note はこのサブPCからも投稿できる**（8/18に実測）。Chrome拡張が繋がり、noteはログイン済み。
+  **拡張が「未接続」と出たら、Chrome を前面に出せば繋がる**（起動していても最前面でないと繋がらない）
+- **Zenn: 原稿8本中6本が公開済み。**残りは `ios-nfc-safari-entitlement`（8/19）と `ai-intake-hearing`。
+  **note は6本とも未公開**（うち4本は対応するZennが公開済みなので、いつでも出せる）
 - **共通 Visual Agent を1つに統合した（2026-08-18・メインPC）。** 2台が別々に作った
   MCP版（`.mcp.json`）と `./va.sh` を、**1つの仕組み・2つの入口**に整理。どちらも消していない。
   - **同じ Google Chrome を headless で開く**ようにしたので、入口が違っても見えるものが食い違わない
