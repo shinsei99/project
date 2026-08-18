@@ -142,6 +142,11 @@ def _decide_prompt(job_type, label, tasks, today):
 contact=false のものは message 空でよい。"""
 
 
+def _format_contact_item(t, msg):
+    due = t["due_date"] or "期限未設定"
+    return f"■ {t['content']}\n　　期限:{due}\n　　→ {msg}"
+
+
 def run_job(client, job_type, now=None):
     now = now or datetime.datetime.now()
     today = now.date().isoformat()
@@ -166,7 +171,10 @@ def run_job(client, job_type, now=None):
         return {"job": job_type, "claimed": True, "error": str(e)}
 
     by_id = {t["id"]: t for t in tasks}
-    contacted = 0
+    mroom_setting = settings.get_setting("manager_room_id", "")
+    # 担当者へ直接送るものは (room_id, 担当者) ごとにまとめる。エスカレーション（管理者への報告）は従来通り個別。
+    groups = {}
+    escalations = []
     for d in decisions:
         tid = d.get("task_id")
         t = by_id.get(tid)
@@ -179,33 +187,53 @@ def run_job(client, job_type, now=None):
         if not msg:
             continue
         escalate = bool(d.get("escalate"))
-        kind_tag = "overdue" if (escalate or job_type == "carryover_1000") else "progress_check"
-        # エスカレーション先: 管理者ルーム設定があればそこ、無ければ発生元ルーム
-        target_room = room_id
+        progress_tools.record_check(tid, escalation_stage=max(stage, t.get("escalation_stage") or 0))
         if escalate:
-            mroom = settings.get_setting("manager_room_id", "")
-            if mroom:
+            # エスカレーション先: 管理者ルーム設定があればそこ、無ければ発生元ルーム。
+            # 担当者本人がそのルームのメンバーとは限らないため宛先メンションは付けない。
+            target_room = room_id
+            if mroom_setting:
                 try:
-                    target_room = int(mroom)
+                    target_room = int(mroom_setting)
                 except ValueError:
                     target_room = room_id
-        # 宛先メンション: 担当者本人へ送る場合は本文冒頭に必ず付与する。
-        # エスカレーション時（target_room=管理者ルーム）は担当者がそのルームのメンバーとは限らず、
-        # 送信先も担当者本人ではなく管理者への「報告」のため付けない。
-        assignee_id = t.get("assignee_account_id")
-        if not escalate and assignee_id:
-            prefix_body = f"{mention(assignee_id, t.get('assignee'))}\n{msg}"
+            escalations.append((target_room, t, msg, d))
         else:
-            prefix_body = msg
-        # dedup: 同一TODO・同一job・同一日で1回だけ
+            assignee_id = t.get("assignee_account_id")
+            assignee_key = assignee_id or f"name:{t.get('assignee') or '未定'}"
+            groups.setdefault((room_id, assignee_key), []).append((t, msg))
+
+    contacted = 0
+
+    # 担当者ごとに1ブロック（複数案件をまとめ、冒頭に [To:] を1回だけ付与）
+    for (room_id, assignee_key), items in groups.items():
+        t0 = items[0][0]
+        assignee_id = t0.get("assignee_account_id")
+        assignee_name = t0.get("assignee") or "担当者"
+        header = mention(assignee_id, assignee_name) if assignee_id else f"{assignee_name} さん"
+        lines = [header, "", f"【{label}】ご確認をお願いします（{len(items)}件）"]
+        for t, msg in items:
+            lines.append("")
+            lines.append(_format_contact_item(t, msg))
+        body = "\n".join(lines)
+        kind_tag = "overdue" if job_type == "carryover_1000" else "progress_check"
+        dedup = f"sched:{job_type}:{room_id}:{assignee_key}:{today}"
+        ob = outbox.enqueue(room_id, body, kind=kind_tag,
+                            reason=f"{label}（{len(items)}件まとめ）",
+                            related_task_id=t0["id"], to_account_ids=str(assignee_id or ""),
+                            dedup_key=dedup)
+        if ob:
+            outbox.process_auto(client)
+        contacted += len(items)
+
+    # エスカレーション（管理者/依頼者への報告）は従来通り1件ずつ
+    for target_room, t, msg, d in escalations:
+        tid = t["id"]
         dedup = f"sched:{job_type}:{tid}:{today}"
-        ob = outbox.enqueue(target_room, prefix_body, kind=kind_tag,
+        ob = outbox.enqueue(target_room, msg, kind="overdue",
                             reason=f"{label}: {d.get('reason','')}",
                             related_task_id=tid, to_account_ids=str(t.get("assignee_account_id") or ""),
                             dedup_key=dedup)
-        # 確認記録・エスカレーション段階更新
-        progress_tools.record_check(tid, escalation_stage=max(stage, t.get("escalation_stage") or 0))
-        # 送信は outbox のモードに従う
         if ob:
             outbox.process_auto(client)
         contacted += 1
