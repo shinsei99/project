@@ -105,13 +105,60 @@ python3 ingest_properties.py --stats  # 登録状況
 このMacは51本のアプリが共通の `/usr/bin/python3`(3.9) を使い、本番workerもそこで動いている。
 geopandas は fiona/GDAL のバイナリを引き込むため、共有環境を壊す危険が利益に見合わない。
 → 距離は Haversine（純Python）、地図は Leaflet を読むHTMLを自前生成、GeoJSONは標準json。
-将来ポリゴン解析（町丁目・ハザード重ね）が要るなら、その時に隔離venvで shapely を足す。
+**ポリゴン解析（用途地域・土砂災害警戒区域）も、shapely を足さずに実現できた**（2026-08-18）。
+理由は下の「公的データ連携」参照。将来もっと大きなポリゴン集合を自前で扱う必要が出たら、
+その時に隔離venvで shapely を検討する。
 
 ### Tool 一覧
 `gis_property_search`（物件検索）/ `gis_nearby_properties`（半径検索・距離つき）/
-`gis_distance`（2地点間）/ `gis_area_stats`（エリア別集計）/ `gis_create_map`（地図HTML生成）/
+`gis_distance`（2地点間）/ `gis_area_stats`（エリア別集計）/ `gis_create_map`（地図HTML生成。
+`hazard_layers` でハザードマップポータルのタイルを重ねられる）/
 `gis_market_map`（**既存の reinfolib_transactions を再利用**して取引価格を重ねた地図）/
+`gis_land_info`（**用途地域・土砂災害警戒区域・近傍の地価公示**。国土数値情報／不動産情報ライブラリ経由）/
 `gis_geocode` / `gis_export_geojson` / `gis_status`。
+
+### 公的データ連携（TASK-20260818-004・2026-08-18 調査・1)(2)実装／3)(4)は方針のみ）
+
+「地理空間オープンデータ公開サイトリスト.xlsx」で紹介されていた4系統を調査した結果。
+
+**1) 国土数値情報（用途地域・地価公示・土砂災害警戒区域）→ 実装済み**
+国土数値情報そのもの（nlftp.mlit.go.jp）は都道府県一括のシェープファイル配布のみで、
+住所単位の問い合わせに向かない。だが**既存の reinfolib_api_key（不動産情報ライブラリ）が
+同じデータをスリッピーマップのベクトルタイルAPIとして公開している**ので、
+取引価格(XIT001)と同じ「1点ずつ問い合わせる」設計にそのまま乗せた（キーの新規取得は不要）。
+- 用途地域 = `XKT002`（ベクトルタイル・GeoJSON。フィールドは `use_area_ja` /
+  `u_building_coverage_ratio_ja`＝建蔽率 / `u_floor_area_ratio_ja`＝容積率）
+- 土砂災害警戒区域 = `XKT029`（国土数値情報 A33。`A33_001`＝現象種別 1急傾斜地崩壊/2土石流/3地すべり、
+  `A33_002`＝区域区分 1警戒(イエロー)/2特別警戒(レッド)）
+- 地価公示 = `XPT002`（ポリゴンではなく点データ。`year` パラメータ必須・省略時は前年）
+- ポリゴン内外判定は **pure-Python のレイキャスティング**（`jyuusetsu-research/services/zoning_service.py`
+  と同じ手法。shapely 不要）。実装は `services/gis.py` の `zoning_info` / `sediment_hazard_info` /
+  `land_price_nearby`、Tool は `gis_land_info`。
+- ⚠️ `jyuusetsu-research/services/zoning_service.py` は用途地域を **XKT001**（都市計画区域/区域区分。
+  用途地域ではない）で誤って叩く既知バグがある（[[reference-reinfolib-api]] 参照・本アプリとは無関係だが
+  同じ穴に落ちないための記録）。
+
+**2) ハザードマップポータルサイト（洪水・土砂災害・高潮）→ タイル重ね表示のみ実装済み**
+配信データは**ラスタタイル**（地理院タイル仕様のXYZ・PNG）で、Leafletに`L.tileLayer`を
+足すだけで重ね表示できる（`gis_create_map` の `hazard_layers=["flood","landslide","hightide"]`）。
+**物件ごとの自動テキスト判定（重説向け）はまだ無い**。ラスタの色から危険度を判定するには
+凡例の色対応表が要り、今回は着手していない。土砂災害だけは上の(1)のベクトル判定
+（`gis_land_info`）で自動判定できている。洪水・高潮の自動判定は次フェーズの課題。
+
+**3) 登記所備付地図データ → 方針のみ（未実装）**
+法務省が2023年1月にXML形式で無償公開したが、**住所単位のクエリAPIではなく
+都道府県・市区町村ごとの一括ダウンロード配布**（G空間情報センター経由）。組み込むには
+①対象エリア（都島区・城東区など管理物件が多い区）のデータを取得
+②地番ポリゴンをGeoJSONへ変換・自前ホスティング
+③`gis_create_map`にレイヤ追加、という**バッチ処理基盤**が要る。まずは物件ごとに外部の
+公図ビューア（例: kouzuviewer.com、法務局「登記情報提供サービス」）へのリンクを返す
+簡易対応から始めるのが早い。本格導入は別タスクで着手。
+
+**4) RESAS（地域経済分析システム）→ 使用不可・代替検討が必要**
+**RESAS APIは2025年3月24日に提供終了済み**（アカウント自動削除・後継APIなし、と内閣官房
+公式アナウンス済み）。代替候補は e-Stat API（政府統計の総合窓口・無料・要アプリケーションID登録）
+または国土交通省データプラットフォーム(DPF)のGraphQL API。**どちらも新規のAPIキー登録が要る**ため、
+勝手に登録せず人の判断を仰ぐ（[[project-chatwork-ai-manager-gis]] にも追記予定）。
 
 ### 地図の置き場所・見方
 - `chatwork-ai-manager/maps/` に HTML を保存（**gitignore**。実在の所在地とオーナー名を含むため）。

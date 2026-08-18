@@ -25,6 +25,7 @@ import urllib.parse
 import urllib.request
 
 from db.connection import get_conn, query, query_one
+from services import config
 
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MAPS_DIR = os.path.join(APP_DIR, "maps")
@@ -173,6 +174,170 @@ def geocode(address: str, use_cache: bool = True) -> dict:
             "error": "住所から座標を特定できませんでした"}
 
 
+# ----------------------------------------------------------------- 国土数値情報（不動産情報ライブラリAPI経由）
+"""
+用途地域・土砂災害警戒区域・地価公示は、既存の reinfolib_api_key（国交省 不動産情報
+ライブラリ）をそのまま流用する。国土数値情報そのもの（nlftp.mlit.go.jp）は都道府県
+一括のシェープファイル配布のみで住所検索に向かないが、不動産情報ライブラリはこれを
+スリッピーマップのベクトルタイル（z/x/y + response_format=geojson）としてAPI化して
+いるため、取引価格(XIT001)と同じ「1点ずつ問い合わせる」設計にそのまま乗せられる。
+
+ポリゴン内外判定は pure-Python のレイキャスティングで行う（shapely等の追加依存なし。
+gis.py 冒頭のコメント参照）。判定ロジックは jyuusetsu-research/services/zoning_service.py
+の実装を踏襲しつつ、フィールド名の既知バグ（XKT001誤用）を避け XKT002 を使う。
+
+XKT002 = 都市計画決定GISデータ（用途地域）/ XKT029 = 国土数値情報（土砂災害警戒区域）
+XPT002 = 地価公示・地価調査のポイントAPI（ポリゴンではなく点データ）
+"""
+_REINFOLIB_BASE = "https://www.reinfolib.mlit.go.jp/ex-api/external"
+
+
+def _deg2tile(lat: float, lon: float, zoom: int):
+    lat_rad = math.radians(lat)
+    n = 2.0 ** zoom
+    x = int((lon + 180.0) / 360.0 * n)
+    y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
+    return x, y
+
+
+def _point_in_ring(lon: float, lat: float, ring) -> bool:
+    """レイキャスティングによる多角形内外判定。ring は [[lon,lat],...]。"""
+    inside = False
+    n = len(ring)
+    j = n - 1
+    for i in range(n):
+        xi, yi = ring[i][0], ring[i][1]
+        xj, yj = ring[j][0], ring[j][1]
+        if ((yi > lat) != (yj > lat)) and (
+            lon < (xj - xi) * (lat - yi) / (yj - yi + 1e-12) + xi
+        ):
+            inside = not inside
+        j = i
+    return inside
+
+
+def _feature_contains(feature: dict, lon: float, lat: float) -> bool:
+    geom = feature.get("geometry") or {}
+    gtype = geom.get("type")
+    coords = geom.get("coordinates", [])
+    try:
+        if gtype == "Polygon":
+            return _point_in_ring(lon, lat, coords[0])
+        if gtype == "MultiPolygon":
+            return any(_point_in_ring(lon, lat, poly[0]) for poly in coords)
+    except Exception:
+        return False
+    return False
+
+
+def reinfolib_vector_tile(code: str, lat: float, lon: float, zoom: int = 14, extra_params=None):
+    """不動産情報ライブラリのベクトルタイルAPIを1タイルぶん取得する（GeoJSON）。
+
+    キーが無い/通信失敗時は例外を投げず {"ok": False} を返す（GIS機能全体を止めないため）。
+    extra_params: XPT002（地価公示）は year が必須など、コードごとに追加パラメータが要る。
+    """
+    api_key = config.get("reinfolib_api_key")
+    if not api_key:
+        return {"ok": False, "error": "reinfolib_api_key が未設定です"}
+    x, y = _deg2tile(lat, lon, zoom)
+    params = {"response_format": "geojson", "z": zoom, "x": x, "y": y, **(extra_params or {})}
+    url = f"{_REINFOLIB_BASE}/{code}?" + urllib.parse.urlencode(params)
+    req = urllib.request.Request(url, headers={"Ocp-Apim-Subscription-Key": str(api_key)})
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            data = json.load(resp)
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    return {"ok": True, "features": data.get("features", [])}
+
+
+def zoning_info(lat: float, lon: float) -> dict:
+    """指定地点の用途地域・建蔽率・容積率（国土数値情報 XKT002・不動産情報ライブラリ経由）。"""
+    res = reinfolib_vector_tile("XKT002", lat, lon, zoom=13)
+    if not res.get("ok"):
+        return {"ok": False, "error": res.get("error")}
+    for feat in res["features"]:
+        if _feature_contains(feat, lon, lat):
+            p = feat.get("properties", {})
+            return {
+                "ok": True, "found": True,
+                "use_area": p.get("use_area_ja") or "",
+                "building_coverage_ratio": p.get("u_building_coverage_ratio_ja") or "",
+                "floor_area_ratio": p.get("u_floor_area_ratio_ja") or "",
+                "decision_date": p.get("decision_date") or p.get("first_decision_date") or "",
+                "city_name": p.get("city_name") or "",
+                "source": "国土数値情報（都市計画決定GISデータ・用途地域）／不動産情報ライブラリ",
+            }
+    return {"ok": True, "found": False,
+            "note": "この地点は用途地域の指定が無いか、データの対象外です（都市計画区域外の可能性）"}
+
+
+_SEDIMENT_PHENOMENON = {1: "急傾斜地の崩壊", 2: "土石流", 3: "地すべり"}
+_SEDIMENT_ZONE = {1: "土砂災害警戒区域（イエローゾーン）", 2: "土砂災害特別警戒区域（レッドゾーン）"}
+
+
+def sediment_hazard_info(lat: float, lon: float) -> dict:
+    """指定地点が土砂災害警戒区域/特別警戒区域に該当するか（国土数値情報 XKT029経由）。
+
+    区域は小さいポリゴンが多いため zoom14 で取得する（zoom13だとタイルが粗く外れやすい）。
+    """
+    res = reinfolib_vector_tile("XKT029", lat, lon, zoom=14)
+    if not res.get("ok"):
+        return {"ok": False, "error": res.get("error")}
+    hits = []
+    for feat in res["features"]:
+        if _feature_contains(feat, lon, lat):
+            p = feat.get("properties", {})
+            hits.append({
+                "phenomenon": _SEDIMENT_PHENOMENON.get(p.get("A33_001"), f"不明({p.get('A33_001')})"),
+                "zone_type": _SEDIMENT_ZONE.get(p.get("A33_002"), f"不明({p.get('A33_002')})"),
+                "area_name": p.get("A33_005") or "",
+                "address": p.get("A33_006") or "",
+                "decision_date": p.get("A33_007") or "",
+            })
+    return {"ok": True, "in_warning_zone": bool(hits), "zones": hits,
+            "source": "国土数値情報（土砂災害警戒区域データ A33）／不動産情報ライブラリ",
+            "note": "都道府県が指定した区域データ。最新指定状況は自治体のハザードマップで必ず確認すること"}
+
+
+def land_price_nearby(lat: float, lon: float, radius_m: float = 1500, limit: int = 10,
+                      year: int = None) -> dict:
+    """指定地点の近傍にある地価公示地点（国土数値情報 XPT002・不動産情報ライブラリ経由）。
+
+    ポイントデータなので周辺タイル1枚ぶんから半径で絞り込む（取引価格APIと同じ「参考値」用途）。
+    year を省略すると前年（1/1時点公示の性質上、当年ぶんはまだ無いことが多いため）。
+    """
+    if not year:
+        year = datetime.date.today().year - 1
+    res = reinfolib_vector_tile("XPT002", lat, lon, zoom=13, extra_params={"year": int(year)})
+    if not res.get("ok"):
+        return {"ok": False, "error": res.get("error")}
+    out = []
+    for feat in res["features"]:
+        geom = feat.get("geometry") or {}
+        if geom.get("type") != "Point":
+            continue
+        plon, plat = geom["coordinates"][0], geom["coordinates"][1]
+        d = haversine_m(lat, lon, plat, plon)
+        if d > radius_m:
+            continue
+        p = feat.get("properties", {})
+        price = (p.get("u_current_years_price_ja") or "").strip()
+        if not price and p.get("last_years_price"):
+            price = f"{int(p['last_years_price']):,}円/㎡（前年）"
+        out.append({
+            "place_name": p.get("place_name_ja") or p.get("location") or "",
+            "address": p.get("location") or "",
+            "price": price or "非公表",
+            "target_year": p.get("target_year_name_ja") or "",
+            "distance_m": round(d, 1), "distance": fmt_distance(d),
+            "lat": plat, "lon": plon,
+        })
+    out.sort(key=lambda x: x["distance_m"])
+    return {"ok": True, "count": len(out), "points": out[:limit],
+            "source": "地価公示・地価調査（国土交通省）／不動産情報ライブラリ XPT002"}
+
+
 # ----------------------------------------------------------------- 物件の取得・検索
 def _row(p) -> dict:
     d = dict(p)
@@ -282,23 +447,47 @@ CATEGORY_COLORS = {
 DEFAULT_COLOR = "#5f6368"
 MARKET_COLOR = "#d81b60"
 
+# ハザードマップポータルサイト（国交省）配信のラスタタイル。地理院タイル仕様のXYZなので
+# 既存のLeaflet地図にレイヤ追加するだけで重ね表示できる（バックエンドでの画像処理は不要）。
+# 出典表示はポータルサイトの規約に従い凡例に必ず入れる。
+HAZARD_TILE_LAYERS = {
+    "flood": {
+        "label": "洪水浸水想定区域（想定最大規模）",
+        "url": "https://disaportaldata.gsi.go.jp/raster/01_flood_l2_shinsuishin_data/{z}/{x}/{y}.png",
+        "max_zoom": 17,
+    },
+    "landslide": {
+        "label": "土砂災害警戒区域（土石流）",
+        "url": "https://disaportaldata.gsi.go.jp/raster/05_dosekiryukeikaikuiki/{z}/{x}/{y}.png",
+        "max_zoom": 17,
+    },
+    "hightide": {
+        "label": "高潮浸水想定区域",
+        "url": "https://disaportaldata.gsi.go.jp/raster/03_hightide_l2_shinsuishin_data/{z}/{x}/{y}.png",
+        "max_zoom": 17,
+    },
+}
+
 
 def _esc(v):
     return html.escape(str(v)) if v not in (None, "") else ""
 
 
 def build_map(props, title="管理物件マップ", center=None, circle=None,
-              extra_points=None, filename=None, cluster=True) -> dict:
+              extra_points=None, filename=None, cluster=True, hazard_layers=None) -> dict:
     """Leaflet の地図HTMLを生成して保存する（外部ライブラリ不要。CDNのLeafletを読む）。
 
-    props        : list_properties/nearby が返した物件
-    circle       : {"lat":..,"lon":..,"radius_m":..,"label":..} 半径検索の範囲を描く
-    extra_points : [{"lat","lon","name","note","color"}] 取引価格など別レイヤの点
+    props         : list_properties/nearby が返した物件
+    circle        : {"lat":..,"lon":..,"radius_m":..,"label":..} 半径検索の範囲を描く
+    extra_points  : [{"lat","lon","name","note","color"}] 取引価格など別レイヤの点
+    hazard_layers : ["flood","landslide","hightide"] ハザードマップポータルのタイルを重ねる
     """
     pts = [p for p in props if p.get("lat") is not None and p.get("lon") is not None]
     extra = [e for e in (extra_points or []) if e.get("lat") is not None]
     if not pts and not extra and not circle:
         return {"ok": False, "error": "地図に出せる座標が1件もありません"}
+
+    hazards = [HAZARD_TILE_LAYERS[h] for h in (hazard_layers or []) if h in HAZARD_TILE_LAYERS]
 
     if center:
         clat, clon = center
@@ -339,6 +528,9 @@ def build_map(props, title="管理物件マップ", center=None, circle=None,
     )
     if extra:
         legend += f"<div><i style='background:{MARKET_COLOR}'></i>参考データ</div>"
+    for h in hazards:
+        legend += (f"<div><i style='background:#9c27b0;border-radius:2px'></i>{_esc(h['label'])}"
+                   f"（<a href='https://disaportal.gsi.go.jp/' target='_blank'>ハザードマップポータル</a>）</div>")
 
     os.makedirs(MAPS_DIR, exist_ok=True)
     if not filename:
@@ -353,6 +545,7 @@ def build_map(props, title="管理物件マップ", center=None, circle=None,
             center_lat=clat, center_lon=clon,
             markers=json.dumps(markers, ensure_ascii=False),
             circle=json.dumps(circle, ensure_ascii=False) if circle else "null",
+            hazard_layers=json.dumps(hazards, ensure_ascii=False),
             legend=legend,
             cluster="true" if cluster else "false",
             count=len(pts),
@@ -388,10 +581,15 @@ _MAP_TEMPLATE = """<!doctype html>
 <script>
 const markers = {markers};
 const circle = {circle};
+const hazardLayers = {hazard_layers};
 const map = L.map('map').setView([{center_lat}, {center_lon}], 13);
 L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{{z}}/{{x}}/{{y}}.png', {{
   attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html">地理院タイル</a>', maxZoom: 18
 }}).addTo(map);
+hazardLayers.forEach(h => {{
+  L.tileLayer(h.url, {{opacity: 0.6, maxZoom: h.max_zoom,
+    attribution: '<a href="https://disaportal.gsi.go.jp/">ハザードマップポータルサイト</a>'}}).addTo(map);
+}});
 const bounds = [];
 if (circle) {{
   L.circle([circle.lat, circle.lon], {{radius: circle.radius_m, color:'#f07c1e',

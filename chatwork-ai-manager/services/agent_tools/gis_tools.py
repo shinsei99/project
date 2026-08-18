@@ -111,11 +111,14 @@ def gis_area_stats(group="ward"):
 
 
 def gis_create_map(title=None, keyword=None, classification=None, category=None, area=None,
-                   center_property=None, radius_m=None, extra_points=None, filename=None):
+                   center_property=None, radius_m=None, extra_points=None, filename=None,
+                   hazard_layers=None):
     """条件に合う物件の地図HTMLを作る。center_property＋radius_m で半径円も描ける。
 
     extra_points: [{"lat","lon","name","note"}]（取引価格など別レイヤ。既存の
     reinfolib ツールで取った数値をここへ渡す。市場データの取得はこのToolでは行わない）
+    hazard_layers: ["flood","landslide","hightide"] を指定するとハザードマップポータルサイト
+    （国交省）のタイルを重ねる。物件ごとの自動判定ではなく地図上での目視確認用。
     """
     circle = None
     center = None
@@ -146,7 +149,8 @@ def gis_create_map(title=None, keyword=None, classification=None, category=None,
         if center_property and radius_m:
             title = f"{center_property} から {gis.fmt_distance(float(radius_m))} 圏内"
     res = gis.build_map(rows, title=title, center=center, circle=circle,
-                        extra_points=extra_points, filename=filename)
+                        extra_points=extra_points, filename=filename,
+                        hazard_layers=hazard_layers)
     return _map_result(res, title)
 
 
@@ -216,6 +220,43 @@ def gis_market_map(prefecture="大阪府", city_code=None, city_name=None, year=
                 "districts_plotted": len(pts), "districts_dropped": dropped,
                 "source": mk.get("source")})
     return out
+
+
+def gis_land_info(property=None, address=None, lat=None, lon=None):
+    """指定地点の用途地域・土砂災害警戒区域・近傍の地価公示（国土数値情報／不動産情報ライブラリ経由）。
+
+    重説の説明資料の下書きや事前チェックに使える**参考値**。法的な確定情報ではないため、
+    最終判断は自治体窓口・登記情報・重要事項説明の正式な調査結果に必ず基づくこと。
+    """
+    origin_name = None
+    if property:
+        p = gis.find_property(property)
+        if not p:
+            return {"ok": False, "error": f"物件が見つかりません: {property}"}
+        if p.get("lat") is None:
+            return {"ok": False, "error": f"座標が未取得です: {p['name']}"}
+        lat, lon, origin_name = p["lat"], p["lon"], p["name"]
+    elif address:
+        g = gis.geocode(address)
+        if not g.get("ok"):
+            return {"ok": False, "error": f"住所から座標を特定できません: {address}"}
+        lat, lon, origin_name = g["lat"], g["lon"], address
+    if lat is None or lon is None:
+        return {"ok": False, "error": "物件名・住所・緯度経度のいずれかを指定してください"}
+    lat, lon = float(lat), float(lon)
+
+    zoning = gis.zoning_info(lat, lon)
+    sediment = gis.sediment_hazard_info(lat, lon)
+    land_price = gis.land_price_nearby(lat, lon, radius_m=1500, limit=5)
+    return {
+        "ok": True, "origin": origin_name, "lat": lat, "lon": lon,
+        "zoning": zoning, "sediment_hazard": sediment, "land_price_nearby": land_price,
+        "hazard_map_note": "洪水浸水想定区域・高潮浸水想定区域は gis_create_map の "
+                           "hazard_layers=[\"flood\",\"hightide\"] で地図に重ねて目視確認する"
+                           "（ラスタ配信のため地点ごとの自動判定はまだ未対応）",
+        "disclaimer": "国交省の公開データに基づく参考値。重説等の正式な説明には自治体・"
+                      "登記情報での最終確認が必要",
+    }
 
 
 def gis_status():

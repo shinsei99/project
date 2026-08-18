@@ -119,9 +119,16 @@ REGISTRY = {
     "gis_create_map": {
         "func": gis_tools.gis_create_map,
         "desc": "条件に合う物件の地図HTMLを生成（種別で色分け・クリックで詳細）。"
-                "center_property＋radius_m で半径円も描ける。extra_points に取引価格等を渡すと重ねられる",
+                "center_property＋radius_m で半径円も描ける。extra_points に取引価格等を渡すと重ねられる。"
+                "hazard_layers=[\"flood\",\"landslide\",\"hightide\"] でハザードマップポータルのタイルを重ねられる",
         "usage": 'gis_create_map {"area":"都島区","classification":"自社"} '
-                 'または {"center_property":"メゾンドール都島","radius_m":1000}',
+                 'または {"center_property":"メゾンドール都島","radius_m":1000,"hazard_layers":["flood"]}',
+    },
+    "gis_land_info": {
+        "func": gis_tools.gis_land_info,
+        "desc": "指定地点の用途地域/建蔽率/容積率・土砂災害警戒区域該当・近傍の地価公示（国土数値情報／"
+                "不動産情報ライブラリ経由の参考値）。重説の水害・土砂災害リスク説明の下調べに使う",
+        "usage": 'gis_land_info {"property":"メゾンドール都島"} または {"address":"大阪市都島区中野町1-4-18"}',
     },
     "gis_geocode": {
         "func": gis_tools.gis_geocode,
