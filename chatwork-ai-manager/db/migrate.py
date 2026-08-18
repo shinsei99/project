@@ -19,7 +19,6 @@ DEFAULT_SETTINGS = {
     "morning_report_room_id": "",    # レポート投稿先（未設定なら投稿しない）
     "ai_prefix": "🤖AI業務マネージャー",
     # 定時進捗確認（Stage 3）
-    "progress_check_time": "13:00",  # 昼の進捗確認
     "closing_check_time": "18:00",   # 終業前の未完了確認
     "carryover_check_time": "10:00", # 翌日の前日未完了・期限超過確認
     "scheduled_jobs_enabled": "1",   # 0で定時処理を停止

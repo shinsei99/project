@@ -224,7 +224,7 @@ CREATE TABLE IF NOT EXISTS processing_state (
 );
 
 -- 定時処理の実行履歴（同日・同種の二重実行を防止）
--- job_type: progress_1300 / closing_1800 / carryover_1000
+-- job_type: closing_1800 / carryover_1000
 CREATE TABLE IF NOT EXISTS scheduled_runs (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     run_date   TEXT NOT NULL,                        -- 'YYYY-MM-DD'

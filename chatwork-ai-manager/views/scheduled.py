@@ -1,4 +1,4 @@
-"""定時処理ログ: 13:00/18:00/翌10:00 の実行履歴（scheduled_runs）と直近の通知。"""
+"""定時処理ログ: 18:00/翌10:00 の実行履歴（scheduled_runs）と直近の通知。"""
 import json
 
 import streamlit as st
@@ -13,7 +13,7 @@ def render():
     st.caption(f"定時処理: {'🟢 有効' if enabled else '🔴 停止中'}　"
                f"（設定で変更可）")
 
-    labels = {"progress_1300": "昼の進捗確認", "closing_1800": "終業前確認",
+    labels = {"closing_1800": "終業前確認",
               "carryover_1000": "前日未完了確認", "due_reminder": "期限リマインド",
               "weekly_report_mon": "週次棚卸し(月)", "weekly_report_fri": "週次棚卸し(金)"}
     cols = st.columns(4)

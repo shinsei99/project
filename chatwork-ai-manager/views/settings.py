@@ -21,18 +21,16 @@ def render():
         st.rerun()
 
     st.divider()
-    st.subheader("定時処理（§13:00/18:00/翌10:00）")
+    st.subheader("定時処理（§18:00/翌10:00）")
     enabled = st.checkbox("定時処理を有効にする",
                           value=S.get_setting("scheduled_jobs_enabled", "1") == "1")
-    c = st.columns(3)
-    t1 = c[0].text_input("昼の進捗確認", S.get_setting("progress_check_time", "13:00"))
-    t2 = c[1].text_input("終業前確認", S.get_setting("closing_check_time", "18:00"))
-    t3 = c[2].text_input("前日未完了確認", S.get_setting("carryover_check_time", "10:00"))
+    c = st.columns(2)
+    t2 = c[0].text_input("終業前確認", S.get_setting("closing_check_time", "18:00"))
+    t3 = c[1].text_input("前日未完了確認", S.get_setting("carryover_check_time", "10:00"))
     mroom = st.text_input("期限超過エスカレーション／週次棚卸しの報告先 room_id（空=発生元ルーム。room_id未設定TODOの受け皿）",
                           S.get_setting("manager_room_id", ""))
     if st.button("定時設定を保存"):
         S.set_setting("scheduled_jobs_enabled", "1" if enabled else "0")
-        S.set_setting("progress_check_time", t1)
         S.set_setting("closing_check_time", t2)
         S.set_setting("carryover_check_time", t3)
         S.set_setting("manager_room_id", mroom)
