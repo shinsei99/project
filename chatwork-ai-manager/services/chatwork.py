@@ -96,6 +96,15 @@ class ChatworkClient:
         params = {"force": 1 if force else 0}
         return self._request("GET", f"/rooms/{room_id}/messages", params=params) or []
 
+    def get_file(self, room_id: int, file_id: int) -> dict:
+        """アップロードされたファイルの情報を取る。
+
+        `create_download_url=1` を付けると `download_url` が入る（**有効期限30秒**）。
+        取ったらすぐ落とすこと。
+        """
+        return self._request("GET", f"/rooms/{room_id}/files/{file_id}",
+                             params={"create_download_url": 1}) or {}
+
     def post_message(self, room_id: int, body: str, self_unread: bool = False) -> str:
         """メッセージ投稿。戻り値: 作成された message_id。"""
         data = {"body": body, "self_unread": 1 if self_unread else 0}

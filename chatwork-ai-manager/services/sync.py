@@ -6,7 +6,7 @@ worker のループからも、管理画面の「今すぐ同期」ボタンか�
 import re
 
 from db.connection import get_conn, query
-from services import analyzer, outbox, qa, settings
+from services import analyzer, attachments, outbox, qa, settings
 from services.chatwork import ChatworkClient, mention
 
 # Chatwork の記法タグ（[To:..] [rp ..] [qt][info] 等）を除いた質問本文を得るため
@@ -35,6 +35,11 @@ def is_ai_question(body: str, ai_account_id, room_type: str) -> bool:
         text = _strip_tags(body)
         if text and any(h in text for h in _QUESTION_HINTS):
             return True
+        # ★ファイルだけを貼った場合（本文が `[download:...]` だけ）も質問として扱う。
+        #   Chatworkのアップロード通知には To も「クロード」も入らないため、
+        #   これが無いと **Excelを貼っても黙って無視される**（2026-08-18の指摘）。
+        if attachments.chatwork_file_refs(body):
+            return True
     return False
 
 
@@ -55,6 +60,12 @@ def process_questions(client, room, ai_account_id) -> int:
         if outbox.has_dedup(dedup):
             continue  # 既に回答済み（二重回答防止）
         question = _strip_tags(m["body"])
+        # ★添付ファイル（Excel/Word/PDF/CSV…）があれば中身を読んで質問に足す。
+        #   タグを剥がす前の本文から拾う（_strip_tags が [download:..] ごと消すため）
+        refs = attachments.chatwork_file_refs(m["body"])
+        if refs:
+            question = attachments.with_attachments(
+                question, attachments.read_chatwork_files(rid, refs))
         prefix = settings.get_setting("ai_prefix", "🤖AI業務マネージャー")
         to = mention(m["account_id"], m["account_name"])
         # 受付確認: エージェント処理（複数ツール反復）は数秒〜数十秒かかることがあるため、
