@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KeyTagNFC サポート</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+    line-height: 1.9; color: #1c1c1e; background: #f5f5f7;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { text-align: center; padding: 16px 0 8px; }
+  h1 { font-size: 1.5rem; margin: 8px 0 4px; }
+  .lead { color: #8e8e93; font-size: .9rem; margin: 0; }
+  h2 { font-size: 1.1rem; margin: 28px 0 6px; }
+  h3 { font-size: .98rem; margin: 16px 0 4px; }
+  .card { background: #fff; border-radius: 14px; padding: 18px 20px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  a { color: #2563eb; }
+  p { margin: 8px 0; }
+  ol, ul { margin: 8px 0; padding-left: 1.3em; }
+  li { margin: 4px 0; }
+  code { background: rgba(120,120,128,.12); padding: 2px 6px; border-radius: 5px; font-size: .9em; }
+  .note { color: #8e8e93; font-size: .88rem; }
+  footer { text-align: center; color: #8e8e93; font-size: .85rem; margin-top: 40px; }
+  .back { display: inline-block; margin-top: 24px; color: #2563eb; text-decoration: none; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #f2f2f7; background: #000; }
+    .card { background: #1c1c1e; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>KeyTagNFC サポート</h1>
+    <p class="lead">NFCタグをかざして、鍵の貸出管理</p>
+  </header>
+
+  <div class="card">
+    <p>鍵に貼った NFC タグへ「物件名・鍵の名称・鍵番号・保管場所」を書き込み、かざすだけで
+    <strong>どの鍵か</strong>・<strong>いま誰が借りているか</strong>を確認できるアプリです。</p>
+    <p>建物の鍵、事務所の鍵、工具や備品の管理にお使いいただけます。</p>
+  </div>
+
+  <h2>ご利用に必要なもの</h2>
+  <div class="card">
+    <ul>
+      <li><strong>iPhone 7 以降</strong>（NFC の読み書きに対応した機種）</li>
+      <li><strong>NFC タグ</strong> … NTAG213 / NTAG215 / NTAG216 など、
+        <strong>NDEF 対応で書き換え可能</strong>なもの</li>
+    </ul>
+    <p class="note">iPad には NFC リーダーが搭載されていないため、本アプリは iPhone 専用です。</p>
+  </div>
+
+  <h2>使い方</h2>
+
+  <h3>1. 鍵の情報をタグに書き込む</h3>
+  <div class="card">
+    <ol>
+      <li>「✍️ 書き込み」タブを開きます</li>
+      <li>物件名・保管ボックス・位置を入れます（続けて登録する間は残ります）</li>
+      <li>鍵の名称と、鍵に刻印されている番号・本数を入れます</li>
+      <li>［タグに書き込む］を押し、iPhone の上部をタグに近づけます</li>
+    </ol>
+    <p class="note">入力すると、タグに書き込まれる内容と使用バイト数が画面に表示されます。
+    容量に収まらない場合は名前を自動で短くしますが、<strong>鍵番号と保管場所は必ず残ります</strong>。</p>
+  </div>
+
+  <h3>2. かざして確認する</h3>
+  <div class="card">
+    <p>「📡 読み取り」タブで［タグを読み取る］を押し、タグに近づけると、
+    物件名・鍵の名称・鍵番号・保管場所が表示されます。</p>
+  </div>
+
+  <h3>3. 貸出・返却を記録する</h3>
+  <div class="card">
+    <ol>
+      <li>タグをかざす（または「📒 台帳」から鍵をタップ）</li>
+      <li>保管中なら、貸出先を選ぶか名前を入れて［貸出する］</li>
+      <li>貸出中なら、借りている人と返却予定が表示され［返却する］が出ます</li>
+    </ol>
+    <p class="note">一度貸した相手は候補に残るので、次回からはタップだけで選べます。</p>
+  </div>
+
+  <h2>よくあるご質問</h2>
+
+  <div class="card">
+    <h3>NFC タグを持っていません。試せますか？</h3>
+    <p>「⚙️ 設定 &gt; お試し」の［サンプルの鍵を入れる］で、
+    台帳・貸出・返却の動きをタグなしでご確認いただけます。</p>
+  </div>
+
+  <div class="card">
+    <h3>タグに書き込んだ内容が短くなりました</h3>
+    <p>NTAG213 は容量が 144 バイトと小さく、日本語は 1 文字あたり 3 バイトを使います。
+    収まらない場合は名前の末尾を「…」で省略しますが、鍵番号と保管場所は必ず残します。
+    長い名前をそのまま入れたい場合は、容量の大きい NTAG215（504 バイト）以上をお使いください。
+    タグの種類は設定画面で切り替えられます。</p>
+  </div>
+
+  <div class="card">
+    <h3>記録はどこに保存されますか？</h3>
+    <p>すべてお使いの iPhone の中だけに保存されます。外部に送信されることはありません。
+    「📒 台帳」から CSV 形式で書き出すこともできます。</p>
+  </div>
+
+  <div class="card">
+    <h3>「サーバー連携」とは何ですか？</h3>
+    <p><strong>ふつうは設定不要です。</strong>本アプリは単体で、鍵の登録から貸出・返却まですべて使えます。</p>
+    <p>複数人で同じ台帳を共有したい場合にだけ、お客様がご用意になった鍵管理サーバーと
+    連携できる任意の機能です。連携すると記録はそのサーバーに保存され、他の端末や
+    パソコンからも同じ内容を確認できます。当社が記録を受け取ることはありません。</p>
+  </div>
+
+  <div class="card">
+    <h3>タグが読み取れません</h3>
+    <ul>
+      <li>iPhone の<strong>上端</strong>（カメラのあたり）をタグに近づけてください</li>
+      <li>金属の上に貼ったタグは読み取りにくくなります。金属対応タグをご利用ください</li>
+      <li>他のアプリで「読み取り専用（ロック）」にしたタグは書き換えできません</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>機種変更したらデータは移りますか？</h3>
+    <p>記録は端末内に保存されるため、自動では移りません。
+    お手数ですが、機種変更の前に「📒 台帳」から CSV を書き出して保存してください。
+    なお、タグ自体に鍵の情報が書かれているため、新しい端末でもかざせば内容を読み取れます。</p>
+  </div>
+
+  <h2>お問い合わせ</h2>
+  <div class="card">
+    <p>ご質問・ご要望・不具合のご報告は、下記メールまでお気軽にご連絡ください。</p>
+    <p><a href="mailto:info@shinsei-pm.co.jp">info@shinsei-pm.co.jp</a></p>
+  </div>
+
+  <a class="back" href="./privacy.html">プライバシーポリシー →</a>
+
+  <footer>© 2026 新誠プロパティマネジメント</footer>
+</div>
+</body>
+</html>
