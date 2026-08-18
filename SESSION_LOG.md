@@ -11,6 +11,42 @@
 
 ---
 
+## 2026-08-18（サブPC）— メインPCからの引き継ぎを受領し、依頼①〜④を実行した
+
+### 完了したこと
+
+- `git pull origin main` で **48コミット**を fast-forward 取り込み（未コミット0・ローカル先行0）。
+  統合版 Visual Agent / KeyLine・KeyTag / chatwork の新機能 が届いた
+- `./visual-agent-check.sh` … **入口A（MCP）・入口B（`./va.sh`）とも全項目 ✅**。
+  同じ Google Chrome を headless（CDP 9223）で開くところまで実測（撮影 `.see/0818-212350-va-check.png`）
+- `./secrets-sync.sh import` … メインPC発（2026-08-18 12:33）の tar から **`keyline/data` を取り込み**
+  （keyline.db 180KB ＋ id_images）。残り12件は既存のため据え置き。**機密の不足は 0 件**になった
+- `./secrets-sync.sh export` … サブPC側の18件を書き出し（980K）。
+  `Dropbox-個人/apps-secrets-handoff/apps-secrets-appurunoMacBook-Air.tar` に置いた
+- **メモリ実体20本**を `Dropbox-個人/handoff-20260818-sub-to-main-2/memory/` に配置（**20/20・168K**）
+- **メインPCが「未確認」としていた点を確認: このサブPCに Xcode 16.1 (16B40) が入っている。**
+  KeyTag のビルドは可能（ただし配布証明書が無いので**提出はメインPC限定**のまま変わらない）
+
+### 発生したエラーと解決策
+
+- 症状: `./dev-setup.sh --all` が対象0本のとき `list[@]: unbound variable` で異常終了した
+  → 原因: macOS の bash 3.2 は `set -u` 下で**空配列の `"${arr[@]}"` 展開を未定義変数とみなす**
+  （bash 4.4 以降は許容するため、書いた環境では再現しない）
+  → 直し方: `${list[@]+"${list[@]}"}` 形式に変更（`TARGETS` 側も同様）。対象0本でも exit 0 で完走を確認
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **stash とローカルブランチは「消してよい」と分かったが、消していない**（人の判断待ち）
+  - `stash@{0} pre-origin-sync` … 中身は**未追跡ファイルのみ**（handwriting-ocr 4本 / piyo-defense/ios）。
+    handwriting-ocr は現在 git 管理下にあり、`ocr.py`・`requirements.txt` は**作業ツリーのほうが新しい**
+    （6/30 の pdf_orient 対応版 > stash の 6/26 版）。＝復元すると**古い版に戻る**ので取り込んではいけない
+  - `pre-sync-backup-20260626` … main に無い固有コミットは `b507e7c color-gravity` の1件だけで、
+    同じ内容が **PR #1（`f83dedf`）として main に入っている**。＝残す理由は無い
+- 未着手のまま残っているもの: **Zenn 残り1本（`llm-pdf-split-gaps`）の再push**、
+  **デジタル書斎の App Store 提出**（どちらも外部公開＝人の判断待ち）
+
+---
+
 ## 2026-08-18（メインPC・続き）— 2台の環境差を詰め、依頼3件を実装した
 
 ### 完了したこと

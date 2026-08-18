@@ -115,9 +115,9 @@ if [ "${TARGETS[0]}" = "--all" ]; then
   )
   echo "対象 ${#list[@]}本: ${list[*]:-なし}"
   echo
-  for app in "${list[@]}"; do setup_one "$app"; done
+  for app in ${list[@]+"${list[@]}"}; do setup_one "$app"; done
 else
-  for app in "${TARGETS[@]}"; do setup_one "$app"; done
+  for app in ${TARGETS[@]+"${TARGETS[@]}"}; do setup_one "$app"; done
 fi
 
 echo

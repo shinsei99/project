@@ -40,59 +40,34 @@
 > **メインPCの現状**: 常駐36本・社内LAN共有あり（＝正常）。chatwork-ai-manager の4サービス
 > （画面8540 / worker / LINE 8530 / ngrok）は 2026-08-18 11:33 に再起動し、稼働を確認済み。
 
-> ## 🖥 今夜サブPCでやること（2026-08-18 メインPCから依頼）
+> ## 🖥 サブPCで実行済み（2026-08-18 夜）— メインPCへの返信
 >
-> **これを流せば、2台の「開発できる状態」はほぼ同じになる。** 上から順に。終わったらこの節を消す。
+> 依頼①〜④は**すべて完了**。⑤KeyTag は触っていない（提出はメインPC限定のため）。
 >
-> ```bash
-> cd ~ && git pull origin main       # 統合版Visual Agent / KeyTag / chatworkの新機能 が来る
->
-> # ① 環境の点検 → 足りない依存を入れる（keyline に requirements.txt を足したので出るはず）
-> ./dev-doctor.py --sync --fetch
-> ./dev-setup.sh --all               # 対象0本なら何もしない
->
-> # ② Visual Agent（2系統を統合した）。両方の入口を自動で確かめる
-> ./visual-agent-check.sh            # ❌ が出たらメッセージのとおりに直す
->
-> # ③ ★メインPCから来ているものを受け取る（**先にこちら**）
-> ./secrets-sync.sh import           # KeyLineの台帳・免許証画像（keyline/data）ほか。
->                                    #   ★既にある物は上書きしない。上書きしたいときだけ --force
->
-> # ④ ★メインPCへ渡すもの（サブPCにしか無い）。2つとも Dropbox-個人 経由
-> ./secrets-sync.sh export           # 機密5件（brain-dump/.env.local, pasha-calo/.env.local,
->                                    #   ai-ticket-counter/.env, theta-viewer/server/ftp-config.json,
->                                    #   kaitori-dm-maker/senders.json）
-> #   メモリの実体20本（索引にはあるのに本文が無い）。一覧はこの節の少し上にある
-> D=~/Library/CloudStorage/Dropbox-個人/handoff-20260818-sub-to-main-2; mkdir -p "$D/memory"
-> M=~/.claude/projects/-Users-apple/memory
-> for f in project_chatwork_ai_manager project_color_gravity project_cyborg_defense \
->          project_fudosan_novel project_kaitori_dm_maker project_kato_kyakuzuke \
->          project_mansion_kanri project_memorandum_generator project_pasha_calo \
->          project_pokecard_profit project_publish_setup project_shared_folder_reorg \
->          project_shorui_cabinet project_shorui_sender project_soufu_maker \
->          reference_dropbox_url_icons reference_pdf_orient reference_streamlit_bind \
->          reference_this_pc reference_xls_images; do
->   cp "$M/$f.md" "$D/memory/" 2>/dev/null || echo "無い: $f.md"
-> done
-> ls "$D/memory" | wc -l             # 20 なら完了。メインPCが取り込んだら置き場ごと削除する
->
-> # ⑤ KeyTag（iOSアプリ）を触るなら
-> cd keyline/keytag && ./setup-ios.sh && cd ~
-> #   ★版数は version.json が正（1.0.0 / build 2）。build番号を上げたら version.json も直す
-> #   ★**提出はメインPCだけ**（配布証明書がメインPCのキーチェーンにしか無い）
-> ```
->
-> **これでも同じにならないもの（意図的・または物理的に無理）**
->
-> | | なぜ |
+> | 依頼 | 結果 |
 > |---|---|
-> | launchd 常駐（メイン36本 / サブ0本） | **役割の違い。揃えない**（2026-08-18 確認）。サブPCは常駐を持たず、必要なときだけ `./run.sh` で都度起動する |
-> | iOS の配布証明書・プロビジョニング | メインPCのキーチェーンにのみ存在。**App Store提出はメインPC限定** |
-> | `chatwork-ai-manager` 一式（DB・secrets） | **渡さない**（2026-08-18 本人確認）。worker/LINE/ngrok はメインPCのみで動かす決まりで、**サブPCでは一切触らない**。
-> 開発もメインPCで行う。`secrets-manifest.txt` にも「運ばない」と明記済み |
-> | `keyline/data/` | **Dropbox経由で渡す**（2026-08-18 本人確認・`secrets-manifest.txt` に追加済み）。gitには絶対に入れない |
-> | `flyer-creator` の案件フォルダ | **渡さない**。入居申込者の身分証が同居しており、必要なのは写真だけのため |
-> | `quote-generator` | 別リポジトリ。`git clone` 済みなら `git pull` するだけ |
+> | `git pull` | ✅ 48コミットを fast-forward で取り込み |
+> | ① `dev-doctor --sync --fetch` / `dev-setup.sh --all` | ✅ 対象0本。**`dev-setup.sh` の空配列バグを修正**（bash 3.2 + `set -u`） |
+> | ② `visual-agent-check.sh` | ✅ 入口A（MCP）・入口B（`./va.sh`）とも全項目 ✅ |
+> | ③ `secrets-sync.sh import` | ✅ **`keyline/data` を受領**（DB 180KB＋免許証画像）。機密の不足は**0件**に |
+> | ④ `secrets-sync.sh export` | ✅ 18件・980K → `Dropbox-個人/apps-secrets-handoff/apps-secrets-appurunoMacBook-Air.tar` |
+> | ④ メモリ実体20本 | ✅ **20/20・168K** → `Dropbox-個人/handoff-20260818-sub-to-main-2/memory/` |
+>
+> **★メインPCでやること: 上の2つを受け取ったら、`./secrets-sync.sh import` と
+> メモリ20本のコピーを実行し、`handoff-20260818-sub-to-main-2/` を置き場ごと削除する**
+> （受け取りを確認した人が消す。件数20・168K を `ls`/`du` で見てから）。
+>
+> **回答: サブPCに Xcode 16.1 (16B40) が入っている**（メインPCで「未確認」だった点）。
+> KeyTag のビルド自体は可能。ただし配布証明書はメインPCのキーチェーンにしか無いので、
+> **App Store 提出はメインPC限定**という結論は変わらない。
+>
+> **残った判断待ち（サブPC・消してよいと確認済みだが消していない）**
+>
+> - `stash@{0} pre-origin-sync` … 中身は未追跡ファイルのみ（handwriting-ocr 4本 / piyo-defense/ios）。
+>   handwriting-ocr は現在 git 管理下で、**作業ツリーのほうが新しい**（6/30 pdf_orient 対応版）。
+>   → **復元してはいけない。破棄でよい**
+> - ローカルブランチ `pre-sync-backup-20260626` … 固有コミットは `color-gravity` 1件のみで、
+>   同内容が PR #1（`f83dedf`）として main に入っている。→ **残す理由なし**
 
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
 詳細は各アプリの `<アプリ>/TODO.md` と `<アプリ>/SESSION_LOG.md` にある。
