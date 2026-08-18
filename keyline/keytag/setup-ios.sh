@@ -26,9 +26,9 @@ else
 fi
 npx cap sync ios
 
-echo "── Info.plist / エンタイトルメント / 署名設定 ──"
+echo "── Info.plist / エンタイトルメント / 署名設定 / 版数 ──"
 /usr/bin/python3 - "$TEAM_ID" "$BUNDLE_ID" <<'PY'
-import plistlib, pathlib, re, sys
+import json, plistlib, pathlib, re, sys
 team, bundle = sys.argv[1], sys.argv[2]
 
 # --- Info.plist ---
@@ -87,6 +87,22 @@ for k, v in [("CODE_SIGN_ENTITLEMENTS", "App/App.entitlements"),
              ("TARGETED_DEVICE_FAMILY", "1")]:
     print(f"   ✅ {k} を{ensure(k, v)}")
 s = re.sub(r"PRODUCT_BUNDLE_IDENTIFIER = [^;]*;", f"PRODUCT_BUNDLE_IDENTIFIER = {bundle};", s)
+
+# --- 版数（★これが無いと事故る） ---
+# `npx cap add ios` で作り直すと **CURRENT_PROJECT_VERSION が 1 に戻る**。
+# ios/ は gitignore なので、別のPCで作り直したときに build 1 のまま再アーカイブし、
+# 「古いビルドが審査を通って配信される」事故になる（2026-07-22に photo-remake と
+# neon-blocks で実際に起きた）。→ git に残る version.json を正として当て直す。
+# **既にプロジェクト側が大きいときは下げない**（メインPCで上げた直後に消さないため）。
+ver = json.loads(pathlib.Path("version.json").read_text())
+have = max([int(m) for m in re.findall(r"CURRENT_PROJECT_VERSION = (\d+)", s)] or [0])
+build = max(int(ver["build"]), have)
+ensure("MARKETING_VERSION", ver["marketing_version"])
+s = re.sub(r"CURRENT_PROJECT_VERSION = [0-9]+", f"CURRENT_PROJECT_VERSION = {build}", s)
+print(f"   ✅ 版数 {ver['marketing_version']} / build {build}"
+      + (f"（version.json は {ver['build']}。プロジェクト側が大きいので下げなかった）"
+         if build > int(ver["build"]) else ""))
+
 q.write_text(s)
 print(f"   ✅ Bundle ID {bundle}")
 PY

@@ -27,6 +27,14 @@
 >   `project_shared_folder_reorg` / `project_shorui_cabinet` / `project_shorui_sender` /
 >   `project_soufu_maker` / `reference_dropbox_url_icons` / `reference_pdf_orient` /
 >   `reference_streamlit_bind` / `reference_this_pc` / `reference_xls_images`（すべて `.md`）
+> - **KeyTag（iOSアプリ）を渡す上での注意（2026-08-18に判明）**
+>   - `ios/` は gitignore。サブPCでは `cd keyline/keytag && ./setup-ios.sh` で作り直す
+>     （NFCのentitlement・ATS例外・署名・**版数**まで一発で当たる）
+>   - **版数は `keytag/version.json` が正**にした。build番号を上げたら pbxproj と version.json の
+>     両方を揃える（片方だけだと、作り直したときに build 1 に戻って古いビルドが配信される）
+>   - **署名（配布証明書と秘密鍵）はメインPCのキーチェーンにしか無い → App Store提出はメインPC限定**
+>   - `keyline/data/` は gitignore（社員名・鍵番号）。サブPCのサーバーは空DBから始まる
+>   - サブPCに Xcode が入っているかは**未確認**。無ければビルド自体ができない
 > - サブPCに残っている `stash@{0} pre-origin-sync` とローカルブランチ2本は、**中身を見てから**消す
 >
 > **メインPCの現状**: 常駐36本・社内LAN共有あり（＝正常）。chatwork-ai-manager の4サービス

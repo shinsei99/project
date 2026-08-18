@@ -328,10 +328,16 @@ ai-tools-base/.env*
 # ★data/ は社員名・物件名・鍵番号を含むため絶対に追跡しない（公開リポジトリ）
 !keyline/
 !keyline/**
-# ネイティブアプリ（KeyTag）。ios/ は cap add ios で作り直せるので追跡しない
-#   ※ただし Info.plist と entitlements の中身は RELEASE.md に手順として残すこと
+# ネイティブアプリ（KeyTag）。ios/ は setup-ios.sh で作り直せるので追跡しない
+#   ※Info.plist・entitlements・署名・版数は setup-ios.sh が全部当てる（手順書任せにしない）
 keyline/keytag/ios/
 keyline/keytag/package-lock.json
+# ★Xcodeのビルド生成物。2026-08-18 まで誤って追跡されていた（195MB・2,439ファイルが
+#   公開リポジトリに入っていた）。xcarchive には embedded.mobileprovision も含まれる。
+#   すべて作り直せるものなので追跡しない
+keyline/keytag/build/
+keyline/keytag/build-sim/
+keyline/keytag/DerivedData/
 keyline/data/
 keyline/.secret_key
 keyline/*.db

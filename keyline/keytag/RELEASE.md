@@ -128,6 +128,25 @@ cd ~/keyline/keytag && ./setup-ios.sh
 **`npx cap add ios` だけでは足りない。** NFCのエンタイトルメントもATS例外も付かず、
 実機でタグを読んだ瞬間に失敗する。`setup-ios.sh` が全部まとめて当てる。
 
+### ★版数は `version.json` が正（2026-08-18追加）
+
+`ios/` を作り直すと **`CURRENT_PROJECT_VERSION` が 1 に戻る**。`ios/` は gitignore なので、
+別のPCで作り直して build 1 のまま再アーカイブすると、**古いビルドが審査を通って配信される**
+（2026-07-22に photo-remake / neon-blocks で実際に起きた事故と同じ形）。
+
+→ git に残る `keytag/version.json` を正とし、`setup-ios.sh` がそれを当てる。
+**プロジェクト側の方が大きいときは下げない**（メインPCで上げた直後に消さないため）。
+
+```
+build番号を上げたら 2箇所を揃える:
+  ./ios-build-guard.sh keyline/keytag --bump   # pbxproj を +1（衝突チェックも同時に）
+  keytag/version.json の "build" も同じ値にする  # ← こちらを忘れると次に作り直したとき戻る
+```
+
+**ビルド生成物（`build/` `build-sim/`）は git に入れない。** 2026-08-18まで誤って追跡されており、
+195MB・2,439ファイルが公開リポジトリに入っていた（`embedded.mobileprovision` を含む）。
+現在は `.gitignore` 済み。**中身はすべて作り直せる。**
+
 ---
 
 ## ビルド確認の記録
