@@ -2,10 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Search, Loader2 } from "lucide-react";
-import { BannerAd } from "@/components/BannerAd";
 import { SearchResults } from "@/components/SearchResults";
-import { PageViewerModal } from "@/components/PageViewerModal";
-import { searchPages } from "@/lib/db";
+import { listBooks, searchPages, type BookRecord } from "@/lib/db";
 import type { SearchResult } from "@/lib/types";
 
 export default function SearchPage() {
@@ -14,46 +12,59 @@ export default function SearchPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
-  const [selected, setSelected] = useState<SearchResult | null>(null);
+  const [books, setBooks] = useState<BookRecord[]>([]);
+  const [bookId, setBookId] = useState(""); // "" = すべての本
+  const [elapsed, setElapsed] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const doSearch = useCallback(async (q: string) => {
+  // 蔵書の一覧（絞り込み用）。`/search?book=<id>` で来たときは最初から絞る。
+  // 静的書き出し（output: "export"）なので、クエリは window から読む
+  useEffect(() => {
+    listBooks().then(setBooks).catch(() => setBooks([]));
+    const q = new URLSearchParams(window.location.search).get("book");
+    if (q) setBookId(q);
+  }, []);
+
+  const doSearch = useCallback(async (q: string, book: string) => {
     const kw = q.trim();
     setCommitted(kw);
     if (!kw) {
       setResults([]);
       setSearched(false);
+      setElapsed(null);
       return;
     }
     setLoading(true);
     setSearched(true);
+    const t0 = performance.now();
     try {
-      setResults(await searchPages(kw));
+      setResults(await searchPages(kw, book ? { bookId: book } : {}));
+      setElapsed(Math.round(performance.now() - t0));
     } catch {
       setResults([]);
+      setElapsed(null);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // 入力のデバウンス検索（300ms）
+  // 入力のデバウンス検索（300ms）。本の絞り込みを変えたときも走らせる
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSearch(query), 300);
+    debounceRef.current = setTimeout(() => doSearch(query, bookId), 300);
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, doSearch]);
+  }, [query, bookId, doSearch]);
 
   return (
     <div className="space-y-6">
-      {/* バナー広告（画面最上部） */}
-      <BannerAd />
-
       <div>
         <h1 className="text-2xl font-bold">書斎を検索</h1>
         <p className="mt-1 text-sm text-slate-400">
-          キーワードを入力すると、保存済みの全ページから高速に部分一致検索します。
+          保存済みの全ページから部分一致で探します。
+          <strong className="text-slate-300">空白で区切ると、すべての語を含むページ</strong>
+          （AND検索）だけが出ます。
         </p>
       </div>
 
@@ -64,7 +75,7 @@ export default function SearchPage() {
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="例: 契約条項、減価償却、第3章 …"
+          placeholder="例: 契約 特約 ／ 減価償却 ／ 第3章"
           className="w-full rounded-xl border border-slate-700 bg-slate-900 py-3 pl-12 pr-4 text-base outline-none focus:border-sky-500"
         />
         {loading && (
@@ -72,29 +83,53 @@ export default function SearchPage() {
         )}
       </div>
 
+      {/* 本で絞り込み */}
+      {books.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <label htmlFor="bookFilter" className="text-slate-400">
+            対象の本
+          </label>
+          <select
+            id="bookFilter"
+            value={bookId}
+            onChange={(e) => setBookId(e.target.value)}
+            className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 outline-none focus:border-sky-500"
+          >
+            <option value="">すべての本（{books.length}冊）</option>
+            {books.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.title}（{b.pageCount}ページ）
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* 結果 */}
       {committed && !loading && (
         <p className="text-sm text-slate-400">
           「{committed}」の検索結果：{results.length} 件
+          {elapsed !== null && <span className="text-slate-500">（{elapsed}ms）</span>}
         </p>
       )}
 
-      <SearchResults results={results} keyword={committed} onSelect={setSelected} />
+      <SearchResults
+        results={results}
+        keyword={committed}
+        onSelect={(r) => {
+          // ヒットしたページから**本として読み始める**（前後のページへ移動できる）
+          const q = new URLSearchParams({ book: r.bookId, page: String(r.pageNumber), q: committed });
+          window.location.href = `/read?${q.toString()}`;
+        }}
+      />
 
       {searched && !loading && results.length === 0 && committed && (
         <p className="py-10 text-center text-sm text-slate-500">
           一致するページが見つかりませんでした。
+          {committed.includes(" ") && "（AND検索です。語を減らすと見つかることがあります）"}
         </p>
       )}
 
-      {/* 詳細ビューア */}
-      {selected && (
-        <PageViewerModal
-          result={selected}
-          keyword={committed}
-          onClose={() => setSelected(null)}
-        />
-      )}
     </div>
   );
 }

@@ -11,6 +11,192 @@
 
 ---
 
+## 2026-08-17（夜・サブPC）— 開発ループを明文化し、検証を実行できるようにした
+
+「Agentic Workflow のガイドラインを入れたい」という相談を受け、**このリポジトリの実情に合わせて縮めて**導入した。
+
+### 完了したこと
+- **CLAUDE.md に「5. 完了の定義」「6. 自律で進めてよい範囲と、必ず聞くこと」「7. タスクの書き方」を追加**
+  （約1,500字。今日46%削った分を食い潰さない範囲に収めた）
+  - 完了条件＝要件充足／**検証の最低ラインの実行**／**画面の目視**／既存機能を壊していない／記録／`--sync`
+  - 種別ごとの検証ライン: Streamlit＝smoke_test＋**127.0.0.1で起動しHTTP 200**＋目視 ／
+    Next＝lint+build(+validate) ／静的＝Consoleエラー0件＋目視 ／iOS＝`ios-build-guard.sh`
+  - **自律の範囲はローカル完結のみ。** 外部へ出る操作（Chatwork/LINE返信・メール送信・FTP公開・
+    Vercel本番・Zenn/note投稿・App Store提出）、戻せない操作、個人情報、**解釈が分かれる判断**は人に聞く
+- **`./dev-doctor.py --verify <アプリ>` を追加**。上の最低ラインを実際に回す。
+  `run.sh` を使わず **127.0.0.1 を明示**して立てる（不動産カテゴリの run.sh は 0.0.0.0）。
+  `chatwork-ai-manager` と `mail-merge-pro` は**外部に送るので自動検証しない**（理由を出して飛ばす）
+- **実測**: `business-plan-generator` → smoke_test ✓（総事業費25,501万・Excel 9,380バイト）＋
+  127.0.0.1:8990 で **HTTP 200** ✓ ／ `ai-tools-base` → `validate` ✓ `lint` ✓
+  （validateの⚠️は既知の「転載がまだ」5件と review 未記入4件のみ）
+
+### 判断したこと（採用しなかった部分と理由）
+- **`docs/tasks.md` `architecture.md` `decisions.md` `issues.md` の新設は採らなかった。**
+  既存の「直下TODO.md（51本の索引）＋各アプリの TODO / SESSION_LOG / README」と二重になり、
+  51アプリのタスクを1ファイルに集めると破綻する。→ tasks=各アプリTODO / decisions=README /
+  issues=SESSION_LOGの未解決節 に**写像**した。`architecture` だけ不足なので、構成が複雑な3本
+  （agent-platform / chatwork-ai-manager / building-manager）のREADMEに図を足す方針だけ決めた（未実施）
+- **Task ID・9項目テンプレを全タスクに課すのも採らなかった。** 51本×全タスクでは続かない。
+  複数セッションまたぎ・複数ファイル・外部影響のある改修だけ様式化する
+- **「テスト成功」を無条件のDONE条件にしなかった。** 実測で pytest 0件・smoke_test 4本・
+  npm test 2本しか無く、形式的なチェックになる。代わりに種別ごとの最低ラインを定義した
+
+### 次回への引き継ぎ事項・未解決の課題
+- 構成図（architecture）を3本のREADMEに追加するのは**未実施**
+- 検証ラインを**全51本で通したわけではない**（2本で確認しただけ）。触るアプリで順次
+- `--verify` は Next の `build` を既定で飛ばす（Intel Macで数分かかるため）。`--build` で回る
+
+---
+
+## 2026-08-17（夜・サブPC）— 2台のPCで同じ開発環境にするための整備（調査→修正→統合）
+
+**目的**: 今回のような引き継ぎミス（コミット漏れ・改名の枝分かれ・MCPの取りこぼし）を、
+「気をつける」ではなく**仕組みで検知する**状態にする。Build/Test の実走はご本人の判断で今回は省略。
+
+### 完了したこと
+
+**調査（変更なし・read-onlyのみ）**
+- macOS 15.7.7 / **Intel x86_64** / Python **3.9.6（`/usr/bin/python3` のみ）** / Node **v26.3.1** /
+  npm 11.16.0 / git 2.39.5 / **Docker は無し（リポジトリにも Dockerfile 0件＝不要）** / claude 2.1.233
+- Git: `main` = `origin/main`（差分0）、tracked クリーン。**ローカルにしか無いもの**を発見:
+  `stash@{0} pre-origin-sync` ／ ローカルブランチ `pre-sync-backup-20260626`・`pr-cyborg` ／
+  `gh-pages` が27コミット遅れ。**いずれも触っていない**
+- 依存: requirements.txt 31本 → venv 30本（不足は `business-plan-generator` のみ）。
+  package.json 14本は全部 node_modules と lock あり。**バージョン固定ファイルが1つも無かった**
+- 機密: `secrets-manifest.txt` 18件中17件あり。不足は `digital-shosai/.env.local` のみで**両PCに無い**
+- 自動起動: launchd ロード0本だが **plistが2本ディスクに残存＝再ログインで復活する状態**だった。
+  cron なし・hooks なし・ログイン項目は Dropbox/GoogleDrive のみ
+
+**① 不足の解消**
+- `business-plan-generator` の `.venv` 作成（streamlit 1.50.0 ほか。import 確認済み）→ **31/31本**
+- `.python-version`(3.9.6) / `.nvmrc`(26.3.1) を追加。**現状値の固定**（Python 3.9 はEOLだが、
+  31本のvenvが3.9.6なので揃えることを優先。上げるなら31本の作り直しとセット）
+- launchd 2本を `launchctl disable` で**恒久無効化**（`unload` だけでは再ログインで復活する）
+- 手動起動のまま `*:8540` でLANに出ていた chatwork-ai-manager 管理画面を停止
+
+**② 検知の仕組み（`dev-doctor.py --sync`）** — 新規ツールを作らず既存を拡張
+- Git（未コミット・未追跡・stash・push漏れ・remote未取得・ローカルだけのブランチ）
+- **ignoreされていて git に入っていないソース候補**の検出 ← 2026-08-16の事故の真因を機械化
+- `.python-version` / `.nvmrc` と実際の版の照合、機密の在り無し（**値は出さない**）、
+  launchd・cron・**アプリのポート範囲だけの**LAN公開チェック
+- WARNING を並べるだけで、commit・pull・install は一切しない
+
+**④ ドキュメントの共通化**
+- CLAUDE.md **27,288字 → 14,700字（46%削減）**。アプリ個別 12,999字を10本のREADMEへ移動
+- SESSION_LOG の見出しに **PC名を必須化**（同日衝突の再発防止）、TODO に**担当PC列**
+- SETUP.md に「**同じ環境**の定義表」（コード＋版＋lock＋機密＋常駐の5点）を明記
+- `secrets-manifest.txt` に**リポジトリ外のPC側設定**（`~/.claude.json` の mcpServers 等）を注記
+
+### 発生したエラーと解決策
+- **症状**: `--sync` が「LANに公開されている待受」として `*:7000` `*:17500` などを警告した。
+  **原因**: macOS(AirPlay) と Dropbox 自身の待受を拾っていた。
+  **直し方**: 判定を**このリポジトリのポート範囲**（3000番台 / 5175 / 8500〜8620）に限定。
+- **症状**（訂正）: TODO に「`photo-inpainter/` はフォルダごと無視されREADMEが他PCへ渡らない」とあった。
+  **実測すると `!photo-inpainter/**` の許可行が既にあり、渡る**。古い情報だったのでTODOを訂正した。
+
+### 次回への引き継ぎ事項・未解決の課題
+- **Build/Test の実走は未実施**（ご本人の判断で①②④のみ実行）。したがって
+  「ビルドとテストが通る」ことは**未確認**。確認するときは、外部に出るアプリ
+  （chatwork-ai-manager / mail-merge-pro / flyer-creator・theta-viewer のFTP / ai-tools-base のVercel /
+  building-manager の prisma db push）を**除外**し、Streamlit は `run.sh` を使わず
+  `--server.address 127.0.0.1` を明示して起動すること（`run.sh` は不動産カテゴリだと 0.0.0.0）
+- **メインPCの未コミット変更は、このPCからは確認できない**（見えるのは `origin/main` まで）。
+  メインPC側で最初にやることは `git pull` と `./dev-doctor.py --sync`
+- `VISUAL_AGENT`（MCP）は未受領。`claude mcp get VISUAL_AGENT` の出力待ち
+- `stash@{0}` とローカルブランチ2本、`gh-pages` の27遅れは**そのまま**。中身の判断はご本人待ち
+
+---
+
+## 2026-08-17（夜・サブPC）— Claude Code に「目」を持たせた（Visual Agent）
+
+### 完了したこと
+- **`./va.sh`（`visual_agent.py`）を追加。** Claude Code 自身がブラウザを起動して見て操作し、
+  UIを検証できるようにした。できること: 起動/終了・URL遷移・クリック・フォーム入力・
+  キー操作（モーダルを Escape で閉じる等）・スクロール・ビューポート変更・
+  スクリーンショット（表示部分／ページ全体）・DOM要約・アクセシビリティツリー・
+  表示テキスト・Console・Network（ステータスと所要ms）・レスポンシブ3幅・
+  UI崩れの機械検出（`check`）・`eval` での計測
+- **`./see.sh`（`see.py`）も追加。** ブラウザ以外を見る用: Macの画面ぜんぶ（`screen`）と
+  pptx/pdf/docx の見た目（`file`。QuickLook経由・1ページ目のみ）
+- 実測: 公開サイト（ai-tools-base）で通し確認。撮影1.5MB/1440幅、Network 26件を捕捉、
+  Console は log/error/**pageerror（未定義関数の呼び出し）**まで捕捉、
+  クリックでページ遷移（`/` → `/tools`）まで確認
+- **見つけた実際のUI崩れ（390px幅）**: 比較表が `div.table-scroll`（`overflow-x:auto`）の中で
+  **表の幅832px に対し表示幅348px＝484px が隠れている**。横スクロールはできるが
+  そう見える手がかりが無く、料金列が「$10/月〜（学生・OSS開発者は無」で切れて読めない。
+  ヘッダーのロゴも2行に折れている（「AIツールベー/ス」）。**未修正**
+
+### 発生したエラーと解決策
+- **症状**: Console と Network が0件しか記録されない（ページは正しく開けている）。
+  **原因**: 常駐プロセスの待ちに `time.sleep()` を使っていた。**Playwright の sync API は
+  Playwright の呼び出し中しかイベントを配送しない**ため、素のsleepで待つと
+  `page.on("console")` などが一切発火しない。
+  **直し方**: 待ちを `page.wait_for_timeout(300)` に変えた（例外時のみ素のsleepへ退避）。
+  → 直後に 26件のNetworkと3件のConsoleを捕捉。**同じ作りをするときはここを踏む**
+- **症状**: `data:text/html,...` を渡すと `http://data:text/html,...` に化けて開けない。
+  **原因**: URL省略形の補完を「`://` を含むか」で判定していた。
+  **直し方**: `^[a-z][a-z0-9+.-]*:` でスキームの有無を見るようにした。
+- **症状**: Console のログが文字化け（`ç›®ã®...`）。
+  **原因**: テスト用 `data:` URLに charset を書いていなかったためブラウザ側でShift系解釈。
+  **道具側は UTF-8 で正しい**（`;charset=utf-8` を付けたら「日本語ログの確認」と正常表示）。
+
+### 次回への引き継ぎ事項・未解決の課題
+- 上のUI崩れ（モバイルの比較表・ロゴの折れ）は**まだ直していない**。直す場所は
+  `ai-tools-base/src`（表のラッパに横スクロールの手がかりを出す／狭い幅ではカード表示に切替）
+- **`VISUAL_AGENT` というMCPサーバーは公開のものとして確認できなかった**（検索でも該当なし）。
+  メインPCに 2026-08-17 に追加したとのことだが、こちらには設定も実体も来ていない。
+  `claude mcp get VISUAL_AGENT` の出力がもらえれば同じものを入れる。
+  それまでは上記 `./va.sh` が同じ役割を果たす（Playwright + Chromium・ローカル完結）
+- ログイン済みの実ブラウザを見たい場合は **Chrome拡張（Claude in Chrome）** が要る。
+  このPCでは拡張は入っているが**未接続**（`list_connected_browsers` が空）。人が Connect を押す必要がある
+
+---
+
+## 2026-08-17（夜・サブPC）— メインPCからの引き継ぎを受領し、改名の枝分かれを統合
+
+### 完了したこと
+- **メインPCの30コミットを取り込み、サブPCの4コミットとマージ**（`954844d`）。
+  両PCが同じ日に「AIツールラボ→AIツールベース」の改名を別々にやっていたため、
+  **フォルダ名を `ai-tools-base` に統一**（サブPC側を採用・ご本人の判断）。
+  メインPC側の中身（`publish.sh`・3媒体の更新手順・公開サイトの索引・PCの役割分担）は全部取り込んだ
+- **整備ツール5本を git に載せ直した**（`9935f9d`。`SETUP.md` / `dev-doctor.py` / `dev-setup.sh` /
+  `secrets-sync.sh` / `secrets-manifest.txt` ＝ **575行が実体として入ったことを `git show --stat` で確認**）
+- push 済み（`80ee5e9..9935f9d`）。Zenn は GitHub 連携なので、これで公開済み5本のリンクも新URLに直る
+- **鍵・データ一式を受領**（`handoff-20260817` 31.6MB・101ファイルを `rsync --ignore-existing`）。
+  `./dev-doctor.py` → **依存の作成が必要 0本 / 機密が足りないのは digital-shosai だけ**
+  （それはメインPCにも実体が無いので取り下げ済み）
+- **Claudeの記憶を受領**（59ファイル）。索引 `MEMORY.md` は**上書きせずマージ**した（22行追加）。
+  重複していた古い記憶2本を整理（`project_app_catalog`=36本の古い一覧 → `app_list_master`=51本に統合、
+  `project_restoration_calculator` → 詳しい `project_restoration_calc` に統合）。退避は `~/memory-backup`
+- **Dropboxの受け渡し置き場を2つとも削除**（`handoff-20260817` 31.6MB ／ `pokecard-dex-handoff` 3.8GB）。
+  消す前に確認: 鍵・データは上記のとおり着弾、`pokecard-dex/data` は 4.3GB・81,120ファイルで在る
+- **サブPCの launchd 常駐を0本にした**（file-finder 8520 / owner-payout-tracker 8519 を unload）。
+  8519/8520 の待受なし・`launchctl list | grep shinsei` が空。個人情報を含む画面の二重LAN公開も解消
+- quote-generator（別リポジトリ）を `git pull` で最新化（`run.sh` が増えた）。`data/issuers.csv` も在る
+
+### 発生したエラーと解決策
+- **症状**: `git pull` が改名で衝突（`CONFLICT (file location): ai-tools-lab/publish.sh added in
+  origin/main inside a directory that was renamed in HEAD`）ほか6ファイルが競合。
+  **原因**: 同じ改名を2台で別々にコミットしたため（サブPCは**フォルダごと** `git mv`、
+  メインPCは**中身だけ**書き換えてフォルダ名は据え置き）。**捨てて解決してはいけない**
+  ケースだった（メインPC側だけに `publish.sh` と3媒体の手順があり、サブPC側だけに
+  Search Console 移行と note リンク修正のログがあった）。
+  **直し方**: 各ファイルを見比べて手で統合。`publish.sh` は `git add ai-tools-base/publish.sh` で
+  新パスへ置き、`ai-tools-lab` の残り参照（`dev-doctor.py` のアプリ一覧・CLAUDE.md の表・
+  公開サイトの節）を新名へ直した。**過去ログの旧名はそのまま残す**（当時の事実なので）
+
+### 次回への引き継ぎ事項・未解決の課題
+- **メインPCで1回だけ手作業が要る**（TODO の横断作業に記載）。`git pull` 後、gitに入らない実体を
+  `ai-tools-lab/` → `ai-tools-base/` へ手で移す（`node_modules` / `.next` / `.vercel` / `.env*`）。
+  Vercel のプロジェクト名は既に `ai-tools-base` なので、これで名前が全部揃う
+- Zenn の未反映3本の出し直しと note の公開は**メインPCの担当**（ブラウザのログイン状態がある）
+- `baikai-generator/.streamlit/secrets.toml` は両PCに無い。`dev-doctor.py` は「不要」と判定
+  （このアプリは `claude` CLI を使いAPIキー不要）。**必要になったら作る**という理解で未確認
+- 8540（chatwork-ai-manager の管理画面）はサブPCで手動起動のまま稼働中。役割分担の表で
+  「サブPCは画面8540のみ可」なので止めていないが、**`*:8540` でLANに出ている**点は認識しておく
+
+---
+
 ## 2026-08-17 — サブPC（2026-08-16）の作業をメインPCで受領
 
 ### 完了したこと
@@ -54,7 +240,8 @@
   pokecard-dex 4.3GB（別tarで受け渡し済み）、chatwork-ai-manager（専用スクリプトが正）
 
 - **メインPCから3媒体（本体サイト / Zenn / note）を更新できるようにした**。
-  入口は `ai-tools-lab/publish.sh`（status / site / zenn / note）。
+  入口は `ai-tools-base/publish.sh`（status / site / zenn / note）。
+  ※当時のパスは `ai-tools-lab/`。2026-08-17夜のマージでフォルダ名を `ai-tools-base` に統一した
   Chromeを新規インストール→Claude拡張を接続、note・Zenn・Vercel にログイン。
   `npx vercel link` でプロジェクト **brain-dump/ai-tools-base** に紐づけ、
   `./publish.sh site` で**実際に本番デプロイして確認**（dpl_Ass2Jj9… READY・別名も同IDを配信）

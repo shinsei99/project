@@ -259,3 +259,24 @@ output/20260814-153000/
   外部に出す資料では必ず裏取りする。
 - **SNSへの自動投稿はしない。** 文面を作るところまで。投稿は人が確認してから。
 - `.env` と `output/` は **gitignore 済み**（このリポジトリは public）。
+
+## 運用メモ（ルート CLAUDE.md から移動・2026-08-17）
+
+> 元の見出し: 「マルチプロダクション（agent-platform）補足 ※不動産・port 8532・完成（2026-08-17に社内共有へ）」
+> **他PCと共有される情報。** ここを直せば2台で同じ内容になる。
+
+- 「企画からパワポ・ナレーション音声・解説動画(mp4)・SNS告知文まで全部作って」という**1文の指示**を、**11部隊**（司令塔／リサーチャー／企画構成／画像生成／パワポ／音声／動画／高速チェッカー／SNS／法務／QA）が順に処理して成果物一式を出す。画面はStreamlit（**入力フォーム／実行状況（部隊ごとの進捗ボード＋日本語ログ）／成果物**の3タブ）、CLIは `main_orchestrator.py`。
+- **設計の芯＝縮退モード**: APIキーが1つも無くても全工程が完走する（雛形テキスト・Pillowの簡易画像・無音WAVで代替）。縮退した工程は画面とレポートで ⚠️ 表示。これが無いと1つのキー未設定でパイプライン全体が死んでデバッグ不能になる。
+- **LLMは役割で抽象化**（`reasoning` / `longcontext` / `fast` / `light`）。`.env` の `AP_ROUTE_*` で `anthropic / claude_cli / openai / gemini / groq` を差し替え可能。**`claude` CLI がフォールバックに入っているのでANTHROPICキー無しでも司令塔・企画・法務が動く**。
+- **★費用方針: このアプリは「全部無料の範囲」で動かす（`AP_ALLOW_PAID=0` が既定）。** 有料機能は一切呼ばない。**AI画像生成（Gemini画像/DALL-E/Stability）もVeo（画像→動画）も無料枠が無い**（2026-08-14 確認）。代わりに ①実写真のアップロード ②**HTML+CSS→Playwrightで作図**（1枚2秒・無料・**日本語が崩れない**）③**ケンバーンズ**（ffmpegのズーム/パン・無料・写真の中身は変わらない）で作る。**Veoは実測で元の写真に無い建物を作った**ため、実在物件の広告には使用不可（8秒$0.80）。
+- **キー在庫の実測（2026-08-14）**: Gemini=**実キーあり**（`brain-dump/.env.local`・`pasha-calo/.env.local`・`madori-tracer/.secret_key` の3箇所。中身は同一・`AQ.`で始まる53文字。`.env`へコピー済み）、Anthropic=`madori-tracer/.env.local`のものは17文字のプレースホルダで**実キーではない**、OpenAI/Groq/ElevenLabs/Stability=**なし**。→ 文章系は全て実動、**画像もGeminiで実生成できる**、音声はgTTS。
+- **Gemini運用の要点（再調査不要）**: ①SDKは**新しい`google-genai`**（旧`google-generativeai`は提供終了）。②**`gemini-2.0-flash`は404で提供終了** → 既定は`gemini-3.5-flash`。③**Gemini 3.xは「思考」にも出力トークンを使う**ので、JSONを求めるときは`response_mime_type="application/json"`＋出力枠3倍（最低8000）にしないと本文が空/途中で切れる（実測: 失敗→14.5秒で成功）。④**タイムアウトはミリ秒**指定（`types.HttpOptions(timeout=…)`）。未指定だと5分以上ハングする。⑤画像は`gemini-3.1-flash-image`で**1枚60秒・約600KB**。
+- **動画の実測**: 2分13秒・1080pの書き出しにIntel Macで**約10分** → 既定を**720p＋`veryfast`＋マルチスレッド**に変更。書き出し途中のmp4は`moov atom not found`で再生できない（moviepyはヘッダを最後に書く）ため、**一時名で書いてrename**する実装にしてある。
+- **音が出ないときはまずMac本体のミュートを疑う**（`osascript -e 'get volume settings'`）。実際に`output muted:true`で「音が無い」と誤認した。
+- **ffmpeg未導入のMac**なので `imageio-ffmpeg` 同梱バイナリを `IMAGEIO_FFMPEG_EXE` に流して moviepy に使わせる。moviepy は v1/v2 で API名が違う（`set_audio`→`with_audio`）ため互換シムあり。
+- `.env` と `output/`（生成物）は**gitignore**。
+- **分類は不動産（2026-08-16変更）。2026-08-17に完成扱いへ移行**し、`run.sh` を `0.0.0.0` に変えて
+  launchd（`com.shinsei.agent-platform`）に登録・社内LAN共有（`192.168.1.105:8532`）。
+  Desktop の `.app` と Dropbox共有フォルダの `.url` は以前から設置済み。
+  **残っているのは作り込みであって通し実行はできる状態**（`agent-platform/TODO.md` 参照。
+  未了は「出来た .pptx の見栄えを目視確認」「OpenAI/Groq/ElevenLabs 経路の未検証」など）。
