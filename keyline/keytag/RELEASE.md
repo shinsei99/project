@@ -6,7 +6,8 @@
 | App Store の掲載名 | **KeyTagNFC** |
 | Bundle ID | `com.shinsei99.keytag` |
 | Team ID | `773DPMVW7Q`（既存6本と同じ） |
-| 現在 | **1.0.0 / build 1**（未提出） |
+| 現在 | **1.0.0 / build 2**（2026-08-18 App Store へ提出・審査待ち） |
+| 版数の正 | `keytag/version.json`（`ios/` は gitignore なので、こちらが git に残る記録） |
 
 **掲載名とホーム画面の表示名は別**である点に注意。
 
