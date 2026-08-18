@@ -1,0 +1,4 @@
+module NfcPlugin {
+header "NfcPlugin-Swift.h"
+export *
+}

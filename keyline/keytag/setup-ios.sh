@@ -55,10 +55,14 @@ p.write_bytes(plistlib.dumps(d))
 print("   ✅ Info.plist")
 
 # --- エンタイトルメント ---
-# ★TAG が無いと、まっさらな（NDEF未フォーマットの）タグのUIDを掴めない
-ent = {"com.apple.developer.nfc.readersession.formats": ["TAG", "NDEF"]}
+# ★TAG が無いと、まっさらな（NDEF未フォーマットの）タグのUIDを掴めない。
+#   そして **NDEF は入れてはいけない**。新しいSDKでは廃止されており、
+#   App Store へのアップロードが次のエラーで弾かれる（2026-08-18に実際に踏んだ）:
+#     code 90778 / "NDEF is disallowed"
+#   TAGセッションからNDEFの読み書きもできるので、機能は落ちない。
+ent = {"com.apple.developer.nfc.readersession.formats": ["TAG"]}
 pathlib.Path("ios/App/App/App.entitlements").write_bytes(plistlib.dumps(ent))
-print("   ✅ App.entitlements（TAG + NDEF）")
+print("   ✅ App.entitlements（TAG のみ。NDEFは入れない）")
 
 # --- Xcodeプロジェクト ---
 q = pathlib.Path("ios/App/App.xcodeproj/project.pbxproj")
@@ -74,8 +78,13 @@ def ensure(key, value):
                rf"\n\2{key} = {value};\1", s)
     return "追加"
 
+# ★iPhone専用にする（既定は "1,2" で iPad も対象になる）。
+#   iPadにはNFCリーダーが無く、このアプリの主機能が動かない。
+#   iPad対応のままだと審査で「主要機能が動作しない」と見られるうえ、
+#   App Store で iPad用スクリーンショットまで要求される。
 for k, v in [("CODE_SIGN_ENTITLEMENTS", "App/App.entitlements"),
-             ("DEVELOPMENT_TEAM", team)]:
+             ("DEVELOPMENT_TEAM", team),
+             ("TARGETED_DEVICE_FAMILY", "1")]:
     print(f"   ✅ {k} を{ensure(k, v)}")
 s = re.sub(r"PRODUCT_BUNDLE_IDENTIFIER = [^;]*;", f"PRODUCT_BUNDLE_IDENTIFIER = {bundle};", s)
 q.write_text(s)

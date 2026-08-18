@@ -1,3 +1,78 @@
+## 2026-08-18
+
+### 完了したこと
+
+**KeyTag（iOSアプリ）を新規作成し、App Store へ提出した**
+- Capacitor 8 + `@capgo/capacitor-nfc`。4画面（読み取り／書き込み／台帳／設定）
+- **単体で完結する設計**（サーバー無しで鍵の登録・貸出・返却・台帳が動く）。
+  App Store の審査員は社内LANに入れないため、ここが崩れると審査を通らない
+- サーバー連携は任意機能。6桁コードでペアリング → Bearerトークン
+  （Capacitorは別オリジンでCookieが使えないため）
+- `ndef.js` と `ndef.py` がバイト単位で一致することをテスト化（`test_ndef_parity.py`）
+- 1.0.0 / **build 2** で提出。サポート・プライバシーポリシーを gh-pages に公開
+
+**KeyLine 本体の追加**
+- 物件名称と、鍵番号ごとの本数（`migrations/002`）
+- 連続登録画面（`/register`）とアプリ用API（`/api/register` `/api/asset`
+  `/api/checkout` `/api/return` `/api/pair` `/api/ping`）
+- アプリ連携画面（`/devices`）。端末紛失時はここで即解除できる
+
+### 発生したエラーと解決策
+
+1. **アップロードが 90778 で弾かれた**
+   `Invalid entitlement ... 'NDEF is disallowed'` →
+   原因: 新しいSDK（26.5）では `com.apple.developer.nfc.readersession.formats` に
+   **NDEF を入れられない** → 直し方: `['TAG','NDEF']` を **`['TAG']`** に。
+   TAGセッションからNDEFの読み書きもできるので機能は落ちない。
+   `setup-ios.sh` にも反映済みなので作り直しても再発しない
+
+2. **`DistributionAppRecordProviderError error 0`**
+   症状: Distribute で落ちる → 原因: App Store Connect にアプリ登録が無かった。
+   登録後も Xcode のキャッシュが古く「新規作成」を試みて
+   「SKU/BundleID/名前が既に使われている」と自分自身とぶつかっていた →
+   直し方: **Xcodeを再起動**
+
+3. **スクショの寸法が弾かれた**
+   iPhone 17 Pro Max の 1320×2868 は6.9インチ枠用。6.5インチ枠は **1284×2778**。
+   `sips -z 2778 1284` で変換（記録どおりの現象。`reference_appstore_screenshot_sizes`）
+
+4. **アプリ名 `KeyTag` が取得できなかった**
+   同名アプリが既存（深圳市立显通科技有限公司）→ **掲載名は `KeyTagNFC`**、
+   ホーム画面の表示名は `KeyTag` のまま（一意性の制約は掲載名だけ）
+
+5. **`ios-build-guard.sh` が壊れていた**
+   `$MAX_ARCH。` のように変数の直後に日本語が続くと、bashが「。」の先頭バイトを
+   変数名に取り込み `unbound variable` で落ちる。**成功パスで必ず落ちていた**ため、
+   「衝突なし」の判定が一度も出せていなかった。`${VAR}` 形式に修正
+
+6. **別アプリのビルドをシミュレータに入れていた**
+   DerivedData に `App` という名のプロジェクトが3つある（Capacitorアプリは全部
+   プロジェクト名が `App`）→ `-derivedDataPath` で出力先を明示して解決
+
+7. **`sqlite3.executescript()` の暗黙COMMIT / 時刻だけでは履歴の全順序が決まらない**
+   （詳細は 2026-08-17 の節）
+
+### 次回への引き継ぎ事項・未解決の課題
+
+**🔴 最優先：NFCタグ到着後の実機検証**
+アプリのNFC機能は**一度も実機で動かしていない**（タグと実機が無いため）。
+確認項目は `keytag/RELEASE.md` のチェックリスト。特に:
+- 右上が「NFC 利用可」になるか
+- **まっさらなタグでUIDが読めるか**（TAGエンタイトルメントの確認）
+- NTAG213 に書けるか
+- 平文 `http://192.168.1.105:8534` へ繋がるか（ATS例外の確認）
+
+**KeyLine 本体（サーバー側）**
+- 平文httpでiOSのバックグラウンドタグ読み取りが動くかは**未検証のまま**。
+  ただし**アプリ内で貸出まで完結するようになったので、依存はしていない**
+- 常駐登録（`_launchd/install.sh`）は**まだ実行していない**
+- 利用者の追加・パスワード変更の画面が無い（`seed.py` と CLI のみ）
+
+**KeyTag（アプリ）**
+- 審査の結果待ち。リジェクトされたら build を +1 して出し直す
+  （`./ios-build-guard.sh keyline/keytag --bump`）
+- 次に触るときは `keytag/store-text.md`（掲載文言）と `keytag/RELEASE.md`（手順）を見る
+
 # SESSION_LOG — KeyLine
 
 ## 2026-08-17
