@@ -142,15 +142,35 @@ def _build_prompt(room_id, new_msgs, context_msgs, members, open_tasks) -> str:
 new_task/due_change 以外では "task" は省略可（null）でよい。"""
 
 
+def _norm_name(s):
+    return str(s or "").replace(" ", "").replace("　", "")
+
+
+def _global_member_lookup(name):
+    """全ルーム横断で氏名→account_id を引く（該当ルームの members 同期がまだ実行されていない/
+    そのルームでは未確認のメンバーの場合のフォールバック）。
+    社内は少人数で氏名がほぼユニークなため、同姓同名の衝突は考慮しない。"""
+    norm = _norm_name(name)
+    if not norm:
+        return None
+    rows = query("SELECT account_id, name FROM members WHERE name IS NOT NULL ORDER BY updated_at DESC")
+    for m in rows:
+        if _norm_name(m["name"]) == norm:
+            return m["account_id"]
+    return None
+
+
 def _resolve_account_id(members, name, given_id):
     if given_id:
         return given_id
     if not name:
         return None
+    norm = _norm_name(name)
     for m in members:
-        if m["name"] and (m["name"] == name or m["name"].replace(" ", "") == str(name).replace(" ", "")):
+        if m["name"] and _norm_name(m["name"]) == norm:
             return m["account_id"]
-    return None
+    # このルームの members 同期がまだ/欠落している場合、全ルーム横断の既知メンバーで再解決を試みる
+    return _global_member_lookup(name)
 
 
 def _apply_events(room_id, events, members, msg_by_id):

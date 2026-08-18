@@ -199,8 +199,9 @@ def run_job(client, job_type, now=None):
                     target_room = room_id
             escalations.append((target_room, t, msg, d))
         else:
-            assignee_id = t.get("assignee_account_id")
-            assignee_key = assignee_id or f"name:{t.get('assignee') or '未定'}"
+            # 同一担当者は account_id の有無に関わらず氏名でまとめる（一部のTODOだけ
+            # assignee_account_id が未解決でも、別グループ・宛先メンション欠落にしない）。
+            assignee_key = t.get("assignee") or "未定"
             groups.setdefault((room_id, assignee_key), []).append((t, msg))
 
     contacted = 0
@@ -208,7 +209,9 @@ def run_job(client, job_type, now=None):
     # 担当者ごとに1ブロック（複数案件をまとめ、冒頭に [To:] を1回だけ付与）
     for (room_id, assignee_key), items in groups.items():
         t0 = items[0][0]
-        assignee_id = t0.get("assignee_account_id")
+        # グループ内のいずれかのTODOに assignee_account_id があればそれを宛先に使う
+        # （AI解析時に一部だけ未解決でも、同じ担当者ならメンション付きで1通にまとめる）。
+        assignee_id = next((t.get("assignee_account_id") for t, _ in items if t.get("assignee_account_id")), None)
         assignee_name = t0.get("assignee") or "担当者"
         header = mention(assignee_id, assignee_name) if assignee_id else f"{assignee_name} さん"
         lines = [header, "", f"【{label}】ご確認をお願いします（{len(items)}件）"]
