@@ -1,4 +1,4 @@
-/* KeyLine Tag — アプリ本体。
+/* KeyTag — アプリ本体。
  *
  * 設計の芯
  *   * **単体で完結すること。** サーバーが無くても、タグの読み書きと台帳が使える。
@@ -11,7 +11,7 @@
 import * as N from './ndef.js';
 
 const $ = id => document.getElementById(id);
-const KEY = { ledger: 'keyline.ledger', conf: 'keyline.conf' };
+const KEY = { ledger: 'keytag.ledger', conf: 'keytag.conf' };
 
 // ---------------------------------------------------------------------------
 // 保存（端末内のみ）
@@ -849,7 +849,7 @@ $('w-keys').appendChild(keyRow());
 refreshProperties();
 renderLedger();
 preview();
-$('c-ver').textContent = 'KeyLine Tag 1.0.0';
+$('c-ver').textContent = 'KeyTag 1.0.0';
 initNfc();
 
 /* 開発・検証用の入口。**実機（Capacitor）では有効にならない。**

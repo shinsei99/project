@@ -1,6 +1,6 @@
 {
-  "appId": "com.shinsei99.keylinetag",
-  "appName": "KeyLine Tag",
+  "appId": "com.shinsei99.keytag",
+  "appName": "KeyTag",
   "webDir": "www",
   "ios": {
     "contentInset": "always"

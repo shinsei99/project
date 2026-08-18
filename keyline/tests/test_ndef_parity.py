@@ -1,4 +1,4 @@
-"""ndef.py（サーバー）と tagapp/www/ndef.js（アプリ）が同じ形式で書くことを確かめる。
+"""ndef.py（サーバー）と keytag/www/ndef.js（アプリ）が同じ形式で書くことを確かめる。
 
 ★これが崩れると、アプリで書いたタグをサーバーが読めない（またはその逆）。
   タグは物理的に書き直しになるため、気づくのが遅いほど痛い。
@@ -59,9 +59,9 @@ def main() -> int:
 
     tmp = Path(tempfile.mkdtemp(prefix="keyline-parity-"))
     try:
-        # tagapp/package.json は type:commonjs なので、そのままでは import できない。
+        # keytag/package.json は type:commonjs なので、そのままでは import できない。
         # .mjs に写して素の ESM として読ませる。
-        shutil.copy(APP_DIR / "tagapp" / "www" / "ndef.js", tmp / "ndef.mjs")
+        shutil.copy(APP_DIR / "keytag" / "www" / "ndef.js", tmp / "ndef.mjs")
         (tmp / "run.mjs").write_text(JS_RUNNER)
         proc = subprocess.run(
             [node, str(tmp / "run.mjs"), json.dumps(CASES), URL],

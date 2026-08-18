@@ -122,7 +122,7 @@ def current_user(con: sqlite3.Connection, token: Optional[str]) -> Optional[sqli
 def bearer_token(header: Optional[str]) -> Optional[str]:
     """`Authorization: Bearer xxx` からトークンを取り出す。
 
-    ネイティブアプリ（KeyLine Tag）はCookieを使えない。
+    ネイティブアプリ（KeyTag）はCookieを使えない。
     Capacitorのオリジンは capacitor://localhost で、サーバーとは別オリジンになる。
     平文HTTPでは SameSite=None; Secure を付けられないため、Cookieは送られない。
     → 端末用のトークンを発行して、このヘッダで送ってもらう。

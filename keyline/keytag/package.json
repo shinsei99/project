@@ -1,7 +1,7 @@
 {
-  "name": "keyline-tag",
+  "name": "keytag",
   "version": "1.0.0",
-  "description": "KeyLine Tag — 鍵管理のためのNFCタグ読み書きアプリ",
+  "description": "KeyTag — NFCタグで鍵の貸出管理",
   "private": true,
   "type": "commonjs",
   "scripts": {

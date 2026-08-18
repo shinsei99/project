@@ -320,10 +320,10 @@ ai-tools-lab/.env*
 # ★data/ は社員名・物件名・鍵番号を含むため絶対に追跡しない（公開リポジトリ）
 !keyline/
 !keyline/**
-# ネイティブアプリ（KeyLine Tag）。ios/ は cap add ios で作り直せるので追跡しない
+# ネイティブアプリ（KeyTag）。ios/ は cap add ios で作り直せるので追跡しない
 #   ※ただし Info.plist と entitlements の中身は RELEASE.md に手順として残すこと
-keyline/tagapp/ios/
-keyline/tagapp/package-lock.json
+keyline/keytag/ios/
+keyline/keytag/package-lock.json
 keyline/data/
 keyline/.secret_key
 keyline/*.db
