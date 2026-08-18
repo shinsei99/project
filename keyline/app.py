@@ -676,6 +676,128 @@ def api_ping(request: Request):
         con.close()
 
 
+# ---------------------------------------------------------------------------
+# アプリからの貸出・返却
+#
+# ★これがあると、iOSのバックグラウンドタグ読み取り（平文httpで通知が出るか未検証）
+#   に頼らずに済む。アプリでかざして、そのまま貸出・返却まで終わる。
+#   画面(/t/<token>)と同じ services を呼ぶので、状態判定や二重貸出の防止は共通。
+# ---------------------------------------------------------------------------
+def _asset_json(con, org, asset):
+    """アプリに返す管理対象の姿。画面に出すものだけを詰める。"""
+    return {
+        "asset_id": asset["id"],
+        "property_name": asset["property_name"] or "",
+        "name": asset["name"],
+        "label": (asset["property_name"] + " / " if asset["property_name"] else "") + asset["name"],
+        "item_numbers": asset["item_numbers"] or "",
+        "total_keys": asset["total_keys"],
+        "box": svc.box_label(asset["box_code"], asset["box_position"]),
+        "box_name": asset["box_name"] or "",
+        "status": asset["status"],
+        "status_label": STATUS_LABEL.get(asset["status"], asset["status"]),
+        "borrower": {
+            "id": asset["current_borrower_id"],
+            "name": asset["borrower_name"] or "",
+            "company": asset["borrower_company"] or "",
+            "phone": asset["borrower_phone"] or "",
+            "kind": KIND_LABEL.get(asset["borrower_kind"], ""),
+        } if asset["current_borrower_id"] else None,
+        "checked_out_at": dbmod.fmt_local(asset["checked_out_at"]),
+        "due_at": dbmod.fmt_local(asset["due_at"]) if asset["due_at"] else "",
+        "elapsed": elapsed_text(asset["elapsed_minutes"]),
+        "is_overdue": bool(asset["is_overdue"]),
+    }
+
+
+@app.get("/api/asset")
+def api_asset(request: Request, token: str = ""):
+    """タグのトークンから、いまの状態と貸出に必要な選択肢をまとめて返す。
+
+    アプリは1往復でこれを取り、貸出画面か返却画面かを決める。
+    """
+    con = get_con()
+    try:
+        user = viewer(request, con)
+        if not user:
+            return JSONResponse({"ok": False, "error": "ログインし直してください"}, 401)
+        org = user["organization_id"]
+
+        asset = svc.find_by_token(con, org, token)
+        if asset is None:
+            return JSONResponse({"ok": True, "found": False, "token": token})
+
+        return JSONResponse({
+            "ok": True, "found": True, "token": token,
+            "asset": _asset_json(con, org, asset),
+            "borrowers": [
+                {"id": b["id"], "name": b["name"], "company": b["company"] or "",
+                 "kind": KIND_LABEL.get(b["kind"], ""), "open_count": b["open_count"]}
+                for b in svc.recent_borrowers(con, org, 20)],
+            "dues": [{"label": l, "value": v} for l, v in svc.due_choices()],
+        })
+    finally:
+        con.close()
+
+
+@app.post("/api/checkout")
+async def api_checkout(request: Request):
+    con = get_con()
+    try:
+        user = viewer(request, con)
+        if not user:
+            return JSONResponse({"ok": False, "error": "ログインし直してください"}, 401)
+        org = user["organization_id"]
+        d = await request.json()
+
+        asset = svc.find_by_token(con, org, str(d.get("token") or ""))
+        if asset is None:
+            return JSONResponse({"ok": False, "error": "この鍵は登録されていません"}, 404)
+
+        try:
+            borrower_id = d.get("borrower_id")
+            if not borrower_id:
+                if not (d.get("new_name") or "").strip():
+                    return JSONResponse({"ok": False, "error": "貸出先を選ぶか、お名前を入力してください"}, 400)
+                borrower_id = svc.create_borrower(
+                    con, org, d.get("new_name"), d.get("new_kind") or "vendor",
+                    d.get("new_company"), d.get("new_phone"))
+            svc.checkout(con, org, asset["id"], borrower_id, due_at=(d.get("due_at") or None))
+        except (Conflict, svc.NotFound, svc.InvalidInput) as e:
+            return JSONResponse({"ok": False, "error": str(e)}, 409)
+
+        bus.notify()
+        fresh = svc.get_asset(con, org, asset["id"])
+        return JSONResponse({"ok": True, "asset": _asset_json(con, org, fresh)})
+    finally:
+        con.close()
+
+
+@app.post("/api/return")
+async def api_return(request: Request):
+    con = get_con()
+    try:
+        user = viewer(request, con)
+        if not user:
+            return JSONResponse({"ok": False, "error": "ログインし直してください"}, 401)
+        org = user["organization_id"]
+        d = await request.json()
+
+        asset = svc.find_by_token(con, org, str(d.get("token") or ""))
+        if asset is None:
+            return JSONResponse({"ok": False, "error": "この鍵は登録されていません"}, 404)
+        try:
+            svc.return_asset(con, org, asset["id"])
+        except Conflict as e:
+            return JSONResponse({"ok": False, "error": str(e)}, 409)
+
+        bus.notify()
+        fresh = svc.get_asset(con, org, asset["id"])
+        return JSONResponse({"ok": True, "asset": _asset_json(con, org, fresh)})
+    finally:
+        con.close()
+
+
 @app.get("/api/next-position")
 def api_next_position(request: Request, box_id: str = ""):
     """そのボックスで次に空いていそうな位置。画面の初期値に使う。"""

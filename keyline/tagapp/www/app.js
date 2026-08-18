@@ -102,13 +102,16 @@ $('btn-read').addEventListener('click', async () => {
       : 'NFCの読み取りは実機でのみ動作します（いまはブラウザ表示）。';
     return;
   }
+  $('lend').hidden = true;
   const ring = $('readring'), lead = $('readlead');
   ring.classList.add('on'); lead.textContent = 'タグに近づけてください…';
   $('btn-read').disabled = true;
   try {
     const tag = await scanOnce('鍵のタグに近づけてください');
-    showTag(N.parseTag(tag));
+    const t = N.parseTag(tag);
+    showTag(t);
     lead.textContent = '読み取りました';
+    await showLending(t);
   } catch (e) {
     lead.textContent = '読み取れませんでした。もう一度お試しください。';
   } finally {
@@ -139,6 +142,322 @@ function showTag(t) {
   $('r-raw').textContent = JSON.stringify(
     { uid: t.uid, records: t.records }, null, 1);
   $('readresult').hidden = false;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 貸出・返却（KeyLine連携時のみ）
+//
+// ★ここがあると、iOSのバックグラウンドタグ読み取り（平文httpで通知が出るかは
+//   未検証）に頼らずに済む。アプリでかざして、そのまま貸出・返却まで終わる。
+//   判定と二重貸出の防止はサーバー側（services.py）でやるので、画面と同じ挙動になる。
+// ═══════════════════════════════════════════════════════════════
+let lastTag = null;
+let lendState = null;      // { source:'server'|'local', token, uid, asset, borrowers, dues, rec }
+
+/* 貸出のデータの置き場は2つある。画面は同じで、ここだけが違う。
+ *
+ *   local  … この端末の台帳。サーバー不要。**これが既定**
+ *   server … 自社の鍵管理サーバー（設定で連携したときだけ）。
+ *            複数人で同じ台帳を見る必要がある会社向け。
+ *            二重貸出の判定はサーバー側でやるので、2台で同時に操作しても壊れない。
+ */
+
+const DUES_LOCAL = [
+  { label: '今日 18:00', hours: null, today18: true },
+  { label: '明日 18:00', hours: null, tomorrow18: true },
+  { label: '2時間後', hours: 2 },
+  { label: '3日後', hours: 72 },
+  { label: '指定しない', hours: 0 },
+];
+
+function localDues() {
+  const now = new Date();
+  const at18 = d => { const x = new Date(d); x.setHours(18, 0, 0, 0); return x; };
+  const out = [];
+  const t18 = at18(now);
+  if (t18 > now) out.push({ label: '今日 18:00', value: t18.toISOString() });
+  const tm = at18(new Date(now.getTime() + 86400000));
+  out.push({ label: '明日 18:00', value: tm.toISOString() });
+  out.push({ label: '2時間後', value: new Date(now.getTime() + 7200000).toISOString() });
+  out.push({ label: '3日後', value: new Date(now.getTime() + 259200000).toISOString() });
+  out.push({ label: '指定しない', value: '' });
+  return out;
+}
+
+const fmtDT = iso => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} `
+       + `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+};
+
+const elapsedText = iso => {
+  if (!iso) return '';
+  const m = Math.max(0, Math.floor((Date.now() - new Date(iso)) / 60000));
+  const d = Math.floor(m / 1440), h = Math.floor((m % 1440) / 60);
+  return d ? `${d}日${h}時間` : (h ? `${h}時間${m % 60}分` : `${m}分`);
+};
+
+/** 端末内の1件を、画面が使う形に直す（サーバーの返す形に合わせる）。 */
+function localAsset(r) {
+  const overdue = r.status === 'out' && r.due && new Date(r.due) < new Date();
+  const total = (r.numbers || '').split(' / ').filter(Boolean)
+    .reduce((n, s) => n + (parseInt((s.match(/×\s*(\d+)/) || [])[1], 10) || 1), 0);
+  return {
+    property_name: r.property || '', name: r.name || '',
+    label: (r.property ? r.property + ' / ' : '') + r.name,
+    item_numbers: r.numbers || '', total_keys: total,
+    box: N.boxLabel(r.boxCode, r.boxPosition), box_name: '',
+    status: r.status === 'out' ? 'checked_out' : 'in_stock',
+    status_label: r.status === 'out' ? '貸出中' : '保管中',
+    borrower: r.borrower ? { ...r.borrower } : null,
+    checked_out_at: fmtDT(r.since), due_at: r.due ? fmtDT(r.due) : '',
+    elapsed: elapsedText(r.since), is_overdue: !!overdue,
+  };
+}
+
+async function showLending(t) {
+  $('lend').hidden = true;
+  lendState = null;
+  lastTag = t;
+
+  const token = N.keylineToken(t.url);
+
+  // ① サーバー連携していて、そのサーバーのタグなら、サーバーを見る
+  if (token && conf.server && conf.token) {
+    const d = await api('/api/asset?token=' + encodeURIComponent(token));
+    if (d && d.ok && d.found) {
+      lendState = { source: 'server', token, ...d };
+      renderLending();
+      return;
+    }
+    if (d && d.ok && !d.found) {
+      setMsg($('k-msg'), 'このタグはサーバーに登録されていません。', false);
+      $('lend').hidden = false;
+      return;
+    }
+    setMsg($('k-msg'), '⚠️ サーバーに繋がりませんでした。この端末の記録で操作します。', true);
+  }
+
+  // ② それ以外は端末内の台帳で操作する（サーバー不要）
+  const rec = findLocal(t);
+  if (!rec) {
+    // 台帳に無いタグ。読み取り結果はそのまま出し、登録への導線だけ足す
+    const link = $('r-link');
+    const b = document.createElement('button');
+    b.className = 'btn primary'; b.style.marginTop = '.9rem';
+    b.textContent = 'この鍵を登録する';
+    b.addEventListener('click', () => {
+      // 読めた内容があれば書き込み画面に引き継ぐ
+      const f = t.fields || {};
+      if (f.property) $('w-prop').value = f.property;
+      if (f.name) $('w-name').value = f.name;
+      if (f.box) {
+        const m = String(f.box).match(/^(.*?)-([^-]+)$/);
+        if (m) { $('w-box').value = m[1]; $('w-pos').value = m[2]; }
+        else $('w-box').value = f.box;
+      }
+      document.querySelector('nav.tabs button[data-screen=s-write]').click();
+      preview();
+      $('w-name').focus();
+    });
+    link.appendChild(b);
+    return;
+  }
+  lendState = {
+    source: 'local', uid: rec.uid, rec,
+    asset: localAsset(rec),
+    borrowers: localBorrowers().map((b, i) => ({
+      id: 'L' + i, name: b.name, company: b.company, kind: b.kind, open_count: 0 })),
+    dues: localDues(),
+  };
+  renderLending();
+}
+
+function renderLending() {
+  const a = lendState.asset;
+  $('lend').hidden = false;
+  // 鍵が特定できたので、生の読み取り結果は隠す。
+  // 同じ内容が2つ並ぶうえ、台帳に無い項目が「（空のタグ）」と出て紛らわしい
+  $('readresult').hidden = true;
+  $('k-uid').textContent = (lastTag && lastTag.uid) || '-';
+  $('k-raw').textContent = JSON.stringify(
+    { uid: lastTag && lastTag.uid, records: (lastTag && lastTag.records) || [] }, null, 1);
+  setMsg($('k-msg'), '', false);
+
+  const badge = $('k-status');
+  badge.textContent = a.is_overdue ? '返却期限超過' : a.status_label;
+  badge.className = 'badge ' + (a.status === 'in_stock' ? 'in'
+    : a.status === 'checked_out' ? (a.is_overdue ? 'over' : 'out') : 'other');
+
+  $('k-prop').textContent = a.property_name;
+  $('k-name').textContent = a.name;
+  $('k-keys').textContent = a.item_numbers
+    + (a.total_keys > 1 ? `  計${a.total_keys}本` : '');
+  $('k-box').textContent = a.box ? (a.box + (a.box_name ? `（${a.box_name}）` : '')) : '';
+
+  const isOut = a.status === 'checked_out';
+  const canLend = a.status === 'in_stock';
+  $('k-out').hidden = !isOut;
+  $('k-in').hidden = !canLend;
+
+  if (isOut) {
+    const b = a.borrower || {};
+    $('k-borrower').innerHTML = '';
+    const nm = document.createElement('strong');
+    nm.textContent = b.name || '';
+    $('k-borrower').appendChild(nm);
+    if (b.company) $('k-borrower').append(document.createElement('br'), b.company);
+    if (b.phone) {
+      const tel = document.createElement('a');
+      tel.href = 'tel:' + b.phone; tel.textContent = b.phone;
+      $('k-borrower').append(document.createElement('br'), tel);
+    }
+    $('k-since').textContent = `${a.checked_out_at}（${a.elapsed}経過）`;
+    $('k-due').textContent = a.due_at || '指定なし';
+    $('k-returnnote').textContent =
+      (a.total_keys > 1 ? `${a.total_keys}本すべて揃っているか確かめて、` : '') +
+      (a.box ? `${a.box} に戻してから押してください。` : '所定の位置に戻してから押してください。');
+  }
+
+  if (canLend) {
+    // 貸出先の候補
+    const picks = $('k-picks');
+    picks.innerHTML = '';
+    lendState.selected = null;
+    (lendState.borrowers || []).forEach(b => {
+      const el = document.createElement('button');
+      el.type = 'button'; el.className = 'pick'; el.dataset.id = b.id;
+      el.innerHTML = '<span class="nm"></span><span class="co"></span>';
+      el.querySelector('.nm').textContent = b.name;
+      el.querySelector('.co').textContent =
+        (b.company || b.kind) + (b.open_count ? `・貸出中${b.open_count}件` : '');
+      el.addEventListener('click', () => {
+        const already = el.classList.contains('sel');
+        picks.querySelectorAll('.pick').forEach(x => x.classList.remove('sel'));
+        lendState.selected = already ? null : b.id;
+        if (!already) {
+          el.classList.add('sel');
+          $('k-newbox').open = false;
+          ['k-newname', 'k-newco', 'k-newtel'].forEach(i => $(i).value = '');
+        }
+      });
+      picks.appendChild(el);
+    });
+    $('k-newbox').open = !(lendState.borrowers || []).length;
+
+    // 返却予定
+    const dues = $('k-dues');
+    dues.innerHTML = '';
+    (lendState.dues || []).forEach((d, i) => {
+      const l = document.createElement('label');
+      l.innerHTML = '<input type="radio" name="k-due"><span></span>';
+      l.querySelector('input').value = d.value;
+      l.querySelector('input').checked = i === 0;
+      l.querySelector('span').textContent = d.label;
+      dues.appendChild(l);
+    });
+  }
+}
+
+// 新規入力に触ったら候補の選択を外す（どちらに貸したのか曖昧にしない）
+['k-newname', 'k-newco', 'k-newtel'].forEach(id =>
+  $(id).addEventListener('input', () => {
+    if (!lendState || !lendState.selected) return;
+    lendState.selected = null;
+    $('k-picks').querySelectorAll('.pick').forEach(x => x.classList.remove('sel'));
+  }));
+
+$('btn-lend').addEventListener('click', async () => {
+  if (!lendState) return;
+  const name = $('k-newname').value.trim();
+  if (!lendState.selected && !name) {
+    setMsg($('k-msg'), '⚠️ 貸出先を選ぶか、お名前を入力してください', true);
+    $('k-newbox').open = true; $('k-newname').focus();
+    return;
+  }
+  const due = document.querySelector('input[name=k-due]:checked');
+  const btn = $('btn-lend');
+  btn.disabled = true; btn.textContent = '処理中…';
+
+  if (lendState.source === 'server') {
+    const d = await api('/api/checkout', {
+      token: lendState.token,
+      borrower_id: lendState.selected || '',
+      new_name: name, new_kind: $('k-newkind').value,
+      new_company: $('k-newco').value.trim(), new_phone: $('k-newtel').value.trim(),
+      due_at: due ? due.value : '',
+    });
+    btn.disabled = false; btn.textContent = '貸出する';
+    if (!d || !d.ok) { setMsg($('k-msg'), '⚠️ ' + ((d && d.error) || '貸出できませんでした'), true); return; }
+    lendState.asset = d.asset;
+  } else {
+    // 端末内で完結する貸出
+    const picked = lendState.selected
+      ? (lendState.borrowers.find(b => b.id === lendState.selected) || null) : null;
+    const borrower = picked
+      ? { name: picked.name, company: picked.company, kind: picked.kind, phone: '' }
+      : { name, company: $('k-newco').value.trim(), phone: $('k-newtel').value.trim(),
+          kind: ({ vendor: '業者', customer: 'お客様', employee: '社員', other: 'その他' })[$('k-newkind').value] };
+    const r = lendState.rec;
+    if (r.status === 'out') {
+      btn.disabled = false; btn.textContent = '貸出する';
+      setMsg($('k-msg'), '⚠️ この鍵はすでに貸出中です', true);
+      return;
+    }
+    r.status = 'out'; r.borrower = borrower;
+    r.since = new Date().toISOString();
+    r.due = due && due.value ? due.value : '';
+    save(KEY.ledger, ledger);
+    lendState.asset = localAsset(r);
+    btn.disabled = false; btn.textContent = '貸出する';
+  }
+  renderLending();
+  setMsg($('k-msg'), '✅ 貸出しました', false);
+});
+
+$('btn-return').addEventListener('click', async () => {
+  if (!lendState) return;
+  const btn = $('btn-return');
+  btn.disabled = true; btn.textContent = '処理中…';
+
+  if (lendState.source === 'server') {
+    const d = await api('/api/return', { token: lendState.token });
+    btn.disabled = false; btn.textContent = '返却する';
+    if (!d || !d.ok) { setMsg($('k-msg'), '⚠️ ' + ((d && d.error) || '返却できませんでした'), true); return; }
+    // 返却後は貸出先の候補を取り直す（直近に借りた人が上に来るように）
+    const fresh = await api('/api/asset?token=' + encodeURIComponent(lendState.token));
+    lendState = (fresh && fresh.ok && fresh.found)
+      ? { source: 'server', token: lendState.token, ...fresh }
+      : { ...lendState, asset: d.asset };
+  } else {
+    const r = lendState.rec;
+    if (r.status !== 'out') {
+      btn.disabled = false; btn.textContent = '返却する';
+      setMsg($('k-msg'), '⚠️ この鍵は貸出中ではありません', true);
+      return;
+    }
+    // 履歴に積んでから状態を戻す。誰にいつ貸したかが消えないようにする
+    r.history = (r.history || []);
+    r.history.unshift({ name: r.borrower && r.borrower.name, company: r.borrower && r.borrower.company,
+                        kind: r.borrower && r.borrower.kind, at: r.since,
+                        returned: new Date().toISOString(), due: r.due });
+    r.history = r.history.slice(0, 200);
+    r.status = 'in'; r.borrower = null; r.since = ''; r.due = '';
+    save(KEY.ledger, ledger);
+    lendState.asset = localAsset(r);
+    lendState.borrowers = localBorrowers().map((b, i) => ({
+      id: 'L' + i, name: b.name, company: b.company, kind: b.kind, open_count: 0 }));
+    lendState.dues = localDues();
+    btn.disabled = false; btn.textContent = '返却する';
+  }
+  renderLending();
+  setMsg($('k-msg'), '✅ 返却しました', false);
+});
+
+function setMsg(el, text, isErr) {
+  el.textContent = text;
+  el.className = 'msg' + (text ? (isErr ? ' err' : ' ok') : '');
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -246,10 +565,11 @@ $('btn-write').addEventListener('click', async () => {
     const p = N.plan(f, conf.tagType);
     if (!p.fits) throw new Error('このタグには収まりません');
 
-    await scanOnce('書き込むタグに近づけてください');
+    const tag = await scanOnce('書き込むタグに近づけてください');
     await Nfc.write({ records: p.records, allowFormat: true });
 
-    addToLedger(f, p);
+    // uid を控えておくと、次にかざしたとき確実にこの鍵だと分かる（サーバー不要）
+    addToLedger(f, p, N.parseTag(tag).uid);
     msg.textContent = '✅ 書き込みました：' + (p.text || 'URLのみ');
     msg.className = 'msg ok';
 
@@ -279,16 +599,69 @@ function nextPosition(pos) {
 // ═══════════════════════════════════════════════════════════════
 // 台帳（端末内）
 // ═══════════════════════════════════════════════════════════════
-function addToLedger(f, p) {
-  ledger.unshift({
+/* 台帳の1件（端末内）
+ *   { id, uid, at, property, name, numbers, boxCode, boxPosition, url,
+ *     status: 'in'|'out', borrower, since, due, history: [...] }
+ *
+ * ★uid（タグ固有の番号）で鍵を特定する。タグに書いた文字は後から変わり得るが、
+ *   uid は変わらない。サーバーが無くても「かざした鍵がどれか」が確実に決まる。
+ */
+function addToLedger(f, p, uid) {
+  const rec = {
+    id: 'k' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+    uid: uid || '',
     at: new Date().toISOString(),
     property: f.property, name: f.name, numbers: f.numbers,
     boxCode: f.boxCode, boxPosition: f.boxPosition,
     url: f.url || '', written: p.text, bytes: p.bytes,
-  });
+    status: 'in', borrower: null, since: '', due: '', history: [],
+  };
+  // 同じタグに書き直した場合は、貸出状態と履歴を引き継いで中身だけ更新する
+  const i = uid ? ledger.findIndex(r => r.uid && r.uid === uid) : -1;
+  if (i >= 0) {
+    const old = ledger[i];
+    Object.assign(rec, {
+      id: old.id, status: old.status, borrower: old.borrower,
+      since: old.since, due: old.due, history: old.history || [],
+    });
+    ledger.splice(i, 1);
+  }
+  ledger.unshift(rec);
   ledger = ledger.slice(0, 2000);
   save(KEY.ledger, ledger);
   refreshProperties();
+  return rec;
+}
+
+/** 端末内の台帳から鍵を探す。uid が最優先。 */
+function findLocal(t) {
+  if (t.uid) {
+    const byUid = ledger.find(r => r.uid && r.uid === t.uid);
+    if (byUid) return byUid;
+  }
+  if (t.url) {
+    const byUrl = ledger.find(r => r.url && r.url === t.url);
+    if (byUrl) return byUrl;
+  }
+  // uid を控える前に書いたタグのために、書いた文字が一致するものも見る
+  if (t.text) return ledger.find(r => r.written && r.written === t.text) || null;
+  return null;
+}
+
+/** 端末内の貸出先の候補。直近に貸した順。 */
+function localBorrowers() {
+  const seen = new Map();
+  ledger.forEach(r => (r.history || []).concat(r.borrower ? [{ name: r.borrower.name,
+      company: r.borrower.company, kind: r.borrower.kind, at: r.since }] : [])
+    .forEach(h => {
+      if (!h || !h.name) return;
+      const k = h.name + '|' + (h.company || '');
+      const prev = seen.get(k);
+      if (!prev || (h.at || '') > (prev.at || '')) {
+        seen.set(k, { name: h.name, company: h.company || '', kind: h.kind || '', at: h.at || '' });
+      }
+    }));
+  return [...seen.values()].sort((a, b) => (b.at || '').localeCompare(a.at || '')).slice(0, 20);
 }
 
 function renderLedger() {
@@ -296,14 +669,33 @@ function renderLedger() {
   $('l-empty').hidden = ledger.length > 0;
   const box = $('l-items');
   box.innerHTML = '';
-  ledger.forEach((r, i) => {
+  // 貸出中を先に、そのうち期限超過を最優先で出す
+  const sorted = [...ledger].sort((a, b) => {
+    const over = r => (r.status === 'out' && r.due && new Date(r.due) < new Date()) ? 0 : 1;
+    const out = r => r.status === 'out' ? 0 : 1;
+    return over(a) - over(b) || out(a) - out(b) || (b.at || '').localeCompare(a.at || '');
+  });
+  sorted.forEach(r => {
     const el = document.createElement('div');
     el.className = 'item';
     el.innerHTML = '<div class="body"><div class="nm"></div><div class="sub"></div></div>' +
                    '<button class="go">再書込</button>';
-    el.querySelector('.nm').textContent = (r.property ? r.property + ' / ' : '') + r.name;
-    el.querySelector('.sub').textContent =
-      [r.numbers, N.boxLabel(r.boxCode, r.boxPosition), fmt(r.at)].filter(Boolean).join('  ・  ');
+    const overdue = r.status === 'out' && r.due && new Date(r.due) < new Date();
+    const nm = el.querySelector('.nm');
+    if (r.status === 'out') {
+      const b = document.createElement('span');
+      b.className = 'badge ' + (overdue ? 'over' : 'out');
+      b.textContent = overdue ? '超過' : '貸出中';
+      b.style.marginRight = '.4rem';
+      nm.appendChild(b);
+    }
+    nm.append((r.property ? r.property + ' / ' : '') + r.name);
+    el.querySelector('.sub').textContent = r.status === 'out'
+      ? [`${(r.borrower && r.borrower.name) || ''} が借用中`,
+         r.due ? `返却予定 ${fmtDT(r.due)}` : '返却予定なし',
+         N.boxLabel(r.boxCode, r.boxPosition)].filter(Boolean).join('  ・  ')
+      : [r.numbers, N.boxLabel(r.boxCode, r.boxPosition),
+         (r.history || []).length ? `貸出${r.history.length}回` : ''].filter(Boolean).join('  ・  ');
     el.querySelector('.go').addEventListener('click', () => {
       $('w-prop').value = r.property || '';
       $('w-box').value = r.boxCode || '';
@@ -459,3 +851,17 @@ renderLedger();
 preview();
 $('c-ver').textContent = 'KeyLine Tag 1.0.0';
 initNfc();
+
+/* 開発・検証用の入口。**実機（Capacitor）では有効にならない。**
+ * NFCはブラウザで動かせないため、かざした結果を差し込んで画面を確かめるために使う。 */
+if (!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+  window.__tagtest = {
+    /** タグをかざしたことにする。tag は ndef.parseTag が返す形。 */
+    async scan(tag) { showTag(tag); await showLending(tag); return lendState; },
+    /** 台帳に1件足す（書き込みの代わり）。 */
+    add(fields, uid) { return addToLedger(fields, N.plan(fields, conf.tagType), uid); },
+    state: () => lendState,
+    ledger: () => ledger,
+    reset() { ledger = []; save(KEY.ledger, ledger); renderLedger(); },
+  };
+}

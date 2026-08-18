@@ -20,7 +20,7 @@
 <section class="screen" id="s-read">
   <div class="hero">
     <div class="ring" id="readring">📡</div>
-    <p class="lead" id="readlead">タグをかざすと、何の鍵か表示します</p>
+    <p class="lead" id="readlead">タグをかざすと、何の鍵か・いま誰が借りているかが分かります</p>
   </div>
   <button class="btn primary big" id="btn-read">タグを読み取る</button>
 
@@ -33,6 +33,66 @@
       <dt>タグID</dt><dd id="r-uid" class="mono">-</dd>
     </dl>
     <div id="r-link"></div>
+  </div>
+
+  <!-- KeyLine連携時のみ出る。かざした流れのまま貸出・返却まで終わらせる -->
+  <div class="card" id="lend" hidden>
+    <div class="lendhead">
+      <span class="badge" id="k-status"></span>
+      <div class="prop" id="k-prop"></div>
+      <div class="ttl" id="k-name"></div>
+      <div class="keys" id="k-keys"></div>
+      <div class="where" id="k-box"></div>
+    </div>
+
+    <!-- 貸出中のとき -->
+    <div id="k-out" hidden>
+      <dl class="kv">
+        <dt>利用者</dt><dd id="k-borrower"></dd>
+        <dt>貸出日時</dt><dd id="k-since"></dd>
+        <dt>返却予定</dt><dd id="k-due"></dd>
+      </dl>
+      <button class="btn primary big" id="btn-return" style="margin-top:1rem">返却する</button>
+      <p class="small muted" id="k-returnnote" style="text-align:center"></p>
+    </div>
+
+    <!-- 保管中のとき -->
+    <div id="k-in" hidden>
+      <h2 style="margin-top:.8rem">誰に貸しますか？</h2>
+      <div class="picks" id="k-picks"></div>
+      <details id="k-newbox" style="margin-top:.8rem">
+        <summary class="summ">＋ はじめての相手に貸す</summary>
+        <label for="k-newname">お名前 <span class="req">*</span></label>
+        <input type="text" id="k-newname" placeholder="田中 一郎" autocomplete="off">
+        <label for="k-newkind">区分</label>
+        <select id="k-newkind">
+          <option value="vendor">業者</option>
+          <option value="customer">お客様</option>
+          <option value="employee">社員</option>
+          <option value="other">その他</option>
+        </select>
+        <label for="k-newco">会社名</label>
+        <input type="text" id="k-newco" placeholder="〇〇工務店" autocomplete="off">
+        <label for="k-newtel">電話番号</label>
+        <input type="tel" id="k-newtel" placeholder="090-1234-5678" autocomplete="off">
+      </details>
+
+      <h2 style="margin-top:1rem">返却予定</h2>
+      <div class="dues" id="k-dues"></div>
+
+      <button class="btn primary big" id="btn-lend" style="margin-top:1.1rem">貸出する</button>
+    </div>
+
+    <p class="msg" id="k-msg"></p>
+
+    <!-- 鍵が特定できているときは、生データは畳んでおく -->
+    <details style="margin-top:.6rem">
+      <summary class="small muted">タグの情報</summary>
+      <dl class="kv" style="margin-top:.5rem">
+        <dt>タグID</dt><dd class="mono" id="k-uid">-</dd>
+      </dl>
+      <pre class="raw" id="k-raw"></pre>
+    </details>
     <details style="margin-top:.8rem">
       <summary class="small muted">タグの生データ</summary>
       <pre class="raw" id="r-raw"></pre>
@@ -86,7 +146,7 @@
     <button class="linkbtn" id="btn-export">書き出す</button>
   </div>
   <p class="small muted pad">
-    この端末に保存されています。タップすると同じ内容をもう一度書き込めます。
+    この端末に保存されています。貸出中の鍵は上に出ます。
   </p>
   <div id="l-items"></div>
   <div class="empty" id="l-empty">まだ登録がありません。<br>「書き込み」から始めてください。</div>
@@ -105,10 +165,13 @@
   </div>
 
   <div class="card">
-    <h2>KeyLine 連携（任意）</h2>
+    <h2>サーバー連携（任意・上級者向け）</h2>
     <p class="small muted">
-      鍵管理システム「KeyLine」をお使いの場合だけ設定してください。<br>
-      未設定でも、このアプリ単体でタグの読み書きと台帳は使えます。
+      <strong>ふつうは設定不要です。</strong>このアプリは単体で、鍵の登録から
+      貸出・返却まですべて使えます。<br><br>
+      複数人で同じ台帳を共有したい場合にだけ、自社の鍵管理サーバーと連携できます。
+      連携すると、貸出・返却の記録はこの端末ではなくサーバーに保存され、
+      他の端末やパソコンからも同じ内容が見られます。
     </p>
     <label for="c-server">サーバーのURL</label>
     <input type="url" id="c-server" placeholder="http://192.168.1.105:8534"
@@ -119,7 +182,7 @@
       <input type="text" id="c-code" placeholder="123456" inputmode="numeric"
              maxlength="6" autocomplete="one-time-code">
       <p class="small muted" style="margin:.3rem 0 0">
-        KeyLine の「アプリ連携」画面で発行してください。
+        サーバー側の管理画面で発行したコードを入れてください。
       </p>
       <button class="btn primary" id="btn-pair" style="margin-top:.8rem">連携する</button>
     </div>
@@ -135,9 +198,10 @@
     <h2>このアプリについて</h2>
     <p class="small muted">
       鍵に貼ったNFCタグへ、物件名・鍵の名称・鍵番号・保管場所を書き込み、
-      かざすだけで確認できるようにするアプリです。<br><br>
-      読み書きした内容は<strong>すべてこの端末の中だけ</strong>に保存され、
-      外部へ送信されることはありません（KeyLine連携を設定した場合を除く）。
+      かざすだけで「どの鍵か」「いま誰が借りているか」を確認できるアプリです。<br><br>
+      建物の鍵、事務所の鍵、工具や備品の管理にお使いいただけます。<br><br>
+      記録は<strong>すべてこの端末の中だけ</strong>に保存され、外部へ送信されることは
+      ありません（サーバー連携を設定した場合を除く）。
     </p>
     <p class="small muted" id="c-ver"></p>
   </div>
