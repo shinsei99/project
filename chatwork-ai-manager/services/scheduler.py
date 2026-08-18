@@ -189,8 +189,14 @@ def run_job(client, job_type, now=None):
                     target_room = int(mroom)
                 except ValueError:
                     target_room = room_id
-        # 宛先メンション（分かる場合）
-        prefix_body = msg
+        # 宛先メンション: 担当者本人へ送る場合は本文冒頭に必ず付与する。
+        # エスカレーション時（target_room=管理者ルーム）は担当者がそのルームのメンバーとは限らず、
+        # 送信先も担当者本人ではなく管理者への「報告」のため付けない。
+        assignee_id = t.get("assignee_account_id")
+        if not escalate and assignee_id:
+            prefix_body = f"{mention(assignee_id, t.get('assignee'))}\n{msg}"
+        else:
+            prefix_body = msg
         # dedup: 同一TODO・同一job・同一日で1回だけ
         dedup = f"sched:{job_type}:{tid}:{today}"
         ob = outbox.enqueue(target_room, prefix_body, kind=kind_tag,
