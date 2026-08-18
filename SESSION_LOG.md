@@ -11,6 +11,55 @@
 
 ---
 
+## 2026-08-18（メインPC・続き）— 2台の環境差を詰め、依頼3件を実装した
+
+### 完了したこと
+
+- **メインPCの依存不足8本を解消**（handwriting-ocr / legal-crosscheck / memorandum-generator /
+  parking-map / pasha-calo / payment-reconciler / property-notice-generator / quote-generator）。
+  `./dev-setup.sh --all` の対象が **0本**になり、サブPC（31/31・14/14）と同水準になった
+- **点検ツールの穴を2つ塞いだ**
+  - `dev-doctor.py` のアプリ表に **keyline が入っていなかった**（不動産31本と表示されていた→32本）
+  - `keyline/requirements.txt` を新設（fastapi / uvicorn / python-multipart）。無かったため
+    「static・依存不要」と誤判定され、**他PCでは依存が入らないまま**になっていた。
+    `NO_VENV` に keyline を追加（OCRで claude を呼ぶので venv を使わない決まり）
+  - `dev-setup.sh --all` の判定が `"$app" != "$NO_VENV"` の単純比較で、NO_VENV が2つ以上に
+    なった瞬間に壊れる書き方だった。`pip install --user` 済みも「導入済み」と見るよう修正
+- **KeyTag の渡し方を直した**（サブPCへ引き継ぐ前提で点検して見つけた）
+  - `keytag/build/` `build-sim/` が誤って追跡され、**195MB・2,439ファイルが公開リポジトリに**
+    入っていた（xcarchive の `embedded.mobileprovision` 含む）。追跡から外した。
+    **履歴からは消さない判断**（本人決定。理由は `keyline/keytag/RELEASE.md`）
+  - `ios/` は gitignore のため、他PCで作り直すと **build番号が1に戻る**（7/22の配信事故と同型）。
+    → `keytag/version.json` を版数の正とし、`setup-ios.sh` が当てる（既存が大きければ下げない）
+- **AI業務マネージャーに依頼2件を実装**（詳細は `chatwork-ai-manager/SESSION_LOG.md`）
+  - 添付ファイル（Excel等）を読めるようにした。**添付を扱うコードが1行も無かった**のが原因
+  - LINEから常駐を再起動できるようにした（「再起動」「全部再起動」「状態」）
+  - 常駐4サービスを再起動し、新コードで稼働中
+- **機密の受け渡しを整えた**
+  - `keyline/data`（鍵の台帳・借主・免許証画像）を `secrets-manifest.txt` に追加し、
+    メインPCから **書き出し済み**（`Dropbox-個人/apps-secrets-handoff/apps-secrets-usernoMac-mini.tar`・996KB）
+  - `chatwork-ai-manager` は **一切運ばない**と明記（サブPCでは触らない・本人確認）
+
+### 発生したエラーと解決策
+
+- `secrets-sync.sh` が両PCとも同じ `apps-secrets.tar` へ書いていた → **双方向の受け渡しを同じ日に
+  やると、先の書き出しを消す**。tar名にホスト名を入れ、import は「自分以外が書いた最新のtar」を選ぶよう修正
+- 同スクリプトが SQLite を書きかけ（WAL）のまま固めていた → 固める前にチェックポイント。
+  失敗しても `-wal` ごと運ぶので壊れない。作業用の `-shm` は同梱しない
+- `visual-agent-check.sh` が「クリックできない」と誤診 → 真因は**前回実行で残った http.server が
+  ポートを掴んだまま**で、消えた docroot を配って全404だったこと（pid取得が空振りしていた）。
+  立てる前に pkill・pidを正しく取る・curlで中身を確かめてから操作、に修正
+- `dev-setup.sh` を**実行中に編集**したため、走っていたプロセスが末尾で構文エラーを出した
+  （導入自体は8本とも成功）。**動いているシェルスクリプトは編集しない**（bashが逐次読むため）
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **今夜サブPCで流す手順は `TODO.md` の先頭にまとめた**（pull → dev-setup → visual-agent-check →
+  secrets import → secrets export → メモリ20本）
+- 人の判断待ち3件は据え置き: Zenn残り1本→note / デジタル書斎のApp Store提出 / scrapmemoのビルド7提出
+- KeyTag は**NFCタグ到着後の実機検証がまだ**。KeyLineの平文HTTP＋バックグラウンドタグ読み取りも未確認
+- AI業務マネージャーの添付機能は、**実際にExcelを貼っての通し確認が未実施**（ローカル抽出までは確認済み）
+
 ## 2026-08-18（メインPC）— サブPCの作業を受領し、共通Visual Agentを1つに統合した
 
 ### 完了したこと
