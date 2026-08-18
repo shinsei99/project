@@ -16,7 +16,22 @@ cd "$(dirname "$0")"
 
 DB_PERSONAL="$HOME/Library/CloudStorage/Dropbox-個人"
 OUT_DIR="$DB_PERSONAL/apps-secrets-handoff"
-TAR="$OUT_DIR/apps-secrets.tar"
+HOST=$(hostname -s)
+# ★tar名にホスト名を入れる。以前は両PCが同じ `apps-secrets.tar` へ書いていたため、
+#   **メイン→サブとサブ→メインを同じ日にやると、先の書き出しを消してしまう**（2026-08-18に修正）。
+TAR="$OUT_DIR/apps-secrets-$HOST.tar"
+
+# import で使う「相手が書き出したtar」を選ぶ。自分のホスト名のものは無視し、新しい順で最初の1つ。
+peer_tar() {
+  local t
+  for t in $(ls -t "$OUT_DIR"/apps-secrets-*.tar "$OUT_DIR"/apps-secrets.tar 2>/dev/null); do
+    case "$t" in
+      *"apps-secrets-$HOST.tar") continue ;;      # 自分が書いたものは取り込まない
+    esac
+    echo "$t"; return 0
+  done
+  return 1
+}
 MANIFEST="secrets-manifest.txt"
 CMD="${1:-check}"
 FORCE=0
@@ -58,19 +73,29 @@ case "$CMD" in
     [ ${#files[@]} -eq 0 ] && { echo "書き出すものがありません"; exit 1; }
     echo "── ${#files[@]}件をまとめています"
     printf '  %s\n' "${files[@]}"
-    tar cf "$TAR" "${files[@]}" || { echo "tar に失敗"; exit 1; }
-    date "+%Y-%m-%d %H:%M %z ($(hostname -s)) で書き出し" > "$OUT_DIR/LAST_EXPORT.txt"
+    # ★SQLite は WAL に書きかけが残る。固める前にチェックポイントして本体へ流し込む
+    #   （失敗しても -wal ごと運ぶので壊れない。-shm は再生成される作業用なので入れない）
+    while IFS= read -r db; do
+      /usr/bin/python3 - "$db" <<'PYEOF' 2>/dev/null || echo "  ⚠️  チェックポイントできず（-wal ごと運びます）: $db"
+import sqlite3, sys
+c = sqlite3.connect(sys.argv[1]); c.execute("PRAGMA wal_checkpoint(TRUNCATE)"); c.close()
+PYEOF
+    done < <(for p in "${files[@]}"; do find "$p" -name '*.db' 2>/dev/null; done)
+    tar cf "$TAR" --exclude='*-shm' "${files[@]}" || { echo "tar に失敗"; exit 1; }
+    date "+%Y-%m-%d %H:%M %z ($HOST) で書き出し" | tee "${TAR%.tar}.txt" > "$OUT_DIR/LAST_EXPORT.txt"
     echo
     echo "✅ $TAR （$(du -h "$TAR" | cut -f1)）"
     echo "   Dropboxの同期が終わってから、もう一方のPCで ./secrets-sync.sh import"
     ;;
 
   import)
-    [ -f "$TAR" ] || { echo "書き出しが見つかりません: $TAR" >&2; echo "先に持っている側で export を実行してください"; exit 1; }
-    echo "── $(cat "$OUT_DIR/LAST_EXPORT.txt" 2>/dev/null || echo '（書き出し日時 不明）')"
+    SRC_TAR=$(peer_tar) || { echo "相手が書き出した tar が見つかりません（$OUT_DIR）" >&2;
+                             echo "先に持っている側で ./secrets-sync.sh export を実行してください"; exit 1; }
+    echo "── 取り込み元: $(basename "$SRC_TAR")"
+    echo "── $(cat "${SRC_TAR%.tar}.txt" 2>/dev/null || cat "$OUT_DIR/LAST_EXPORT.txt" 2>/dev/null || echo '（書き出し日時 不明）')"
     added=0; skipped=0
     tmp=$(mktemp -d)
-    tar xf "$TAR" -C "$tmp" || { echo "展開に失敗"; rm -rf "$tmp"; exit 1; }
+    tar xf "$SRC_TAR" -C "$tmp" || { echo "展開に失敗"; rm -rf "$tmp"; exit 1; }
     while IFS= read -r p; do
       src="$tmp/$p"
       [ -e "$src" ] || continue

@@ -54,7 +54,11 @@
 > # ② Visual Agent（2系統を統合した）。両方の入口を自動で確かめる
 > ./visual-agent-check.sh            # ❌ が出たらメッセージのとおりに直す
 >
-> # ③ ★メインPCへ渡すもの（サブPCにしか無い）。2つとも Dropbox-個人 経由
+> # ③ ★メインPCから来ているものを受け取る（**先にこちら**）
+> ./secrets-sync.sh import           # KeyLineの台帳・免許証画像（keyline/data）ほか。
+>                                    #   ★既にある物は上書きしない。上書きしたいときだけ --force
+>
+> # ④ ★メインPCへ渡すもの（サブPCにしか無い）。2つとも Dropbox-個人 経由
 > ./secrets-sync.sh export           # 機密5件（brain-dump/.env.local, pasha-calo/.env.local,
 >                                    #   ai-ticket-counter/.env, theta-viewer/server/ftp-config.json,
 >                                    #   kaitori-dm-maker/senders.json）
@@ -72,7 +76,7 @@
 > done
 > ls "$D/memory" | wc -l             # 20 なら完了。メインPCが取り込んだら置き場ごと削除する
 >
-> # ④ KeyTag（iOSアプリ）を触るなら
+> # ⑤ KeyTag（iOSアプリ）を触るなら
 > cd keyline/keytag && ./setup-ios.sh && cd ~
 > #   ★版数は version.json が正（1.0.0 / build 2）。build番号を上げたら version.json も直す
 > #   ★**提出はメインPCだけ**（配布証明書がメインPCのキーチェーンにしか無い）
@@ -84,12 +88,10 @@
 > |---|---|
 > | launchd 常駐（メイン36本 / サブ0本） | **役割の違い。揃えない**（2026-08-18 確認）。サブPCは常駐を持たず、必要なときだけ `./run.sh` で都度起動する |
 > | iOS の配布証明書・プロビジョニング | メインPCのキーチェーンにのみ存在。**App Store提出はメインPC限定** |
-> | `chatwork-ai-manager/data/app.db` | **揃えなくてよい**（2026-08-18 確認）。常駐（worker/LINE/ngrok）は
-> メインPCのみで動かす決まりなので、サブPCのDBは古くてかまわない。サブで動かすのは**管理画面(8540)だけ**。
-> 開発でそれらしいデータが要るときだけ `handoff_export.sh`→`handoff_import.sh` で複製する（双方向マージは不可） |
-> | ⚠️ サブPCの管理画面から**投稿・同期を実行しない** | 画面のボタンは実際のChatwork APIを叩く（トークンは両PCにある）。
-> 常駐と別のDBを持つため、送信すると**同じ内容を二重に流す**恐れがある。サブでは閲覧と画面の動作確認まで |
-> | `keyline/data/` `flyer-creator` の案件フォルダ 等 | 個人情報。**渡さないのが正しい**（サブPCは空DBで動かす） |
+> | `chatwork-ai-manager` 一式（DB・secrets） | **渡さない**（2026-08-18 本人確認）。worker/LINE/ngrok はメインPCのみで動かす決まりで、**サブPCでは一切触らない**。
+> 開発もメインPCで行う。`secrets-manifest.txt` にも「運ばない」と明記済み |
+> | `keyline/data/` | **Dropbox経由で渡す**（2026-08-18 本人確認・`secrets-manifest.txt` に追加済み）。gitには絶対に入れない |
+> | `flyer-creator` の案件フォルダ | **渡さない**。入居申込者の身分証が同居しており、必要なのは写真だけのため |
 > | `quote-generator` | 別リポジトリ。`git clone` 済みなら `git pull` するだけ |
 
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
