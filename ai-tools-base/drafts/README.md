@@ -37,6 +37,7 @@ Google はそちらを本命と判断し、本体が自分の記事に負ける�
 | shorui-cabinet | `zenn/llm-pdf-split-gaps.md` | `note/scanned-pile.md` | `/works/shorui-cabinet` |
 | baikai-generator | `zenn/scanned-pdf-orientation.md` | `note/upside-down.md` | `/works/baikai-generator` |
 | ai-ticket-counter | `zenn/ai-intake-hearing.md` | `note/nanka-ugokanai.md` | `/works/ai-ticket-counter` |
+| keyline | `zenn/ios-nfc-safari-entitlement.md` | `note/who-has-the-key.md` | `/works/keyline` |
 
 **note の原稿には Zenn 記事のURLを先に書いてある。** ZennのURLはファイル名から決まる
 （`https://zenn.dev/shinsei99/articles/<ファイル名>`）ので、公開前でも確定できる。

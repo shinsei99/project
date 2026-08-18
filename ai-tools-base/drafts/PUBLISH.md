@@ -107,6 +107,23 @@
 
 ---
 
+## 8本目：SafariではNFCに触れない（keyline）
+
+| 媒体 | 原稿 | URL |
+|---|---|---|
+| 本体 | `content/works/keyline.json` | ✅ https://ai-tools-base.vercel.app/works/keyline （2026-08-18・サブPC） |
+| Zenn | `articles/ios-nfc-safari-entitlement.md` | ⬜ push 済み。反映を確認したらURLを記入 |
+| note | `note/who-has-the-key.md` | ⬜ **ブラウザ操作が要るためメインPC担当** |
+
+**この1本だけ、本体・Zenn・note を同じ日にまとめて作っている**（通常は本体を先に出して
+インデックスを待つ手順だが、今回は本人の指示で同日に進めた）。
+
+**note の出し方**: `python3 drafts/note/md2html.py who-has-the-key` → 本文欄で ⌘V →
+見出し画像 → 投稿。公開したら `content/works/keyline.json` の `links` に
+Zenn と note のURLを追記して `./publish.sh site`。
+
+---
+
 ## 公開待ちの順番（Zennは1日2本まで）
 
 Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その日のうちに対応するnoteを出す。

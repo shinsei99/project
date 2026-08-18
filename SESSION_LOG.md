@@ -34,6 +34,33 @@
   （bash 4.4 以降は許容するため、書いた環境では再現しない）
   → 直し方: `${list[@]+"${list[@]}"}` 形式に変更（`TARGETS` 側も同様）。対象0本でも exit 0 で完走を確認
 
+### 追記2（同日夜・新規1本を3媒体へ）
+
+**KeyLine の制作記録を新規作成し、3媒体ぶんの原稿を書いた**（本体・Zenn・note）。
+
+- 本体 `content/works/keyline.json` … **本番へ公開済み**
+  https://ai-tools-base.vercel.app/works/keyline （HTTP 200・title も確認）
+  検証は `npm run lint` / `npm run build` / `npm run validate` を通し、
+  **`./va.sh` で 390 / 768 / 1440 の3幅を撮って目視**（はみ出し・文字の重なり **0件**）
+- Zenn `articles/ios-nfc-safari-entitlement.md` … **push 済みだが、まだ反映されていない**（下記）
+- note `drafts/note/who-has-the-key.md` … 原稿と貼り付け用テキストまで用意。**投稿は未**
+
+題材は「SafariはWeb NFCに非対応 → タグにURLを書く方式へ切り替えた」。
+**実機検証が未了であることは3媒体すべてに明記した**（「動くはず」で書かない）。
+
+### 発生したエラーと解決策（追記2）
+
+- 症状: Zenn へ push しても記事が増えない（API の公開数が 6 のまま）
+  → 原因: **この日はすでに2本公開しており（20:47・21:32）、3本目が直近24時間の投稿数上限に
+  当たったと考えられる**。Zenn は上限に当たると**黙ってデプロイしない**（push自体は成功する）
+  → 直し方: **24時間空けて、もう一度 push すれば通る**（空コミットでよい）。自動再試行はされない。
+  ※ 上限が原因である旨は https://zenn.dev/dashboard/deploys のお知らせ欄で確定できるが、
+  **要ログインのためこのPCからは未確認**。したがって「上限と考えられる」と書いている
+- 症状: note の投稿操作ができない
+  → 原因: **このサブPCでは Chrome拡張（Claude in Chrome）が未接続**。note の投稿は
+  ログイン状態のブラウザが要る → 直し方: **メインPCで実施する**。原稿・貼り付け用テキスト・
+  HTML変換（`md2html.py`）はすべて用意済みなので、貼って投稿するだけの状態にしてある
+
 ### 追記（同日夜・本人の指示で実行）
 
 - **Zenn: `scanned-pdf-orientation` を公開した**（21:32）。`llm-pdf-split-gaps` は 20:47 に
