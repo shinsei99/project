@@ -47,8 +47,12 @@ def tasks_needing_attention(kind="overdue", limit=50):
                      f"AND status IN ({ph}) {skip}ORDER BY (due_date IS NULL), due_date LIMIT ?",
                      (today, *params, limit))
     elif kind == "carryover":
-        rows = query(f"SELECT * FROM tasks WHERE due_date IS NOT NULL AND due_date < ? "
-                     f"AND status IN ({ph}) {skip}ORDER BY due_date LIMIT ?", (today, *params, limit))
+        # 期限超過（前日以前が期限で未完了）に加え、
+        # 期限未設定かつ一度もAI確認していない「AI確認待ち」も前日までに進捗確認が取れていないものとして含める（TASK-20260818-005）
+        rows = query(f"SELECT * FROM tasks WHERE "
+                     f"(due_date < ? OR (due_date IS NULL AND (check_count = 0 OR last_check_at IS NULL))) "
+                     f"AND status IN ({ph}) {skip}"
+                     f"ORDER BY (due_date IS NULL), due_date LIMIT ?", (today, *params, limit))
     elif kind == "stale":
         stale_days = settings.get_int("stale_days", 3)
         cutoff = (datetime.datetime.now() - datetime.timedelta(days=stale_days)).strftime("%Y-%m-%d %H:%M:%S")
