@@ -76,8 +76,12 @@
 > 3. **★確認プロンプトを減らす設定**（2026-08-18 依頼）… 同じ置き場の `claude-settings/`。
 >    **`.claude/` は `.gitignore` で意図的に除外されているので git では渡らない。**
 >    手順は `claude-settings/README.md`（既存を消さずに合流するスクリプト付き）。
->    入れるのは**広いルール8件だけ**（`Bash(python3 *)` `Bash(curl *)` `Bash(npm run *)`
->    `Bash(pkill *)` `Bash(gh api *)` `Bash(pip3 install *)` `WebSearch` `Read(//tmp/**)`）。
+>    入れるのは**用途が限定された6件だけ**（`Bash(npm run *)` `Bash(pkill *)` `Bash(gh api *)`
+>    `Bash(pip3 install *)` `WebSearch` `Read(//tmp/**)`）。
+>    **`Bash(python3 *)` と `Bash(curl *)` は、サブPCでは許可しているがメインPCには渡さない**
+>    （2026-08-18 判断）。`git`/`rm`/`launchctl`/`vercel`/`ftp` を許可していなくても、
+>    **python3 からは削除も上書きも外部送信もできて迂回できる**ため。＝この2つだけ被害の上限が無い。
+>    メインPCは常駐36本・FTP本番公開・LINE webhook・App Store を持ち、影響範囲が違う。
 >    サブPCの46件のうち38件は1回きりの操作の残骸なので**持っていかない**。
 >    **入れたあと、メインPCで `/fewer-permission-prompts` も回すこと**
 >    （`launchctl` `lsof` `xcodebuild` `sips` などメインPCにしか出ない操作を拾うため）
