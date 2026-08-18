@@ -12,7 +12,7 @@
 > | ③ `dev-doctor.py --sync --fetch` | ✅ 実行。Python 3.9.6 / Node 26.3.1 は基準どおり。常駐36本＝メインPCなので正常 |
 > | ⑤ MCP設定の受け渡し | ✅ **不要になった**。`.mcp.json` は git に入っており、今回のpushでサブPCへ渡る |
 > | ⑥ メモリ差分の受け取り | ✅ 済（本文2本を取込・重複1本を統合・索引を更新。Dropboxの置き場は削除済み） |
-> | ④ Zenn 残り1本 → note | ⬜ **未（外部公開なので人の判断待ち）** |
+> | ④ Zenn 残り1本 → note | ✅ **Zennは 2026-08-18 夜にサブPCで実施**（下の返信ブロックを見る）。noteは未 |
 > | ⑦ `--verify` の試用 | ⬜ 未（触ったアプリが出たときに使う） |
 > | ⑧ デジタル書斎の App Store 提出 | ⬜ **未（提出は人の判断待ち）**。手順は `digital-shosai/HANDOFF-APPSTORE.md` |
 >
@@ -61,13 +61,20 @@
 > KeyTag のビルド自体は可能。ただし配布証明書はメインPCのキーチェーンにしか無いので、
 > **App Store 提出はメインPC限定**という結論は変わらない。
 >
-> **残った判断待ち（サブPC・消してよいと確認済みだが消していない）**
+> **後始末（2026-08-18 夜・サブPCで実行済み）**
 >
-> - `stash@{0} pre-origin-sync` … 中身は未追跡ファイルのみ（handwriting-ocr 4本 / piyo-defense/ios）。
->   handwriting-ocr は現在 git 管理下で、**作業ツリーのほうが新しい**（6/30 pdf_orient 対応版）。
->   → **復元してはいけない。破棄でよい**
-> - ローカルブランチ `pre-sync-backup-20260626` … 固有コミットは `color-gravity` 1件のみで、
->   同内容が PR #1（`f83dedf`）として main に入っている。→ **残す理由なし**
+> - `stash@{0} pre-origin-sync` と ローカルブランチ `pre-sync-backup-20260626` を **破棄した**
+>   （中身は未追跡ファイルのみ＝作業ツリーのほうが新しい／固有コミットは PR #1 で main に既出、と
+>   確認したうえで実行。復元用SHA: stash `9812065` / branch `b507e7c`。reflog にも残る）
+> - **メインPC発の機密 tar（`apps-secrets-usernoMac-mini.tar`）を削除した。**
+>   中身13件すべてが手元に実体としてあることを1件ずつ確認してから消している
+>
+> **★メインPCに残っている作業（サブPCからは実行できない）**
+>
+> 1. `./secrets-sync.sh import` … `apps-secrets-appurunoMacBook-Air.tar`（980K・8/18 21:24）
+> 2. メモリ実体20本を `handoff-20260818-sub-to-main-2/memory/` から取り込む（20本・168K）
+> 3. **1と2を受け取り確認したら、`handoff-20260818-sub-to-main-2/` を置き場ごと削除する**
+>    （消すのは受け取った人。`ls`/`du` で件数20・168K を見てから）
 
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
 詳細は各アプリの `<アプリ>/TODO.md` と `<アプリ>/SESSION_LOG.md` にある。
@@ -79,7 +86,7 @@
 | pokecard-dex | サブ | 画像100%（31,520枚）。内訳に推定14枚・参考画像4枚・透かし2枚あり。次はそれらの実物差し替え | 2026-08-14 |
 | flyer-creator | サブ | チラシクリエーター。型10種はagent-platform共通（直すのはagent-platform/core）。下帯ロゴ＋メイン写真の切取位置(上下)スライダー追加。次は物件データの未決3点 | 2026-08-16 |
 | agent-platform | サブ | **完成扱いへ移行（2026-08-17）**: launchd 登録・0.0.0.0・社内LAN共有（8532）。残るのは作り込み（出来た .pptx 11枚の見栄え目視確認／字幕焼き込み／投稿API）で、通し実行はできる | 2026-08-17 |
-| ai-tools-base | メイン（公開） | **AIツールベース**（2026-08-17改名。旧「AIツールラボ／ai-tools-lab」・旧URLは削除済み。**フォルダ名も ai-tools-base に統一**）。新URL https://ai-tools-base.vercel.app。メインPCで受領済み（npm install／validate 通過・Vercel link は brain-dump/ai-tools-base）。サブPCで Search Console 移行（sitemap 28件）とnote2本＋プロフィールのリンク修正まで完了。残: Zenn/note 5本ずつの公開（1日2本・Zenn→note の順） | 2026-08-17 |
+| ai-tools-base | メイン（公開） | **AIツールベース**（2026-08-17改名。旧「AIツールラボ／ai-tools-lab」・旧URLは削除済み。**フォルダ名も ai-tools-base に統一**）。新URL https://ai-tools-base.vercel.app。メインPCで受領済み（npm install／validate 通過・Vercel link は brain-dump/ai-tools-base）。サブPCで Search Console 移行（sitemap 28件）とnote2本＋プロフィールのリンク修正まで完了。**2026-08-18: Zenn を6本まで公開（残り `ai-intake-hearing` 1本のみ・8/19以降）。note は5本とも未公開＝メインPC担当** | 2026-08-18 |
 | scrapmemo-petapeta | メイン | **2026-08-18: ①「スクラップ編集の上部が編集できない」を修正**（キーボードが出ている間だけ出る不具合。前回はSafariのみ確認で見逃していた）**②写真を保存前に縮小**（1枚で上限→5〜19枚）。どちらもXcodeシミュレータで実測確認済み・**index.html 1ファイル・未コミット**。**明日やる: 画像だけIndexedDBへ移す**（localStorage 5,100KBはWebKit固定／IndexedDBはquota 9,830MB）＋`save()`の握りつぶし解消。**未決: 再配信するなら1.0.4/build8へ+1が必要** | 2026-08-18 |
 | digital-shosai | **メイン（提出）／サブ（開発）** | **広告を全撤去し、画像をWebP化（PNG比28.5%）・検索をv2で高速化（pageText分離・複数語AND・本で絞り込み）・蔵書画面/library（一覧と削除）を追加**。ブラウザで通し確認済み。索引方式へ作り替え（取り込みは本文だけ・114ページで248KB）＋**本棚（表紙）と読書画面**。**次は App Store 提出＝メインPCで `digital-shosai/HANDOFF-APPSTORE.md` の手順**（アイコンと審査用サンプルPDFは用意済み） | 2026-08-17 |
 | keyline | メイン | **KeyLine（NFC鍵・備品貸出管理）＋ KeyTag（iOSアプリ）。** サーバーは 8534・社内LAN限定・テスト99件成功。**2026-08-18: KeyTag を App Store へ提出**（1.0.0/build2・掲載名 KeyTagNFC・サポートページ公開済み）。**次はNFCタグ到着後の実機検証**（アプリのNFC機能は一度も実機で動かしていない）。手順は keyline/keytag/RELEASE.md | 2026-08-18 |
@@ -87,10 +94,12 @@
 
 ## 横断作業（複数アプリにまたがるもの）
 
-- **Zenn: 残り1本（`llm-pdf-split-gaps`）がまだ未反映。** 2026-08-17 20:00 のpushで
-  `ai-agent-always-on` と `launchd-restart-loop` の2本は通った（1日2本の上限に当たって3本目が残った）。
-  記事側の直しは不要（`published: true` のまま）。**明日の枠で再pushすれば通る**。自動再試行はされない。
-  確認は `cd ai-tools-base && ./publish.sh status`（⬜ が未反映）
+- **Zenn: 原稿7本中6本が公開済み。残りは `ai-intake-hearing` 1本だけ**（2026-08-18 夜・サブPC）。
+  `llm-pdf-split-gaps` は 8/18 20:47 に反映され、**`scanned-pdf-orientation` を 21:32 に公開**した
+  （https://zenn.dev/shinsei99/articles/scanned-pdf-orientation ・HTTP 200 確認済み）。
+  **1日2本の上限に当たるため、最後の1本は 8/19 以降**に `./publish.sh zenn` で出す。
+  **note は5本とも未公開**（ブラウザ操作が要るのでメインPC担当。Zenn→note の順は守れている）。
+  確認は `cd ai-tools-base && ./publish.sh status`
 - **共通 Visual Agent を1つに統合した（2026-08-18・メインPC）。** 2台が別々に作った
   MCP版（`.mcp.json`）と `./va.sh` を、**1つの仕組み・2つの入口**に整理。どちらも消していない。
   - **同じ Google Chrome を headless で開く**ようにしたので、入口が違っても見えるものが食い違わない

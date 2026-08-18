@@ -55,7 +55,7 @@
 | 媒体 | 原稿 | URL |
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/chatwork-ai-manager |
-| Zenn | `zenn/ai-agent-always-on.md` | ⬜ 公開後にここへ記入（slugは `ai-agent-always-on`） |
+| Zenn | `articles/ai-agent-always-on.md` | ✅ https://zenn.dev/shinsei99/articles/ai-agent-always-on （2026-08-17 20:09） |
 | note | `note/ai-always-on.md` | ⬜ 公開後にここへ記入 |
 
 ---
@@ -65,7 +65,7 @@
 | 媒体 | 原稿 | URL |
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/port-conflict |
-| Zenn | `zenn/launchd-restart-loop.md` | ⬜ 公開後にここへ記入（slugは `launchd-restart-loop`） |
+| Zenn | `articles/launchd-restart-loop.md` | ✅ https://zenn.dev/shinsei99/articles/launchd-restart-loop （2026-08-17 20:09） |
 | note | `note/silent-failure.md` | ⬜ 公開後にここへ記入 |
 
 ---
@@ -75,7 +75,7 @@
 | 媒体 | 原稿 | URL |
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/shorui-cabinet |
-| Zenn | `zenn/llm-pdf-split-gaps.md` | ⬜ 公開後にここへ記入（slugは `llm-pdf-split-gaps`） |
+| Zenn | `articles/llm-pdf-split-gaps.md` | ✅ https://zenn.dev/shinsei99/articles/llm-pdf-split-gaps （2026-08-18 20:47） |
 | note | `note/scanned-pile.md` | ⬜ 公開後にここへ記入 |
 
 **3〜5本目に共通の手順**
@@ -92,7 +92,7 @@
 | 媒体 | 原稿 | URL |
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/baikai-generator |
-| Zenn | `zenn/scanned-pdf-orientation.md` | ⬜ 公開後に記入（slug `scanned-pdf-orientation`） |
+| Zenn | `articles/scanned-pdf-orientation.md` | ✅ https://zenn.dev/shinsei99/articles/scanned-pdf-orientation （2026-08-18 21:32・サブPC） |
 | note | `note/upside-down.md` | ⬜ 公開後に記入 |
 
 ---
@@ -113,9 +113,13 @@ Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その
 
 | 日 | Zenn | note |
 |---|---|---|
-| 8/17 19:56以降 | ai-agent-always-on / launchd-restart-loop | ai-always-on / silent-failure |
-| 翌日 | llm-pdf-split-gaps / scanned-pdf-orientation | scanned-pile / upside-down |
-| その翌日 | ai-intake-hearing | nanka-ugokanai |
+| 8/17 19:56以降 | ✅ ai-agent-always-on / ✅ launchd-restart-loop | ⬜ ai-always-on / ⬜ silent-failure |
+| 8/18 | ✅ llm-pdf-split-gaps（20:47） / ✅ scanned-pdf-orientation（21:32・サブPC） | ⬜ scanned-pile / ⬜ upside-down |
+| 8/19以降 | ⬜ ai-intake-hearing（**Zennで残る最後の1本**） | ⬜ nanka-ugokanai |
+
+> **2026-08-18 時点: Zenn は原稿7本中6本が公開済み。残りは `ai-intake-hearing` 1本だけ。**
+> 1日2本の上限に当たるため 8/19 以降に出す。note は**5本すべて未公開**（ブラウザ操作が要るため
+> メインPC担当）。note の原稿には Zenn のURLが入っているので、順序は守れている。
 
 ---
 

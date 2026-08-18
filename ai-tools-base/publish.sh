@@ -66,7 +66,7 @@ case "${1:-status}" in
     before="$(zenn_published_slugs | wc -l | tr -d ' ')"
     ( cd "$REPO_ROOT" && git add articles && git commit -m "Zenn: 記事を更新" || true; git push origin main )
     echo "push 済み。反映まで数分かかる。1〜2分後に ./publish.sh status で確認すること"
-    echo "（push前の公開数: $before）"
+    echo "（push前の公開数: ${before}）"
     ;;
 
   note)

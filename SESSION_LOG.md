@@ -34,16 +34,35 @@
   （bash 4.4 以降は許容するため、書いた環境では再現しない）
   → 直し方: `${list[@]+"${list[@]}"}` 形式に変更（`TARGETS` 側も同様）。対象0本でも exit 0 で完走を確認
 
+### 追記（同日夜・本人の指示で実行）
+
+- **Zenn: `scanned-pdf-orientation` を公開した**（21:32）。`llm-pdf-split-gaps` は 20:47 に
+  反映済みだったので、**この日の枠（1日2本）を使い切った**。
+  → https://zenn.dev/shinsei99/articles/scanned-pdf-orientation （HTTP 200・API でも最新として確認）
+  公開前に、本文中の本体リンク（`/works/baikai-generator`）が HTTP 200 であること、
+  slug が規約内（23字・半角英小文字とハイフン）であることを確認している。
+  **Zenn は原稿7本中6本が公開済み。残りは `ai-intake-hearing` 1本だけで、8/19 以降**
+- **stash とローカルブランチを破棄した**（復元用SHA: stash `9812065` / branch `b507e7c`。reflog にも残る）
+- **メインPC発の機密 tar を Dropbox から削除した。** 中身13件すべてが手元に実体としてあることを
+  1件ずつ確認してから消している。**サブPC発の tar とメモリ20本は残してある**（メインPCが未受領のため）
+
+### 発生したエラーと解決策（追記）
+
+- 症状: `./publish.sh zenn` が push 成功後に `before?: unbound variable` で異常終了した
+  → 原因: `echo "（push前の公開数: $before）"` の**全角の閉じ括弧が変数名の一部として解釈**されていた。
+  bash はマルチバイトのバイトを識別子の文字として受け入れるため、`$before）` という別の変数を探しに行く
+  → 直し方: `${before}` と明示的に囲んだ。push 自体は成功していたので公開への影響は無し
+
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **stash とローカルブランチは「消してよい」と分かったが、消していない**（人の判断待ち）
+- ~~stash とローカルブランチ~~ → **同日夜に破棄済み**（下の判断根拠はそのまま残す）
   - `stash@{0} pre-origin-sync` … 中身は**未追跡ファイルのみ**（handwriting-ocr 4本 / piyo-defense/ios）。
     handwriting-ocr は現在 git 管理下にあり、`ocr.py`・`requirements.txt` は**作業ツリーのほうが新しい**
     （6/30 の pdf_orient 対応版 > stash の 6/26 版）。＝復元すると**古い版に戻る**ので取り込んではいけない
   - `pre-sync-backup-20260626` … main に無い固有コミットは `b507e7c color-gravity` の1件だけで、
     同じ内容が **PR #1（`f83dedf`）として main に入っている**。＝残す理由は無い
-- 未着手のまま残っているもの: **Zenn 残り1本（`llm-pdf-split-gaps`）の再push**、
-  **デジタル書斎の App Store 提出**（どちらも外部公開＝人の判断待ち）
+- 残っているもの: **Zenn 最後の1本 `ai-intake-hearing`（8/19以降・上限のため）**、
+  **note 5本（ブラウザ操作＝メインPC担当）**、**デジタル書斎の App Store 提出（メインPCのみ）**
 
 ---
 
