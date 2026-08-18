@@ -85,6 +85,15 @@
 >    サブPCの46件のうち38件は1回きりの操作の残骸なので**持っていかない**。
 >    **入れたあと、メインPCで `/fewer-permission-prompts` も回すこと**
 >    （`launchctl` `lsof` `xcodebuild` `sips` などメインPCにしか出ない操作を拾うため）
+> 3-b. **★ `theta-viewer` の引き継ぎ**（2026-08-18 依頼）… **メインPCでは完成している**が、
+>    サブPCには**ドキュメントが1つも来ていない**。実測した現状:
+>    - `theta-viewer/README.md` が **Viteの雛形のまま**（THETA・パノラマの記述が0件）。
+>      CLAUDE.md はここを「このアプリの詳細はREADMEにある」と指しているが、中身が無い
+>    - `SESSION_LOG.md` と `TODO.md` が**存在しない**
+>    - **これらは `.gitignore` の `!theta-viewer/**` で許可されているので git で渡せる**
+>      （実測確認済み。Dropbox経由は不要）
+>    → **メインPCで README を実体のある内容に書き、SESSION_LOG.md / TODO.md を作って push**
+>
 > 4. **1〜3を受け取り確認したら、`handoff-20260818-sub-to-main-2/` を置き場ごと削除する**
 >    （消すのは受け取った人。`ls`/`du` で memory 20本・claude-settings 4ファイルを見てから）
 
