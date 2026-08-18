@@ -44,7 +44,7 @@ CATEGORIES: dict[str, list[str]] = {
         "baikai-generator", "ai-ticket-counter", "building-manager", "owner-payout-tracker",
         "file-finder", "realestate-calc", "gyomu-manual", "parking-map", "memorandum-generator",
         "soufu-maker", "shorui-cabinet", "shorui-mobile", "agent-platform", "chatwork-ai-manager",
-        "business-plan-generator",
+        "business-plan-generator", "keyline",
     ],
     "ツール": [
         "soufu-generator", "digital-shosai", "brain-dump", "scrapmemo-petapeta", "petapeta-extension",
@@ -57,7 +57,7 @@ CATEGORIES: dict[str, list[str]] = {
 SECRET_FILES = (".env", ".env.local", ".secret_key")
 
 # venv を作らないアプリ（ルート CLAUDE.md の決まり。dev-setup.sh と揃える）
-NO_VENV = {"chatwork-ai-manager"}
+NO_VENV = {"chatwork-ai-manager", "keyline"}
 
 # **メインPCでのみ動かす「本体」プロセス。** 管理画面（8540）はどのPCで開いてもよい。
 # worker / LINE webhook / ngrok を2台で動かすと、Chatwork・LINEへ二重返信し、

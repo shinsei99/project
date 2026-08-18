@@ -1,0 +1,10 @@
+# KeyLine の依存。**venv は作らない**（OCRで呼ぶ claude サブプロセスが venv Python だと
+# SIGSEGV するため。ルート CLAUDE.md 参照）。他PCでは次のように入れる:
+#
+#   /usr/bin/python3 -m pip install --user -r requirements.txt
+#
+# run.sh は $HOME/Library/Python/3.9/lib/python/site-packages を PYTHONPATH に足して
+# ここで入れたものを見つける。
+fastapi
+uvicorn[standard]
+python-multipart

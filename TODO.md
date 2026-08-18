@@ -40,6 +40,54 @@
 > **メインPCの現状**: 常駐36本・社内LAN共有あり（＝正常）。chatwork-ai-manager の4サービス
 > （画面8540 / worker / LINE 8530 / ngrok）は 2026-08-18 11:33 に再起動し、稼働を確認済み。
 
+> ## 🖥 今夜サブPCでやること（2026-08-18 メインPCから依頼）
+>
+> **これを流せば、2台の「開発できる状態」はほぼ同じになる。** 上から順に。終わったらこの節を消す。
+>
+> ```bash
+> cd ~ && git pull origin main       # 統合版Visual Agent / KeyTag / chatworkの新機能 が来る
+>
+> # ① 環境の点検 → 足りない依存を入れる（keyline に requirements.txt を足したので出るはず）
+> ./dev-doctor.py --sync --fetch
+> ./dev-setup.sh --all               # 対象0本なら何もしない
+>
+> # ② Visual Agent（2系統を統合した）。両方の入口を自動で確かめる
+> ./visual-agent-check.sh            # ❌ が出たらメッセージのとおりに直す
+>
+> # ③ ★メインPCへ渡すもの（サブPCにしか無い）。2つとも Dropbox-個人 経由
+> ./secrets-sync.sh export           # 機密5件（brain-dump/.env.local, pasha-calo/.env.local,
+>                                    #   ai-ticket-counter/.env, theta-viewer/server/ftp-config.json,
+>                                    #   kaitori-dm-maker/senders.json）
+> #   メモリの実体20本（索引にはあるのに本文が無い）。一覧はこの節の少し上にある
+> D=~/Library/CloudStorage/Dropbox-個人/handoff-20260818-sub-to-main-2; mkdir -p "$D/memory"
+> M=~/.claude/projects/-Users-apple/memory
+> for f in project_chatwork_ai_manager project_color_gravity project_cyborg_defense \
+>          project_fudosan_novel project_kaitori_dm_maker project_kato_kyakuzuke \
+>          project_mansion_kanri project_memorandum_generator project_pasha_calo \
+>          project_pokecard_profit project_publish_setup project_shared_folder_reorg \
+>          project_shorui_cabinet project_shorui_sender project_soufu_maker \
+>          reference_dropbox_url_icons reference_pdf_orient reference_streamlit_bind \
+>          reference_this_pc reference_xls_images; do
+>   cp "$M/$f.md" "$D/memory/" 2>/dev/null || echo "無い: $f.md"
+> done
+> ls "$D/memory" | wc -l             # 20 なら完了。メインPCが取り込んだら置き場ごと削除する
+>
+> # ④ KeyTag（iOSアプリ）を触るなら
+> cd keyline/keytag && ./setup-ios.sh && cd ~
+> #   ★版数は version.json が正（1.0.0 / build 2）。build番号を上げたら version.json も直す
+> #   ★**提出はメインPCだけ**（配布証明書がメインPCのキーチェーンにしか無い）
+> ```
+>
+> **これでも同じにならないもの（意図的・または物理的に無理）**
+>
+> | | なぜ |
+> |---|---|
+> | launchd 常駐（メイン36本 / サブ0本） | **役割の違い。揃えない**（2台で動かすと二重返信・ngrok奪い合い） |
+> | iOS の配布証明書・プロビジョニング | メインPCのキーチェーンにのみ存在。**App Store提出はメインPC限定** |
+> | `chatwork-ai-manager/data/app.db` | 常駐が動いている側が正。**双方向マージ不可**。サブで触るなら直前に `handoff_export.sh`→`handoff_import.sh` |
+> | `keyline/data/` `flyer-creator` の案件フォルダ 等 | 個人情報。**渡さないのが正しい**（サブPCは空DBで動かす） |
+> | `quote-generator` | 別リポジトリ。`git clone` 済みなら `git pull` するだけ |
+
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
 詳細は各アプリの `<アプリ>/TODO.md` と `<アプリ>/SESSION_LOG.md` にある。
 

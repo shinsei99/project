@@ -28,7 +28,7 @@ done
 [ ${#TARGETS[@]} -eq 0 ] && { echo "使い方: ./dev-setup.sh <アプリ名> | --all [--dry-run]"; exit 1; }
 
 # venv を作らないアプリ（システムPython固定）
-NO_VENV="chatwork-ai-manager"
+NO_VENV="chatwork-ai-manager keyline"
 
 # venv に使う Python。**新しい方を優先する。**
 # システムの /usr/bin/python3 は 3.9 で、3.10以上を要求する依存（streamlit-cropper 等）が入らない。
@@ -96,7 +96,20 @@ if [ "${TARGETS[0]}" = "--all" ]; then
   done < <(
     for d in */; do
       app="${d%/}"
-      if [ -f "$app/requirements.txt" ] && [ ! -d "$app/.venv" ] && [ "$app" != "$NO_VENV" ]; then echo "$app"; fi
+      # NO_VENV のアプリは .venv を見ない（=$NO_VENV との単純比較は複数入ったとたん
+      # 効かなくなるので、空白区切りの部分一致で判定する）。
+      # ★`pip install --user` で system python に入っている場合も「済み」とみなす
+      #   （メインPCの chatwork-ai-manager / keyline は実際この形。dev-doctor の
+      #    ok(sys) 判定と揃える。ここを揃えないと毎回「未導入」に見えて入れ直してしまう）
+      if [[ " $NO_VENV " == *" $app "* ]]; then
+        [ -f "$app/requirements.txt" ] || continue
+        [ -d "$app/.deps" ] && continue
+        first=$(grep -v '^\s*#' "$app/requirements.txt" | grep -v '^\s*$' | head -1 |
+                sed -E 's/[][<>=!;].*//' | tr '-' '_' | tr -d ' ')
+        /usr/bin/python3 -c "import ${first}" 2>/dev/null || echo "$app"
+      elif [ -f "$app/requirements.txt" ] && [ ! -d "$app/.venv" ]; then
+        echo "$app"
+      fi
       if [ -f "$app/package.json" ] && [ ! -d "$app/node_modules" ]; then echo "$app"; fi
     done | sort -u
   )
