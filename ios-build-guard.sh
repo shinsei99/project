@@ -33,7 +33,7 @@ PBX=""
 for cand in "$DIR"/*.xcodeproj/project.pbxproj "$DIR"/ios/App/App.xcodeproj/project.pbxproj; do
   [[ -f "$cand" ]] && PBX="$cand" && break
 done
-[[ -n "$PBX" ]] || { echo "❌ project.pbxproj が見つからない（$DIR）" >&2; exit 2; }
+[[ -n "$PBX" ]] || { echo "❌ project.pbxproj が見つからない（${DIR}）" >&2; exit 2; }
 
 # バンドルIDと現在のビルド番号（複数configの最大）
 BUNDLE=$(grep -Eo 'PRODUCT_BUNDLE_IDENTIFIER = [^;]+;' "$PBX" | head -1 | sed -E 's/PRODUCT_BUNDLE_IDENTIFIER = //; s/;//; s/ //g' || true)
@@ -70,7 +70,7 @@ echo "既存アーカイブ: ${FOUND}件（同Bundle ID）／最大build番号: 
 echo "----------------------------------------"
 
 if (( CUR > MAX_ARCH )); then
-  echo "✅ 衝突なし: 現在build $CUR > 既存最大 $MAX_ARCH。このままArchive可能。"
+  echo "✅ 衝突なし: 現在build $CUR > 既存最大 ${MAX_ARCH}。このままArchive可能。"
   exit 0
 fi
 
