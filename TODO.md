@@ -73,8 +73,16 @@
 >
 > 1. `./secrets-sync.sh import` … `apps-secrets-appurunoMacBook-Air.tar`（980K・8/18 21:24）
 > 2. メモリ実体20本を `handoff-20260818-sub-to-main-2/memory/` から取り込む（20本・168K）
-> 3. **1と2を受け取り確認したら、`handoff-20260818-sub-to-main-2/` を置き場ごと削除する**
->    （消すのは受け取った人。`ls`/`du` で件数20・168K を見てから）
+> 3. **★確認プロンプトを減らす設定**（2026-08-18 依頼）… 同じ置き場の `claude-settings/`。
+>    **`.claude/` は `.gitignore` で意図的に除外されているので git では渡らない。**
+>    手順は `claude-settings/README.md`（既存を消さずに合流するスクリプト付き）。
+>    入れるのは**広いルール8件だけ**（`Bash(python3 *)` `Bash(curl *)` `Bash(npm run *)`
+>    `Bash(pkill *)` `Bash(gh api *)` `Bash(pip3 install *)` `WebSearch` `Read(//tmp/**)`）。
+>    サブPCの46件のうち38件は1回きりの操作の残骸なので**持っていかない**。
+>    **入れたあと、メインPCで `/fewer-permission-prompts` も回すこと**
+>    （`launchctl` `lsof` `xcodebuild` `sips` などメインPCにしか出ない操作を拾うため）
+> 4. **1〜3を受け取り確認したら、`handoff-20260818-sub-to-main-2/` を置き場ごと削除する**
+>    （消すのは受け取った人。`ls`/`du` で memory 20本・claude-settings 4ファイルを見てから）
 
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
 詳細は各アプリの `<アプリ>/TODO.md` と `<アプリ>/SESSION_LOG.md` にある。
