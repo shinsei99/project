@@ -41,13 +41,21 @@
   - Console のエラーと、失敗した通信（4xx / 5xx / 接続失敗）
   - 空のリンク（`href="#"` や中身が空のボタン）
 
-**限界（確かめた事実・2026-08-17）**:
-- 使うのは `agent-platform/.venv` の Playwright + Chromium（重複導入を避けるため借りている）。
+**この道具は「共通 Visual Agent」の入口Bです**（2026-08-18に2系統を統合）。
+入口Aは Claude Code の会話の中から使う MCP（`.mcp.json`）。**同じ Google Chrome を
+同じ設定で開く**ので、どちらで見ても結果は食い違わない。使い分けは `VISUAL_AGENT.md`。
+
+**限界（確かめた事実・2026-08-17〜18）**:
+- Playwright(Python) は次の順で探す: `VA_PYTHON` → `agent-platform/.venv` →
+  `.va-venv` → `python3`。**特定のアプリの .venv に依存しない**（メインPC/サブPCの
+  どちらでも動く。2026-08-18に両PCで実測）。
+- ブラウザは既定で**入口Aと同じ Google Chrome**（`channel=chrome`）。無ければ
+  Playwright同梱の Chromium に自動で落ちる。`VA_BROWSER=chromium` で明示指定も可。
 - 常駐は CDP（`127.0.0.1:9223`）越しに繋ぐ方式。**Console と Network は常駐プロセスが
   起動時から拾い続ける**ので、後から `console` で読んでも取りこぼさない。
 - **パスワードの入力はしない。** ログインが要る画面は、人が入るか、
   すでにログイン済みの実ブラウザ（Chrome拡張）側で扱う。`fill` は一般のフォーム用。
-- ここで開くのは**専用プロファイル**（`.see/profile`）で、普段のChromeとは別物。
+- ここで開くのは**専用プロファイル**（`.see/profile-<ブラウザ>`）で、普段のChromeとは別物。
   だから普段のログイン状態は無い。あるものを使いたいときは Chrome拡張のほう。
 """
 
@@ -64,20 +72,43 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 OUT = ROOT / ".see"
-PROFILE = OUT / "profile"
 CONSOLE_LOG = OUT / "console.jsonl"
 NETWORK_LOG = OUT / "network.jsonl"
 STATE = OUT / "va-state.json"
 STOP = OUT / "va-stop"
 CDP_PORT = 9223
-VENV_PY = ROOT / "agent-platform" / ".venv" / "bin" / "python"
+
+# 入口A（MCP）と揃える。既定は「このMacに入っている Google Chrome」。
+BROWSER = os.environ.get("VA_BROWSER", "chrome")
+PROFILE = OUT / f"profile-{BROWSER}"
+
+# Playwright(Python) の在り処。**特定アプリの .venv に依存しない**（2026-08-18統合）。
+#   1) VA_PYTHON で明示  2) agent-platform の .venv（既存PCはこれで動く）
+#   3) このリポジトリ専用の .va-venv  4) 素の python3
+_CANDIDATES = [
+    os.environ.get("VA_PYTHON"),
+    str(ROOT / "agent-platform" / ".venv" / "bin" / "python"),
+    str(ROOT / ".va-venv" / "bin" / "python"),
+    "/usr/bin/python3",
+    "python3",
+]
 
 
 def _py() -> str:
-    if not VENV_PY.exists():
-        sys.exit("Playwright が無い。agent-platform/.venv を作るか "
-                 "pip install playwright && playwright install chromium")
-    return str(VENV_PY)
+    for c in _CANDIDATES:
+        if not c:
+            continue
+        exe = c if os.path.sep in c else (subprocess.run(["which", c], capture_output=True,
+                                                         text=True).stdout.strip())
+        if not exe or not Path(exe).exists():
+            continue
+        r = subprocess.run([exe, "-c", "import playwright"], capture_output=True)
+        if r.returncode == 0:
+            return exe
+    sys.exit("Playwright(Python) が見つからない。次のどちらかで入れる:\n"
+             "  python3 -m venv .va-venv && .va-venv/bin/pip install playwright && "
+             ".va-venv/bin/playwright install chromium\n"
+             "  （agent-platform がある PC なら agent-platform/.venv でもよい）")
 
 
 def _stamp(name: str) -> Path:
@@ -97,7 +128,7 @@ import json, sys, time
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
-profile, console_log, network_log, stop_file, port, headed, w, h = sys.argv[1:9]
+profile, console_log, network_log, stop_file, port, headed, w, h, channel = sys.argv[1:10]
 Path(console_log).write_text("")
 Path(network_log).write_text("")
 
@@ -106,13 +137,21 @@ def append(path, obj):
         f.write(json.dumps(obj, ensure_ascii=False) + "\n")
 
 with sync_playwright() as p:
-    ctx = p.chromium.launch_persistent_context(
-        profile,
+    opts = dict(
         headless=(headed != "1"),
         viewport={"width": int(w), "height": int(h)},
         device_scale_factor=2,
         args=[f"--remote-debugging-port={port}"],
     )
+    # 入口A(MCP)と同じ Google Chrome を既定にする。無いPCでは同梱Chromiumへ落とす
+    # （落ちたことは stderr に出す。黙って別のブラウザを見ないため）
+    try:
+        ctx = (p.chromium.launch_persistent_context(profile, channel=channel, **opts)
+               if channel != "chromium" else
+               p.chromium.launch_persistent_context(profile, **opts))
+    except Exception as e:
+        print(f"[va] {channel} を起動できないので Chromium に切り替えた: {e}", file=sys.stderr)
+        ctx = p.chromium.launch_persistent_context(profile, **opts)
     started = {}
 
     def hook(page):
@@ -169,13 +208,18 @@ def cmd_start(headed: bool, width: int, height: int) -> int:
     STOP.unlink(missing_ok=True)
     log = open(OUT / "va-daemon.log", "w")
     subprocess.Popen([_py(), "-c", DAEMON, str(PROFILE), str(CONSOLE_LOG), str(NETWORK_LOG),
-                      str(STOP), str(CDP_PORT), "1" if headed else "0", str(width), str(height)],
+                      str(STOP), str(CDP_PORT), "1" if headed else "0", str(width), str(height),
+                      BROWSER],
                      stdout=log, stderr=log, start_new_session=True)
     for _ in range(50):                       # 最大20秒待つ
         time.sleep(0.4)
         if _alive():
-            STATE.write_text(json.dumps({"headed": headed, "w": width, "h": height}))
-            print(f"起動した（{'画面あり' if headed else 'headless'} {width}x{height}・CDP {CDP_PORT}）")
+            STATE.write_text(json.dumps({"headed": headed, "w": width, "h": height,
+                                         "browser": BROWSER}))
+            fell_back = "Chromium に切り替えた" in (OUT / "va-daemon.log").read_text()
+            used = "chromium（Chromeが無いので切替）" if fell_back else BROWSER
+            print(f"起動した（{used}・{'画面あり' if headed else 'headless'} "
+                  f"{width}x{height}・CDP {CDP_PORT}）")
             return 0
     print((OUT / "va-daemon.log").read_text()[-1500:], file=sys.stderr)
     return 1

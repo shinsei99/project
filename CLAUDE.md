@@ -176,53 +176,24 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 バインド先やPythonを変えたら、**`launchctl kickstart -k gui/$(id -u)/<label>` で入れ替えて
 `lsof` で見る**まででワンセット（2026-08-17に 8526/8527 がこれでLAN公開のままだった）。
 
-## ★ Claude Code がブラウザを見て操作する — 道具は2つある（2026-08-18 統合）
-
-**2台のPCが同じ日に別々に作ったため2系統ある。役割で使い分ける（どちらも消さない）。**
-
-| 道具 | 実体 | 得意なこと | 置き場 |
-|---|---|---|---|
-| **MCP（Playwright）** | `~/.mcp.json` | Claude Code から会話の中で直接ブラウザを操作する | メインPCのみ（gitに乗らない） |
-| **`./va.sh`** | `visual_agent.py`（gitに入っている） | 撮る・UI崩れの機械検出・Console/Network・レスポンシブ比較。**両PCで同じように動く** | 両PC |
-
-迷ったら `./va.sh`（gitで両PCに渡り、検証の最低ラインもこれで回す）。
-MCPの設定はまだサブPCへ渡していない（直下 `TODO.md` の⑤）。
-
-### MCP版（Playwright MCP・メインPC）
-
-**定義は `~/.mcp.json` の1ファイルだけ。ここ以外にブラウザ操作の設定を作らない。**
-Playwright MCP を npx で起動（Chrome・`--isolated`＝普段のプロファイルに触れない・`--headless`）。
-**追加インストール不要・APIキー不要・無料。**
-
-- ターミナルで `cd ~ && claude` … 自動で有効。別フォルダなら `claude --mcp-config ~/.mcp.json`
-- AI業務マネージャーの開発エージェント … 同じファイルを `--mcp-config` で読む（二重管理しない）
-- 業務QA（社内Q&A・TODO抽出・定時処理）には**意図的に付けていない**（`--strict-mcp-config`）。
-  ブラウザ道具は業務回答に不要で、ツール定義が毎回コンテキストと定額枠を食うため
-- 使い方・つまずき所は `~/VISUAL_AGENT.md`
-
-### `./va.sh` 版（Claude Code の「目」・2026-08-17追加・両PC）
+## ★ 共通 Visual Agent — Claude Code がブラウザを見て操作する（2026-08-18 統合）
 
 **画面を見ずに「直りました」と言わない。** UIを触ったら、実際に開いて撮って確かめる。
+2台のPCが別々に作った2つの実装を**1つの仕組み・2つの入口**に統合した。
+**設定もコードも git に入っている**ので、両PCとも `git pull` だけで同じものが使える。
 
-```bash
-./va.sh start                      # ブラウザを起動（headless。--headed で画面あり）
-./va.sh goto localhost:3004        # 開く   ./va.sh click "text=ツール比較"   ./va.sh fill "#q" 検索語
-./va.sh shot [名前] [--full]        # 撮る → 出た .png のパスを Read すると中身が見える
-./va.sh check                      # UI崩れの機械検出（はみ出し・文字の重なり・小さすぎる文字/ボタン）
-./va.sh responsive <url>           # 390 / 768 / 1440 幅で撮って比べる
-./va.sh console --errors           # Console（起動時から拾い続けている）
-./va.sh network --failed           # 通信の失敗・4xx/5xx
-./va.sh dom / a11y / text / eval <js> / scroll / press / size / status / stop
-```
+| 入口 | 呼び方 | 得意 |
+|---|---|---|
+| **A: 会話の中（MCP）** | `cd ~ && claude` で自動有効（定義は `~/.mcp.json` の1ファイルだけ） | 対話しながら押す・入れる・読む。AI業務マネージャーの開発エージェントも同じ定義を読む |
+| **B: シェル（`./va.sh`）** | `./va.sh goto/shot/check/responsive/console…` | UI崩れの機械検出・3幅比較・自動検証。`dev-doctor.py --verify` もこれ |
 
-- 実体は `visual_agent.py`。詳しい使い方と限界は `./va.sh --help`（先頭のdocstring）
-- Chromium は **agent-platform の `.venv`** を借りる（重複導入しない）。無いPCでは
-  `pip install playwright && playwright install chromium`
-- **専用プロファイル**（`.see/profile`）で開くので普段のログイン状態は無い。
-  ログイン済みの実ブラウザで見たいときは **Chrome拡張（Claude in Chrome）** のほう
-- **パスワードは入力しない。** ログインが要る画面は人が入る
-- Mac の画面そのものや `.pptx` の見た目は `./see.sh screen` / `./see.sh file <ファイル>`
-- 撮った画像は `.see/`（gitignore。個人情報が写り得るので**コミットしない**）
+- **どちらも同じ Google Chrome を headless で開く**ので、見えるものが食い違わない
+- 入口Bの Playwright(Python) は `VA_PYTHON` → `agent-platform/.venv` → `.va-venv` → `python3`
+  の順に探す（**特定アプリの .venv に依存しない**）。Chrome が無いPCでは同梱Chromiumへ自動で切替
+- **パスワードは入力しない。** 撮った画像は `.see/`（gitignore。コミットしない）
+- 動くかどうかは `./visual-agent-check.sh`（`--mcp` / `--va` で片方だけも可）
+- **使い方・つまずき所・実測はすべて `VISUAL_AGENT.md` にある**（ここには増やさない）
+- Mac の画面そのものや `.pptx` / `.pdf` の見た目は `./see.sh screen` / `./see.sh file <ファイル>`
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 

@@ -11,6 +11,59 @@
 
 ---
 
+## 2026-08-18（メインPC）— サブPCの作業を受領し、共通Visual Agentを1つに統合した
+
+### 完了したこと
+
+- **2台の分岐を合流させた。** サブPC 22コミット と メインPC 27コミット（未pushだった
+  KeyLine/KeyTag・chatwork開発エージェント・GIS 等）を merge。衝突は `CLAUDE.md` と `TODO.md` の2つ。
+  - `CLAUDE.md`: **アプリ個別の補足は各 README へ**（サブPC案）を採用。ただし origin 側を
+    そのまま採ると**KeyLineの記述が消える**（サブPCはKeyLineを知らない）ため、
+    `keyline/README.md`（既にあり同内容を網羅）と `digital-shosai/HANDOFF-APPSTORE.md` への
+    ポインタを追加してから採用した
+  - `TODO.md`: 担当PC列つきの表（サブPC案）に統一し、keyline 行を残した
+  - 念のため `backup-main-20260818` ブランチに合流前のHEADを退避してある
+- **サブPCからの依頼を実施**: `.dev-role=main` / `ai-tools-lab` → `ai-tools-base` の実体移動と
+  空フォルダ削除 / `dev-doctor.py --sync --fetch` / メモリ差分の受領（本文2本を取込、
+  `project_restoration_calculator.md` は濃い `project_restoration_calc.md` に統合して削除、
+  索引を更新）。Dropbox の受け渡し置き場は中身を確認してから削除
+- **共通 Visual Agent を統合**（本題）。2台が別々に作った MCP版 と `./va.sh` を、
+  **1つの仕組み・2つの入口**に整理した。詳細は `VISUAL_AGENT.md`
+  - `visual_agent.py`: ブラウザを**入口Aと同じ Google Chrome**（`channel=chrome`）に。
+    無いPCでは同梱Chromiumへ自動フォールバックし、そう表示する（黙って別物を見ない）
+  - `visual_agent.py`: Playwright の探索を `VA_PYTHON` → `agent-platform/.venv` → `.va-venv`
+    → `python3` に。**agent-platform 決め打ちをやめた**（あのアプリが無いPCで死ぬため）
+  - `visual-agent-check.sh`: **両方の入口**を1回で点検（`--mcp` / `--va` で片方だけも可）
+  - `VISUAL_AGENT.md` を唯一の説明書に。`CLAUDE.md` は 2,021字 → 950字のポインタに縮小
+- **実測（メインPC・2026-08-18）**: 入口B は Chrome / Chromium / `VA_PYTHON` 明示の3経路で
+  `goto → shot → check → console --errors` 成功。入口A は `claude -p` から
+  「開く→押す→見出しの変化を読む」まで成功。`./visual-agent-check.sh` が全項目 ✅
+- **chatwork-ai-manager の常駐4サービスを再起動**（画面8540 / worker / LINE 8530 / ngrok）。
+  11:33:51 に worker の起動ログ、8540・8530 とも HTTP 200、ngrok 固定ドメインも復帰を確認
+
+### 発生したエラーと解決策
+
+- **`visual-agent-check.sh` が「クリックの結果を読み取れなかった」と出た** → 原因は
+  **過去の実行で残った `python3 -m http.server 8897` が居座っていた**こと。
+  元の書き方が `( cd $tmp && python3 … & echo $! > pid )` で **pid を取れておらず**
+  後片付けが空振りしていた。残ったサーバーは docroot を消されているので**全部404**を返し、
+  ボタンが無いページを掴んでいた（＝Visual Agent 側の不具合ではない）。
+  → 立てる前に `pkill -f "http.server $PORT"`、pid を正しく取る、**立てた後に curl で
+  中身を確かめてからブラウザを動かす**、の3点に直した
+- （合流時）`git merge` の origin 側をそのまま採ると KeyLine の記述が消える件は上記のとおり対処
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **サブPCへ**: `git pull` → `./visual-agent-check.sh` だけで統合版が使える。
+  **メモリの実体20本が未受領**（索引にはあるのに本文が無い）。一覧は `TODO.md` の先頭にある
+- **人の判断待ち（外部に出る操作なので勝手に進めない）**: ①Zenn 残り1本 → note の公開
+  ②デジタル書斎の App Store 提出（`digital-shosai/HANDOFF-APPSTORE.md`）
+  ③scrapmemo-petapeta のビルド7を ASC で審査提出
+- `dev-doctor.py --sync` の残り警告: 機密5件が未設定（`brain-dump/.env.local` /
+  `pasha-calo/.env.local` / `ai-ticket-counter/.env` / `theta-viewer/server/ftp-config.json` /
+  `kaitori-dm-maker/senders.json`）。サブPCの点検では「不足0件」と出ていたので**あちらには
+  実体がありそうだが未確認**。次の受け渡しのときに1件ずつ確かめて運ぶ
+
 ## 2026-08-17（夜・サブPC）— 開発ループを明文化し、検証を実行できるようにした
 
 「Agentic Workflow のガイドラインを入れたい」という相談を受け、**このリポジトリの実情に合わせて縮めて**導入した。
