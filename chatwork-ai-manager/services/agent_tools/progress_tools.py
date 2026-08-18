@@ -14,8 +14,13 @@ from db.connection import get_conn, query
 from services import settings, tasks as T
 
 
+# 定時確認(10/13/18時)は「AI確認待ち」の未完了TODOも対象に含める（TASK-20260818-006）。
+# OPEN_STATUSES自体は変えない（ダッシュボード集計等、AI確認待ちを含めたくない既存呼び出しがあるため）。
+_ATTENTION_STATUSES = T.OPEN_STATUSES + [T.STATUS_AI_CONFIRM]
+
+
 def _open_ph():
-    return ",".join("?" * len(T.OPEN_STATUSES)), list(T.OPEN_STATUSES)
+    return ",".join("?" * len(_ATTENTION_STATUSES)), list(_ATTENTION_STATUSES)
 
 
 def _fmt(rows):
