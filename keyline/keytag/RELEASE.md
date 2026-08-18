@@ -147,6 +147,11 @@ build番号を上げたら 2箇所を揃える:
 195MB・2,439ファイルが公開リポジトリに入っていた（`embedded.mobileprovision` を含む）。
 現在は `.gitignore` 済み。**中身はすべて作り直せる。**
 
+**履歴からは消さない判断（2026-08-18・本人決定）。** 実害は容量だけ（`.git` 243MB／
+他PCの `git pull` が195MB余分）で、`embedded.mobileprovision` に秘密鍵は入らない
+（Team ID と App ID のみ）。`filter-repo` + force push は全コミットのハッシュが変わり、
+2台の再clone が必要になるため、そのリスクを取らない。**この件は再検討しない。**
+
 ---
 
 ## ビルド確認の記録
