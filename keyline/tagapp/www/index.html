@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="color-scheme" content="light">
+<title>KeyLine Tag</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <span class="brand">🔑 KeyLine Tag</span>
+  <span class="nfcstate" id="nfcstate"></span>
+</header>
+
+<main>
+
+<!-- ══════════ 読み取り ══════════ -->
+<section class="screen" id="s-read">
+  <div class="hero">
+    <div class="ring" id="readring">📡</div>
+    <p class="lead" id="readlead">タグをかざすと、何の鍵か表示します</p>
+  </div>
+  <button class="btn primary big" id="btn-read">タグを読み取る</button>
+
+  <div class="card result" id="readresult" hidden>
+    <div class="prop" id="r-prop"></div>
+    <div class="ttl" id="r-name"></div>
+    <dl class="kv">
+      <dt>鍵番号</dt><dd id="r-numbers">-</dd>
+      <dt>保管場所</dt><dd id="r-box">-</dd>
+      <dt>タグID</dt><dd id="r-uid" class="mono">-</dd>
+    </dl>
+    <div id="r-link"></div>
+    <details style="margin-top:.8rem">
+      <summary class="small muted">タグの生データ</summary>
+      <pre class="raw" id="r-raw"></pre>
+    </details>
+  </div>
+</section>
+
+<!-- ══════════ 書き込み ══════════ -->
+<section class="screen" id="s-write" hidden>
+  <div class="card fixed">
+    <div class="cardhead">
+      <h2>この物件で続けて書く</h2>
+      <button class="linkbtn" id="btn-clearfixed">クリア</button>
+    </div>
+    <p class="small muted">物件名とボックスは書き込んでも残ります。</p>
+    <label for="w-prop">物件名称</label>
+    <input type="text" id="w-prop" list="proplist" placeholder="大阪京橋ビル" autocomplete="off">
+    <datalist id="proplist"></datalist>
+    <div class="row2">
+      <div>
+        <label for="w-box">ボックス</label>
+        <input type="text" id="w-box" placeholder="BOX-01" autocomplete="off">
+      </div>
+      <div>
+        <label for="w-pos">位置</label>
+        <input type="text" id="w-pos" placeholder="03" inputmode="numeric" autocomplete="off">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>鍵</h2>
+    <label for="w-name">鍵の名称 <span class="req">*</span></label>
+    <input type="text" id="w-name" placeholder="1階エントランスキー" autocomplete="off">
+
+    <label>鍵番号と本数</label>
+    <div id="w-keys"></div>
+    <button class="btn ghost small" id="btn-addkey">＋ 鍵番号を追加</button>
+
+    <div class="preview" id="w-preview"></div>
+
+    <button class="btn primary big" id="btn-write">タグに書き込む</button>
+    <p class="msg" id="w-msg"></p>
+  </div>
+</section>
+
+<!-- ══════════ 台帳 ══════════ -->
+<section class="screen" id="s-list" hidden>
+  <div class="cardhead pad">
+    <h2>台帳（<span id="l-count">0</span>件）</h2>
+    <button class="linkbtn" id="btn-export">書き出す</button>
+  </div>
+  <p class="small muted pad">
+    この端末に保存されています。タップすると同じ内容をもう一度書き込めます。
+  </p>
+  <div id="l-items"></div>
+  <div class="empty" id="l-empty">まだ登録がありません。<br>「書き込み」から始めてください。</div>
+</section>
+
+<!-- ══════════ 設定 ══════════ -->
+<section class="screen" id="s-conf" hidden>
+  <div class="card">
+    <h2>タグの種類</h2>
+    <p class="small muted">容量が違います。書ける情報量の判定に使います。</p>
+    <select id="c-tag">
+      <option value="NTAG213">NTAG213（144バイト）</option>
+      <option value="NTAG215">NTAG215（504バイト）</option>
+      <option value="NTAG216">NTAG216（888バイト）</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <h2>KeyLine 連携（任意）</h2>
+    <p class="small muted">
+      鍵管理システム「KeyLine」をお使いの場合だけ設定してください。<br>
+      未設定でも、このアプリ単体でタグの読み書きと台帳は使えます。
+    </p>
+    <label for="c-server">サーバーのURL</label>
+    <input type="url" id="c-server" placeholder="http://192.168.1.105:8534"
+           inputmode="url" autocapitalize="none" autocorrect="off">
+
+    <div class="linkbox">
+      <label for="c-code">連携コード（6桁）</label>
+      <input type="text" id="c-code" placeholder="123456" inputmode="numeric"
+             maxlength="6" autocomplete="one-time-code">
+      <p class="small muted" style="margin:.3rem 0 0">
+        KeyLine の「アプリ連携」画面で発行してください。
+      </p>
+      <button class="btn primary" id="btn-pair" style="margin-top:.8rem">連携する</button>
+    </div>
+
+    <div class="btnrow">
+      <button class="btn ghost" id="btn-test">接続を確認</button>
+      <button class="btn ghost" id="btn-forget">連携をやめる</button>
+    </div>
+    <p class="msg" id="c-msg"></p>
+  </div>
+
+  <div class="card">
+    <h2>このアプリについて</h2>
+    <p class="small muted">
+      鍵に貼ったNFCタグへ、物件名・鍵の名称・鍵番号・保管場所を書き込み、
+      かざすだけで確認できるようにするアプリです。<br><br>
+      読み書きした内容は<strong>すべてこの端末の中だけ</strong>に保存され、
+      外部へ送信されることはありません（KeyLine連携を設定した場合を除く）。
+    </p>
+    <p class="small muted" id="c-ver"></p>
+  </div>
+</section>
+
+</main>
+
+<nav class="tabs">
+  <button data-screen="s-read" class="on"><span>📡</span>読み取り</button>
+  <button data-screen="s-write"><span>✍️</span>書き込み</button>
+  <button data-screen="s-list"><span>📒</span>台帳</button>
+  <button data-screen="s-conf"><span>⚙️</span>設定</button>
+</nav>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

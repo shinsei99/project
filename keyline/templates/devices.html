@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}アプリ連携 — KeyLine{% endblock %}
+{% block main_class %}narrow{% endblock %}
+{% block content %}
+
+<h1>アプリ連携</h1>
+<p class="small muted">
+  iPhoneアプリ「KeyLine Tag」から、この KeyLine へ接続するための設定です。<br>
+  アプリはNFCタグの読み書きに使います。<strong>連携しなくてもアプリ単体で使えます。</strong>
+</p>
+
+{% if code %}
+<div class="card" style="border-color:var(--orange);background:#fff7ef">
+  <h2 style="margin-bottom:.2rem">アプリにこの数字を入れてください</h2>
+  <p style="font-size:2.6rem;font-weight:800;letter-spacing:.35em;text-align:center;
+            margin:.6rem 0;font-variant-numeric:tabular-nums">{{ code }}</p>
+  <p class="small muted" style="text-align:center;margin:0">
+    有効期限は<strong>{{ ttl }}分</strong>。1回使うと無効になります。
+  </p>
+</div>
+{% endif %}
+
+<div class="card">
+  <h2>アプリ側の手順</h2>
+  <ol class="small" style="margin:0;padding-left:1.2rem;line-height:2">
+    <li>アプリの <strong>⚙️ 設定</strong> を開く</li>
+    <li>サーバーのURLに <code class="token">{{ base_url }}</code> を入れる</li>
+    <li>下のボタンで発行した<strong>6桁の数字</strong>を入れて［連携する］</li>
+  </ol>
+  {% if user.role == 'admin' %}
+  <form method="post" action="/devices/pair" style="margin-top:1rem">
+    <div style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap">
+      <div style="flex:1;min-width:180px">
+        <label for="label" style="margin-top:0">端末の名前</label>
+        <input type="text" id="label" name="label" value="iPhone" placeholder="鍵管理用iPhone">
+      </div>
+      <button class="btn primary">連携コードを発行</button>
+    </div>
+  </form>
+  {% else %}
+  <p class="small muted" style="margin-top:1rem">連携コードの発行は管理者のみです。</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h2>連携中の端末（{{ tokens|length }}台）</h2>
+  {% if tokens %}
+  <div class="scroll">
+  <table>
+    <thead><tr><th>端末</th><th>連携日</th><th>最終利用</th><th></th></tr></thead>
+    <tbody>
+    {% for t in tokens %}
+    <tr>
+      <td>{{ t.user_agent.replace('device:', '') }}</td>
+      <td class="num small">{{ t.created_at | dt_short }}</td>
+      <td class="num small">{{ t.last_seen_at | dt_short }}</td>
+      <td>
+        <form method="post" action="/devices/{{ t.id }}/revoke"
+              onsubmit="return confirm('この端末の連携を解除します。よろしいですか？')">
+          <button class="btn ghost" style="padding:.3rem .6rem;font-size:.8rem">解除</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <p class="small muted" style="margin-bottom:0">
+    端末を紛失したら、ここで解除すれば<strong>その場で使えなくなります</strong>。
+  </p>
+  {% else %}
+  <p class="muted">まだ連携している端末はありません。</p>
+  {% endif %}
+</div>
+
+{% endblock %}

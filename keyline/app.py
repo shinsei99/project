@@ -106,7 +106,38 @@ def get_con() -> sqlite3.Connection:
 
 
 def viewer(request: Request, con: sqlite3.Connection):
-    return auth.current_user(con, request.cookies.get(auth.COOKIE_NAME))
+    """ログイン中の利用者。ブラウザはCookie、ネイティブアプリは Bearer トークン。"""
+    token = (auth.bearer_token(request.headers.get("authorization"))
+             or request.cookies.get(auth.COOKIE_NAME))
+    return auth.current_user(con, token)
+
+
+# ---------------------------------------------------------------------------
+# CORS（/api/ だけ）
+#
+# ネイティブアプリのオリジンは capacitor://localhost で、ここから見ると別オリジン。
+# Cookieは使わず Bearer トークンで認証するので credentials は許可しない
+# （許可すると、悪意あるページがブラウザのCookieを使ってAPIを叩けてしまう）。
+# ---------------------------------------------------------------------------
+APP_ORIGINS = {"capacitor://localhost", "ionic://localhost", "http://localhost"}
+
+
+@app.middleware("http")
+async def cors_for_api(request: Request, call_next):
+    if not request.url.path.startswith("/api/"):
+        return await call_next(request)
+    origin = request.headers.get("origin", "")
+    allow = origin if origin in APP_ORIGINS else ""
+    if request.method == "OPTIONS":
+        resp = HTMLResponse("", status_code=204)
+    else:
+        resp = await call_next(request)
+    if allow:
+        resp.headers["Access-Control-Allow-Origin"] = allow
+        resp.headers["Access-Control-Allow-Headers"] = "Authorization, Content-Type"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        resp.headers["Vary"] = "Origin"
+    return resp
 
 
 def login_redirect(request: Request) -> RedirectResponse:
@@ -537,6 +568,110 @@ async def api_register(request: Request):
                      "capacity": plan["capacity"], "truncated": plan["truncated"],
                      "tag": plan["tag"]},
         })
+    finally:
+        con.close()
+
+
+# ---------------------------------------------------------------------------
+# アプリの連携（ペアリング）
+#
+# 64文字のトークンをスマホで手打ちさせるのは現実的でないので、
+# 管理画面が6桁のコードを出し、アプリはそれを送ってトークンを受け取る。
+#
+# コードはプロセス内にだけ持つ（10分で失効・使い切り）。
+# 再起動で消えるが、10分の一時コードなので作り直せばよく、テーブルを増やす価値がない。
+# ---------------------------------------------------------------------------
+_PAIR_CODES = {}          # code -> {"user_id", "expires", "label"}
+PAIR_TTL_SECONDS = 600
+
+
+def _pair_gc():
+    now = dbmod.now_ts()
+    for c in [c for c, v in _PAIR_CODES.items() if v["expires"] <= now]:
+        _PAIR_CODES.pop(c, None)
+
+
+@app.post("/devices/pair")
+def device_pair_create(request: Request, label: str = Form("iPhone")):
+    """管理画面から6桁コードを発行する。"""
+    con = get_con()
+    try:
+        user = viewer(request, con)
+        if not user:
+            return login_redirect(request)
+        if user["role"] != "admin":
+            return back("/devices", err="管理者のみ発行できます")
+        _pair_gc()
+        import secrets as _s
+        code = f"{_s.randbelow(1000000):06d}"
+        _PAIR_CODES[code] = {"user_id": user["id"], "label": (label or "iPhone").strip()[:40],
+                             "expires": dbmod.ts_plus(minutes=PAIR_TTL_SECONDS / 60)}
+        return back(f"/devices?code={code}", msg="連携コードを発行しました")
+    finally:
+        con.close()
+
+
+@app.post("/api/pair")
+async def api_pair(request: Request):
+    """アプリが6桁コードを送ってトークンを受け取る。"""
+    con = get_con()
+    try:
+        d = await request.json()
+        code = str(d.get("code") or "").strip()
+        _pair_gc()
+        entry = _PAIR_CODES.pop(code, None)          # 使い切り
+        if not entry:
+            return JSONResponse({"ok": False, "error": "コードが違うか、期限が切れています"}, 400)
+        token = auth.issue_device_token(con, entry["user_id"], entry["label"])
+        org = con.execute(
+            """SELECT o.name FROM organizations o JOIN users u ON u.organization_id = o.id
+                WHERE u.id = ?""", (entry["user_id"],)).fetchone()
+        return JSONResponse({"ok": True, "token": token,
+                             "organization": org["name"] if org else ""})
+    finally:
+        con.close()
+
+
+@app.get("/devices", response_class=HTMLResponse)
+def devices_page(request: Request, code: Optional[str] = None):
+    con = get_con()
+    try:
+        user = viewer(request, con)
+        if not user:
+            return login_redirect(request)
+        return render(request, "devices.html", user, code=code,
+                      tokens=auth.list_device_tokens(con, user["id"]),
+                      base_url=svc.lan_base_url(), ttl=int(PAIR_TTL_SECONDS / 60))
+    finally:
+        con.close()
+
+
+@app.post("/devices/{token_id}/revoke")
+def device_revoke(request: Request, token_id: str):
+    con = get_con()
+    try:
+        user = viewer(request, con)
+        if not user:
+            return login_redirect(request)
+        auth.revoke_token(con, token_id, user["id"])
+        return back("/devices", msg="この端末の連携を解除しました")
+    finally:
+        con.close()
+
+
+@app.get("/api/ping")
+def api_ping(request: Request):
+    """アプリの「接続を確認」用。トークンが有効かどうかもここで分かる。"""
+    con = get_con()
+    try:
+        user = viewer(request, con)
+        if not user:
+            return JSONResponse({"ok": False, "error": "トークンが無効です"}, 401)
+        org = con.execute("SELECT name FROM organizations WHERE id = ?",
+                          (user["organization_id"],)).fetchone()
+        return JSONResponse({"ok": True, "app": "KeyLine",
+                             "organization": org["name"] if org else "",
+                             "user": user["display_name"], "role": user["role"]})
     finally:
         con.close()
 

@@ -104,7 +104,7 @@ def main() -> int:
     box = svc.create_box(con, oid, "BOX-01", "本社1F鍵ボックス")
     tok = svc.issue_nfc_token(con)
     aid = svc.create_asset(con, oid, "1階エントランスキー", "key", nfc_token=tok, box_id=box,
-                           box_position="03", property_name="大京本社ビル",
+                           box_position="03", property_name="大阪京橋ビル",
                            items=[("12345", 1), ("12346", 1), ("10003", 3)])
     bid = svc.create_borrower(con, oid, "山田 太郎", "employee")
     con.close()
@@ -215,7 +215,7 @@ def run(base: str, tok: str, aid: str, bid: str) -> None:
     check("管理対象一覧に鍵番号が出る", "12345 / 12346 / 10003 ×3" in html)
     _, _, html = admin.get("/assets?q=12346")
     check("鍵番号で検索できる", "1階エントランスキー" in html)
-    _, _, html = admin.get("/assets?q=%E5%A4%A7%E4%BA%AC%E6%9C%AC%E7%A4%BE%E3%83%93%E3%83%AB")
+    _, _, html = admin.get("/assets?q=" + urllib.parse.quote("大阪京橋ビル"))
     check("物件名称で検索できる", "1階エントランスキー" in html)
     _, _, html = admin.get(f"/assets/{aid}")
     check("詳細にタグURLが出る", f"{base}/t/{tok}" in html, "URLが違う")
@@ -242,7 +242,7 @@ def run(base: str, tok: str, aid: str, bid: str) -> None:
     _, _, html = admin.get(f"/assets/{aid}")
     check("交換後も履歴が残る", "田中 一郎" in html)
     check("交換後も鍵番号が残る", "12345" in html)
-    check("交換後も物件名称が残る", "大京本社ビル" in html)
+    check("交換後も物件名称が残る", "大阪京橋ビル" in html)
     # 交換すると古いトークンはどの管理対象にも紐づかなくなる＝拾われても中身が見えない
     _, _, html = term.get(f"/t/{tok}")
     check("交換した古いタグは未登録扱いになる", "未登録のNFCタグ" in html)

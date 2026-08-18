@@ -119,6 +119,41 @@ def current_user(con: sqlite3.Connection, token: Optional[str]) -> Optional[sqli
     return row
 
 
+def bearer_token(header: Optional[str]) -> Optional[str]:
+    """`Authorization: Bearer xxx` からトークンを取り出す。
+
+    ネイティブアプリ（KeyLine Tag）はCookieを使えない。
+    Capacitorのオリジンは capacitor://localhost で、サーバーとは別オリジンになる。
+    平文HTTPでは SameSite=None; Secure を付けられないため、Cookieは送られない。
+    → 端末用のトークンを発行して、このヘッダで送ってもらう。
+      実体は sessions テーブルの行なので、管理画面から消せば即座に無効になる。
+    """
+    if not header:
+        return None
+    parts = header.split(None, 1)
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return parts[1].strip()
+    return None
+
+
+def issue_device_token(con: sqlite3.Connection, user_id: str, label: str,
+                       days: int = SESSION_DAYS) -> str:
+    """アプリ用のトークンを発行する。sessions の行として持つ。"""
+    return create_session(con, user_id, f"device:{label}"[:300], days=days)
+
+
+def list_device_tokens(con: sqlite3.Connection, user_id: str) -> list:
+    return con.execute(
+        """SELECT id, created_at, last_seen_at, expires_at, user_agent
+             FROM sessions WHERE user_id = ? AND user_agent LIKE 'device:%'
+            ORDER BY created_at DESC""", (user_id,)).fetchall()
+
+
+def revoke_token(con: sqlite3.Connection, token_id: str, user_id: str) -> bool:
+    cur = con.execute("DELETE FROM sessions WHERE id = ? AND user_id = ?", (token_id, user_id))
+    return bool(cur.rowcount)
+
+
 def logout(con: sqlite3.Connection, token: Optional[str]) -> None:
     if token:
         con.execute("DELETE FROM sessions WHERE id = ?", (token,))

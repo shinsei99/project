@@ -360,7 +360,7 @@ def create_asset(con: sqlite3.Connection, org_id: str, name: str,
     """管理対象を作る。未登録タグからその場で登録する導線もここを通る。
 
     name は「1階エントランスキー」のような**鍵の名称**、
-    property_name は「大京本社ビル」のような**物件名称**。
+    property_name は「大阪京橋ビル」のような**物件名称**。
     箱には複数物件の鍵が同居するので、この2つは分けて持つ。
     """
     name = (name or "").strip()
