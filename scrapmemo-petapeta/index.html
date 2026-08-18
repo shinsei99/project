@@ -424,7 +424,11 @@ body.ed-light .theme-btn.active{border-color:#a07030;background:rgba(160,112,48,
 .sheet-wrap.open{display:flex;}
 .sh-ov{position:absolute;inset:0;background:rgba(0,0,0,.52);
   backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);}
-.sh-box{position:relative;width:100%;max-height:96vh;background:#1a0a02;
+/* max-height は vh ではなく % にする。iOS(WKWebView)はキーボードが出ると
+   WebView自体が縮む（innerHeight 874→538）が、vh は縮まないので 96vh のままだと
+   シートが親より高くなり、align-items:flex-end のせいで**画面の上へはみ出して**
+   メモの先頭が触れなくなる（2026-08-18 シミュレータで実測: box top=-310px）。 */
+.sh-box{position:relative;width:100%;max-height:96%;background:#1a0a02;
   border-radius:22px 22px 0 0;display:flex;flex-direction:column;
   box-shadow:0 -8px 40px rgba(0,0,0,.55);animation:shUp .3s ease;}
 @keyframes shUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
@@ -1170,6 +1174,39 @@ function buildTodoPreview(div, el) {
   div.appendChild(inner);
 }
 
+/* ── シートの高さをキーボードに合わせる（全シート共通・2026-08-18） ──────────
+   前回の直し（先頭表示・ボタン末尾）はSafariでしか確認しておらず、**iOS実機で
+   キーボードが出ている間**に再発していた。シミュレータでの実測（iPhone 17）:
+     innerH=538 / wrap 0..538 / box -310..538 (h848) / memo-editor top=-222, scrollTop=0
+   ＝ シートが親より 310px 高く、align-items:flex-end なので**上へはみ出す**。
+   はみ出した分はスクロールで戻せないため、メモの先頭が編集できない状態になる。
+
+   iOS(WKWebView): キーボードでWebView自体が縮む（innerHeight も縮む）。
+     → max-height を実際に見えている高さへ合わせれば収まる。
+   Safari(Web): レイアウトビューポートは縮まない（innerHeight は据え置き）。
+     → キーボードが覆う分を .sheet-wrap の padding-bottom に足して持ち上げる。 */
+function fitOpenSheets() {
+  const vv = window.visualViewport;
+  const visH = vv ? vv.height : window.innerHeight;
+  const kb = vv ? Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)) : 0;
+  document.querySelectorAll('.sheet-wrap.open').forEach(wrap => {
+    wrap.style.paddingBottom = kb ? `calc(var(--safe-b) + ${kb}px)` : '';
+    const box = wrap.querySelector('.sh-box');
+    if (box) box.style.maxHeight = Math.round(visH * 0.96) + 'px';
+  });
+}
+function clearSheetFit(sheet) {
+  if (!sheet) return;
+  sheet.style.paddingBottom = '';
+  const box = sheet.querySelector('.sh-box');
+  if (box) box.style.maxHeight = '';
+}
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', fitOpenSheets);
+  window.visualViewport.addEventListener('scroll', fitOpenSheets);
+}
+addEventListener('resize', fitOpenSheets);
+
 let editTodoEl=null, _todoIsNew=false;
 function openTodo(el) {
   editTodoEl=el;
@@ -1177,10 +1214,7 @@ function openTodo(el) {
   renderTodoItems();
   const sheet=document.getElementById('todo-sheet');
   sheet.classList.add('open');
-  if (window.visualViewport) {
-    const box=sheet.querySelector('.sh-box');
-    if (box) box.style.maxHeight=Math.round(window.visualViewport.height*0.97)+'px';
-  }
+  fitOpenSheets();
   setTimeout(()=>{
     const inp=document.querySelector('#todo-editor .block-check-text');
     if (inp) inp.focus({preventScroll:true});
@@ -1189,7 +1223,7 @@ function openTodo(el) {
 function closeTodo() {
   const sheet=document.getElementById('todo-sheet');
   sheet.classList.remove('open');
-  const box=sheet.querySelector('.sh-box'); if (box) box.style.maxHeight='';
+  clearSheetFit(sheet);
   if (_todoIsNew && editTodoEl) {
     pages[curIdx].elements=pages[curIdx].elements.filter(x=>x.id!==editTodoEl.id);
     document.querySelector(`.scrap[data-id="${editTodoEl.id}"]`)?.remove();
@@ -1633,18 +1667,50 @@ function addMemo() {
   soundPeta(); openMemo(el); touchPage();
 }
 
+/* ── 写真は必ず縮小してから保存する（2026-08-18） ────────────────────────
+   データは iPhone 本体（アプリのサンドボックス内の
+   Library/WebKit/<bundleId>/…/LocalStorage/localstorage.sqlite3）に入るが、
+   **上限は本体の空き容量ではなく WebKit が localStorage に掛けている約5MB**。
+   実測: 上限 5,100KB／超過で QuotaExceededError（端末の容量とは無関係）。
+   iPhoneの写真は1枚2〜4MB、dataURL(base64)で約1.37倍に膨らむので、
+   **無加工だと1枚で上限に達する**。しかも save() は例外を握りつぶすので
+   画面上は貼れて見えるのに次回起動で消える。
+   → 長辺1600px・JPEG品質0.82にすると1枚おおむね200〜400KBに収まる。 */
+const IMG_MAX_EDGE=1600, IMG_QUALITY=0.82, IMG_KEEP_BYTES=400*1024;
+function shrinkImageDataURL(dataUrl, cb) {
+  const img=new Image();
+  img.onload=()=>{
+    try {
+      const long=Math.max(img.width,img.height);
+      // もともと小さい写真は触らない（再エンコードでかえって劣化するため）
+      if (long<=IMG_MAX_EDGE && dataUrl.length<=IMG_KEEP_BYTES) { cb(dataUrl); return; }
+      const sc=Math.min(1, IMG_MAX_EDGE/long);
+      const cvs=document.createElement('canvas');
+      cvs.width=Math.max(1,Math.round(img.width*sc));
+      cvs.height=Math.max(1,Math.round(img.height*sc));
+      const ctx=cvs.getContext('2d');
+      ctx.fillStyle='#fff'; ctx.fillRect(0,0,cvs.width,cvs.height); // JPEGは透明を持てないので白地を敷く
+      ctx.drawImage(img,0,0,cvs.width,cvs.height);
+      const out=cvs.toDataURL('image/jpeg',IMG_QUALITY);
+      cb(out.length<dataUrl.length ? out : dataUrl);   // 逆に増えたら元のまま
+    } catch(e) { cb(dataUrl); }
+  };
+  img.onerror=()=>cb(dataUrl);   // 読めなければ元のまま（写真を失わない方を優先）
+  img.src=dataUrl;
+}
+
 function addPhotoToPage(ev) {
   const file=ev.target.files[0]; if (!file) return;
   const reader=new FileReader();
-  reader.onload=e=>{
+  reader.onload=e=>shrinkImageDataURL(e.target.result, src=>{
     const el={id:nid(),type:'memo',x:Math.floor(Math.random()*80+16),y:Math.floor(Math.random()*70+16),
       w:196,rot:randRot(),sourceUrl:'',deco:randDeco(),
-      blocks:[{id:nid(),type:'image',src:e.target.result,caption:file.name.replace(/\.[^.]+$/,'')}]};
+      blocks:[{id:nid(),type:'image',src,caption:file.name.replace(/\.[^.]+$/,'')}]};
     pages[curIdx].elements.push(el);
     const cv=document.getElementById('canvas');
     if (cv) { cv.querySelector('.empty-hint')?.remove(); drawScrap(el,cv); }
     soundPeta(); touchPage(); save(); toast('写真を追加しました 📷');
-  };
+  });
   reader.readAsDataURL(file); ev.target.value='';
 }
 
@@ -1827,7 +1893,7 @@ function moveElToPage(targetIdx) {
   // close editor
   const sheet = document.getElementById('memo-sheet');
   sheet.classList.remove('open');
-  const box = sheet.querySelector('.sh-box'); if (box) box.style.maxHeight = '';
+  clearSheetFit(sheet);
   document.getElementById('deco-panel').classList.remove('open');
   document.getElementById('deco-toggle-btn').classList.remove('on');
   closeMoveDrop();
@@ -1854,10 +1920,7 @@ function openMemo(el) {
   document.getElementById('deco-toggle-btn').classList.remove('on');
   const sheet = document.getElementById('memo-sheet');
   sheet.classList.add('open');
-  if (window.visualViewport) {
-    const box = sheet.querySelector('.sh-box');
-    if (box) box.style.maxHeight = Math.round(window.visualViewport.height * 0.97) + 'px';
-  }
+  fitOpenSheets();
   // 開いた直後は必ずメモの先頭から見せる
   const ed = document.getElementById('memo-editor'); if (ed) ed.scrollTop = 0;
   setTimeout(() => {
@@ -1889,7 +1952,7 @@ function closeMemo() {
   }
   const sheet = document.getElementById('memo-sheet');
   sheet.classList.remove('open');
-  const box = sheet.querySelector('.sh-box'); if (box) box.style.maxHeight = '';
+  clearSheetFit(sheet);
   document.getElementById('deco-panel').classList.remove('open');
   document.getElementById('deco-toggle-btn').classList.remove('on');
   closeMoveDrop();
@@ -2010,8 +2073,8 @@ function addCheckBlock() {
 function addImageBlock(ev) {
   const file=ev.target.files[0]; if (!file) return;
   const reader=new FileReader();
-  reader.onload=e=>{
-    const b={id:nid(),type:'image',src:e.target.result,caption:file.name.replace(/\.[^.]+$/,''),imgW:80};
+  reader.onload=e=>shrinkImageDataURL(e.target.result, src=>{
+    const b={id:nid(),type:'image',src,caption:file.name.replace(/\.[^.]+$/,''),imgW:80};
     if (!editEl) return;
     const ed=document.getElementById('memo-editor');
     const focused=ed.querySelector('.block-textarea:focus,.block-check-text:focus');
@@ -2022,7 +2085,7 @@ function addImageBlock(ev) {
     const dom=makeBlockDOM(b);
     if (afterWrap?.nextSibling) ed.insertBefore(dom,afterWrap.nextSibling);
     else edAppendBlock(dom);
-  };
+  });
   reader.readAsDataURL(file); ev.target.value='';
 }
 
