@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>デジタル書斎 サポート</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+    line-height: 1.9; color: #1c1c1e; background: #f5f5f7;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { text-align: center; padding: 16px 0 8px; }
+  h1 { font-size: 1.5rem; margin: 8px 0 4px; }
+  .lead { color: #8e8e93; font-size: .9rem; margin: 0; }
+  h2 { font-size: 1.1rem; margin: 28px 0 6px; }
+  h3 { font-size: .98rem; margin: 16px 0 4px; }
+  .card { background: #fff; border-radius: 14px; padding: 18px 20px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  a { color: #2563eb; }
+  p { margin: 8px 0; }
+  ol, ul { margin: 8px 0; padding-left: 1.3em; }
+  li { margin: 4px 0; }
+  code { background: rgba(120,120,128,.12); padding: 2px 6px; border-radius: 5px; font-size: .9em; }
+  .note { color: #8e8e93; font-size: .88rem; }
+  footer { text-align: center; color: #8e8e93; font-size: .85rem; margin-top: 40px; }
+  .back { display: inline-block; margin-top: 24px; color: #2563eb; text-decoration: none; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #f2f2f7; background: #000; }
+    .card { background: #1c1c1e; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>デジタル書斎 サポート</h1>
+    <p class="lead">PDFを本棚へ。全文検索できる書斎</p>
+  </header>
+
+  <div class="card">
+    <p>手持ちのPDFを取り込むと、<strong>本文をまるごと検索できる自分専用の書斎</strong>になります。
+    本棚に表紙が並び、開けばテキストで読め、図や表を見たいときはその場でページの紙面を表示します。</p>
+    <p><strong>すべて端末の中だけで動きます。</strong>通信は一切せず、外部へ何も送りません。
+    広告もアカウント登録もありません。</p>
+  </div>
+
+  <h2>使い方</h2>
+
+  <div class="card">
+    <h3>1. 本を取り込む</h3>
+    <p>「取り込み」画面で枠をタップし、「ファイル」アプリからPDFを選びます。
+    Dropbox や iCloud Drive などクラウド上のPDFもそのまま選べます。何冊でもまとめて選択できます。</p>
+    <p class="note">取り込むのは<strong>本文の文字だけ</strong>です。ページの画像は開いたときにその場で作るので、
+    取り込みは速く、端末の容量もほとんど使いません（実測: 4冊352ページで約0.7MB）。</p>
+  </div>
+
+  <div class="card">
+    <h3>2. 本棚から読む</h3>
+    <p>「本棚」に表紙が並びます。表紙をタップすると本文が開きます。
+    文字の大きさ・行間・書体（明朝／ゴシック）を変えられ、最後に読んだページはしおりとして残ります。</p>
+  </div>
+
+  <div class="card">
+    <h3>3. 図や表は「紙面を見る」</h3>
+    <p>読書画面の［紙面を見る］で、そのページの実際の紙面を表示します。
+    原本のPDFから毎回その場で描き、一度見たページは端末内にキャッシュします。</p>
+  </div>
+
+  <div class="card">
+    <h3>4. 探す</h3>
+    <p>「検索」に語を入れると、どの本の何ページに書かれていたかが一覧で出ます。
+    <strong>空白で区切って複数の語を入れると、すべてを含むページだけ</strong>に絞り込めます。
+    「対象の本」で1冊だけを対象にすることもできます。</p>
+  </div>
+
+  <h2>よくあるご質問</h2>
+
+  <div class="card">
+    <h3>PDFを持っていません。試せますか？</h3>
+    <p>初回起動時に、<strong>著作権保護期間が満了した作品4冊</strong>（羅生門／走れメロス／
+    銀河鉄道の夜／こころ・青空文庫より）が書斎に入ります。そのまま検索と読書をお試しいただけます。</p>
+    <p>不要であれば「本棚」の各本の［管理］から削除できます。削除した本が再び戻ることはありません。
+    もう一度入れたいときは、取り込み画面の［収録作品を入れる］をお使いください。</p>
+  </div>
+
+  <div class="card">
+    <h3>取り込んだのに検索で出てきません</h3>
+    <p>そのPDFに<strong>文字が入っていない</strong>可能性があります。
+    紙をスキャンしただけのPDFは画像だけで文字を持たないため、検索できません（取り込み時に「文字なし」と表示されます）。
+    お手元のスキャンアプリや Adobe Acrobat などで<strong>先にOCR（文字認識）をかけて</strong>から取り込んでください。</p>
+  </div>
+
+  <div class="card">
+    <h3>「紙面を見る」で原本のPDFを求められます</h3>
+    <p>本アプリは原本のPDFを<strong>アプリ内に複製しません</strong>。元の場所（クラウドのフォルダなど）に
+    置いたままで構わない代わりに、紙面を新しく描くときだけ原本が必要になります。
+    表示された画面から同じPDFを選んでください。一度見たページはキャッシュされるので、次からは選び直し不要です。</p>
+    <p class="note">最初から入っている収録作品はアプリの中に原本があるため、選び直しは不要です。</p>
+  </div>
+
+  <div class="card">
+    <h3>読み取った文字が崩れています</h3>
+    <p>OCRの精度は元のPDF次第です。本アプリは縦書きページの列を座標から組み直すなどの補正をしますが、
+    文字そのものの誤認は直せません。崩れの多いページでは<strong>「紙面を見る」の案内</strong>が出ますので、
+    そちらで実際の紙面をご覧ください。</p>
+  </div>
+
+  <div class="card">
+    <h3>データのバックアップ・機種変更</h3>
+    <p>データは端末の中だけに保存されるため、アプリを削除すると消えます。
+    「本棚」の［索引を書き出す（バックアップ）］でファイルに書き出し、
+    新しい端末で［索引を読み込む］と蔵書が戻ります。</p>
+    <p class="note">書き出されるのは<strong>本文の索引だけ</strong>で、原本PDFやページ画像は含まれません
+    （画像は開けば作り直せるため）。</p>
+  </div>
+
+  <div class="card">
+    <h3>容量はどれくらい使いますか？</h3>
+    <p>本文の索引はごくわずかです（実測: 4冊352ページ・22万字で約0.7MB）。
+    容量を使うのは「紙面を見る」でキャッシュしたページ画像で、こちらは
+    「本棚」の各本の［管理］からいつでも消せます（索引と検索は残ります）。</p>
+  </div>
+
+  <div class="card">
+    <h3>対応機種</h3>
+    <p>iPhone と iPad でお使いいただけます。</p>
+  </div>
+
+  <h2>お問い合わせ</h2>
+  <div class="card">
+    <p>ご質問・ご要望・不具合のご報告は、下記メールまでお気軽にご連絡ください。</p>
+    <p><a href="mailto:info@shinsei-pm.co.jp">info@shinsei-pm.co.jp</a></p>
+  </div>
+
+  <a class="back" href="./privacy.html">プライバシーポリシー →</a>
+
+  <footer>© 2026 新誠プロパティマネジメント</footer>
+</div>
+</body>
+</html>
