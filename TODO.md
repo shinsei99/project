@@ -69,33 +69,24 @@
 > - **メインPC発の機密 tar（`apps-secrets-usernoMac-mini.tar`）を削除した。**
 >   中身13件すべてが手元に実体としてあることを1件ずつ確認してから消している
 >
-> **★メインPCに残っている作業（サブPCからは実行できない）**
+> **★メインPCで受領・実施した（2026-08-19）**
 >
-> 1. `./secrets-sync.sh import` … `apps-secrets-appurunoMacBook-Air.tar`（980K・8/18 21:24）
-> 2. メモリ実体20本を `handoff-20260818-sub-to-main-2/memory/` から取り込む（20本・168K）
-> 3. **★確認プロンプトを減らす設定**（2026-08-18 依頼）… 同じ置き場の `claude-settings/`。
->    **`.claude/` は `.gitignore` で意図的に除外されているので git では渡らない。**
->    手順は `claude-settings/README.md`（既存を消さずに合流するスクリプト付き）。
->    入れるのは**用途が限定された6件だけ**（`Bash(npm run *)` `Bash(pkill *)` `Bash(gh api *)`
->    `Bash(pip3 install *)` `WebSearch` `Read(//tmp/**)`）。
->    **`Bash(python3 *)` と `Bash(curl *)` は、サブPCでは許可しているがメインPCには渡さない**
->    （2026-08-18 判断）。`git`/`rm`/`launchctl`/`vercel`/`ftp` を許可していなくても、
->    **python3 からは削除も上書きも外部送信もできて迂回できる**ため。＝この2つだけ被害の上限が無い。
->    メインPCは常駐36本・FTP本番公開・LINE webhook・App Store を持ち、影響範囲が違う。
->    サブPCの46件のうち38件は1回きりの操作の残骸なので**持っていかない**。
->    **入れたあと、メインPCで `/fewer-permission-prompts` も回すこと**
->    （`launchctl` `lsof` `xcodebuild` `sips` などメインPCにしか出ない操作を拾うため）
-> 3-b. **★ `theta-viewer` の引き継ぎ**（2026-08-18 依頼）… **メインPCでは完成している**が、
->    サブPCには**ドキュメントが1つも来ていない**。実測した現状:
->    - `theta-viewer/README.md` が **Viteの雛形のまま**（THETA・パノラマの記述が0件）。
->      CLAUDE.md はここを「このアプリの詳細はREADMEにある」と指しているが、中身が無い
->    - `SESSION_LOG.md` と `TODO.md` が**存在しない**
->    - **これらは `.gitignore` の `!theta-viewer/**` で許可されているので git で渡せる**
->      （実測確認済み。Dropbox経由は不要）
->    → **メインPCで README を実体のある内容に書き、SESSION_LOG.md / TODO.md を作って push**
+> | 依頼 | 結果 |
+> |---|---|
+> | 1. `./secrets-sync.sh import` | ✅ **機密5件を取り込み**（brain-dump/.env.local, pasha-calo/.env.local, ai-ticket-counter/.env, theta-viewer/server/ftp-config.json, kaitori-dm-maker/senders.json）。既存13件は上書きせず据え置き |
+> | 2. メモリ実体20本 | ✅ **20/20 取り込み・540K**。索引にあって本文が無いものは**0件**になった（中身が空でないことも1本ずつ確認） |
+> | 3. 確認プロンプトを減らす設定 | ✅ 控えを取って合流したが、**6件とも既にメインPCに入っていた**（追加0件・既存51件は1件も消していない） |
+> | 3-b. `theta-viewer` のドキュメント | ✅ **README を実体のある内容に書き直し、SESSION_LOG.md / TODO.md を新規作成**（コミット `1c4b4d6`）。実物のコードを読んで書いた |
+> | 4. 置き場の削除 | ⬜ **未**（1〜3の受領は確認済み。削除してよい状態） |
 >
-> 4. **1〜3を受け取り確認したら、`handoff-20260818-sub-to-main-2/` を置き場ごと削除する**
->    （消すのは受け取った人。`ls`/`du` で memory 20本・claude-settings 4ファイルを見てから）
+> **★サブPCへ返す・要判断（2026-08-19 メインPCより）**
+>
+> - **危険な2件がメインPCには既に入っていた。** サブPCが「メインPCには渡さない」と判断した
+>   `Bash(python3 *)` と `Bash(curl *)` は、**メインPCの `settings.local.json` に既存**だった。
+>   渡さなかった理由（python3から削除・上書き・外部送信ができて他の禁止を迂回できる／
+>   メインPCは常駐36本・FTP本番公開・LINE webhook・App Storeを持つ）は今も当てはまる。
+>   **外すと確認プロンプトは増える。オーナー判断待ち。**
+> - `/fewer-permission-prompts` はまだ回していない（`launchctl` `lsof` `xcodebuild` `sips` などを拾う想定）
 
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
 詳細は各アプリの `<アプリ>/TODO.md` と `<アプリ>/SESSION_LOG.md` にある。
