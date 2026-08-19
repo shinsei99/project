@@ -191,8 +191,10 @@ export default function LibraryPage() {
                       {readable ? "文字で読める" : "図解多め"}
                     </span>
                     {b.quality != null && (
-                      <span title="本文のひらがな率（散文なら30〜45%）">
-                        読みやすさ {Math.round(b.quality * 35)}%
+                      // 取り込み画面の「読みやすさ」は 0〜100% に正規化した値。
+                      // ここは素のひらがな率なので、同じ言葉を使うと数字が食い違って見える
+                      <span title="本文のひらがな率（散文なら30〜45%）。読みやすさの根拠にしている値">
+                        ひらがな率 {Math.round(b.quality * 35)}%
                       </span>
                     )}
                     <span>{(b.textChars / 10000).toFixed(1)}万字</span>

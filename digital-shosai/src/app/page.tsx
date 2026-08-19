@@ -1,14 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CheckCircle2, AlertCircle, ShieldCheck, Loader2, Search, Library } from "lucide-react";
+import { CheckCircle2, AlertCircle, ShieldCheck, Loader2, Search, Library, BookOpen } from "lucide-react";
 import { StorageMeter } from "@/components/StorageMeter";
 import { UploadArea } from "@/components/UploadArea";
 import { extractIndex, renderCover, sourceOf, titleFromFileName } from "@/lib/pdfClient";
 import { findBookBySource, getStatus, saveIndex, setCover } from "@/lib/db";
 import { remember } from "@/lib/session";
 import { MIN_CHARS_PER_PAGE } from "@/lib/constants";
+import { BUNDLED_DONE_KEY, bundledAsFile, bundledFileName, listBundled } from "@/lib/bundled";
 import type { LibraryStatus } from "@/lib/types";
 
 type Row = {
@@ -22,6 +23,9 @@ export default function HomePage() {
   const [status, setStatus] = useState<LibraryStatus | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [running, setRunning] = useState(false);
+  const [seeding, setSeeding] = useState(false);
+  /** そのファイルが同梱の収録作品なら、その中のファイル名（本に印を付けるため） */
+  const bundledOf = useRef<Map<string, string>>(new Map());
 
   const refresh = useCallback(async () => {
     try {
@@ -71,6 +75,7 @@ export default function HomePage() {
           const book = await saveIndex(titleFromFileName(file.name), pages, source, {
             quality,
             rebuiltRatio,
+            bundled: bundledOf.current.get(file.name),
           });
           remember(book.id, file);
           // **表紙だけはここで作る**（本棚に並べるため。1冊30〜60KB程度）
@@ -94,6 +99,43 @@ export default function HomePage() {
     },
     [refresh]
   );
+
+  /**
+   * 初回だけ、同梱の収録作品（青空文庫・著作権保護期間満了）を書斎に入れる。
+   * **蔵書数では判定しない**（自分で消した本が起動のたびに戻ってくるのを防ぐため、
+   * 済んだ印を localStorage に置く）。
+   */
+  const seed = useCallback(async () => {
+    const books = await listBundled();
+    if (books.length === 0) return;
+    setSeeding(true);
+    try {
+      const files: File[] = [];
+      for (const b of books) {
+        try {
+          files.push(await bundledAsFile(b));
+          bundledOf.current.set(bundledFileName(b), b.file);
+        } catch {
+          /* 1冊開けなくても残りは入れる */
+        }
+      }
+      if (files.length) await run(files);
+    } finally {
+      setSeeding(false);
+    }
+  }, [run]);
+
+  useEffect(() => {
+    let done = false;
+    try { done = localStorage.getItem(BUNDLED_DONE_KEY) === "1"; } catch { /* noop */ }
+    if (done) return;
+    try { localStorage.setItem(BUNDLED_DONE_KEY, "1"); } catch { /* noop */ }
+    (async () => {
+      const st = await getStatus().catch(() => null);
+      if (st && st.bookCount > 0) return; // 既に本がある書斎には入れない
+      await seed();
+    })();
+  }, [seed]);
 
   const done = rows.filter((r) => r.state === "済").length;
 
@@ -119,6 +161,25 @@ export default function HomePage() {
         onFiles={run}
         onReject={(text) => setRows([{ name: "選択したファイル", state: "失敗", detail: text }])}
       />
+
+      {/* 収録作品（同梱）。初回は自動で入る。消した後で入れ直したい人のためにボタンも出す */}
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+        <BookOpen className="h-3.5 w-3.5" />
+        {seeding ? (
+          <span className="text-sky-300">収録作品（青空文庫）を書斎に入れています…</span>
+        ) : (
+          <>
+            <span>手持ちのPDFが無くても、収録作品（青空文庫・著作権保護期間が満了した作品）で試せます。</span>
+            <button
+              onClick={seed}
+              disabled={running}
+              className="rounded-lg border border-slate-700 px-2 py-1 text-slate-300 hover:bg-slate-800 disabled:opacity-40"
+            >
+              収録作品を入れる
+            </button>
+          </>
+        )}
+      </div>
 
       {rows.length > 0 && (
         <div className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900">

@@ -80,6 +80,9 @@ theta-viewer/server/ftp-config.json
 !neon-blocks/**
 !digital-shosai/
 !digital-shosai/**
+# Capacitor/Xcode 生成物（各PCで `npx cap add ios` すれば作り直せる）。
+# ★やり直すとビルド番号が1に戻るので、版数は必ず HANDOFF-APPSTORE.md の手順で確認する
+digital-shosai/ios/
 !building-manager/
 !building-manager/**
 building-manager/node_modules/

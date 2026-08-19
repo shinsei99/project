@@ -10,6 +10,7 @@ import { highlight } from "@/lib/highlight";
 import { PAGE_GARBLED_HIRAGANA, READABLE_QUALITY, READER_DEFAULTS } from "@/lib/constants";
 import { cacheImage, getBookPages, getCachedImageUrl, getBook, relinkSource, setLastRead, type BookRecord, type ReadPage } from "@/lib/db";
 import { recall, remember } from "@/lib/session";
+import { bundledUrl } from "@/lib/bundled";
 import { renderPage, sourceOf } from "@/lib/pdfClient";
 
 type View = "text" | "image";
@@ -31,6 +32,9 @@ export default function ReadPage() {
   const [font, setFont] = useState(READER_DEFAULTS);
   const fileInput = useRef<HTMLInputElement>(null);
   const bookIdRef = useRef<string>("");
+  const shellRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [shellHeight, setShellHeight] = useState<number>();
 
   // 起動時: クエリから本とページを決める（静的書き出しなので window から読む）
   useEffect(() => {
@@ -61,6 +65,56 @@ export default function ReadPage() {
   useEffect(() => {
     if (book && current) setLastRead(book.id, current);
   }, [book, current]);
+
+  /**
+   * 読む枠の高さを画面いっぱいに固定する。
+   *
+   * ページごとに文章量が違うので、枠が中身に合わせて伸び縮みすると
+   * 「前のページ／次のページ」のボタンが毎回動いて押しづらい。
+   * → 枠は画面の残り全部で固定し、長い文章は**枠の中でスクロール**させる。
+   * 端末や向きで余白が変わるので、実際の位置を測って決める（env() の計算に依存しない）。
+   */
+  useEffect(() => {
+    const typing = () => {
+      const el = document.activeElement;
+      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+    };
+    /**
+     * 入力欄を触るとキーボードが出て、iOSが**ページごと上へずらす**。
+     * 閉じても戻らないので、見出しが時計の下に潜ったままになる（実機で確認）。
+     * → 入力していないときは必ず先頭へ戻してから測り直す。
+     */
+    const fit = () => {
+      const el = shellRef.current;
+      if (!el || typing()) return;
+      // 横にもずれる（変換候補バーが出たとき）。縦だけ見ていると直らない
+      if (window.scrollX !== 0 || window.scrollY !== 0) window.scrollTo(0, 0);
+      const top = el.getBoundingClientRect().top;
+      const safeBottom = parseFloat(getComputedStyle(document.body).paddingBottom) || 0;
+      const mainBottom = 24; // <main> の py-6
+      setShellHeight(Math.max(320, window.innerHeight - top - safeBottom - mainBottom));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    window.addEventListener("orientationchange", fit);
+    window.addEventListener("scroll", fit, { passive: true });
+    window.visualViewport?.addEventListener("resize", fit);
+    // 入力欄から離れた直後にも戻す（キーボードが閉じても resize が来ない端末がある）
+    const onOut = () => setTimeout(fit, 50);
+    window.addEventListener("focusout", onOut);
+    return () => {
+      window.removeEventListener("focusout", onOut);
+      window.removeEventListener("resize", fit);
+      window.removeEventListener("orientationchange", fit);
+      window.removeEventListener("scroll", fit);
+      window.visualViewport?.removeEventListener("resize", fit);
+    };
+  }, [pages]);
+
+  // ページを移ったら枠の中身は先頭から読む（前のページの読み位置が残らないように）
+  useEffect(() => {
+    bodyRef.current?.scrollTo({ top: 0 });
+  }, [current, view]);
 
   const page = useMemo(() => pages?.find((p) => p.pageNumber === current) ?? null, [pages, current]);
 
@@ -106,7 +160,17 @@ export default function ReadPage() {
           setImageState("idle");
           return;
         }
-        const src = file ?? recall(book.id);
+        // 同梱の収録作品は原本がアプリの中にあるので、選び直してもらわずに自分で開く
+        let src = file ?? recall(book.id);
+        if (!src && book.bundled) {
+          const res = await fetch(bundledUrl(book.bundled));
+          if (res.ok) {
+            src = new File([await res.blob()], book.source?.fileName ?? book.bundled, {
+              type: "application/pdf",
+            });
+            remember(book.id, src);
+          }
+        }
         if (!src) {
           setImageState("need-file");
           return;
@@ -156,9 +220,10 @@ export default function ReadPage() {
   }
 
   return (
-    <div className="space-y-4">
+    // 枠とボタンの位置を固定する（高さは実測。JSが動く前は自然な高さで出す）
+    <div ref={shellRef} className="flex flex-col gap-3" style={{ height: shellHeight }}>
       {/* 見出しと操作 */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-none flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
           <Link href="/library" className="rounded-lg p-1.5 hover:bg-slate-800" aria-label="本棚へ戻る">
             <ArrowLeft className="h-5 w-5" />
@@ -215,10 +280,15 @@ export default function ReadPage() {
         </div>
       </div>
 
+      {/* 読む枠（高さ固定・中身だけスクロール）。本文と紙面はこの中で切り替える */}
+      <div
+        ref={bodyRef}
+        className="thin-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-xl border border-slate-800 bg-slate-900/60"
+      >
       {/* 本文 */}
       {view === "text" && (
         <article
-          className="mx-auto rounded-xl border border-slate-800 bg-slate-900/60 px-5 py-6"
+          className="mx-auto px-5 py-6"
           style={{
             maxWidth: "38em",
             fontSize: `${font.fontSize}px`,
@@ -253,7 +323,7 @@ export default function ReadPage() {
 
       {/* 紙面（原本から都度描画してキャッシュ） */}
       {view === "image" && (
-        <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-4">
+        <div className="p-4">
           {imageState === "loading" && (
             <div className="flex h-64 items-center justify-center gap-2 text-slate-400">
               <Loader2 className="h-5 w-5 animate-spin" /> ページを描いています…
@@ -302,9 +372,10 @@ export default function ReadPage() {
           )}
         </div>
       )}
+      </div>
 
-      {/* ページ送り */}
-      <div className="flex items-center justify-between gap-2">
+      {/* ページ送り（枠の下に固定。ページを移っても動かない） */}
+      <div className="flex flex-none items-center justify-between gap-2">
         <button
           onClick={() => move(-1)}
           disabled={current <= 1}
@@ -328,7 +399,8 @@ export default function ReadPage() {
                 setImageState("idle");
               }
             }}
-            className="w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-center text-sm text-slate-100"
+            /* 16px未満だと iOS が触った瞬間に画面を拡大し、枠がずれて見える。text-base のままにする */
+            className="w-20 rounded-lg border border-slate-700 bg-slate-900 px-2 py-1 text-center text-base text-slate-100"
           />
           / {total}
         </label>

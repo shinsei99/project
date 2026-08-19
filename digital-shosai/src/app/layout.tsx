@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { BookMarked, Upload, Search, Library } from "lucide-react";
 import { StorageGuard } from "@/components/StorageGuard";
@@ -7,6 +7,14 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "デジタル書斎 — 自分専用ナレッジベース",
   description: "OCR済みPDFを取り込み、全文検索できるパーソナル書斎",
+};
+
+// iOSアプリでは画面いっぱいに描くため viewport-fit=cover が要る（余白は globals.css の env() で確保）
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#0f172a",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

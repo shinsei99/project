@@ -36,6 +36,11 @@ export interface BookRecord {
   rebuiltRatio?: number;
   /** しおり（最後に読んでいたページ） */
   lastReadPage?: number;
+  /**
+   * 同梱の収録作品なら、`public/books/` の中のファイル名。
+   * 原本がアプリの中にあるので、紙面表示のときに選び直してもらう必要がない。
+   */
+  bundled?: string;
 }
 
 /** 表紙（1ページ目）のサムネイル。取り込み時に作る唯一の画像 */
@@ -255,7 +260,7 @@ export async function saveIndex(
   title: string,
   pages: NewPageText[],
   source: BookSource,
-  meta: { quality?: number; rebuiltRatio?: number } = {}
+  meta: { quality?: number; rebuiltRatio?: number; bundled?: string } = {}
 ): Promise<BookRecord> {
   const db = await getDB();
   const bookId = uuid();
@@ -271,6 +276,7 @@ export async function saveIndex(
     quality: meta.quality,
     rebuiltRatio: meta.rebuiltRatio,
     lastReadPage: 1,
+    bundled: meta.bundled,
   };
 
   const tx = db.transaction(["books", "pageText"], "readwrite");
