@@ -1327,7 +1327,7 @@ function buildMemoPreview(div, el) {
       flushText();
       if (b.showOnCard !== false) {
         const im=document.createElement('img'); im.className='sp-img';
-        im.src=b.src; im.draggable=false;
+        setBlockImg(im,b); im.draggable=false;
         if (b.imgW) im.style.width=b.imgW+'%';
         inner.appendChild(im);
         div.classList.add('photo-card');
@@ -1338,6 +1338,13 @@ function buildMemoPreview(div, el) {
   div.appendChild(inner);
 }
 
+/** 画像ブロックを拡大表示する（imgId は IndexedDB から読んでから開く） */
+function openImgBlockLightbox(b) {
+  if (!b) return;
+  if (b.src) { openImgLightbox(b.src); return; }      // 旧形式
+  if (!b.imgId) return;
+  imgGet(b.imgId).then(d=>{ if(d) openImgLightbox(d); });
+}
 function openImgLightbox(src) {
   let lb=document.getElementById('img-lightbox');
   if (!lb) {
@@ -1472,7 +1479,7 @@ function setupScrapDrag(div, el, canvas, rz) {
         }
         else if (tapTarget?.closest('.sp-img')) {
           const imgBlock = el.blocks?.find(b => b.type === 'image');
-          if (imgBlock) openImgLightbox(imgBlock.src);
+          if (imgBlock) openImgBlockLightbox(imgBlock);
         }
         else if (tapTarget?.closest('.sp-link')) {
           const lnk=tapTarget.closest('.sp-link');
@@ -1703,13 +1710,20 @@ function addPhotoToPage(ev) {
   const file=ev.target.files[0]; if (!file) return;
   const reader=new FileReader();
   reader.onload=e=>shrinkImageDataURL(e.target.result, src=>{
-    const el={id:nid(),type:'memo',x:Math.floor(Math.random()*80+16),y:Math.floor(Math.random()*70+16),
-      w:196,rot:randRot(),sourceUrl:'',deco:randDeco(),
-      blocks:[{id:nid(),type:'image',src,caption:file.name.replace(/\.[^.]+$/,'')}]};
-    pages[curIdx].elements.push(el);
-    const cv=document.getElementById('canvas');
-    if (cv) { cv.querySelector('.empty-hint')?.remove(); drawScrap(el,cv); }
-    soundPeta(); touchPage(); save(); toast('写真を追加しました 📷');
+    // 画像本体は IndexedDB へ。メモ側は imgId だけ持つ（localStorageの5MB上限を使わない）
+    const imgId='img_'+nid();
+    imgPut(imgId,src).then(()=>{
+      const el={id:nid(),type:'memo',x:Math.floor(Math.random()*80+16),y:Math.floor(Math.random()*70+16),
+        w:196,rot:randRot(),sourceUrl:'',deco:randDeco(),
+        blocks:[{id:nid(),type:'image',imgId,caption:file.name.replace(/\.[^.]+$/,'')}]};
+      pages[curIdx].elements.push(el);
+      const cv=document.getElementById('canvas');
+      if (cv) { cv.querySelector('.empty-hint')?.remove(); drawScrap(el,cv); }
+      soundPeta(); touchPage(); save(); toast('写真を追加しました 📷');
+    }).catch(err=>{
+      console.error('[addPhotoToPage] 画像の保存に失敗:', err);
+      toast('⚠️ 写真を保存できませんでした');
+    });
   });
   reader.readAsDataURL(file); ev.target.value='';
 }
@@ -2026,7 +2040,7 @@ function makeBlockDOM(b) {
     requestAnimationFrame(()=>autoSize(ta));
   } else {
     const iw=document.createElement('div'); iw.className='block-img-wrap';
-    const img=document.createElement('img'); img.src=b.src; img.draggable=false;
+    const img=document.createElement('img'); setBlockImg(img,b); img.draggable=false;
     const imgW=b.imgW||80;
     img.style.width=imgW+'%';
     const sr=document.createElement('div'); sr.className='block-img-size';
@@ -2074,8 +2088,15 @@ function addImageBlock(ev) {
   const file=ev.target.files[0]; if (!file) return;
   const reader=new FileReader();
   reader.onload=e=>shrinkImageDataURL(e.target.result, src=>{
-    const b={id:nid(),type:'image',src,caption:file.name.replace(/\.[^.]+$/,''),imgW:80};
     if (!editEl) return;
+    // 画像本体は IndexedDB へ。ブロックは imgId だけ持つ
+    const imgId='img_'+nid();
+    imgCache.set(imgId,src);      // 直後の描画で即出せるよう先にキャッシュへ
+    imgPut(imgId,src).catch(err=>{
+      console.error('[addImageBlock] 画像の保存に失敗:', err);
+      toast('⚠️ 写真を保存できませんでした');
+    });
+    const b={id:nid(),type:'image',imgId,caption:file.name.replace(/\.[^.]+$/,''),imgW:80};
     const ed=document.getElementById('memo-editor');
     const focused=ed.querySelector('.block-textarea:focus,.block-check-text:focus');
     const afterWrap=focused?.closest('.block-wrap');
@@ -2454,6 +2475,9 @@ function confirmEmptyTrash() {
   `;
 }
 function emptyTrash() {
+  // ★IndexedDBの画像も消す。消さないとメモは消えても写真の実体が残り続け、
+  //   本体の容量を食い潰す（localStorage時代は道連れで消えていたので不要だった処理）。
+  trash.forEach(t=>collectImgIds(t.element).forEach(imgDel));
   trash=[];
   save(); renderTrashSheet();
   const foot=document.getElementById('trash-foot');
@@ -2470,7 +2494,121 @@ function save() {
     localStorage.setItem('snb6p',JSON.stringify(pages));
     localStorage.setItem('snb6i',curIdx);
     localStorage.setItem('snb6trash',JSON.stringify(trash));
-  } catch(e){}
+    return true;
+  } catch(e){
+    // ★ここを握りつぶさない（2026-08-19）。
+    //   以前は catch(e){} だったため、上限を超えても画面上は貼れているように見え、
+    //   警告も出ないまま次回起動で消えていた（3.0MBの画像で実測）。
+    //   localStorage の上限は WebKit が掛けている約5,100KB で、本体の空き容量とは無関係。
+    const quota = e && (e.name==='QuotaExceededError' || e.code===22 || e.code===1014);
+    console.error('[save] 保存に失敗:', e);
+    toast(quota
+      ? '⚠️ 保存できませんでした（容量オーバー）。不要なページや写真を消してください'
+      : '⚠️ 保存できませんでした: '+(e&&e.name||e));
+    return false;
+  }
+}
+
+// ══════════════════════════════════════════
+//  画像ストア（IndexedDB）
+//  なぜ localStorage から出したか（2026-08-18に実測して判明）:
+//    localStorage の上限は WebKit 固定の 5,100KB で、設定でもCapacitorでも広げられない。
+//    同じ端末で navigator.storage.estimate() の quota は 9,830MB。
+//    ＝ 画像だけ IndexedDB へ移せば、実質「本体の空き容量が上限」になる。
+//  メモ側は画像の中身を持たず imgId だけを持つ。本体（dataURL）はこのストアにある。
+// ══════════════════════════════════════════
+const IMG_DB='snb6img', IMG_STORE='img';
+let _imgDB=null;
+const imgCache=new Map();          // imgId -> dataURL（描画のたびに読み直さない）
+
+function imgDB() {
+  if (_imgDB) return Promise.resolve(_imgDB);
+  return new Promise((res,rej)=>{
+    const rq=indexedDB.open(IMG_DB,1);
+    rq.onupgradeneeded=()=>{ if(!rq.result.objectStoreNames.contains(IMG_STORE)) rq.result.createObjectStore(IMG_STORE); };
+    rq.onsuccess=()=>{ _imgDB=rq.result; res(_imgDB); };
+    rq.onerror=()=>rej(rq.error);
+  });
+}
+function imgPut(id, dataUrl) {
+  return imgDB().then(db=>new Promise((res,rej)=>{
+    const tx=db.transaction(IMG_STORE,'readwrite');
+    tx.objectStore(IMG_STORE).put(dataUrl,id);
+    tx.oncomplete=()=>{ imgCache.set(id,dataUrl); res(id); };
+    tx.onerror=()=>rej(tx.error);
+  }));
+}
+function imgGet(id) {
+  if (imgCache.has(id)) return Promise.resolve(imgCache.get(id));
+  return imgDB().then(db=>new Promise((res,rej)=>{
+    const rq=db.transaction(IMG_STORE,'readonly').objectStore(IMG_STORE).get(id);
+    rq.onsuccess=()=>{ if(rq.result) imgCache.set(id,rq.result); res(rq.result||''); };
+    rq.onerror=()=>rej(rq.error);
+  })).catch(()=> '');
+}
+function imgDel(id) {
+  imgCache.delete(id);
+  return imgDB().then(db=>new Promise(res=>{
+    const tx=db.transaction(IMG_STORE,'readwrite');
+    tx.objectStore(IMG_STORE).delete(id);
+    tx.oncomplete=res; tx.onerror=res;      // 消せなくても本処理は止めない
+  })).catch(()=>{});
+}
+
+/** img要素に画像を入れる。旧形式(src=dataURL)も新形式(imgId)も同じ入口で扱う。 */
+function setBlockImg(imgEl, b) {
+  if (!imgEl || !b) return;
+  if (b.src) { imgEl.src=b.src; return; }              // 旧形式（移行前のデータ）
+  if (!b.imgId) return;
+  if (imgCache.has(b.imgId)) { imgEl.src=imgCache.get(b.imgId); return; }
+  imgGet(b.imgId).then(d=>{ if(d) imgEl.src=d; });     // 非同期に後から入る
+}
+
+/** 全ブロックを走査して、指定の処理を当てる（移行・削除で使う） */
+function eachImageBlock(fn) {
+  const scan=els=>(els||[]).forEach(el=>(el.blocks||[]).forEach(b=>{ if(b.type==='image') fn(b); }));
+  (pages||[]).forEach(p=>scan(p.elements));
+  (trash||[]).forEach(t=>{ if(t.element) scan([t.element]); });
+}
+
+/** どこからも参照されていない画像を IndexedDB から消す（起動時の掃除）。
+
+  メモを消せば moveToTrash → purgeTrashed/emptyTrash で実体も消えるが、それでも
+  取りこぼしは出る（localStorageだけ初期化された・保存に失敗して参照が残らなかった等）。
+  localStorage時代は画像がJSONの中にいたので道連れで消えていたが、別ストアに分けた以上
+  **孤児は誰も消さないまま容量を食い続ける**。ここで拾う。
+*/
+function gcOrphanImages() {
+  const used=new Set();
+  eachImageBlock(b=>{ if(b.imgId) used.add(b.imgId); });
+  return imgDB().then(db=>new Promise(res=>{
+    const rq=db.transaction(IMG_STORE,'readonly').objectStore(IMG_STORE).getAllKeys();
+    rq.onsuccess=()=>{
+      const orphans=(rq.result||[]).filter(k=>!used.has(k));
+      if(!orphans.length){ res(0); return; }
+      Promise.all(orphans.map(imgDel)).then(()=>{
+        console.log('[gc] 参照されていない画像 '+orphans.length+' 枚を削除しました');
+        res(orphans.length);
+      });
+    };
+    rq.onerror=()=>res(0);
+  })).catch(()=>0);
+}
+
+/** 旧データ（src=dataURL）を IndexedDB へ移す。起動時に1回だけ走る。 */
+function migrateImagesToIDB() {
+  const targets=[];
+  eachImageBlock(b=>{ if(b.src && !b.imgId) targets.push(b); });
+  if (!targets.length) return Promise.resolve(0);
+  return Promise.all(targets.map(b=>{
+    const id='img_'+nid();
+    return imgPut(id,b.src).then(()=>{ b.imgId=id; delete b.src; }).catch(()=>{});
+  })).then(()=>{
+    // 画像を localStorage から抜いたぶん、ここで確実に空きが戻る
+    const ok=save();
+    console.log('[migrate] 画像 '+targets.length+' 枚を IndexedDB へ移しました（保存: '+ok+'）');
+    return targets.length;
+  });
 }
 function load() {
   try {
@@ -2488,7 +2626,15 @@ function load() {
 }
 function purgeTrashed() {
   const cutoff=new Date(Date.now()-30*86400000).toISOString();
+  const gone=trash.filter(t=>t.deletedAt<=cutoff);
+  gone.forEach(t=>collectImgIds(t.element).forEach(imgDel));   // 画像の実体も一緒に消す
   trash=trash.filter(t=>t.deletedAt>cutoff);
+}
+
+/** 要素が抱えている imgId を集める（削除時の後始末用） */
+function collectImgIds(el) {
+  if (!el) return [];
+  return (el.blocks||[]).filter(b=>b.type==='image'&&b.imgId).map(b=>b.imgId);
 }
 function moveToTrash(el) {
   trash.push({
@@ -2648,6 +2794,12 @@ addEventListener('scroll', () => {
 
 if (!load()) pages=mkData();
 renderPage();
+
+// 旧データ（画像を localStorage に dataURL で持っていたもの）を IndexedDB へ移す。
+// 移し終えたら画面を描き直して、移行後の imgId 経由でも写真が出ることを確かめる。
+migrateImagesToIDB().then(n=>{ if(n){ renderPage(); toast('写真 '+n+' 枚を本体保存へ移しました 📦'); } })
+                    .then(()=>gcOrphanImages())      // 参照の切れた画像を掃除（容量を食い続けさせない）
+                    .catch(e=>console.error('[migrate] 失敗:', e));
 
 // iOSのキーボード上に出る「入力補助バー(inputAccessoryView)」を消す。
 // テキスト欄の最下部を隠して選択の邪魔になるだけで用途が薄いため（Chrome等も非表示）。
