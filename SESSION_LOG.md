@@ -40,13 +40,37 @@
 - **新規作成した `GOOGLE_MAPS_API.md` が `.gitignore` の `*` で無視されていた**（既知の落とし穴）
   → 許可行 `!GOOGLE_MAPS_API.md` を追加。`git add -n` で追跡できることまで確認した
 
+### 追記（同日・キーの取得まで完了した）
+
+- **gcloud CLI を導入した**（581.0.0）。`~/.local/google-cloud-sdk`・**sudo不要**（`gh`と同じ流儀）。
+  **gcloud は Python 3.10〜3.14 が要る**（`/usr/bin/python3` は 3.9.6 で動かない）ので、
+  brew の `python3.11` を `CLOUDSDK_PYTHON` で指す設定を `~/.zshrc` に入れた
+- **Cloud プロジェクト `daikyo-maps-2026` を作り、Gemini と同じ請求先を紐づけた**（カード再入力なし）。
+  **Gemini とは別プロジェクトにした**のが要点 — Generative Language API が有効なプロジェクトでは
+  **既存のAPIキー全部が Gemini にも通る**ため、公開ページに載せる Maps キーと同居させられない
+- **キー2本を発行**（公開ページ用＝リファラ制限 / サーバー用＝API種別制限）。
+  値は画面に出さず `.env.google-maps`（600）へ直接書き、`secrets-manifest.txt` に登録
+- **実際に叩いて確認した**: Geocoding は `status: OK`（本町4-2-12 → 34.6833416, 135.5001744）、
+  Street View metadata も `status: OK`（**2021-08 撮影のパノラマあり**）
+- **Maps API / Drive API を有効化**（Embed / Street View Static / Geocoding / Directions / Static Maps ＋ Drive）
+- `./secrets-sync.sh export` でメインPCへ渡す tar を作成（980K・27件。`.env.google-maps` の同梱を確認）
+
+### 発生したエラーと解決策（追記分）
+
+- `gcloud` が Python 3.9 で `TypeError: unsupported operand type(s) for |` を吐いて起動しない
+  → gcloud 581 は Python 3.10〜3.14 必須。brew の 3.11 を `CLOUDSDK_PYTHON` に指定して解決
+- `~/.zshrc` に PATH を追記しても、**すでに開いているシェルには効かない** → フルパスで叩いた
+
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **未確認**: Maps Demo Key の対応API一覧に **Street View Static が載っていない**。
-  本命のストリートビュー検証が Demo Key でできるかは不明。触って確かめる必要がある
-- 着手するなら `jyuusetsu-research` に別タブでストリートビュー（公開課金なし・印刷なし＝
-  規約リスクが最も低い）。手順は `GOOGLE_MAPS_API.md` の「4. 導入するならこの順」
-- **契約するかどうかは人の判断待ち**（カード登録が発生するため、自律では進めない）
+- **サーバー用キーに IP 制限が未設定**（事務所の固定グローバルIPが不明）。分かり次第かける
+- **予算アラート・日次クォータが未設定。** Gemini と同じカードなので合算で請求が来る
+- **Drive API は有効化しただけ**。使うには OAuth 同意画面の設定が要る
+- **★メインPCで `./secrets-sync.sh import` → 受け取り確認 → Dropboxの置き場を削除**
+- 国税庁・日本郵便のAPIは**本人申請が必要**なので未取得（TODO.md の横断作業を見る）
+- ~~Demo Key で Street View が試せるか未確認~~ → **通常キーを取得したので不要になった**
+- **次の一手**: `jyuusetsu-research` に別タブでストリートビュー
+  （公開課金なし・印刷なし＝規約リスクが最も低い）。手順は `GOOGLE_MAPS_API.md` の「4. 使う順」
 
 ## 2026-08-18（サブPC）— メインPCからの引き継ぎを受領し、依頼①〜④を実行した
 

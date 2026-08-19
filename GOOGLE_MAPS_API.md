@@ -1,7 +1,52 @@
-# Google Maps Platform — 導入前の裏取り（2026-08-19・サブPCで調査）
+# Google Maps Platform — 裏取りと取得の記録（2026-08-19・サブPC）
 
-**まだ契約していない。キーも取っていない。** 導入するかどうかを決めるために、
-**料金体系と利用規約を一次情報（Google公式）で確認した記録**。
+**2026-08-19 に取得済み。** 下の「取得の記録」を見ること。
+本文は、導入を決める前に**料金体系と利用規約を一次情報（Google公式）で確認した記録**。
+
+---
+
+## 取得の記録（2026-08-19・サブPCで実施）
+
+| 項目 | 値 |
+|---|---|
+| Cloud プロジェクト | **`daikyo-maps-2026`**（表示名 Daikyo Maps） |
+| 請求先アカウント | `019EA9-7BA976-F67AF2`（**Gemini と同じカード。再入力なしで流用した**） |
+| ログイン | `daikyocorp.s@gmail.com` |
+| 有効化したAPI | Maps Embed / Street View Static / Geocoding / Directions / Maps Static ＋ **Drive API** |
+| キーの置き場 | **`.env.google-maps`（直下・gitignore・パーミッション600）**。`secrets-manifest.txt` に登録済み＝`./secrets-sync.sh` で2台に渡る |
+
+**発行したキーは2本。用途で分けてある。**
+
+| 変数名 | 制限 | 使うAPI |
+|---|---|---|
+| `GOOGLE_MAPS_WEB_KEY` | **HTTPリファラ `https://daikyocorp.co.jp/*`** | Maps Embed / Maps Static |
+| `GOOGLE_MAPS_SERVER_KEY` | **API種別で制限**（IP制限は未設定・下記） | Geocoding / Directions / Street View Static / Maps Static |
+
+**動作確認済み**（2026-08-19・実際に叩いた）:
+
+- Geocoding … 「大阪市中央区本町4-2-12」→ `status: OK` / 34.6833416, 135.5001744
+- Street View metadata … 同座標に **2021-08 撮影のパノラマあり**（`status: OK`）
+
+### ★ なぜ Gemini とは別プロジェクトなのか（最重要）
+
+Google のAPIキー（`AIza…`）は、**プロジェクトで Generative Language API（Gemini のバックエンド）が
+有効になっていると、そのプロジェクトの既存キー全部が Gemini エンドポイントにも通る**仕様になっている。
+キーを作り直さなくても、黙って権限が増える。
+
+Maps のキーは**公開HTMLに載る**（物件サイトはFTPで `daikyocorp.co.jp` に上がる公開物）。
+同じプロジェクトで取っていたら、**誰でも読めるキーで Gemini を叩かれ、請求は同じカードに乗っていた。**
+
+→ **`daikyo-maps-2026` では Generative Language API を絶対に有効化しない。**
+Gemini 側（`Default Gemini Project`）にも Maps を足さない。
+
+### 残っている宿題
+
+- **サーバー用キーにIP制限がかかっていない**（事務所の固定グローバルIPが不明なため）。
+  IPが分かり次第 `gcloud services api-keys update` で足すこと。
+  当面の安全弁は「このプロジェクトに Gemini が無いこと」＋「API種別の制限」
+- **予算アラートと日次クォータ上限が未設定。** 同じカードに Gemini と相乗りしているので、
+  Maps 側が暴走すると合算で請求が来る
+- **Drive API は有効化しただけ**。実際に使うには OAuth クライアント（同意画面）の設定が別途要る
 
 結論を一行で言うと —
 **「画面で見る」用途はほぼ無料・制約なし。「保存する・印刷する・AIに読ませる」用途は規約で塞がれている。**
@@ -116,20 +161,20 @@
 
 ---
 
-## 4. 導入するならこの順
+## 4. 使う順（キーは取得済みなので、あとは組み込むだけ）
 
-1. **Demo Key で `jyuusetsu-research` に別タブでストリートビューを出す**
-   （社内画面のみ＝公開課金なし、印刷しない＝規約リスクなし、代替不可能な価値）
-2. 手応えがあれば通常キーへ（**ここで初めてカード登録**）
-3. 物件サイト（`flyer-creator` → FTP）に Embed で地図＋ストリートビュー
+1. **`jyuusetsu-research` に別タブでストリートビュー**
+   （社内画面のみ＝公開課金なし、印刷しない＝規約リスクなし、代替不可能な価値）← 次の一手
+2. 物件サイト（`flyer-creator` → FTP）に Embed で地図＋ストリートビュー（`GOOGLE_MAPS_WEB_KEY`）
+3. 徒歩分数を道路距離に（Directions・`GOOGLE_MAPS_SERVER_KEY`）
 4. 紙チラシの案内図（Maps Static＋帰属表示。**部数5,000を超えない**運用を決めてから）
 
-### キーの置き場（着手時に守ること）
+### 組み込むときに守ること
 
-- **フロントに出るキー**（Embed / Maps JS）は **HTTPリファラ制限**を必ずかける。
-  物件サイトは FTP で `daikyocorp.co.jp` に上がる**公開物**なので、キーがHTMLに残る
-- **サーバー側キー**（Geocoding / Places / Directions）は **IP制限**
-- 置き方はこのリポジトリの流儀に乗せる: `.env` を gitignore ＋ `./secrets-sync.sh` で2台に配る
+- 読み込みは `.env.google-maps` から。**コードにキーを直接書かない**
+- 公開ページに出すのは **`GOOGLE_MAPS_WEB_KEY`（リファラ制限つき）だけ**。
+  サーバー用キーを HTML に出さない（API種別の制限しか掛かっていない）
+- 帰属表示（Googleロゴ／"Google Maps" の文字）を消さない・改変しない
 
 ---
 

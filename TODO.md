@@ -168,15 +168,20 @@
 
 ## 横断作業（複数アプリにまたがるもの）
 
-- **Google Maps / ストリートビュー API の導入可否を裏取りした（2026-08-19・サブPC）。**
-  調査結果は **`GOOGLE_MAPS_API.md`（直下）**。**まだ契約もキー取得もしていない。**
-  要点: ①料金は $200/月クレジット廃止→API別の月次無料枠。**Embed は無制限無料**で実質 $0
-  ②**通常キーはカード必須**、Demo Key はカード不要（日次上限・本番不可）
-  ③**規約で2案が不可になった** — `parking-map` の航空写真トレース（3.2.3(c)(i)）と
-  `kaitori-dm-maker` のSV外観AI判定（3.2.3(c)(vii)）
-  ④**ストリートビューは印刷不可**、地図は5,000部まで可（帰属表示必須）
-  ⑤SVと非Googleの地図は同一画面に出せない → `jyuusetsu-research` は別タブにする。
-  **次の一手は `jyuusetsu-research` に別タブでSV。ただし契約は人の判断待ち（カード登録が要る）**
+- **Google Maps / ストリートビュー API を取得した（2026-08-19・サブPC）。詳細は `GOOGLE_MAPS_API.md`。**
+  プロジェクト **`daikyo-maps-2026`**（**Gemini とは別プロジェクト**。同じだと公開ページに載せた
+  キーで Gemini を叩かれるため）。請求先は Gemini と同じ口を流用＝**カード再入力なし**。
+  キー2本は **`.env.google-maps`（直下・gitignore・600）**。`secrets-manifest.txt` に登録済み。
+  **Geocoding と Street View は実際に叩いて動作確認済み**（本町4-2-12 / 2021-08撮影のパノラマ）。
+  - **★メインPCでやること: `./secrets-sync.sh import` で受け取る。**
+    置き場 `Dropbox-個人/apps-secrets-handoff/apps-secrets-appurunoMacBook-Air.tar`（980K・27件）。
+    **受け取りを確認したら、置き場ごと削除する**（消すのは受け取った人）
+  - 未了: サーバー用キーの**IP制限**（事務所の固定IPが不明）／**予算アラートと日次クォータ**／
+    Drive API は有効化しただけで **OAuth同意画面の設定が未了**
+  - 規約で**不可**になった案: `parking-map` の航空写真トレース（3.2.3(c)(i)）と
+    `kaitori-dm-maker` のSV外観AI判定（3.2.3(c)(vii)）。**SVは印刷物にも使えない**
+  - **次の一手**: `jyuusetsu-research` に別タブでストリートビュー
+    （SVと非Googleの地図は同一画面に出せないので、必ず別タブ）
 
 - **iOSシミュレータを操作する道具を直下に置いた（`simtap.py`・2026-08-19）。**
   `xcrun simctl` にはタップが無いので、画面を見て直ったか確かめられなかった。
