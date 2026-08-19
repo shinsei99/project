@@ -73,6 +73,19 @@
 - **`x-forwarded-for` は自分のグローバルIPで通る**（`api.ipify.org` で自動判定して控える作りにした）
 - Chrome拡張が未接続でブラウザ操作はできなかった（ポータルは本人が操作）
 
+### 追記3（同日・翌日の再開点を1枚にまとめた）
+
+- **`API_STATUS.md` を直下に作った。** 明日の作業「APIの取得と整理」はここから再開する。
+  棚卸し（持っている／持っていない）・申請の文面・規約で不可と決めた案・不具合2件を1枚に集約
+- **`./secrets-sync.sh export` をやり直した**（`.env.japanpost` を含めるため）。
+  1.0M・28件。`.env.google-maps` と `.env.japanpost` が tar に入っていることを確認済み
+- **調査で見つかった不具合2件**（新しいAPIを取るより先に効く）:
+  - `jyuusetsu-research/services/zoning_service.py:18` が `XKT001` を叩いている。
+    用途地域は `XKT002` が正（`legal-crosscheck` 側は正しい）。**キーはあるのに機能が死んでいる**
+  - `jyuusetsu-research/services/population_service.py:44` は **e-Stat を呼んでいない**。
+    `ESTAT_APP_ID` 未設定なのも事実だが、**設定しても直らない**（APIコールが未実装）。
+    最初「appIdが無いから空欄」と説明したが、コードを読んで訂正した
+
 ### 次回への引き継ぎ事項・未解決の課題
 
 - **日本郵便は本番の資格情報が未発行。** ポータルで組織・システム登録が要る。

@@ -21,6 +21,8 @@
 !SETUP.md
 # Google Maps Platform の導入前調査（料金・規約の裏取り）。6アプリにまたがるので直下に置く
 !GOOGLE_MAPS_API.md
+# APIの棚卸しと段取り（どのAPIを持っていて、次に何を取るか）。明日の再開点
+!API_STATUS.md
 !dev-doctor.py
 !dev-setup.sh
 !secrets-sync.sh
