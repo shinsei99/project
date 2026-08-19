@@ -1,80 +1,101 @@
-# React + TypeScript + Vite
+# THETAパノラマ3D空間化（theta-viewer）
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+RICOH THETA で撮った**全天球写真（エクイレクタングラー）をブラウザ内でAI解析し、
+Three.js で「奥行きのある3D空間」として歩けるようにする**VR内覧システム。
+物件ごとにURLを発行して、お客様に部屋を見てもらう。
 
-Currently, two official plugins are available:
+> 全アプリ共通の運用ルールは直下の `CLAUDE.md`、計画は `TODO.md`、作業履歴は `SESSION_LOG.md`。
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 何ができるか
 
-## React Compiler
+- THETAの写真を放り込むと、**AIが奥行きを推定**して球体を凹凸に変形する
+  （ただの360度写真ではなく、手前と奥が立体的に見える）
+- 部屋どうしを**ピンで繋いで移動**できる（玄関→廊下→洋室…と歩ける）
+- 完成した空間は**自社サーバーへFTPで公開**され、URLをお客様に送るだけで見てもらえる
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+| 用途 | URL |
+|---|---|
+| 管理・作成（社内） | `http://localhost:8512/` （社内LANは `192.168.1.105:8512`） |
+| お客様向け公開 | `https://daikyocorp.co.jp/vr/#/property/<id>` |
 
-## Expanding the ESLint configuration
+## 構成（2プロセス）
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+ブラウザ（React + Three.js / port 8512）
+   ├ 物件一覧 /            … 公開済み物件を一覧（daikyocorp.co.jp/vr/index.json を読む）
+   ├ 新規作成 /admin       … 写真をアップ → AI解析 → ピン配置 → 公開
+   ├ 閲覧     /property/:id … お客様が見る画面
+   └ 編集     /edit/:id     … 公開済み物件の差し替え・ピン修正
+        │
+        │ ローカルAPI（http://localhost:8523）
+        ▼
+   server/server.js（Express / port 8523）── FTP ──▶ daikyocorp.co.jp:/www/htdocs/vr/
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+- **AI解析はブラウザの中で完結する**（サーバーへ画像を送らない）。
+  Transformers.js が WebWorker（`src/aiWorker.ts`）でモデルを動かす。
+- **サーバー側（8523）は「FTPで上げ下ろしするだけ」**。データベースは持たない。
+  物件の情報は公開先の `index.json` と `<id>/meta.json` が正典。
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 使っているAIモデル（どちらもブラウザ内推論・APIキー不要）
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+| 役割 | モデル |
+|---|---|
+| 奥行き推定 | `onnx-community/Depth-Anything-V2-Small-ONNX` |
+| 超解像 | `Xenova/swin2SR-classical-sr-x2-64` |
+
+### 3D化のしくみ
+
+`THREE.SphereGeometry(10, 128, 64)` の各頂点を、推定した深度マップの値で
+**内外に押し引き（displacement）** している。写真をテクスチャとして貼った球の内側から見ると、
+奥行きのある空間に見える。`displacement` は画面から調整できる（強すぎると歪む）。
+
+## 起動
+
+```bash
+# 画面（8512）… 起動のたびに必ず再ビルドする（古いdistを配信しないため）
+bash run.sh
+
+# FTP APIサーバー（8523）
+cd server && bash run.sh
 ```
 
-## 運用メモ（ルート CLAUDE.md から移動・2026-08-17）
+常時起動（launchd・メインPCのみ）:
+`com.shinsei.theta-viewer`（8512）と `com.shinsei.theta-viewer-api`（8523）の2本。
 
-> 元の見出し: 「theta-viewer FTP APIサーバー port修正（2026-07-14）」
-> **他PCと共有される情報。** ここを直せば2台で同じ内容になる。
+## セットアップ
 
-- 旧: port 8519 → 新: **port 8523**。理由: 8519は`owner-payout-tracker`が既に使用しており実際は起動時にクラッシュしていた（KeepAliveで再起動ループ）。誰かが以前この衝突に気づき未コミットのまま8522に変更していたが、それはparking-map用に予約された番号と衝突するため、最終的に空きポート8523へ変更・再ビルド（`npm run build`→vite preview再起動）して確定。関連ファイル: `theta-viewer/server/server.js`（`const PORT`）、`theta-viewer/src/firebase.ts`（`API_BASE`）。
+```bash
+npm install
+cd server && npm install
+```
+
+**FTPの接続情報は `server/ftp-config.json`**（`ftp-config.example.json` をコピーして作る）。
+**このリポジトリは公開されているので、接続情報は絶対にコミットしない**（gitignore済み）。
+環境変数 `FTP_HOST` / `FTP_USER` / `FTP_PASS` / `FTP_ROOT` でも渡せる。
+
+## はまりどころ（調べた事実。次の担当が繰り返さないため）
+
+- **FTP APIのポートは 8523**。以前 8519 と書かれていたことがあるが、それは
+  `owner-payout-tracker` と重複していた**誤り**。コード（`server/server.js`）の `PORT = 8523` が正。
+- **`run.sh` は毎回 `npm run build` してから `vite preview` する。**
+  ビルドを省くと古い `dist/` を配信し続け、「直したのに変わらない」になる。
+- **launchd は PATH が最小**（`/usr/bin:/bin:/usr/sbin:/sbin`）で node / npm が見えない。
+  `run.sh` の冒頭で `/opt/homebrew/bin` などを足しているのはそのため。**消さないこと。**
+- **`run.sh` は `--host 0.0.0.0`**（社内LAN共有のため意図的）。
+  サブPCで動作確認するときは社内LANに晒さないよう気をつける。
+- ルーティングは **HashRouter**（`/#/property/:id`）。静的ホスティング（FTP先）で
+  リロードしても404にならないようにするための選択。BrowserRouterへ変えるとお客様のURLが壊れる。
+- `src/firebase.ts` という名前だが、**Firebase は使っていない**（`isConfigured = true` の固定値と
+  HTTP/FTP経由のデータ取得だけ）。名残の名前なので、中身から役割を判断すること。
+
+## 主要ファイル
+
+| ファイル | 役割 |
+|---|---|
+| `src/Router.tsx` | 4画面のルーティング（一覧 / admin / 閲覧 / 編集） |
+| `src/PanoramaViewer.tsx` | 球体の生成・深度による変形・ピンの配置とクリック判定 |
+| `src/aiWorker.ts` | WebWorker。超解像 → 奥行き推定 → 深度マップを返す |
+| `src/firebase.ts` | 公開先(HTTP)とローカルAPIの呼び出しをまとめた層（Firebaseではない） |
+| `src/pages/` | `PropertyListPage` / `AdminPage` / `ViewerPage` / `EditPage` |
+| `server/server.js` | FTPで公開先へ上げ下ろしする Express API（8523） |
