@@ -26,6 +26,7 @@ import urllib.request
 
 from services import config
 from services import gis
+from services import web_image_store
 
 WORKSPACE = os.path.expanduser("~")
 
@@ -196,7 +197,15 @@ def streetview_lookup(address=None, lat=None, lon=None, property=None, question=
         if analysis is None:
             return {"ok": False, "error": "画像認識(claude vision)に失敗しました", "point": point}
 
+        # 解析後にディレクトリごと消える前に、実際に使った画像を一時保管庫へ退避する。
+        # image_token を chatwork_send_web_image / line_send_web_image に渡せば、
+        # 取得したこの画像そのものをChatwork添付・LINE画像pushで送れる（TASK-20260819-005）。
+        image_token = web_image_store.save(os.path.join(tmp, images[0][0]))
+
     return {
         "ok": True, "mode": mode, "lat": point["lat"], "lon": point["lon"],
         "label": point["label"], "analysis": analysis, "note": note,
+        "image_token": image_token,
+        "image_hint": "この画像自体を送りたい場合は chatwork_send_web_image / line_send_web_image に"
+                      "この image_token を渡す（数時間で失効するので、必要な時にすぐ送る）",
     }

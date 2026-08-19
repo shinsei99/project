@@ -18,6 +18,7 @@ from services.agent_tools import (
     reinfolib_tools,
     streetview_tools,
     task_tools,
+    web_image_tools,
 )
 
 # name -> {func, desc, usage}
@@ -194,9 +195,23 @@ REGISTRY = {
                 "店舗名・看板・目立つ建物名を読み取る。「この場所に何がある？」「1階の店舗名は？」"
                 "のように現地の様子・テナント名を目視確認したいときに使う。"
                 "google_maps_api_key（要課金設定・未設定）が無い間はGoogleマップの衛星写真"
-                "（無料）で代替するため、路上の看板そのものは読めない場合がある旨をnoteで返す",
+                "（無料）で代替するため、路上の看板そのものは読めない場合がある旨をnoteで返す。"
+                "戻り値の image_token を chatwork_send_web_image / line_send_web_image に渡せば、"
+                "取得したその画像自体を送れる（「この画像を送って」と言われたとき用）",
         "usage": 'streetview_lookup {"address":"大阪市都島区中野町1-4-18","question":"1階の店舗名は？"} '
                  'または {"property":"メゾンドール都島"} や {"lat":34.69,"lon":135.52}',
+    },
+    "chatwork_send_web_image": {
+        "func": web_image_tools.chatwork_send_web_image,
+        "desc": "streetview_lookup等でネットから取得した画像（image_token）をChatworkへ添付送信する。"
+                "社内共有フォルダのファイルは対象外（それは chatwork_send_file を使う）",
+        "usage": 'chatwork_send_web_image {"room_id":12345678,"image_token":"...","message":"取得した衛星写真です"}',
+    },
+    "line_send_web_image": {
+        "func": web_image_tools.line_send_web_image,
+        "desc": "streetview_lookup等でネットから取得した画像（image_token）をLINEへ画像メッセージとしてpushする。"
+                "user_id省略時はLINE経由の依頼者本人へ自動で送る",
+        "usage": 'line_send_web_image {"image_token":"...","message":"取得した衛星写真です"}',
     },
     # ---- 開発（アプリ制作・改修。業務TODOとは別系統） ----
     "dev_task_create": {

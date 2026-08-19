@@ -66,3 +66,11 @@ def reply(reply_token: str, text: str) -> bool:
 
 def push(user_id: str, text: str) -> bool:
     return _post(PUSH_URL, {"to": user_id, "messages": _text_messages(text)})
+
+
+def push_image(user_id: str, image_url: str) -> bool:
+    """画像メッセージをpushする。image_url はHTTPS・LINE側から到達可能な公開URLが必要
+    （originalContentUrl/previewImageUrlとも同じURLを使う。JPEG/PNG・10MBまで）。"""
+    return _post(PUSH_URL, {"to": user_id, "messages": [
+        {"type": "image", "originalContentUrl": image_url, "previewImageUrl": image_url},
+    ]})

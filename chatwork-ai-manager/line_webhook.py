@@ -167,8 +167,29 @@ class Handler(BaseHTTPRequestHandler):
         # 疎通確認用
         if self.path in ("/", "/health", "/line/health"):
             self._send(200, b"line-webhook ok")
+        elif self.path.startswith("/line/web_image/"):
+            self._serve_web_image(self.path[len("/line/web_image/"):])
         else:
             self._send(404, b"not found")
+
+    def _serve_web_image(self, token):
+        """streetview_lookup等でネット取得した一時画像を、LINE画像pushのURL先として配信する
+        （web_image_store.STORE_DIR配下のみ。image_tokenは英数字のみなので安全）。"""
+        import mimetypes
+
+        from services import web_image_store
+        path = web_image_store.path_for(token)
+        if not path:
+            self._send(404, b"not found")
+            return
+        ctype = mimetypes.guess_type(path)[0] or "application/octet-stream"
+        with open(path, "rb") as f:
+            data = f.read()
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def do_POST(self):
         if self.path != "/line/webhook":
