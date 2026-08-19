@@ -37,6 +37,7 @@ Google はそちらを本命と判断し、本体が自分の記事に負ける�
 | shorui-cabinet | `zenn/llm-pdf-split-gaps.md` | `note/scanned-pile.md` | `/works/shorui-cabinet` |
 | baikai-generator | `zenn/scanned-pdf-orientation.md` | `note/upside-down.md` | `/works/baikai-generator` |
 | ai-ticket-counter | `zenn/ai-intake-hearing.md` | `note/nanka-ugokanai.md` | `/works/ai-ticket-counter` |
+| keyline | `zenn/ios-nfc-safari-entitlement.md` | `note/who-has-the-key.md` | `/works/keyline` |
 
 **note の原稿には Zenn 記事のURLを先に書いてある。** ZennのURLはファイル名から決まる
 （`https://zenn.dev/shinsei99/articles/<ファイル名>`）ので、公開前でも確定できる。
@@ -49,9 +50,11 @@ Google はそちらを本命と判断し、本体が自分の記事に負ける�
   （削除ではないので戻せる）。**Zenn / note にも出さない。**
   理由: 他社サイトの内部APIを叩く手順を公開する形になり、
   自分のデータを取るぶんには問題なくても、手順書として出すと規約違反を助長しかねない。
-- **theta-viewer は保留（2026-08-16）。** 制作記録を書こうとしたが、
-  このサブPCの `README.md` は Vite の雛形のままで、`SESSION_LOG.md` も存在しない。
-  **メインPCに未コミットの記録がある可能性が高い**ので、そちらで確認してから書く。
-  憶測で埋めない（`SESSION_LOG.md` は gitignore の例外に入っているので、あればcommitで渡る）
+- **theta-viewer は保留（2026-08-16 → 2026-08-18 に状況を更新）。**
+  **メインPCでは完成している**（本人確認）。サブPCに来ていないのは**ドキュメントだけ**で、
+  `README.md` は Vite の雛形のまま・`SESSION_LOG.md` と `TODO.md` は存在しない。
+  **`.gitignore` の `!theta-viewer/**` で許可されているため git で渡せる**（実測確認済み）。
+  → **メインPCがドキュメントを書いて push したら、それを読んで制作記録を書く。**
+  憶測で埋めない。依頼は直下の `TODO.md` に記載済み
 - 転載の対象は**不動産カテゴリの公開記録のみ**。ツール分類（flyer-creator /
   ios-build-number など）とゲームは本体だけに置く。

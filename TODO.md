@@ -12,7 +12,7 @@
 > | ③ `dev-doctor.py --sync --fetch` | ✅ 実行。Python 3.9.6 / Node 26.3.1 は基準どおり。常駐36本＝メインPCなので正常 |
 > | ⑤ MCP設定の受け渡し | ✅ **不要になった**。`.mcp.json` は git に入っており、今回のpushでサブPCへ渡る |
 > | ⑥ メモリ差分の受け取り | ✅ 済（本文2本を取込・重複1本を統合・索引を更新。Dropboxの置き場は削除済み） |
-> | ④ Zenn 残り1本 → note | ⬜ **未（外部公開なので人の判断待ち）** |
+> | ④ Zenn 残り1本 → note | ✅ **Zennは 2026-08-18 夜にサブPCで実施**（下の返信ブロックを見る）。noteは未 |
 > | ⑦ `--verify` の試用 | ⬜ 未（触ったアプリが出たときに使う） |
 > | ⑧ デジタル書斎の App Store 提出 | ⬜ **未（提出は人の判断待ち）**。手順は `digital-shosai/HANDOFF-APPSTORE.md` |
 >
@@ -40,59 +40,62 @@
 > **メインPCの現状**: 常駐36本・社内LAN共有あり（＝正常）。chatwork-ai-manager の4サービス
 > （画面8540 / worker / LINE 8530 / ngrok）は 2026-08-18 11:33 に再起動し、稼働を確認済み。
 
-> ## 🖥 今夜サブPCでやること（2026-08-18 メインPCから依頼）
+> ## 🖥 サブPCで実行済み（2026-08-18 夜）— メインPCへの返信
 >
-> **これを流せば、2台の「開発できる状態」はほぼ同じになる。** 上から順に。終わったらこの節を消す。
+> 依頼①〜④は**すべて完了**。⑤KeyTag は触っていない（提出はメインPC限定のため）。
 >
-> ```bash
-> cd ~ && git pull origin main       # 統合版Visual Agent / KeyTag / chatworkの新機能 が来る
->
-> # ① 環境の点検 → 足りない依存を入れる（keyline に requirements.txt を足したので出るはず）
-> ./dev-doctor.py --sync --fetch
-> ./dev-setup.sh --all               # 対象0本なら何もしない
->
-> # ② Visual Agent（2系統を統合した）。両方の入口を自動で確かめる
-> ./visual-agent-check.sh            # ❌ が出たらメッセージのとおりに直す
->
-> # ③ ★メインPCから来ているものを受け取る（**先にこちら**）
-> ./secrets-sync.sh import           # KeyLineの台帳・免許証画像（keyline/data）ほか。
->                                    #   ★既にある物は上書きしない。上書きしたいときだけ --force
->
-> # ④ ★メインPCへ渡すもの（サブPCにしか無い）。2つとも Dropbox-個人 経由
-> ./secrets-sync.sh export           # 機密5件（brain-dump/.env.local, pasha-calo/.env.local,
->                                    #   ai-ticket-counter/.env, theta-viewer/server/ftp-config.json,
->                                    #   kaitori-dm-maker/senders.json）
-> #   メモリの実体20本（索引にはあるのに本文が無い）。一覧はこの節の少し上にある
-> D=~/Library/CloudStorage/Dropbox-個人/handoff-20260818-sub-to-main-2; mkdir -p "$D/memory"
-> M=~/.claude/projects/-Users-apple/memory
-> for f in project_chatwork_ai_manager project_color_gravity project_cyborg_defense \
->          project_fudosan_novel project_kaitori_dm_maker project_kato_kyakuzuke \
->          project_mansion_kanri project_memorandum_generator project_pasha_calo \
->          project_pokecard_profit project_publish_setup project_shared_folder_reorg \
->          project_shorui_cabinet project_shorui_sender project_soufu_maker \
->          reference_dropbox_url_icons reference_pdf_orient reference_streamlit_bind \
->          reference_this_pc reference_xls_images; do
->   cp "$M/$f.md" "$D/memory/" 2>/dev/null || echo "無い: $f.md"
-> done
-> ls "$D/memory" | wc -l             # 20 なら完了。メインPCが取り込んだら置き場ごと削除する
->
-> # ⑤ KeyTag（iOSアプリ）を触るなら
-> cd keyline/keytag && ./setup-ios.sh && cd ~
-> #   ★版数は version.json が正（1.0.0 / build 2）。build番号を上げたら version.json も直す
-> #   ★**提出はメインPCだけ**（配布証明書がメインPCのキーチェーンにしか無い）
-> ```
->
-> **これでも同じにならないもの（意図的・または物理的に無理）**
->
-> | | なぜ |
+> | 依頼 | 結果 |
 > |---|---|
-> | launchd 常駐（メイン36本 / サブ0本） | **役割の違い。揃えない**（2026-08-18 確認）。サブPCは常駐を持たず、必要なときだけ `./run.sh` で都度起動する |
-> | iOS の配布証明書・プロビジョニング | メインPCのキーチェーンにのみ存在。**App Store提出はメインPC限定** |
-> | `chatwork-ai-manager` 一式（DB・secrets） | **渡さない**（2026-08-18 本人確認）。worker/LINE/ngrok はメインPCのみで動かす決まりで、**サブPCでは一切触らない**。
-> 開発もメインPCで行う。`secrets-manifest.txt` にも「運ばない」と明記済み |
-> | `keyline/data/` | **Dropbox経由で渡す**（2026-08-18 本人確認・`secrets-manifest.txt` に追加済み）。gitには絶対に入れない |
-> | `flyer-creator` の案件フォルダ | **渡さない**。入居申込者の身分証が同居しており、必要なのは写真だけのため |
-> | `quote-generator` | 別リポジトリ。`git clone` 済みなら `git pull` するだけ |
+> | `git pull` | ✅ 48コミットを fast-forward で取り込み |
+> | ① `dev-doctor --sync --fetch` / `dev-setup.sh --all` | ✅ 対象0本。**`dev-setup.sh` の空配列バグを修正**（bash 3.2 + `set -u`） |
+> | ② `visual-agent-check.sh` | ✅ 入口A（MCP）・入口B（`./va.sh`）とも全項目 ✅ |
+> | ③ `secrets-sync.sh import` | ✅ **`keyline/data` を受領**（DB 180KB＋免許証画像）。機密の不足は**0件**に |
+> | ④ `secrets-sync.sh export` | ✅ 18件・980K → `Dropbox-個人/apps-secrets-handoff/apps-secrets-appurunoMacBook-Air.tar` |
+> | ④ メモリ実体20本 | ✅ **20/20・168K** → `Dropbox-個人/handoff-20260818-sub-to-main-2/memory/` |
+>
+> **★メインPCでやること: 上の2つを受け取ったら、`./secrets-sync.sh import` と
+> メモリ20本のコピーを実行し、`handoff-20260818-sub-to-main-2/` を置き場ごと削除する**
+> （受け取りを確認した人が消す。件数20・168K を `ls`/`du` で見てから）。
+>
+> **回答: サブPCに Xcode 16.1 (16B40) が入っている**（メインPCで「未確認」だった点）。
+> KeyTag のビルド自体は可能。ただし配布証明書はメインPCのキーチェーンにしか無いので、
+> **App Store 提出はメインPC限定**という結論は変わらない。
+>
+> **後始末（2026-08-18 夜・サブPCで実行済み）**
+>
+> - `stash@{0} pre-origin-sync` と ローカルブランチ `pre-sync-backup-20260626` を **破棄した**
+>   （中身は未追跡ファイルのみ＝作業ツリーのほうが新しい／固有コミットは PR #1 で main に既出、と
+>   確認したうえで実行。復元用SHA: stash `9812065` / branch `b507e7c`。reflog にも残る）
+> - **メインPC発の機密 tar（`apps-secrets-usernoMac-mini.tar`）を削除した。**
+>   中身13件すべてが手元に実体としてあることを1件ずつ確認してから消している
+>
+> **★メインPCに残っている作業（サブPCからは実行できない）**
+>
+> 1. `./secrets-sync.sh import` … `apps-secrets-appurunoMacBook-Air.tar`（980K・8/18 21:24）
+> 2. メモリ実体20本を `handoff-20260818-sub-to-main-2/memory/` から取り込む（20本・168K）
+> 3. **★確認プロンプトを減らす設定**（2026-08-18 依頼）… 同じ置き場の `claude-settings/`。
+>    **`.claude/` は `.gitignore` で意図的に除外されているので git では渡らない。**
+>    手順は `claude-settings/README.md`（既存を消さずに合流するスクリプト付き）。
+>    入れるのは**用途が限定された6件だけ**（`Bash(npm run *)` `Bash(pkill *)` `Bash(gh api *)`
+>    `Bash(pip3 install *)` `WebSearch` `Read(//tmp/**)`）。
+>    **`Bash(python3 *)` と `Bash(curl *)` は、サブPCでは許可しているがメインPCには渡さない**
+>    （2026-08-18 判断）。`git`/`rm`/`launchctl`/`vercel`/`ftp` を許可していなくても、
+>    **python3 からは削除も上書きも外部送信もできて迂回できる**ため。＝この2つだけ被害の上限が無い。
+>    メインPCは常駐36本・FTP本番公開・LINE webhook・App Store を持ち、影響範囲が違う。
+>    サブPCの46件のうち38件は1回きりの操作の残骸なので**持っていかない**。
+>    **入れたあと、メインPCで `/fewer-permission-prompts` も回すこと**
+>    （`launchctl` `lsof` `xcodebuild` `sips` などメインPCにしか出ない操作を拾うため）
+> 3-b. **★ `theta-viewer` の引き継ぎ**（2026-08-18 依頼）… **メインPCでは完成している**が、
+>    サブPCには**ドキュメントが1つも来ていない**。実測した現状:
+>    - `theta-viewer/README.md` が **Viteの雛形のまま**（THETA・パノラマの記述が0件）。
+>      CLAUDE.md はここを「このアプリの詳細はREADMEにある」と指しているが、中身が無い
+>    - `SESSION_LOG.md` と `TODO.md` が**存在しない**
+>    - **これらは `.gitignore` の `!theta-viewer/**` で許可されているので git で渡せる**
+>      （実測確認済み。Dropbox経由は不要）
+>    → **メインPCで README を実体のある内容に書き、SESSION_LOG.md / TODO.md を作って push**
+>
+> 4. **1〜3を受け取り確認したら、`handoff-20260818-sub-to-main-2/` を置き場ごと削除する**
+>    （消すのは受け取った人。`ls`/`du` で memory 20本・claude-settings 4ファイルを見てから）
 
 **この表だけで「いま何が進行中か」が分かるようにする。** 詳細は書かない。
 詳細は各アプリの `<アプリ>/TODO.md` と `<アプリ>/SESSION_LOG.md` にある。
@@ -104,7 +107,7 @@
 | pokecard-dex | サブ | 画像100%（31,520枚）。内訳に推定14枚・参考画像4枚・透かし2枚あり。次はそれらの実物差し替え | 2026-08-14 |
 | flyer-creator | サブ | チラシクリエーター。型10種はagent-platform共通（直すのはagent-platform/core）。下帯ロゴ＋メイン写真の切取位置(上下)スライダー追加。次は物件データの未決3点 | 2026-08-16 |
 | agent-platform | サブ | **完成扱いへ移行（2026-08-17）**: launchd 登録・0.0.0.0・社内LAN共有（8532）。残るのは作り込み（出来た .pptx 11枚の見栄え目視確認／字幕焼き込み／投稿API）で、通し実行はできる | 2026-08-17 |
-| ai-tools-base | メイン（公開） | **AIツールベース**（2026-08-17改名。旧「AIツールラボ／ai-tools-lab」・旧URLは削除済み。**フォルダ名も ai-tools-base に統一**）。新URL https://ai-tools-base.vercel.app。メインPCで受領済み（npm install／validate 通過・Vercel link は brain-dump/ai-tools-base）。サブPCで Search Console 移行（sitemap 28件）とnote2本＋プロフィールのリンク修正まで完了。残: Zenn/note 5本ずつの公開（1日2本・Zenn→note の順） | 2026-08-17 |
+| ai-tools-base | メイン（公開） | **AIツールベース**（2026-08-17改名。旧「AIツールラボ／ai-tools-lab」・旧URLは削除済み。**フォルダ名も ai-tools-base に統一**）。新URL https://ai-tools-base.vercel.app。メインPCで受領済み（npm install／validate 通過・Vercel link は brain-dump/ai-tools-base）。サブPCで Search Console 移行（sitemap 28件）とnote2本＋プロフィールのリンク修正まで完了。**2026-08-18: Zenn を6本まで公開。KeyLine の記録を新規追加し本体は公開済み（/works/keyline）。Zennは上限で未反映＝8/19に再push、noteは6本ともメインPC担当** | 2026-08-18 |
 | scrapmemo-petapeta | メイン | **2026-08-18: ①「スクラップ編集の上部が編集できない」を修正**（キーボードが出ている間だけ出る不具合。前回はSafariのみ確認で見逃していた）**②写真を保存前に縮小**（1枚で上限→5〜19枚）。どちらもXcodeシミュレータで実測確認済み・**index.html 1ファイル・未コミット**。**明日やる: 画像だけIndexedDBへ移す**（localStorage 5,100KBはWebKit固定／IndexedDBはquota 9,830MB）＋`save()`の握りつぶし解消。**未決: 再配信するなら1.0.4/build8へ+1が必要** | 2026-08-18 |
 | digital-shosai | **メイン（提出）／サブ（開発）** | **広告を全撤去し、画像をWebP化（PNG比28.5%）・検索をv2で高速化（pageText分離・複数語AND・本で絞り込み）・蔵書画面/library（一覧と削除）を追加**。ブラウザで通し確認済み。索引方式へ作り替え（取り込みは本文だけ・114ページで248KB）＋**本棚（表紙）と読書画面**。**次は App Store 提出＝メインPCで `digital-shosai/HANDOFF-APPSTORE.md` の手順**（アイコンと審査用サンプルPDFは用意済み） | 2026-08-17 |
 | keyline | メイン | **KeyLine（NFC鍵・備品貸出管理）＋ KeyTag（iOSアプリ）。** サーバーは 8534・社内LAN限定・テスト99件成功。**2026-08-18: KeyTag を App Store へ提出**（1.0.0/build2・掲載名 KeyTagNFC・サポートページ公開済み）。**次はNFCタグ到着後の実機検証**（アプリのNFC機能は一度も実機で動かしていない）。手順は keyline/keytag/RELEASE.md | 2026-08-18 |
@@ -113,10 +116,20 @@
 
 ## 横断作業（複数アプリにまたがるもの）
 
-- **Zenn: 残り1本（`llm-pdf-split-gaps`）がまだ未反映。** 2026-08-17 20:00 のpushで
-  `ai-agent-always-on` と `launchd-restart-loop` の2本は通った（1日2本の上限に当たって3本目が残った）。
-  記事側の直しは不要（`published: true` のまま）。**明日の枠で再pushすれば通る**。自動再試行はされない。
-  確認は `cd ai-tools-base && ./publish.sh status`（⬜ が未反映）
+- **★ 8/19 にやること: KeyLine の Zenn と note を「まとめて」出す**（2026-08-18 本人判断）。
+  本体はもう公開済み → https://ai-tools-base.vercel.app/works/keyline
+  1. **20:47 以降**に `cd ai-tools-base && ./publish.sh zenn` → `./publish.sh status` が ✅ になるまで確認
+  2. ✅ を見てから `python3 drafts/note/md2html.py who-has-the-key` → note の本文欄で ⌘V → 投稿
+  3. `content/works/keyline.json` の `links` に2本のURLを足して `./publish.sh site`
+  **手順の詳細と「なぜ20:47以降なのか」は `ai-tools-base/drafts/PUBLISH.md` の8本目の節にある。**
+- **Zennの上限は「pushした本数」ではなく「直近24時間に公開された本数」で数えられる**（8/18に実測）。
+  メインPCが前日pushした `llm-pdf-split-gaps` の反映が 8/18 20:47 だったため、その日の枠を消費し、
+  3本目の `ios-nfc-safari-entitlement` が弾かれた。**デプロイ履歴のお知らせ欄に理由が明記される**
+  （https://zenn.dev/dashboard/deploys ・要ログイン）。`./publish.sh status` の ⬜ でも検知できる
+- **note はこのサブPCからも投稿できる**（8/18に実測）。Chrome拡張が繋がり、noteはログイン済み。
+  **拡張が「未接続」と出たら、Chrome を前面に出せば繋がる**（起動していても最前面でないと繋がらない）
+- **Zenn: 原稿8本中6本が公開済み。**残りは `ios-nfc-safari-entitlement`（8/19）と `ai-intake-hearing`。
+  **note は6本とも未公開**（うち4本は対応するZennが公開済みなので、いつでも出せる）
 - **共通 Visual Agent を1つに統合した（2026-08-18・メインPC）。** 2台が別々に作った
   MCP版（`.mcp.json`）と `./va.sh` を、**1つの仕組み・2つの入口**に整理。どちらも消していない。
   - **同じ Google Chrome を headless で開く**ようにしたので、入口が違っても見えるものが食い違わない

@@ -11,6 +11,96 @@
 
 ---
 
+## 2026-08-18（サブPC）— メインPCからの引き継ぎを受領し、依頼①〜④を実行した
+
+### 完了したこと
+
+- `git pull origin main` で **48コミット**を fast-forward 取り込み（未コミット0・ローカル先行0）。
+  統合版 Visual Agent / KeyLine・KeyTag / chatwork の新機能 が届いた
+- `./visual-agent-check.sh` … **入口A（MCP）・入口B（`./va.sh`）とも全項目 ✅**。
+  同じ Google Chrome を headless（CDP 9223）で開くところまで実測（撮影 `.see/0818-212350-va-check.png`）
+- `./secrets-sync.sh import` … メインPC発（2026-08-18 12:33）の tar から **`keyline/data` を取り込み**
+  （keyline.db 180KB ＋ id_images）。残り12件は既存のため据え置き。**機密の不足は 0 件**になった
+- `./secrets-sync.sh export` … サブPC側の18件を書き出し（980K）。
+  `Dropbox-個人/apps-secrets-handoff/apps-secrets-appurunoMacBook-Air.tar` に置いた
+- **メモリ実体20本**を `Dropbox-個人/handoff-20260818-sub-to-main-2/memory/` に配置（**20/20・168K**）
+- **メインPCが「未確認」としていた点を確認: このサブPCに Xcode 16.1 (16B40) が入っている。**
+  KeyTag のビルドは可能（ただし配布証明書が無いので**提出はメインPC限定**のまま変わらない）
+
+### 発生したエラーと解決策
+
+- 症状: `./dev-setup.sh --all` が対象0本のとき `list[@]: unbound variable` で異常終了した
+  → 原因: macOS の bash 3.2 は `set -u` 下で**空配列の `"${arr[@]}"` 展開を未定義変数とみなす**
+  （bash 4.4 以降は許容するため、書いた環境では再現しない）
+  → 直し方: `${list[@]+"${list[@]}"}` 形式に変更（`TARGETS` 側も同様）。対象0本でも exit 0 で完走を確認
+
+### 追記2（同日夜・新規1本を3媒体へ）
+
+**KeyLine の制作記録を新規作成し、3媒体ぶんの原稿を書いた**（本体・Zenn・note）。
+
+- 本体 `content/works/keyline.json` … **本番へ公開済み**
+  https://ai-tools-base.vercel.app/works/keyline （HTTP 200・title も確認）
+  検証は `npm run lint` / `npm run build` / `npm run validate` を通し、
+  **`./va.sh` で 390 / 768 / 1440 の3幅を撮って目視**（はみ出し・文字の重なり **0件**）
+- Zenn `articles/ios-nfc-safari-entitlement.md` … **push 済みだが、まだ反映されていない**（下記）
+- note `drafts/note/who-has-the-key.md` … 原稿と貼り付け用テキストまで用意。**投稿は未**
+
+題材は「SafariはWeb NFCに非対応 → タグにURLを書く方式へ切り替えた」。
+**実機検証が未了であることは3媒体すべてに明記した**（「動くはず」で書かない）。
+
+### 発生したエラーと解決策（追記2）
+
+- 症状: Zenn へ push しても記事が増えない（API の公開数が 6 のまま）
+  → 原因: **投稿数の上限。デプロイ履歴のお知らせ欄で確定した**（文言: 「次の記事は投稿数の上限に
+  達したためデプロイされませんでした: ios-nfc-safari-entitlement」）。Zenn は上限に当たると
+  **黙ってデプロイしない**（push自体もデプロイ表示も「成功」になる）
+  → **重要: 上限は「自分がpushした本数」ではなく「直近24時間に公開された本数」で数えられる。**
+  `llm-pdf-split-gaps` はメインPCが前日 push したものだが、**Zenn側の反映が 8/18 20:47** だったため
+  この日の枠を1本消費していた。そこへ 21:32 の1本が入って2本になり、3本目が弾かれた
+  → 直し方: **最も古い1本が24時間の窓から外れてから再push**（＝8/19 20:47以降）。自動再試行は無い
+- 症状: Chrome拡張（Claude in Chrome）が「未接続」と出て、note の投稿操作ができない
+  → 原因: **Chromeは起動していたが最前面ではなかった**。プロセスがあるだけでは繋がらない
+  → 直し方: `open -a "Google Chrome"` で前面に出すと即座に接続された（`list_connected_browsers`
+  が空 → 1件に変わる）。**note はログイン済みで、サブPCからも投稿できることを実測**
+  （「メインPC担当」という以前の前提は、この点については古い）
+
+### 判断（本人・2026-08-18 夜）
+
+- **KeyLine の Zenn と note は、8/19 にまとめて出す。** noteの本文にZennのURLが入っているため、
+  Zennが通る前にnoteを出すとリンク切れになる。今日は本体の公開までで止める
+
+### 追記（同日夜・本人の指示で実行）
+
+- **Zenn: `scanned-pdf-orientation` を公開した**（21:32）。`llm-pdf-split-gaps` は 20:47 に
+  反映済みだったので、**この日の枠（1日2本）を使い切った**。
+  → https://zenn.dev/shinsei99/articles/scanned-pdf-orientation （HTTP 200・API でも最新として確認）
+  公開前に、本文中の本体リンク（`/works/baikai-generator`）が HTTP 200 であること、
+  slug が規約内（23字・半角英小文字とハイフン）であることを確認している。
+  **Zenn は原稿7本中6本が公開済み。残りは `ai-intake-hearing` 1本だけで、8/19 以降**
+- **stash とローカルブランチを破棄した**（復元用SHA: stash `9812065` / branch `b507e7c`。reflog にも残る）
+- **メインPC発の機密 tar を Dropbox から削除した。** 中身13件すべてが手元に実体としてあることを
+  1件ずつ確認してから消している。**サブPC発の tar とメモリ20本は残してある**（メインPCが未受領のため）
+
+### 発生したエラーと解決策（追記）
+
+- 症状: `./publish.sh zenn` が push 成功後に `before?: unbound variable` で異常終了した
+  → 原因: `echo "（push前の公開数: $before）"` の**全角の閉じ括弧が変数名の一部として解釈**されていた。
+  bash はマルチバイトのバイトを識別子の文字として受け入れるため、`$before）` という別の変数を探しに行く
+  → 直し方: `${before}` と明示的に囲んだ。push 自体は成功していたので公開への影響は無し
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- ~~stash とローカルブランチ~~ → **同日夜に破棄済み**（下の判断根拠はそのまま残す）
+  - `stash@{0} pre-origin-sync` … 中身は**未追跡ファイルのみ**（handwriting-ocr 4本 / piyo-defense/ios）。
+    handwriting-ocr は現在 git 管理下にあり、`ocr.py`・`requirements.txt` は**作業ツリーのほうが新しい**
+    （6/30 の pdf_orient 対応版 > stash の 6/26 版）。＝復元すると**古い版に戻る**ので取り込んではいけない
+  - `pre-sync-backup-20260626` … main に無い固有コミットは `b507e7c color-gravity` の1件だけで、
+    同じ内容が **PR #1（`f83dedf`）として main に入っている**。＝残す理由は無い
+- 残っているもの: **Zenn 最後の1本 `ai-intake-hearing`（8/19以降・上限のため）**、
+  **note 5本（ブラウザ操作＝メインPC担当）**、**デジタル書斎の App Store 提出（メインPCのみ）**
+
+---
+
 ## 2026-08-18（メインPC・続き）— 2台の環境差を詰め、依頼3件を実装した
 
 ### 完了したこと
