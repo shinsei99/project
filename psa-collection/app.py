@@ -1,13 +1,17 @@
-"""PSA保有カード管理
+"""PSAカード管理
 
 PSA「My Collection」のCSVエクスポートを読み込み、保有カードの検索・絞り込み・
 保管場所の記録を行う在庫管理アプリ。
 """
 
 import base64
+import importlib.util
 import json
+import os
 import re
 import subprocess
+import sys
+import traceback
 from datetime import datetime
 from pathlib import Path
 
@@ -16,7 +20,10 @@ import streamlit as st
 
 from psa_images import DAILY_LIMIT, ImageStore, fetch_many
 
-BASE_DIR = Path(__file__).parent
+# resolve() を通す。streamlit は相対パスでスクリプトを起動するので、素の
+# __file__.parent は `.` になり、`BASE_DIR.parent`（＝図鑑フォルダの親）が
+# 求められない（図鑑を psa-collection の中に探しに行って見つからなかった）
+BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 CSV_PATH = DATA_DIR / "collection.csv"
 NOTES_PATH = DATA_DIR / "storage_notes.json"
@@ -24,6 +31,15 @@ TOKEN_PATH = DATA_DIR / "psa_api.json"
 ORDERS_PATH = DATA_DIR / "orders.json"
 ALBUMS_PATH = DATA_DIR / "albums.json"
 FETCH_SCRIPT = BASE_DIR / "fetch_new_images.sh"
+
+# ポケモンカード図鑑（別アプリ・別フォルダ）。**このアプリのオプション**で、
+# 無いPCでは「📖 ポケモン図鑑」の選択肢自体を出さない。
+# 実体は移していない（単独起動 pokecard-dex/run.sh → 8531 も従来どおり使える）。
+DEX_DIR = Path(os.environ.get("POKECARD_DEX", BASE_DIR.parent / "pokecard-dex"))
+# アルバムに入れた図鑑のカード（＝欲しいカード）の目印。
+# 保有カードは PSA の証明書番号＝数字だけなので、この接頭辞で見分けられる
+# （既存の albums.json はそのまま読める）
+DEX_PREFIX = "dex:"
 
 
 def missing_image_certs(frame: pd.DataFrame, store: "ImageStore") -> list:
@@ -58,6 +74,61 @@ def harvest_missing_images(timeout: int = 180) -> dict:
 def album_location(vault_status: str) -> str:
     """Vault Status を Home / Vault に分類。"""
     return "Vault" if vault_status in ("Vaulted", "Vault Bound") else "Home"
+
+
+@st.cache_resource(show_spinner=False)
+def _import_dex(path_str: str, _mtime: float):
+    """図鑑の app.py を読み込む。cache_resource で1度だけ。
+
+    毎回読み直すと、図鑑側の @st.cache_data が実行のたびに作り直されて
+    キャッシュが効かなくなる。図鑑を書き換えたら mtime が変わって読み直す。
+
+    ファイル名がこちらと同じ app.py なので、import 文では取り違える。
+    パスで指定して `pokecard_dex_app` という別名で登録する。
+    """
+    try:
+        spec = importlib.util.spec_from_file_location("pokecard_dex_app", path_str)
+        mod = importlib.util.module_from_spec(spec)
+        sys.modules["pokecard_dex_app"] = mod
+        spec.loader.exec_module(mod)
+        return mod
+    except Exception:
+        # 黙って消すと「選択肢が出ない」だけになって原因が追えない。
+        # サーバーのログ（launchd なら _launchd のログ）に理由を残す
+        traceback.print_exc()
+        return None
+
+
+def load_dex():
+    """ポケモンカード図鑑（~/pokecard-dex/app.py）を返す。無ければ None。
+
+    画面のコードは図鑑側の1本を共有する（こちらに写すと二重メンテになる）。
+    **「有るか無いか」の判定はキャッシュに入れない**。入れると、あとから
+    図鑑を入れてもこのアプリを再起動するまで選択肢が出ない。
+    """
+    path = DEX_DIR / "app.py"
+    if not path.exists():
+        return None
+    mod = _import_dex(str(path), path.stat().st_mtime)
+    return mod if mod is not None and mod.available() else None
+
+
+def is_dex(item) -> bool:
+    """アルバムの1件が図鑑のカード（＝欲しいカード）か。"""
+    return str(item).startswith(DEX_PREFIX)
+
+
+def dex_key_of(item) -> str:
+    return str(item)[len(DEX_PREFIX):]
+
+
+def slug(item) -> str:
+    """CSSのクラス名・Streamlitのキーに使える文字だけにする。
+
+    図鑑のキーは `M6/M6_087` のように `/` `:` を含み、そのままだと
+    `.st-key-pimg_M6/M6_087` というセレクタが書けない（バッジも枠も効かない）。
+    """
+    return re.sub(r"[^0-9A-Za-z_]", "_", str(item))
 
 # PSAグレーディングの工程順（progressSummary.lastCompletedStep の次が「現在の工程」）
 GRADING_STEPS = [
@@ -100,7 +171,7 @@ LABELS = {
     "cert_url": "PSA",
 }
 
-st.set_page_config(page_title="PSA保有カード管理", page_icon="🃏", layout="wide")
+st.set_page_config(page_title="PSAカード管理", page_icon="🃏", layout="wide")
 
 
 # ---------------------------------------------------------------- データ読み込み
@@ -324,18 +395,61 @@ def _data_uri(path):
     if not path:
         return None
     try:
-        return "data:image/jpeg;base64," + base64.b64encode(Path(path).read_bytes()).decode()
+        mime = "image/png" if str(path).lower().endswith(".png") else "image/jpeg"
+        return f"data:{mime};base64," + base64.b64encode(Path(path).read_bytes()).decode()
     except Exception:
         return None
 
 
-def album_label(df, cert) -> str:
-    """外すカード選択用のラベル（PSAグレード＋カード名＋cert）。"""
-    row = df[df["Cert Number"].astype(str) == str(cert)]
+def dex_card(dex, item):
+    """アルバムの `dex:` 付き1件から、図鑑のカード行を引く。無ければ None。"""
+    if dex is None:
+        return None
+    try:
+        return dex.fetch_card(dex_key_of(item))
+    except Exception:
+        return None
+
+
+def album_cell(df, store, dex, item) -> dict:
+    """アルバムの1マスに要る材料をまとめて返す。
+
+    アルバムには2種類が混ざる。
+      ・PSA の保有カード … 証明書番号（数字）。画像は data/thumbs/
+      ・図鑑のカード     … `dex:<図鑑キー>`＝**欲しいカード**。画像は図鑑側から借りる
+    """
+    if is_dex(item):
+        row = dex_card(dex, item)
+        if row is None:
+            return {"uri": None, "badge": "WANT", "color": "#f59e0b",
+                    "caption": "（図鑑に見つかりません）"}
+        no = dex.card_no_label(row)
+        return {"uri": _data_uri(dex.thumb_of(row)), "badge": "WANT", "color": "#f59e0b",
+                "caption": f"⭐ {no} {(row['name'] or '')[:14]}"}
+    row = df[df["Cert Number"].astype(str) == str(item)]
+    rr = row.iloc[0] if len(row) else None
+    loc = album_location(rr["Vault Status"]) if rr is not None else "Home"
+    return {
+        "uri": _data_uri(store.thumb(str(item))),
+        "badge": "VAULT" if loc == "Vault" else "HOME",
+        "color": "#2563eb" if loc == "Vault" else "#16a34a",
+        "caption": f"PSA {rr['Grade'] if rr is not None else ''} "
+                   f"{((rr['Subject'] if rr is not None else '') or '')[:16]}",
+    }
+
+
+def album_label(df, item, dex=None) -> str:
+    """外す／追加するカードの確認ダイアログ用のラベル。"""
+    if is_dex(item):
+        row = dex_card(dex, item)
+        if row is None:
+            return f"欲しいカード（{dex_key_of(item)}）"
+        return f"⭐ 欲しいカード：{row['name']}（図鑑 {dex.card_no_label(row)}）"
+    row = df[df["Cert Number"].astype(str) == str(item)]
     if len(row):
         rr = row.iloc[0]
-        return f"PSA {rr['Grade']} {(rr['Subject'] or '')[:24]}（{cert}）"
-    return str(cert)
+        return f"PSA {rr['Grade']} {(rr['Subject'] or '')[:24]}（{item}）"
+    return str(item)
 
 
 # 並べ替え定義（ギャラリー／一覧とアルバム追加タブで共用するため関数定義より前に置く）
@@ -360,8 +474,13 @@ def apply_sort(frame: pd.DataFrame, key: str) -> pd.DataFrame:
     return frame.sort_values(by, ascending=asc, na_position="last")
 
 
-def render_album(df, store):
-    """「アルバム」ビュー：保有中(Home/Vault)から選び、4列バインダーをドラッグで並べ替え。"""
+def render_album(df, store, dex=None):
+    """「アルバム」ビュー：4列バインダーをボタンで並べ替える。
+
+    入るカードは2種類。
+      ・保有中(Home/Vault)のカード … この画面の「➕ カードを追加」から
+      ・**欲しいカード** … 「📖 ポケモン図鑑」画面の「⭐ 欲しい」から（`dex:` 付き）
+    """
     st.subheader("📔 コレクションアルバム")
     albums = load_albums()
     active = df[df["Item Status"] == "Active"].copy()
@@ -397,17 +516,28 @@ def render_album(df, store):
             save_albums(albums)
             st.rerun()
 
-    view_tab, add_tab = st.tabs([f"📖 バインダー（{len(current)}枚）", "➕ カードを追加"])
+    # 保有カードと欲しいカードは**混ぜずに別の枠で**並べる（2026-08-19 オーナー指示）。
+    # 保存は1本のリストのままだが、並びは「保有カード → 欲しいカード」で持つ
+    owned = [c for c in current if not is_dex(c)]
+    wants = [c for c in current if is_dex(c)]
+
+    view_tab, add_tab = st.tabs([
+        f"📖 バインダー（保有 {len(owned)}枚"
+        + (f" ／ 欲しい {len(wants)}枚" if wants else "") + "）",
+        "➕ カードを追加",
+    ])
 
     with view_tab:
         if not current:
             st.info("まだカードがありません。「➕ カードを追加」から入れてください。")
         else:
-            st.caption("並べ替え：**カードをクリックで選択（青枠）→ 移動先のカードをクリック**。右上の ✕ で削除。 🟩HOME ／ 🟦VAULT")
+            st.caption("並べ替え：**カードをクリックで選択（青枠）→ 移動先のカードをクリック**。"
+                       "右上の ✕ で削除。 🟩HOME ／ 🟦VAULT ／ 🟠WANT（欲しいカード）"
+                       "　｜　**枠をまたぐ並べ替えはできません**（保有カードと欲しいカードは別の枠）")
 
             @st.dialog("カードを外す")
             def _confirm_delete(cert):
-                st.write(f"**{album_label(df, cert)}**\n\nをこのアルバムから外しますか？（カード自体は削除されません）")
+                st.write(f"**{album_label(df, cert, dex)}**\n\nをこのアルバムから外しますか？（カード自体は削除されません）")
                 dc1, dc2 = st.columns(2)
                 if dc1.button("外す", type="primary", width="stretch", key="album_del_yes"):
                     a = load_albums()
@@ -421,81 +551,112 @@ def render_album(df, store):
             if pick and pick not in current:
                 pick = st.session_state["album_pick"] = None
 
-            per_page = 40  # 4列×10行
-            n_pages = max(1, -(-len(current) // per_page))
-            page = st.number_input(f"ページ（全{n_pages}・40枚/ページ）", 1, n_pages, 1, key="album_view_page")
-            page_certs = current[(page - 1) * per_page: page * per_page]
-
-            # 各カードのボタンを「クリックできるカード画像」に見せるCSS（バッジは写真の上に重ねる）
-            css = [
-                "<style>",
+            # 各カードのボタンを「クリックできるカード画像」に見せるCSS（バッジは写真の上に重ねる）。
+            # 枠が2つあっても共通なので1度だけ書く
+            st.markdown(
+                "<style>"
                 '[class*="st-key-pimg_"] button{position:relative;aspect-ratio:5/8;width:100%;min-height:0;'
                 "padding:0;border-radius:8px;background-size:contain;background-repeat:no-repeat;"
-                "background-position:center;background-color:#f8fafc;color:transparent;overflow:hidden;}",
-                '[class*="st-key-pcard_"]{position:relative;gap:0.15rem!important;}',
+                "background-position:center;background-color:#f8fafc;color:transparent;overflow:hidden;}"
+                '[class*="st-key-pcard_"]{position:relative;gap:0.15rem!important;}'
                 '[class*="st-key-pdel_"]{position:absolute!important;top:4px;right:5px;z-index:6;'
-                "width:auto!important;min-width:0!important;padding:0!important;margin:0!important;}",
-                '[class*="st-key-pdel_"] *{margin:0!important;}',
+                "width:auto!important;min-width:0!important;padding:0!important;margin:0!important;}"
+                '[class*="st-key-pdel_"] *{margin:0!important;}'
                 '[class*="st-key-pdel_"] button{min-height:0!important;height:auto!important;'
                 "padding:2px 6px!important;border-radius:6px!important;background:#ef4444!important;"
                 "border:none!important;box-shadow:0 1px 3px rgba(0,0,0,.25);"
-                "display:flex!important;align-items:center;justify-content:center;line-height:1!important;}",
+                "display:flex!important;align-items:center;justify-content:center;line-height:1!important;}"
                 '[class*="st-key-pdel_"] button p,[class*="st-key-pdel_"] button div{'
                 "margin:0!important;padding:0!important;color:#fff!important;font-size:10px!important;"
-                "font-weight:700!important;line-height:1.2!important;}",
-            ]
-            for cert in page_certs:
-                row = df[df["Cert Number"].astype(str) == cert]
-                loc = album_location(row.iloc[0]["Vault Status"]) if len(row) else "Home"
-                edge = (
-                    "border:3px solid #2563eb!important;box-shadow:0 8px 22px rgba(37,99,235,.4);"
-                    if cert == pick else "border:1px solid #e2e8f0;"
-                )
-                uri = _data_uri(store.thumb(cert))
-                bg = f"background-image:url('{uri}');" if uri else "background:#f1f5f9;"
-                bcolor = "#2563eb" if loc == "Vault" else "#16a34a"
-                btext = "VAULT" if loc == "Vault" else "HOME"
-                css.append(f".st-key-pimg_{cert} button{{{bg}{edge}}}")
-                css.append(
-                    f".st-key-pimg_{cert} button::before{{content:'{btext}';position:absolute;top:6px;left:6px;"
-                    f"background:{bcolor};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;z-index:2;}}"
-                )
-            css.append("</style>")
-            st.markdown("\n".join(css), unsafe_allow_html=True)
+                "font-weight:700!important;line-height:1.2!important;}"
+                "</style>",
+                unsafe_allow_html=True,
+            )
 
-            for i in range(0, len(page_certs), 4):
-                cols = st.columns(4)
-                for j, (col, cert) in enumerate(zip(cols, page_certs[i:i + 4])):
-                    no = (page - 1) * per_page + i + j + 1
-                    row = df[df["Cert Number"].astype(str) == cert]
-                    rr = row.iloc[0] if len(row) else None
-                    with col:
-                        card = st.container(key=f"pcard_{cert}")
-                        imgc = card.container(key=f"pimg_{cert}")
-                        if imgc.button("　", key=f"pbtn_{cert}", width="stretch"):
-                            if not pick:
-                                st.session_state["album_pick"] = cert
-                            elif cert == pick:
-                                st.session_state["album_pick"] = None
-                            else:
-                                lst = [c for c in current if c != pick]
-                                at = lst.index(cert)
-                                # つかんだカードを先に抜くと後ろが1つ詰まるので前方移動は+1補正
-                                if current.index(pick) < current.index(cert):
-                                    at += 1
-                                lst.insert(at, pick)
-                                albums[sel] = lst
-                                save_albums(albums)
-                                st.session_state["album_pick"] = None
-                            st.rerun()
-                        delc = card.container(key=f"pdel_{cert}")
-                        if delc.button("✕", key=f"pdelbtn_{cert}"):
-                            _confirm_delete(cert)
-                        gr = rr["Grade"] if rr is not None else ""
-                        nm = ((rr["Subject"] if rr is not None else "") or "")[:16]
-                        card.caption(f"**No.{no}**　PSA {gr} {nm}")
+            def binder(items, ns: str):
+                """4列バインダーを1枠ぶん描く。並べ替えは**この枠の中だけ**で完結する。
+
+                items: この枠に並べるもの（保有カードだけ／欲しいカードだけ）
+                ns:    ページ番号やボタンのキーを枠ごとに分けるための名前
+                """
+                per_page = 40  # 4列×10行
+                n_pages = max(1, -(-len(items) // per_page))
+                page = 1
+                if n_pages > 1:
+                    page = st.number_input(f"ページ（全{n_pages}・40枚/ページ）", 1, n_pages, 1,
+                                           key=f"album_view_page_{ns}")
+                shown = items[(page - 1) * per_page: page * per_page]
+
+                # マスの材料（画像・バッジ・キャプション）は保有カードと図鑑カードで
+                # 作り方が違う。album_cell() に寄せて、ここは同じ扱いで並べる
+                cells = {c: album_cell(df, store, dex, c) for c in shown}
+                css = ["<style>"]
+                for cert in shown:
+                    cell = cells[cert]
+                    edge = (
+                        "border:3px solid #2563eb!important;box-shadow:0 8px 22px rgba(37,99,235,.4);"
+                        if cert == pick else "border:1px solid #e2e8f0;"
+                    )
+                    bg = (f"background-image:url('{cell['uri']}');" if cell["uri"]
+                          else "background:#f1f5f9;")
+                    css.append(f".st-key-pimg_{slug(cert)} button{{{bg}{edge}}}")
+                    css.append(
+                        f".st-key-pimg_{slug(cert)} button::before{{content:'{cell['badge']}';"
+                        "position:absolute;top:6px;left:6px;"
+                        f"background:{cell['color']};color:#fff;font-size:10px;font-weight:700;padding:2px 6px;border-radius:6px;z-index:2;}}"
+                    )
+                css.append("</style>")
+                st.markdown("\n".join(css), unsafe_allow_html=True)
+
+                for i in range(0, len(shown), 4):
+                    cols = st.columns(4)
+                    for j, (col, cert) in enumerate(zip(cols, shown[i:i + 4])):
+                        no = (page - 1) * per_page + i + j + 1
+                        with col:
+                            card = st.container(key=f"pcard_{slug(cert)}")
+                            imgc = card.container(key=f"pimg_{slug(cert)}")
+                            if imgc.button("　", key=f"pbtn_{slug(cert)}", width="stretch"):
+                                # つかんでいるカードが別の枠のものなら、移動ではなく
+                                # 「選び直し」にする（枠をまたいで動かさない）
+                                if not pick or pick not in items:
+                                    st.session_state["album_pick"] = cert
+                                elif cert == pick:
+                                    st.session_state["album_pick"] = None
+                                else:
+                                    lst = [c for c in items if c != pick]
+                                    at = lst.index(cert)
+                                    # つかんだカードを先に抜くと後ろが1つ詰まるので前方移動は+1補正
+                                    if items.index(pick) < items.index(cert):
+                                        at += 1
+                                    lst.insert(at, pick)
+                                    albums[sel] = (lst + wants) if ns == "own" else (owned + lst)
+                                    save_albums(albums)
+                                    st.session_state["album_pick"] = None
+                                st.rerun()
+                            delc = card.container(key=f"pdel_{slug(cert)}")
+                            if delc.button("✕", key=f"pdelbtn_{slug(cert)}"):
+                                _confirm_delete(cert)
+                            card.caption(f"**No.{no}**　{cells[cert]['caption']}")
+
+            st.markdown(f"##### 🃏 保有カード（{len(owned)}枚）")
+            if owned:
+                binder(owned, "own")
+            else:
+                st.caption("保有カードはまだ入っていません（「➕ カードを追加」から）。")
+
+            st.divider()
+            st.markdown(f"##### ⭐ 欲しいカード（{len(wants)}枚）")
+            if wants:
+                binder(wants, "want")
+            else:
+                st.caption("欲しいカードはまだありません"
+                           + ("（サイドバーの「📖 ポケモンカード図鑑」から ⭐ で入れられます）。"
+                              if dex is not None else "。"))
 
     with add_tab:
+        if dex is not None:
+            st.caption("**まだ持っていない「欲しいカード」**は、サイドバーの"
+                       "「📖 ポケモンカード図鑑」から ⭐ で入れられます。ここは保有中のカード用です。")
         loc = st.radio("場所", ["両方", "Home", "Vault"], horizontal=True, key="album_loc")
         cand = active[~active["Cert Number"].astype(str).isin(current)].copy()
         if loc == "Home":
@@ -582,6 +743,55 @@ def render_album(df, store):
                     st.caption(f"PSA {gr2} {nm2}")
 
 
+def render_dex(dex):
+    """「📖 ポケモンカード図鑑」ビュー：別アプリ（~/pokecard-dex）の画面をここに出す。
+
+    **画面のコードは図鑑側の app.py の1本を共有する**（こちらに写すと二重メンテになる）。
+    図鑑は単独でも動く（./run.sh → 8531）が、このアプリからも開けるようにしたもの。
+    ここで足すのは「⭐ 欲しい」＝図鑑のカードをアルバムに入れるボタンだけ。
+
+    保有カードとの自動突き合わせはしない。PSA側にはポケモン以外のカード
+    （ONE PIECE等）もあり、CSVは英語表記（YAMATO）・図鑑は日本語（ヤマト）で
+    名前が繋がらないため（2026-08-19 オーナー判断）。
+    """
+    if st.session_state.pop("dex_added", None):
+        st.success(st.session_state.pop("dex_added_msg", "アルバムに追加しました"))
+
+    albums = load_albums()
+    names = list(albums.keys())
+    st.sidebar.divider()
+    st.sidebar.caption("⭐ 欲しいカードの入れ先")
+    target = st.sidebar.selectbox(
+        "アルバム", names, key="dex_album_target", label_visibility="collapsed",
+    ) if names else None
+    if target is None:
+        st.sidebar.caption("アルバムがありません。「アルバム」画面で作ってください。")
+    in_album = {str(c) for c in albums.get(target, [])} if target else set()
+    if target:
+        st.sidebar.caption(f"「{target}」に {sum(1 for c in in_album if is_dex(c))}枚")
+
+    def album_ui(row, uid):
+        """図鑑のカード1枚に付くボタン（図鑑側の app.py から呼ばれる）。"""
+        if target is None:
+            return
+        item = DEX_PREFIX + row["key"]
+        if item in in_album:
+            st.caption("⭐ 追加済み")
+            return
+        if st.button("⭐ 欲しい", key=f"want_{slug(uid)}", width="stretch"):
+            a = load_albums()
+            cur = [str(c) for c in a.get(target, [])]
+            if item not in cur:
+                a[target] = cur + [item]
+                save_albums(a)
+            # toast は rerun をまたいで残らないので、次の実行で出す
+            st.session_state["dex_added"] = True
+            st.session_state["dex_added_msg"] = f"「{target}」に追加しました：{row['name']}"
+            st.rerun()
+
+    dex.render(album_ui=album_ui, title="📖 ポケモンカード図鑑")
+
+
 if not CSV_PATH.exists():
     st.error(f"CSVが見つかりません: {CSV_PATH}")
     st.info("PSA My Collection のエクスポートCSVをアップロードすると、この端末に取り込んで開始できます。")
@@ -607,16 +817,25 @@ df["メモ"] = df["Cert Number"].map(lambda c: notes.get(str(c), {}).get("memo",
 
 # ---------------------------------------------------------------- サイドバー
 
-st.sidebar.title("🃏 PSA保有カード管理")
+# タイトルの左の絵文字は外した（2026-08-19 オーナー指示）
+st.sidebar.title("PSAカード管理")
 
-status = st.sidebar.radio(
-    "表示対象",
-    ["保有中（Vault）", "保有中（Home）", "アルバム", "鑑定中", "売却済", "すべて"],
-)
+# ポケモンカード図鑑（~/pokecard-dex）は**オプション**。入っているPCでだけ
+# 選択肢に出す（無ければこのアプリは今までどおり動く）
+dex = load_dex()
+VIEWS = ["保有中（Vault）", "保有中（Home）", "アルバム", "鑑定中", "売却済", "すべて"]
+if dex is not None:
+    VIEWS.append("📖 ポケモンカード図鑑")
 
-# 「アルバム」は保有中(Home/Vault)から選ぶ4列バインダー（ドラッグ並べ替え）の別ビュー
+status = st.sidebar.radio("表示対象", VIEWS)
+
+# 「アルバム」は保有中(Home/Vault)と図鑑の「欲しいカード」を並べる4列バインダーの別ビュー
 if status == "アルバム":
-    render_album(df, store)
+    render_album(df, store, dex)
+    st.stop()
+# 「📖 ポケモンカード図鑑」は別アプリの画面をそのまま出す別ビュー（カードの実データは向こう）
+if status == "📖 ポケモンカード図鑑":
+    render_dex(dex)
     st.stop()
 # 「鑑定中」はコレクションCSVではなく PSA申請データ（orders.json）を表示する別ビュー
 if status == "鑑定中":
@@ -689,33 +908,33 @@ if keyword.strip():
         view = view[haystack.str.contains(word, regex=False, na=False)]
         haystack = haystack[haystack.str.contains(word, regex=False, na=False)]
 
-grades = sorted(df["Grade"].dropna().unique(), key=lambda g: -float(g))
-sel_grades = st.sidebar.multiselect("グレード", grades, default=grades)
-if sel_grades:
-    view = view[view["Grade"].isin(sel_grades)]
+# グレードでの絞り込みは外した（2026-08-19 オーナー判断・使わないため）。
+# グレード自体はカードの表示・並べ替え（グレードが高い順）・集計タブに残っている
 
-# セット候補は現在の絞り込み結果から（件数の多い順）
-set_counts = view["Set"].value_counts()
-sel_sets = st.sidebar.multiselect(
-    "セット", [f"{s}（{n}）" for s, n in set_counts.items()],
-    help="未選択なら全セット",
-)
-if sel_sets:
-    picked = {s.rsplit("（", 1)[0] for s in sel_sets}
-    view = view[view["Set"].isin(picked)]
-
-years = sorted(int(y) for y in df["year_num"].dropna().unique())
-if years:
-    y_min, y_max = st.sidebar.select_slider(
-        "年", options=years, value=(years[0], years[-1]),
-    )
-    # 年が読み取れない行は、範囲を絞ったときだけ除外する
-    in_range = view["year_num"].between(y_min, y_max)
-    if (y_min, y_max) == (years[0], years[-1]):
-        in_range |= view["year_num"].isna()
-    view = view[in_range]
-
+# セット・年もここに入れる（2026-08-19 オーナー指示）。サイドバーの常時表示は
+# 「表示対象・オーダー・キーワード検索」だけにして、残りは畳んでおく
 with st.sidebar.expander("さらに絞り込む"):
+    # セット候補は現在の絞り込み結果から（件数の多い順）
+    set_counts = view["Set"].value_counts()
+    sel_sets = st.multiselect(
+        "セット", [f"{s}（{n}）" for s, n in set_counts.items()],
+        help="未選択なら全セット",
+    )
+    if sel_sets:
+        picked = {s.rsplit("（", 1)[0] for s in sel_sets}
+        view = view[view["Set"].isin(picked)]
+
+    years = sorted(int(y) for y in df["year_num"].dropna().unique())
+    if years:
+        y_min, y_max = st.select_slider(
+            "年", options=years, value=(years[0], years[-1]),
+        )
+        # 年が読み取れない行は、範囲を絞ったときだけ除外する
+        in_range = view["year_num"].between(y_min, y_max)
+        if (y_min, y_max) == (years[0], years[-1]):
+            in_range |= view["year_num"].isna()
+        view = view[in_range]
+
     vaults = sorted(view["Vault Status"].dropna().unique())
     sel_vault = st.multiselect("Vault状況", vaults)
     if sel_vault:

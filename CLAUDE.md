@@ -250,9 +250,9 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
 | フォトリメイク | photo-remake | — | iOS App Store配信済み ✅ |
 | 買取DMジェネレーター | kaitori-dm-maker | 8526 | — |
-| PSA保有カード管理 | psa-collection | 8527 | — |
+| PSAカード管理 | psa-collection | 8527 | — |
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
-| ポケモンカード図鑑（全31,520枚・画像100%収録） | pokecard-dex | 8531 | — |
+| ポケモンカード図鑑（全31,520枚・画像100%収録／**PSAカード管理の中からも開ける**） | pokecard-dex | 8531 | — |
 | チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
 | AIツールベース（Claude Code主軸の比較メディア＋制作記録） | ai-tools-base | 3004 | Vercel（**ai-tools-base.vercel.app**・手動 `npx vercel --prod`） |
 
@@ -293,7 +293,8 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 - **大京商事 業務マニュアル（Web）**（`gyomu-manual`） … `gyomu-manual/README.md`
 - **駐車場配置図ビューア**（`parking-map`） … `parking-map/README.md`
 - **買取DMジェネレーター**（`kaitori-dm-maker`・port 8526） … `kaitori-dm-maker/README.md`
-- **PSA保有カード管理**（`psa-collection`・port 8527） … `psa-collection/README.md`
+- **PSAカード管理**（`psa-collection`・port 8527） … `psa-collection/README.md`
+  （**ポケモンカード図鑑をオプションとして中から開ける**。図鑑の実体は `pokecard-dex/` のまま）
 - **マルチプロダクション**（`agent-platform`・port 8532） … `agent-platform/README.md`
 - **AI業務マネージャー**（`chatwork-ai-manager`） … `chatwork-ai-manager/README.md`
 - **チラシクリエーター**（`flyer-creator`・port 8529） … `flyer-creator/README.md`
@@ -345,9 +346,10 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8524 | 覚書・合意書ジェネレーター | com.shinsei.memorandum-generator |
 | 8525 | 送付書メーカー | com.shinsei.soufu-maker |
 | 8526 | 買取DMジェネレーター（※ツール・localhost・社内共有なし／常時起動のみ） | com.shinsei.kaitori-dm-maker |
-| 8527 | PSA保有カード管理（※ツール・localhost・社内共有なし／常時起動のみ。Desktop/社内ツールに.appショートカット有） | com.shinsei.psa-collection |
+| 8527 | PSAカード管理（※ツール・localhost・社内共有なし／常時起動のみ。Desktop/社内ツールに.appショートカット有） | com.shinsei.psa-collection |
 | 8528 | 書類キャビネット（※不動産・社内LAN共有あり・0.0.0.0／要フルディスクアクセス for /bin/bash＝Dropbox取込読取） | com.shinsei.shorui-cabinet |
 | 8529 | チラシクリエーター（※ツール・127.0.0.1・launchd未登録） | （未登録） |
+| 8531 | ポケモンカード図鑑（※ツール・127.0.0.1・**PSAカード管理(8527)の中からも開ける**／カード画像は著作物のためLANに出さない） | com.shinsei.pokecard-dex |
 | 8532 | マルチプロダクション | com.shinsei.agent-platform |
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
 | 8534 | KeyLine（NFC鍵・備品貸出管理／※画像自動削除は -purge が毎日3:30） | com.shinsei.keyline ＋ -purge |

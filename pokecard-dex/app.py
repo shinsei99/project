@@ -13,6 +13,14 @@
   📦 拡張パック         … パックの表紙一覧から収録カードへ
   🗃 構築デッキ・その他   … 同じく一覧から。分類は公式の商品種別に従う
 
+入口は2つある（画面のコードはこの1本を共有する）。
+
+  ① 単独起動      ./run.sh          → http://127.0.0.1:8531   （main）
+  ② PSAカード管理の中  http://127.0.0.1:8527 の「📖 ポケモン図鑑」（render）
+
+②は psa-collection がこのファイルを import して render() を呼ぶ。図鑑が無いPCでは
+選択肢自体が出ないので、PSA管理は図鑑なしでも成立する（オプション扱い）。
+
 ⚠️ 自分専用・localhost バインド。カード画像の著作権は
    ©Pokémon/Nintendo/Creatures/GAME FREAK に帰属するため、公開・配布はしない。
 """
@@ -27,6 +35,29 @@ import streamlit as st
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(HERE, "data", "cards.db")
+
+
+def _p(path):
+    """DBに入っている画像パスは `data/myca_large/…` の**相対**。実行時の cwd に
+    依らずこの図鑑フォルダ基準で開けるようにする。
+
+    単独起動（run.sh が cd してから起動する）では気づかないが、PSAカード管理
+    から呼ぶと cwd が向こうになり、そのままでは画像が1枚も出ない。
+    """
+    if not path:
+        return None
+    return path if os.path.isabs(path) else os.path.join(HERE, path)
+
+
+# 図鑑のカードを「欲しいカード」としてアルバムへ入れるための差し込み口。
+# PSAカード管理が render(album_ui=…) で渡す。単独起動では None＝何も出ない。
+# 図鑑側からアルバムの実装（albums.json・cert番号）を知らずに済ませるための境界。
+_ALBUM_UI = None
+
+
+def _album_ui(row, uid: str) -> None:
+    if _ALBUM_UI is not None:
+        _ALBUM_UI(row, uid)
 
 # TCGdex のタイプ名 → 日本語
 TYPE_JA = {
@@ -243,14 +274,15 @@ def image_of(row):
     SAR/MUR など）、そこは当面マイカ画像のままになる。公式に追加されたあと
     crawl_official → read_official → build_dex を回せば自動で差し替わる。
     """
-    if row["img_off"] and os.path.exists(row["img_off"]):
-        return row["img_off"]
-    if row["img"] and os.path.exists(row["img"]):
-        return row["img"]
+    for col in ("img_off", "img"):
+        p = _p(row[col])
+        if p and os.path.exists(p):
+            return p
     # 公式にもマイカにも無い年代（eシリーズ・PCG4/9・1996年の第1弾）だけ、
     # learn-book.com から補ったものを使う。最後の手段（learnbook.py 参照）
-    if row["img_web"] and os.path.exists(row["img_web"]):
-        return row["img_web"]
+    p = _p(row["img_web"])
+    if p and os.path.exists(p):
+        return p
     if row["image_tcgdex"]:
         return f"{row['image_tcgdex']}/low.png"
     return None
@@ -264,15 +296,17 @@ def show_detail(card):
         u = image_of(card)
         if u:
             st.image(u, width="stretch")
-            if card["img_off"] and os.path.exists(card["img_off"]):
+            if u == _p(card["img_off"]):
                 st.caption("公式サイトの画像")
-            elif card["img"] and u == card["img"]:
+            elif u == _p(card["img"]):
                 st.caption("マイカの画像で補完（公式に未登録のため）")
-            elif card["img_web"] and u == card["img_web"]:
+            elif u == _p(card["img_web"]):
                 st.caption("learn-book.com の画像で補完"
                            "（この年代は公式・マイカ・TCGdex のどこにも画像が無い）")
         else:
             st.info("このカードの画像は未収録です")
+        # 「欲しいカード」としてアルバムへ（PSAカード管理から開いたときだけ出る）
+        _album_ui(card, f"detail_{card['key']}")
 
     with col_txt:
         st.markdown(f"### {card['name']}")
@@ -351,6 +385,8 @@ def show_cards(rows, cols=6, key_prefix=""):
                 st.button("詳細", key=f"d_{key_prefix}_{row['key']}",
                           width="stretch",
                           on_click=_pick, args=("detail", row["key"]))
+                # 「欲しいカード」としてアルバムへ（PSAカード管理から開いたときだけ出る）
+                _album_ui(row, f"{key_prefix}_{row['key']}")
 
 
 def show_cover_grid(items, key_prefix, on_pick_key, cols=6):
@@ -358,8 +394,9 @@ def show_cover_grid(items, key_prefix, on_pick_key, cols=6):
     for i in range(0, len(items), cols):
         for j, (c, p) in enumerate(zip(st.columns(cols), items[i:i + cols])):
             with c:
-                if p.get("cover") and os.path.exists(p["cover"]):
-                    st.image(p["cover"], width="stretch")
+                cover = _p(p.get("cover"))
+                if cover and os.path.exists(cover):
+                    st.image(cover, width="stretch")
                 else:
                     st.markdown(
                         "<div style='aspect-ratio:4/3;background:#eceff1;"
@@ -415,8 +452,9 @@ def show_set_cards(picked_key, back_key=None):
         # 表紙の右に「見出し → 情報 → レアリティ絞り込み」を積む。
         # 絞り込みを表紙の下に離して置くと縦に間延びして読みにくい。
         c1, c2 = st.columns([1, 4])
-        if info["cover"] and os.path.exists(info["cover"]):
-            c1.image(info["cover"], width="stretch")
+        cover = _p(info["cover"])
+        if cover and os.path.exists(cover):
+            c1.image(cover, width="stretch")
         c2.markdown(f"### {info['name']}")
         c2.caption(f"{info['release'] or '発売日不明'}"
                    f"　｜　{info['ptype'] or '分類なし'}"
@@ -505,17 +543,38 @@ def fetch_card(key):
 
 # ── メイン ───────────────────────────────────────────────────────────────────
 
-def main():
-    st.set_page_config(page_title="ポケモンカード図鑑", page_icon="🃏", layout="wide")
+def available() -> bool:
+    """このPCに図鑑のデータがあるか。PSAカード管理が
+    「📖 ポケモン図鑑」の選択肢を出すかどうかの判定に使う。"""
+    return os.path.exists(DB) and has_dex()
 
-    if not os.path.exists(DB) or not has_dex():
+
+def main():
+    """単独起動（./run.sh → 8531）の入口。"""
+    st.set_page_config(page_title="ポケモンカード図鑑", page_icon="🃏", layout="wide")
+    render()
+
+
+def render(album_ui=None, title: str = "🃏 ポケモンカード図鑑"):
+    """図鑑の画面。単独起動と PSAカード管理の両方から呼ばれる。
+
+    set_page_config はここでは呼ばない（呼び出し側が既に済ませているため。
+    2回呼ぶと StreamlitAPIException になる）。
+
+    album_ui: カード1枚ぶんの「欲しいカード」ボタンを描く関数 (row, uid) -> None。
+              PSAカード管理から渡される。単独起動では None＝何も足さない。
+    """
+    global _ALBUM_UI
+    _ALBUM_UI = album_ui
+
+    if not available():
         st.error("データがありません。`python crawl_myca.py` → "
                  "`python fetch_myca_large.py` → `python make_thumbs.py` → "
                  "`python build_dex.py` を実行してください。")
         return
 
     s = stats(db_stamp())
-    st.title("🃏 ポケモンカード図鑑")
+    st.title(title)
     # レアリティは割合を出さない。空欄は取りこぼしではなく、カードに記号が
     # 刷られていないもの（構築デッキ・スタートデッキ100・ハイクラスパックの
     # 通常カードなど3分の1が該当する）。％にすると欠落のように見えてしまう
