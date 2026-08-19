@@ -242,7 +242,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
 | 送付書ジェネレーター | soufu-generator | 8518 | — |
-| デジタル書斎 | digital-shosai | 3001 | — |
+| デジタル書斎 | digital-shosai | 3001 | App Store **審査提出済み**（1.0.0/build1・2026-08-19） |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
 | スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（1.0.2 build6 配信済み・**1.0.4 build8 を審査へ提出済み 2026-08-19**。build7は提出せず） |
 | 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅ |

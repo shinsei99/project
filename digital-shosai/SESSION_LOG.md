@@ -47,6 +47,26 @@
 - シミュレータにはタップ操作のAPIが無い → Quartz でマウスイベントを送る `tap.py`/`drag.py` を用意。
   **日本語入力は `keystroke` だと化ける**ので `xcrun simctl pbcopy` → ⌘V で入れる
 
+### 提出まで完了（本人が実施・2026-08-19）
+
+**App Store へ審査提出済み（1.0.0 / build 1）。** Apple ID 6803002980。
+アプリ登録は**既に存在していた**ため、`DistributionAppRecordProviderError` の原因は
+Xcode のキャッシュのみだった（Xcode再起動で解消）。App ID もアーカイブ時に自動登録されていた。
+
+このセッションで入れたストア情報:
+
+| 項目 | 内容 |
+|---|---|
+| サブタイトル | PDFを本棚へ。全文検索できる書斎 |
+| プロモーション用テキスト | 収録作品4冊を先に出し「すぐ試せる」を強調（111字） |
+| 概要 | 機能・収録作品・原本は置いたまま・完全オンデバイス・未OCRの注意（約570字） |
+| キーワード | 自炊,電子書籍,青空文庫,読書,資料,検索,OCR,オフライン,ドキュメント,ビューア,論文,教科書,マニュアル,蔵書,参考書,勉強,書類,索引（72字） |
+| サポートURL | https://shinsei99.github.io/project/digital-shosai-support/ ← **ママカウンターのURLが入っていたのを差し替え** |
+| プライバシーポリシーURL | 同 `/privacy.html`（gh-pages に新規作成） |
+
+**スクショの寸法は3種類用意した**（`store/screenshots/`）。バージョン1.0の枠が要求したのは
+**6.5インチ（1284×2778）**で、最初に作った6.9インチ（1290×2796）だけでは足りなかった。
+
 ### 分かったこと（次の提出でも効く）
 
 - **配布証明書は `security find-identity` に出てこない**が、Xcodeは持っている。
@@ -59,11 +79,11 @@
 
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **App Store Connect にアプリ登録がまだ無い**。登録前に Distribute すると
-  `DistributionAppRecordProviderError error 0` で落ちる（KeyTagで実際に踏んだ）
+- **審査結果の確認**（通ったら CLAUDE.md と一覧を「配信済み」へ）
 - **実機（iPhone）では未確認**。シミュレータのみ
+- **著作権欄が `SHINSEI PROPERTY MANAGEMENT.K.K.`** になっている。他アプリは
+  「新誠プロパティマネジメント」で揃える方針（[[reference_developer_entity]]）。**判断待ち**
 - PWA化（manifest/service worker）は未着手。アプリ版には必須ではない
-- App Store Connect の登録一式（説明文・キーワード・プライバシーポリシーURL）はこれから
 - 同梱PDFで5.7MB増える。アプリサイズを抑えたいなら「こころ」(3.0MB) を外す選択もある
 
 ---

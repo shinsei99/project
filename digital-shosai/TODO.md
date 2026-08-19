@@ -86,9 +86,12 @@ Mac があることを前提にしない（Macのフォルダ一括指定は将�
 - [x] **ストア用スクショ**（iPhone `store/screenshots/iphone-6.9/`・1290×2796／iPad `ipad-12.9/`・2048×2732）
 - [x] **iPadも対象にする**（既定の universal のまま。iPad Pro 13-inch で5画面確認済み）
 - [x] **Archive 作成**（1.0.0/build1・`~/Library/Developer/Xcode/Archives/2026-08-19/`）
-- [ ] **App Store Connect でアプリを登録**（登録前にDistributeすると落ちる）
-- [ ] 実機（iPhone）で1度通す
-- [ ] Organizer → Distribute → Upload → 審査へ提出
+- [x] **App Store Connect の登録**（既に存在していた。エラーはXcodeのキャッシュだけだった）
+- [x] **ストア情報の入力**（サブタイトル・プロモ文・概要・キーワード・サポート/プライバシーURL）
+- [x] **サポート／プライバシーページを公開**（gh-pages `digital-shosai-support/`）
+- [x] **審査へ提出**（1.0.0 / build 1・2026-08-19・本人実施）
+- [ ] **審査結果の確認**（通ったら CLAUDE.md と一覧を「配信済み」へ）
+- [ ] 実機（iPhone）で1度通す（シミュレータのみ確認済み）
 
 ## App Store 提出（メインPCの担当）
 
