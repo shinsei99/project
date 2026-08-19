@@ -16,6 +16,7 @@ from services.agent_tools import (
     progress_tools,
     project_tools,
     reinfolib_tools,
+    streetview_tools,
     task_tools,
 )
 
@@ -186,6 +187,16 @@ REGISTRY = {
         "func": gis_tools.gis_status,
         "desc": "物件マスタと座標の整備状況（何件登録・何件に座標があるか・未取得の一覧）",
         "usage": "gis_status {}",
+    },
+    "streetview_lookup": {
+        "func": streetview_tools.streetview_lookup,
+        "desc": "指定地点（住所/物件名/緯度経度のいずれか）の現地画像を取得し、claude visionで"
+                "店舗名・看板・目立つ建物名を読み取る。「この場所に何がある？」「1階の店舗名は？」"
+                "のように現地の様子・テナント名を目視確認したいときに使う。"
+                "google_maps_api_key（要課金設定・未設定）が無い間はGoogleマップの衛星写真"
+                "（無料）で代替するため、路上の看板そのものは読めない場合がある旨をnoteで返す",
+        "usage": 'streetview_lookup {"address":"大阪市都島区中野町1-4-18","question":"1階の店舗名は？"} '
+                 'または {"property":"メゾンドール都島"} や {"lat":34.69,"lon":135.52}',
     },
     # ---- 開発（アプリ制作・改修。業務TODOとは別系統） ----
     "dev_task_create": {
