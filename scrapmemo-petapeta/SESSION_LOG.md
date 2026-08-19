@@ -1,5 +1,61 @@
 # SESSION LOG — スクラップメモ（scrapmemo-petapeta）
 
+## 2026-08-19（メインPC）
+
+### 完了したこと
+- **保存容量の問題を根本解決した。画像だけ IndexedDB へ移した。**
+  前日の「明日やる」1番目。localStorage の 5,100KB は WebKit 固定で広げられないが、
+  同じ端末で IndexedDB の quota は 9,830MB。メモ側は `imgId` だけ持ち、画像本体は別ストアへ。
+  - 追加した層: `imgDB/imgPut/imgGet/imgDel`（`snb6img` / ストア `img`）＋ `imgCache`（Map）
+  - 描画は `setBlockImg()` に集約。**旧形式(`src`=dataURL)も新形式(`imgId`)も同じ入口**で扱う
+    ので、移行前のデータでも壊れない。拡大表示は `openImgBlockLightbox()` が非同期に読む
+  - 起動時に `migrateImagesToIDB()` が旧データを自動で移す（移行後 `renderPage()` し直す）
+  - `gcOrphanImages()` を追加。**どこからも参照されていない画像を起動時に掃除する**。
+    localStorage時代は画像がJSONの中にいて道連れで消えたが、別ストアにした以上
+    孤児は誰も消さない。実測でも検証中に孤児が1件出たので、その場で足した
+  - ゴミ箱を空にしたとき・30日で自動削除されたときも `imgDel` で実体を消す
+- **`save()` が `QuotaExceededError` を握りつぶしていたのを直した。**（前日の「明日やる」2番目）
+  以前は `catch(e){}` で、上限を超えても画面上は貼れて見え、**警告も出ないまま次回起動で消えて**いた。
+  いまは `console.error` ＋ トーストで知らせ、`save()` は成功/失敗を返す。
+- **1.0.4 / build 8 へ繰り上げ、Archive まで完了**（`~/Library/Developer/Xcode/Archives/scrapmemo_1.0.4_build8.xcarchive`）。
+  `ios-build-guard.sh` で「衝突なし（8 > 既存最大7）」を確認してからArchiveした。
+
+### 検証（すべて Xcodeシミュレータ iPhone 17 / iOS 26.5 の実測）
+| 見たこと | 結果 |
+|---|---|
+| 旧形式データ(140KB画像)を仕込んで起動 | localStorage **140KB → 0KB**（画像が抜けた）／`block.src` なし・`block.imgId` あり／IDBキー1件・140KB／画面の`<img>` **900x700 で表示** |
+| 大きい写真30枚（**合計77.3MB**）を追加して再起動 | メモ **30件すべて残存**／画面に **30/30 表示**／localStorage `snb6p` は **4KB**（上限5,100KB）／usage 77.8MB / quota 9,830MB |
+| 孤児画像の掃除 | 参照30・IDBキー30・**孤児0（掃除された）**・画面30/30 |
+| テストコードの剥がし残し | バンドル内 **0件**（`99999;background:#0f0` を grep して確認） |
+
+**※以前は写真1枚（縮小後でも最悪2枚）で上限に達していた。** 縮小（前日実装）と合わせて、
+実質「本体の空き容量が上限」になった。
+
+### 発生したエラーと解決策
+- 症状: `npx cap sync` だけでは `www/` が古いままだった（`index.html` と md5 不一致）
+  → 原因: このリポジトリは `npm run sync`（= `build:web` で `index.html` を `www/` へコピー → `cap sync`）が正。
+  → 直し方: **必ず `npm run sync` を使う**。`npx cap sync` 単体は使わない
+- 症状: `xcodebuild -workspace ios/App/App.xcworkspace` が「存在しない」で失敗
+  → 原因: このアプリは **CocoaPods を使っておらず `.xcworkspace` が無い**（Capacitor 8 は SPM）。
+  → 直し方: `-project ios/App/App.xcodeproj` を使う
+- 症状: シミュレータのIndexedDBを直接 sqlite3 で数えようとしたら
+  `no such collation sequence: IDBKEY` で読めない
+  → 迂回: アプリ内に**読み取り専用の小さな確認スクリプトを一時的に差し込み**、
+  画面のオーバーレイに出して `simctl io screenshot` で読む（前日と同じ手法）。
+  **確認後は必ず剥がし、grepで0件を確認する**
+
+### 次回への引き継ぎ事項・未解決の課題
+- **人の判断が要る: App Store Connect へのアップロードと審査提出。**
+  Archive は完了して Organizer を開いてある。**アップロード自体はまだしていない。**
+- **1.0.3 / build 7 が ASC で審査提出まで進んだかは依然として未確認**（前日からの持ち越し）。
+  1.0.4/build8 を上げるなら、7 の扱い（破棄するか）を先に確認したほうがよい。
+- Web版（GitHub Pages）は push すれば反映される。**IndexedDB はブラウザでも同じく使える**ので
+  Web版でも容量が広がる（ただしSafariのquotaは端末・設定で変わる）。
+- 未着手: **書き出し／取り込み（バックアップ）**。画像が別ストアになったので、
+  バックアップを作るなら imgId の実体も一緒に固める必要がある（設計が少し変わった）。
+
+
+
 ## 2026-08-18（メインPC）
 
 ### 完了したこと
