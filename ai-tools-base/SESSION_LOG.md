@@ -72,6 +72,24 @@
 → **本数で予定を組まない。** 毎回 `./publish.sh status` の ⬜ と
 デプロイ履歴（https://zenn.dev/dashboard/deploys ・要ログイン）で確かめる。
 
+### `./publish.sh site` が「Not authorized」で失敗した — サブPCからも本番デプロイはできる
+
+**サブPCから Vercel 本番デプロイができることを実測した**（これまで「メインPC担当」としていた）。
+ただし1回目は失敗した。症状 → 原因 → 直し方:
+
+- **症状**: `npx vercel --prod` が `{"status":"error","reason":"deploy_failed","message":"Not authorized"}`。
+  認証自体は通っている（`npx vercel whoami` → `daikyocorps-3085`、team は `brain-dump`）
+- **原因**: `.vercel/project.json` の `projectName` が**旧名 `ai-tools-lab` のまま**だった。
+  2026-08-17 の改名（ai-tools-lab → ai-tools-base）にリンク情報が追従していなかった
+  （`.vercel/` は gitignore なので、git では直らない）
+- **直し方**: `npx vercel link --yes --project ai-tools-base --scope brain-dump`。
+  projectId と orgId は変わらず `projectName` だけが直り、そのあと通った
+
+**`./publish.sh site` の「反映確認」は当てにならない。** デプロイが `Not authorized` で
+落ちたあとも `https://ai-tools-base.vercel.app → HTTP 200` と表示した（既存のデプロイに
+当たっているだけ）。**成否は「Aliased …」の行と、実際のページの中身で確かめること。**
+今回は `curl .../works/keyline` と `/works/shorui-cabinet` に note のURLが出ることを見て確認した。
+
 ### 次回への引き継ぎ事項・未解決の課題
 
 - **Zenn の残り1本 `ai-intake-hearing` は push 済みだが未反映**（上限で弾かれた）。
