@@ -184,7 +184,40 @@ iPhone 17 Pro Max（iOS 26.5）のシミュレータで**取り込み→本棚�
 Quartz でマウスイベントを送る小さなスクリプト（`tap.py` / `drag.py`）を作って操作した。
 日本語入力は `keystroke` では化けるので **`xcrun simctl pbcopy` → ⌘V** で入れる。
 
-## 8. 提出前チェックリスト
+## 8. Archive は作ってある（2026-08-19 17:36）
+
+```
+~/Library/Developer/Xcode/Archives/2026-08-19/デジタル書斎 2026-08-19 17.36.xcarchive
+```
+
+- **1.0.0 (build 1)** / `com.shinsei.shosai` / Team `773DPMVW7Q` / 19MB
+- アイコン（iPhone・iPad）と**収録作品4冊**が中に入っていることを確認済み
+- 署名は `Apple Development`＋ワイルドカードのプロファイル。**これでよい**。
+  Organizer の「Distribute App」が配布用に**署名し直す**（配布証明書は Xcode が持っている。
+  `security find-identity` には出てこないが、Xcode 14以降は
+  **データ保護キーチェーン**に鍵を置くのでCLIからは見えないだけ）
+- 作り直すコマンド:
+
+```bash
+cd ~/digital-shosai && npm run build && npx cap copy
+xcodebuild -project ios/App/App.xcodeproj -scheme App -configuration Release \
+  -destination 'generic/platform=iOS' -archivePath ~/digital-shosai/build/App.xcarchive \
+  archive DEVELOPMENT_TEAM=773DPMVW7Q CODE_SIGN_STYLE=Automatic -allowProvisioningUpdates
+# ★Organizerに出すには ~/Library/Developer/Xcode/Archives/<日付>/ へ移すこと（別の場所だと一覧に出ない）
+```
+
+**注意: アーカイブを作った後に `./ios-build-guard.sh digital-shosai` を叩くと必ず「衝突リスク」と出る。**
+いま作ったアーカイブ自身を数えるため。**判定はArchiveの前に行う**（前に叩いたときは「衝突なし」だった）。
+
+### 次にやること（Distribute の前に必要）
+
+1. **App Store Connect でアプリを登録する**（名前・SKU・バンドルID `com.shinsei.shosai`）。
+   登録前に Distribute すると `DistributionAppRecordProviderError error 0` で落ちる
+   （KeyTag で実際に踏んだ。登録後も古いキャッシュが残るので**Xcodeを再起動**する）
+2. Organizer → Distribute App → App Store Connect → Upload
+3. アップロード後、App Store Connect でスクショ・説明文・プライバシーを埋めて審査へ提出
+
+## 9. 提出前チェックリスト
 
 - [x] `npm run build` が通る／`npx tsc --noEmit` が0件
 - [x] `npx cap copy` 済み（`out/` の最新が `ios/` に入っている）

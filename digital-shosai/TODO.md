@@ -85,8 +85,10 @@ Mac があることを前提にしない（Macのフォルダ一括指定は将�
 - [x] **iOSのsafe-area／入力欄の自動拡大によるズレを解消**
 - [x] **ストア用スクショ**（iPhone `store/screenshots/iphone-6.9/`・1290×2796／iPad `ipad-12.9/`・2048×2732）
 - [x] **iPadも対象にする**（既定の universal のまま。iPad Pro 13-inch で5画面確認済み）
+- [x] **Archive 作成**（1.0.0/build1・`~/Library/Developer/Xcode/Archives/2026-08-19/`）
+- [ ] **App Store Connect でアプリを登録**（登録前にDistributeすると落ちる）
 - [ ] 実機（iPhone）で1度通す
-- [ ] App Store Connect の登録 → Archive → 提出
+- [ ] Organizer → Distribute → Upload → 審査へ提出
 
 ## App Store 提出（メインPCの担当）
 

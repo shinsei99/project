@@ -25,6 +25,9 @@
 - **iPadも対象にする**（オーナー判断）。iPad Pro 13-inch (M5) のシミュレータで同じ5画面を確認。
   `TARGETED_DEVICE_FAMILY` は既定の `1,2` のままでよい
 - **シミュレータ操作の道具をリポジトリに置いた**（`simtap.py`）。次のiOSアプリでも使える
+- **Archive を作成**（17:36）。`~/Library/Developer/Xcode/Archives/2026-08-19/デジタル書斎 …xcarchive`。
+  1.0.0 (build 1)・19MB。中身（アイコン・収録作品4冊・版数）を確認済み。
+  署名は Apple Development＋ワイルドカードのプロファイルで、**Distribute時に配布用へ署名し直される**
 - `HANDOFF-APPSTORE.md` を実物に合わせて更新（審査ノートの誤りも訂正）
 
 ### 発生したエラーと解決策
@@ -44,10 +47,20 @@
 - シミュレータにはタップ操作のAPIが無い → Quartz でマウスイベントを送る `tap.py`/`drag.py` を用意。
   **日本語入力は `keystroke` だと化ける**ので `xcrun simctl pbcopy` → ⌘V で入れる
 
+### 分かったこと（次の提出でも効く）
+
+- **配布証明書は `security find-identity` に出てこない**が、Xcodeは持っている。
+  Xcode 14以降は署名鍵を**データ保護キーチェーン**に置くのでCLIからは見えないだけ
+  （過去の提出はこのMacから通っている）。「証明書が無い」と早合点しない
+- **Archive後に `ios-build-guard.sh` を叩くと必ず「衝突リスク」と出る**（作ったばかりの
+  アーカイブ自身を数えるため）。**判定はArchiveの前に行う**
+- `-archivePath` に別の場所を指定すると **Organizer の一覧に出ない**。
+  `~/Library/Developer/Xcode/Archives/<日付>/` へ移すこと
+
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **iPadを対象にするかの判断が要る**（既定では universal。対象にするなら 2048×2732 のスクショが必要。
-  外すなら `TARGETED_DEVICE_FAMILY = 1`）
+- **App Store Connect にアプリ登録がまだ無い**。登録前に Distribute すると
+  `DistributionAppRecordProviderError error 0` で落ちる（KeyTagで実際に踏んだ）
 - **実機（iPhone）では未確認**。シミュレータのみ
 - PWA化（manifest/service worker）は未着手。アプリ版には必須ではない
 - App Store Connect の登録一式（説明文・キーワード・プライバシーポリシーURL）はこれから
