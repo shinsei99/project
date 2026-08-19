@@ -19,6 +19,8 @@
 # PCまたぎの整備ツール（2026-08-16にサブPCで作ったが、この許可行が無く
 # コミットされていなかった。commitメッセージには載っているのに実体が来ない）
 !SETUP.md
+# Google Maps Platform の導入前調査（料金・規約の裏取り）。6アプリにまたがるので直下に置く
+!GOOGLE_MAPS_API.md
 !dev-doctor.py
 !dev-setup.sh
 !secrets-sync.sh
