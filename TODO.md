@@ -168,6 +168,22 @@
 
 ## 横断作業（複数アプリにまたがるもの）
 
+- **日本郵便「郵便番号・デジタルアドレスAPI」— テスト用で疎通まで確認した（2026-08-19・サブPC）。**
+  実装は直下 **`japanpost_api.py`**（`search_code` / `address_zip` / トークンのキャッシュ付き）。
+  認証は OAuth2 `client_credentials`、**ヘッダ `x-forwarded-for` が必須**
+  （自分のグローバルIPで通ることを実測。自動判定する作りにしてある）。
+  - **本番ホストは `api.da.pf.japanpost.jp`**（モジュールの既定）。テスト用は
+    `stub-qz73x.da.pf.japanpost.jp` で、**資格情報ごと別**（テスト用を本番に入れると401）。
+    切り替えは `.env.japanpost` の `JAPANPOST_HOST` 1行（**本番が出たらこの行を消す**）
+  - 疎通確認済み: `searchcode "100"` → 千代田区 内幸町/大手町。
+    `addresszip 13/13101` → level=2 で6件。カナ・ローマ字も返る
+  - **★人がやること: 本番用の組織・システム登録 → 本番のクライアントID／シークレットの発行**
+    （https://guide-biz.da.pf.japanpost.jp/api/ ）。届いたら `.env.japanpost` を差し替える
+  - **未確認**: レート制限の具体的な数値。テスト用は「予告なくデータのクリーンアップ・処理中断」
+    があり、負荷試験や大量利用は不可
+  - 使い道: `soufu-maker` / `kaitori-dm-maker` / `tsuikyaku-crm` の住所正規化。
+    **v2.0 では法人名・電話番号・法人番号まで取れる**ので、法人番号APIの前段にもなる
+
 - **Google Maps / ストリートビュー API を取得した（2026-08-19・サブPC）。詳細は `GOOGLE_MAPS_API.md`。**
   プロジェクト **`daikyo-maps-2026`**（**Gemini とは別プロジェクト**。同じだと公開ページに載せた
   キーで Gemini を叩かれるため）。請求先は Gemini と同じ口を流用＝**カード再入力なし**。

@@ -31,6 +31,9 @@
 # Claude Code の「目」（Visual Agent）。撮った画像とプロファイルは .see/ で無視される
 !see.sh
 !see.py
+# 日本郵便「郵便番号・デジタルアドレスAPI」の共通クライアント（住所の正規化。複数アプリから使う）
+# 資格情報は .env.japanpost 側（gitignoreのまま・secrets-manifest.txt で運ぶ）
+!japanpost_api.py
 !va.sh
 !visual_agent.py
 !handwriting-ocr/
