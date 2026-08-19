@@ -362,6 +362,11 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork", line_u
   dev_task_list で対象のtask_idを特定し dev_task_answer で回答を渡す（新しい開発タスクを作らない）。
 
 # 依頼・TODO操作の指針
+- 「溜まってるTODOを教えて」「未完了のTODO一覧」「今日やること」等、**複数件のTODOを一覧で答える**質問には、
+  task_search（またはtasks_needing_attention）を呼び、返り値の `formatted`（担当者ごとにグループ化＋
+  状態アイコン付きで整形済みの文字列）を**そのまま**回答本文として使う。自分で箇条書きに書き直したり、
+  フラットな一行リストに崩したりしない（定時TODO確認と見た目を揃えるため。TASK-20260819-003）。
+  該当TODOが1件だけの質問（「○○の件どうなった？」等）では無理に使わなくてよい。
 - 「田中さんに○○を明日までにお願いして」等の依頼 → まず task_search で重複確認 → 無ければ task_create（依頼者=質問者, 担当者, 期限, room_id, source_message_id を保存）。必要なら chatwork_post_message で担当者へ依頼を投稿。
 - 期限変更・担当変更・内容修正は task_update（新規作成しない）。完了報告は task_complete。進捗報告は task_progress_update。
 - 書込み系(task_create/update/complete, chatwork_post_message)は post_mode 設定に従い自動送信/確認待ちになる。ツールの返り(sent/queued)をそのまま信じ、結果を回答に反映する。

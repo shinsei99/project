@@ -25,7 +25,7 @@ import json
 from db.connection import get_conn, query_one
 from services import outbox, settings
 from services import tasks as T
-from services.agent_tools import progress_tools
+from services.agent_tools import format_tools, progress_tools
 from services.chatwork import mention
 
 # job_type -> (settings時刻キー, 既定時刻, 抽出kind, エスカレ段階, 見出し)
@@ -260,40 +260,10 @@ def _weekly_report_due(now, job_type):
     return not query_one("SELECT 1 FROM scheduled_runs WHERE run_date=? AND job_type=?", (today, job_type))
 
 
-# 状態 -> 一目でわかる絵文字（担当者別グルーピング表示用）
-_STATUS_EMOJI = {
-    T.STATUS_TODO: "⬜", T.STATUS_DOING: "🔵", T.STATUS_WAITING: "🟡",
-    T.STATUS_OVERDUE: "🔴", T.STATUS_HOLD: "⏸",
-}
-
-
-def _format_task_block(t):
-    due = t["due_date"] or "期限未設定"
-    emoji = _STATUS_EMOJI.get(t["status"], "・")
-    requester = t["requester"] or "?"
-    return (f"{emoji} {t['content']}\n"
-            f"　　期限:{due}｜{t['status']}｜依頼:{requester}")
-
-
 def _format_weekly_body(label, room_tasks):
     """担当者ごとにまとめ、期限が近いものが先に来るよう並べて読みやすく整形する。"""
-    groups = {}
-    for t in room_tasks:
-        groups.setdefault(t["assignee_name"] or "未定", []).append(t)
-
-    def group_sort_key(item):
-        _name, tasks = item
-        dues = [t["due_date"] for t in tasks if t["due_date"]]
-        return min(dues) if dues else "9999-99-99"
-
-    lines = [f"📋 {label}", f"未完了TODO {len(room_tasks)}件（期限が決まっているものも含め全件）"]
-    for assignee, tasks in sorted(groups.items(), key=group_sort_key):
-        tasks_sorted = sorted(tasks, key=lambda t: t["due_date"] or "9999-99-99")
-        lines.append("")
-        lines.append(f"👤 {assignee}（{len(tasks_sorted)}件）")
-        for t in tasks_sorted:
-            lines.append(_format_task_block(t))
-    return "\n".join(lines)
+    title = f"📋 {label}\n未完了TODO {len(room_tasks)}件（期限が決まっているものも含め全件）"
+    return format_tools.format_grouped_task_list(room_tasks, title=title)
 
 
 def run_weekly_report(client, job_type, now=None):

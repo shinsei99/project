@@ -53,7 +53,9 @@ REGISTRY = {
     # ---- TODO ----
     "task_search": {
         "func": task_tools.task_search,
-        "desc": "TODOを検索（keyword/assignee/status/room_idで絞り込み）。作成前の重複確認に使う",
+        "desc": "TODOを検索（keyword/assignee/status/room_idで絞り込み）。作成前の重複確認に使う。"
+                "複数件を一覧で答えるときは、返り値の formatted（担当者ごとにグループ化＋状態アイコンで"
+                "整形済みの文字列。定時TODO確認と同じ見た目）をそのまま回答本文に使うこと",
         "usage": 'task_search {"keyword":"資料確認","assignee":"田中","status":null}',
     },
     "task_create": {
@@ -90,7 +92,9 @@ REGISTRY = {
     # ---- Progress（定時処理向け・QAでも利用可） ----
     "tasks_needing_attention": {
         "func": progress_tools.tasks_needing_attention,
-        "desc": "確認/催促が必要なTODOを抽出（kind: due_soon/overdue/stale/carryover）",
+        "desc": "確認/催促が必要なTODOを抽出（kind: due_soon/overdue/stale/carryover）。"
+                "複数件を一覧で答えるときは、返り値の formatted（担当者ごとにグループ化＋状態アイコンで"
+                "整形済みの文字列。定時TODO確認と同じ見た目）をそのまま回答本文に使うこと",
         "usage": 'tasks_needing_attention {"kind":"overdue"}',
     },
     # ---- GIS / 地図（管理物件108件の位置情報。座標は国土地理院・DBキャッシュ済み） ----

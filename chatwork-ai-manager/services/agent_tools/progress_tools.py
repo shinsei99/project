@@ -12,6 +12,7 @@ import datetime
 
 from db.connection import get_conn, query
 from services import settings, tasks as T
+from services.agent_tools import format_tools
 
 
 # 定時確認(10/13/18時)は「AI確認待ち」の未完了TODOも対象に含める（TASK-20260818-006）。
@@ -71,7 +72,11 @@ def tasks_needing_attention(kind="overdue", limit=50):
                      f"AND status IN ({ph}) {skip}ORDER BY due_date LIMIT ?", (target, *params, limit))
     else:
         return {"ok": False, "error": f"unknown kind: {kind}"}
-    return {"ok": True, "kind": kind, "count": len(rows), "tasks": _fmt(rows)}
+    tasks = _fmt(rows)
+    # formatted: 担当者ごとにグループ化＋状態アイコンで整形済みの文字列（定時TODO確認と同じ見た目）。
+    # QAが複数件を一覧で答えるときは、これをそのまま回答本文として使うこと。
+    return {"ok": True, "kind": kind, "count": len(rows), "tasks": tasks,
+            "formatted": format_tools.format_grouped_task_list(tasks)}
 
 
 def record_check(task_id, escalation_stage=None):

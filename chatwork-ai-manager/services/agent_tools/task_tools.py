@@ -1,6 +1,7 @@
 """TODO Tool。既存 services/tasks.py を安全にラップ。"""
 from db.connection import query
 from services import tasks as T
+from services.agent_tools import format_tools
 
 
 def _row(t):
@@ -33,7 +34,11 @@ def task_search(keyword=None, assignee=None, status=None, room_id=None, only_ope
         sql += f" AND status IN ({ph})"; params += T.OPEN_STATUSES
     sql += " ORDER BY (due_date IS NULL), due_date, id DESC LIMIT ?"; params.append(limit)
     rows = query(sql, tuple(params))
-    return {"ok": True, "count": len(rows), "tasks": [_row(r) for r in rows]}
+    tasks = [_row(r) for r in rows]
+    # formatted: 担当者ごとにグループ化＋状態アイコンで整形済みの文字列（定時TODO確認と同じ見た目）。
+    # 複数件を一覧で答えるときは、これをそのまま回答本文として使うこと（バラバラの箇条書きにしない）。
+    return {"ok": True, "count": len(rows), "tasks": tasks,
+            "formatted": format_tools.format_grouped_task_list(tasks)}
 
 
 def task_create(content, assignee_name=None, assignee_account_id=None, requester=None,
