@@ -3,12 +3,12 @@
 2段階（役割を分ける。2026-08-18: 13:00のprogress_1300は廃止し1日2回に変更）:
   closing_1800  (18:00) 終業前確認     … 本日期限の未完了・未着手・停滞・完了報告なしに加え、
                                          期限未設定のTODO全件も対象に進捗を確認
-  carryover_1000(翌10:00) 前日未完了   … 前日以前が期限のまま未完了＝期限超過に加え、
+  carryover_1000(翌10:30) 前日未完了   … 前日以前が期限のまま未完了＝期限超過に加え、
                                          期限未設定かつ未確認（AI確認待ち）も対象に確認・エスカレーション
   due_reminder  (既定09:00) 期限リマインド … 期限のN日前(既定2日)の未完了に事前リマインド
 
 週次棚卸し（絞り込みなしで未完了TODO全件を報告。上記の日次催促とは別物）:
-  weekly_report_fri (金曜18:00) / weekly_report_mon (月曜10:00)
+  weekly_report_fri (金曜18:00) / weekly_report_mon (月曜10:30)
 
 方針:
   - scheduled_runs(UNIQUE run_date,job_type) を INSERT OR IGNORE で「claim」し、取れた時だけ実行 → 二重実行防止。
@@ -30,14 +30,14 @@ from services.chatwork import mention
 
 # job_type -> (settings時刻キー, 既定時刻, 抽出kind, エスカレ段階, 見出し)
 JOBS = {
-    "carryover_1000": ("carryover_check_time", "10:00", "carryover", 3, "前日未完了・期限超過の確認"),
+    "carryover_1000": ("carryover_check_time", "10:30", "carryover", 3, "前日未完了・期限超過の確認"),
     "closing_1800": ("closing_check_time", "18:00", "today_open", 2, "終業前の未完了確認"),
     "due_reminder": ("due_reminder_check_time", "09:00", "due_reminder", 0, "期限リマインド（期限の数日前）"),
 }
 
 # 週次の全件棚卸し（日次の絞り込み催促とは別物）。job_type -> (weekday 0=月〜4=金, 時刻キー, 既定時刻, 見出し)
 WEEKLY_JOBS = {
-    "weekly_report_mon": (0, "weekly_report_mon_time", "10:00", "週始めの棚卸し（月曜10:00・やり残し確認）"),
+    "weekly_report_mon": (0, "weekly_report_mon_time", "10:30", "週始めの棚卸し（月曜10:30・やり残し確認）"),
     "weekly_report_fri": (4, "weekly_report_fri_time", "18:00", "週次棚卸し（金曜18:00）"),
 }
 

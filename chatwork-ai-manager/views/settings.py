@@ -21,12 +21,12 @@ def render():
         st.rerun()
 
     st.divider()
-    st.subheader("定時処理（§18:00/翌10:00）")
+    st.subheader("定時処理（§18:00/翌10:30）")
     enabled = st.checkbox("定時処理を有効にする",
                           value=S.get_setting("scheduled_jobs_enabled", "1") == "1")
     c = st.columns(2)
     t2 = c[0].text_input("終業前確認", S.get_setting("closing_check_time", "18:00"))
-    t3 = c[1].text_input("前日未完了確認", S.get_setting("carryover_check_time", "10:00"))
+    t3 = c[1].text_input("前日未完了確認", S.get_setting("carryover_check_time", "10:30"))
     mroom = st.text_input("期限超過エスカレーション／週次棚卸しの報告先 room_id（空=発生元ルーム。room_id未設定TODOの受け皿）",
                           S.get_setting("manager_room_id", ""))
     if st.button("定時設定を保存"):
@@ -39,12 +39,12 @@ def render():
     st.divider()
     st.subheader("期限リマインド・週次棚卸し（2026-08-17追加）")
     st.caption("期限リマインドは、期限のN日前になった未完了TODOへ事前に一声かける機能。"
-               "週次棚卸しは、金曜18時・月曜10時に絞り込みなしで未完了TODOを全件まとめて報告する機能。")
+               "週次棚卸しは、金曜18時・月曜10時30分に絞り込みなしで未完了TODOを全件まとめて報告する機能。")
     cr = st.columns(2)
     tr = cr[0].text_input("期限リマインドの時刻", S.get_setting("due_reminder_check_time", "09:00"))
     dr = cr[1].text_input("何日前にリマインドするか", S.get_setting("due_reminder_days", "2"))
     cw = st.columns(2)
-    tw_mon = cw[0].text_input("週次棚卸し（月曜）の時刻", S.get_setting("weekly_report_mon_time", "10:00"))
+    tw_mon = cw[0].text_input("週次棚卸し（月曜）の時刻", S.get_setting("weekly_report_mon_time", "10:30"))
     tw_fri = cw[1].text_input("週次棚卸し（金曜）の時刻", S.get_setting("weekly_report_fri_time", "18:00"))
     if st.button("リマインド・週次棚卸し設定を保存"):
         S.set_setting("due_reminder_check_time", tr)
