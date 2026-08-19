@@ -19,8 +19,12 @@
   実測: **4冊352ページ・本文22万字 → 索引 679KB**（原本5.7MBに対して約12%）。
   消した本は復活させない（印は localStorage `shosai-bundled-loaded`）。
   同梱本は `BookRecord.bundled` を見て**紙面表示でも原本を選び直さずに開ける**
-- **ストア用スクショ5枚**を `store/screenshots/iphone-6.9/`（**1290×2796**）に用意
-  （本棚・読書・検索・紙面・取り込み）
+- **ストア用スクショ**（本棚・読書・検索・紙面・取り込み）:
+  `store/screenshots/iphone-6.9/`（**1290×2796**・5枚）と
+  `store/screenshots/ipad-12.9/`（**2048×2732**・5枚）
+- **iPadも対象にする**（オーナー判断）。iPad Pro 13-inch (M5) のシミュレータで同じ5画面を確認。
+  `TARGETED_DEVICE_FAMILY` は既定の `1,2` のままでよい
+- **シミュレータ操作の道具をリポジトリに置いた**（`simtap.py`）。次のiOSアプリでも使える
 - `HANDOFF-APPSTORE.md` を実物に合わせて更新（審査ノートの誤りも訂正）
 
 ### 発生したエラーと解決策

@@ -17,7 +17,8 @@
 | **Capacitor化** | **済**（2026-08-19）。`com.shinsei.shosai` / 表示名「デジタル書斎」/ 1.0.0 (build 1) |
 | **シミュレータ確認** | **済**（iPhone 17 Pro Max・iOS 26.5）。取り込み→本棚→読書→紙面→検索まで通した |
 | **アイコン** | **割り当て済**（`icon-src/icon_1024.png` → `ios/App/App/Assets.xcassets/AppIcon.appiconset/`。アルファ無し） |
-| **スクリーンショット** | **済**。`store/screenshots/iphone-6.9/`（1290×2796・5枚） |
+| **スクリーンショット** | **済**。`store/screenshots/iphone-6.9/`（1290×2796・5枚）と `store/screenshots/ipad-12.9/`（2048×2732・5枚） |
+| **iPad** | **対象にする**（2026-08-19 オーナー判断）。iPad Pro 13-inch シミュレータで同じ5画面を確認・撮影済み |
 | **収録作品（同梱）** | **済**。`public/books/` に青空文庫4冊（著作権保護期間満了）。初回起動で自動的に書斎へ入る |
 | 未着手 | PWA化（manifest/service worker）、App Store Connect の登録一式、iPadの扱いの判断 |
 
@@ -193,8 +194,8 @@ Quartz でマウスイベントを送る小さなスクリプト（`tap.py` / `d
 - [x] 収録作品が初回起動で入る（シミュレータで確認。4冊352ページ・索引 679KB）
 - [x] シミュレータで「取り込み→本棚→読書→紙面→検索」を確認
 - [x] スクリーンショット（`store/screenshots/iphone-6.9/`・1290×2796・5枚）
-- [ ] **iPadを対象にするか決める**（対象にするなら 2048×2732 のスクショが要る。
-      外すなら Xcode の `TARGETED_DEVICE_FAMILY` を `1` にする）
+- [x] **iPadも対象にする**（2026-08-19判断）。`store/screenshots/ipad-12.9/`・2048×2732・5枚。
+      `TARGETED_DEVICE_FAMILY` は既定の `1,2` のまま（変更不要）
 - [ ] 実機（iPhone）で1度は通す
 - [ ] プライバシーポリシーのURLが開ける
 - [ ] 著作権表記が「新誠プロパティマネジメント」

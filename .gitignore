@@ -8,6 +8,9 @@
 !SESSION_LOG.md
 !HANDOFF.md
 !ios-build-guard.sh
+# iOSシミュレータを操作する道具（タップ・なぞる・日本語入力・画面の位置合わせ）。
+# xcrun simctl にタップが無いので、画面を見て確かめるにはこれが要る
+!simtap.py
 # 共通Visual Agent（Claude Codeがブラウザを見て操作する仕組み）。
 # .mcp.json が定義の実体、VISUAL_AGENT.md が使い方。**秘密情報は含まない**ので他PCへも配る
 !.mcp.json

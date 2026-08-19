@@ -102,12 +102,18 @@
 | agent-platform | サブ | **完成扱いへ移行（2026-08-17）**: launchd 登録・0.0.0.0・社内LAN共有（8532）。残るのは作り込み（出来た .pptx 11枚の見栄え目視確認／字幕焼き込み／投稿API）で、通し実行はできる | 2026-08-17 |
 | ai-tools-base | メイン（公開） | **AIツールベース**（2026-08-17改名。旧「AIツールラボ／ai-tools-lab」・旧URLは削除済み。**フォルダ名も ai-tools-base に統一**）。新URL https://ai-tools-base.vercel.app。メインPCで受領済み（npm install／validate 通過・Vercel link は brain-dump/ai-tools-base）。サブPCで Search Console 移行（sitemap 28件）とnote2本＋プロフィールのリンク修正まで完了。**2026-08-18: Zenn を6本まで公開。KeyLine の記録を新規追加し本体は公開済み（/works/keyline）。Zennは上限で未反映＝8/19に再push、noteは6本ともメインPC担当** | 2026-08-18 |
 | scrapmemo-petapeta | メイン | **2026-08-19: 保存容量の問題を根本解決し、1.0.4/build8 を審査へ提出済み。** 画像だけ IndexedDB へ移した（localStorage 5,100KB は WebKit固定／IndexedDB quota 9,830MB）。旧データは起動時に自動移行。実測で**写真30枚・77.3MB でも保持**（以前は1枚で上限）。`save()` の握りつぶしも解消し、孤児画像の掃除を追加。すべてXcodeシミュレータで実測確認済み。**次は審査結果の確認**（通ったら CLAUDE.md を「配信済み」へ）。リリースノート文案は `RELEASE_NOTES.md` | 2026-08-19 |
-| digital-shosai | **メイン（提出）／サブ（開発）** | **2026-08-19: Capacitor化してiOSアプリになった**（1.0.0/build1・`com.shinsei.shosai`）。シミュレータで取り込み→本棚→読書→紙面→検索まで通し確認し、**ストア用スクショ5枚**（`store/screenshots/iphone-6.9/`・1290×2796）を用意。**青空文庫の著作権切れ4作品を同梱**し初回起動で自動的に書斎へ入る（4冊352ページ→索引679KB）。読書画面の**枠とボタンを固定**（長文は枠内スクロール）、safe-area・入力欄16px未満の自動拡大によるズレも解消。**次は ①iPad対象にするかの判断（対象なら2048×2732のスクショが要る）②実機確認 ③App Store Connect登録→Archive→提出**。手順は `digital-shosai/HANDOFF-APPSTORE.md` | 2026-08-19 |
+| digital-shosai | **メイン（提出）／サブ（開発）** | **2026-08-19: Capacitor化してiOSアプリになった**（1.0.0/build1・`com.shinsei.shosai`）。シミュレータで取り込み→本棚→読書→紙面→検索まで通し確認し、**ストア用スクショ5枚**（`store/screenshots/iphone-6.9/`・1290×2796）を用意。**青空文庫の著作権切れ4作品を同梱**し初回起動で自動的に書斎へ入る（4冊352ページ→索引679KB）。読書画面の**枠とボタンを固定**（長文は枠内スクロール）、safe-area・入力欄16px未満の自動拡大によるズレも解消。**iPadも対象**にし、iPad Pro 13-inch でも同じ5画面を確認・撮影（`ipad-12.9/`・2048×2732）。**次は ①実機（iPhone）で1度通す ②App Store Connect登録→Archive→提出**。手順は `digital-shosai/HANDOFF-APPSTORE.md` | 2026-08-19 |
 | keyline | メイン | **KeyLine（NFC鍵・備品貸出管理）＋ KeyTag（iOSアプリ）。** サーバーは 8534・社内LAN限定・テスト99件成功。**2026-08-18: KeyTag を App Store へ提出**（1.0.0/build2・掲載名 KeyTagNFC・サポートページ公開済み）。**次はNFCタグ到着後の実機検証**（アプリのNFC機能は一度も実機で動かしていない）。手順は keyline/keytag/RELEASE.md | 2026-08-18 |
 | chatwork-ai-manager | メイン | Chatwork/LINE常駐AIエージェント（社内RAG・TODO/案件・Web/国交省API）。**常駐4サービスはメインPCで稼働中**（サブPCは常駐0本。worker・ngrokは1台のみ・同時起動禁止）。**2026-08-18: 定時TODO確認(13時/18時/翌10時等)を担当者ごとにグループ化＋TO付与する形式に修正（TASK-20260818-002・worker再起動済みで本番反映済み）。同一担当者でも一部TODOのaccount_id未解決だと別グループ・TO欠落になる不具合を修正＋名前解決の全ルーム横断フォールバックを追加（TASK-20260818-003・コミット済み・オーナー承認を得てworker再起動済み＝本番反映済み。ただし本日18時分は再起動前に実行済みのため旧仕様のまま。次回13時/18時/翌10時から新仕様）。添付Excel等の読込＋LINEからの常駐再起動も追加（TASK-20260818系）**。**2026-08-19: LINEに「処理中にエラーが発生しました: ClaudeError」が3回返った障害を調査し、原因を確定（claude CLIのOAuthトークン更新が約50分ハング＝アプリのバグではない。Keychainのmdat 09:43:03と復旧時刻が一致・実作業は18秒で残り159秒はセッション開始前に消えていた）。自然復旧済み・コードは未変更。切り分け手順は README「処理中にエラーが発生しました…」節に記載。障害中の依頼は黙って消えるので取りこぼし確認が要る。同日 TASK-20260819-001（定時TODO/週次を10:00→10:30。DB設定を実行時に読むので再起動不要・反映済み）と TASK-20260819-002（QAが未実行のTODO更新を「反映しました」と嘘をつく不具合の修正）が完了・コミット済み** | 2026-08-19 |
 | ↑ chatwork-ai-manager 要承認 | メイン | **worker再起動の承認待ち。** TASK-20260819-002（analyzer.py/qa.py/tasks.py）に加え、TASK-20260819-003（QAのTODO一覧回答を定時確認と同じ担当者グループ化＋アイコン整形に統一。scheduler.py/qa.py/services/agent_tools/*）も稼働中workerがまだ旧コードを保持している（PID 96042・09:00:11起動 < 両タスクのコミットより前）ため未反映 | 2026-08-19 |
 
 ## 横断作業（複数アプリにまたがるもの）
+
+- **iOSシミュレータを操作する道具を直下に置いた（`simtap.py`・2026-08-19）。**
+  `xcrun simctl` にはタップが無いので、画面を見て直ったか確かめられなかった。
+  `./simtap.py calib / tap x y / drag x y1 y2 / type "文字" / key return` で操作できる
+  （初回に `~/.sim-venv` を自動で作る）。**日本語は `keystroke` だと化ける**ので
+  クリップボード経由で入れている。`.gitignore` に `!simtap.py` の許可行も入れた
 
 - **★ 8/19 にやること: KeyLine の Zenn と note を「まとめて」出す**（2026-08-18 本人判断）。
   本体はもう公開済み → https://ai-tools-base.vercel.app/works/keyline
