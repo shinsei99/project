@@ -14,7 +14,18 @@
   ],
   "year": 2026,
   "buildTime": "2日（DB設計からApp Store提出まで）。ただし実機検証は未了",
-  "links": [],
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/ios-nfc-safari-entitlement",
+      "note": "SafariからNFCに触れない理由と、申請が弾かれた経緯をまとめた版"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/nf24404f1b55b",
+      "note": "技術用語なしで、鍵の所在が分からなくなる話から書いた版"
+    }
+  ],
   "prompts": [],
   "features": [
     "NFCタグ1枚を「貸出管理の1単位」とし、鍵1本でも3本セットでも同じ扱いにする",

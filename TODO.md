@@ -159,7 +159,7 @@
 | psa-collection | メイン | **PSAカード管理**（旧「PSA保有カード管理」・8527）。**2026-08-19: ポケモンカード図鑑をオプションとして中から開けるようにし、アルバムに「⭐ 欲しいカード」を入れられるようにした**（バインダーは保有カードと欲しいカードを上下2枠に分離）。あわせてグレード絞り込みを削除・セット/年を「さらに絞り込む」へ格納・タイトルの絵文字を削除。次は「欲しいカード」の集計/書き出しが要るかの判断 | 2026-08-19 |
 | flyer-creator | サブ | チラシクリエーター。型10種はagent-platform共通（直すのはagent-platform/core）。下帯ロゴ＋メイン写真の切取位置(上下)スライダー追加。次は物件データの未決3点 | 2026-08-16 |
 | agent-platform | サブ | **完成扱いへ移行（2026-08-17）**: launchd 登録・0.0.0.0・社内LAN共有（8532）。残るのは作り込み（出来た .pptx 11枚の見栄え目視確認／字幕焼き込み／投稿API）で、通し実行はできる | 2026-08-17 |
-| ai-tools-base | メイン（公開） | **AIツールベース**（2026-08-17改名。旧「AIツールラボ／ai-tools-lab」・旧URLは削除済み。**フォルダ名も ai-tools-base に統一**）。新URL https://ai-tools-base.vercel.app。メインPCで受領済み（npm install／validate 通過・Vercel link は brain-dump/ai-tools-base）。サブPCで Search Console 移行（sitemap 28件）とnote2本＋プロフィールのリンク修正まで完了。**2026-08-18: Zenn を6本まで公開。KeyLine の記録を新規追加し本体は公開済み（/works/keyline）。Zennは上限で未反映＝8/19に再push、noteは6本ともメインPC担当** | 2026-08-18 |
+| ai-tools-base | サブ | **AIツールベース**（https://ai-tools-base.vercel.app）。**2026-08-19（サブPC）: KeyLine の Zenn と note をまとめて公開**（Zenn https://zenn.dev/shinsei99/articles/ios-nfc-safari-entitlement 22:09 ／ note https://note.com/shinsei99/n/nf24404f1b55b 22:18）。`keyline.json` の `links` も更新済みで `npm run validate` の ⚠️ は解消。**次は ①`./publish.sh site` で本番反映（人の判断待ち）②Zenn 最後の1本 `ai-intake-hearing` ③note の残り5本** | 2026-08-19 |
 | scrapmemo-petapeta | メイン | **2026-08-19: 保存容量の問題を根本解決し、1.0.4/build8 を審査へ提出済み。** 画像だけ IndexedDB へ移した（localStorage 5,100KB は WebKit固定／IndexedDB quota 9,830MB）。旧データは起動時に自動移行。実測で**写真30枚・77.3MB でも保持**（以前は1枚で上限）。`save()` の握りつぶしも解消し、孤児画像の掃除を追加。すべてXcodeシミュレータで実測確認済み。**次は審査結果の確認**（通ったら CLAUDE.md を「配信済み」へ）。リリースノート文案は `RELEASE_NOTES.md` | 2026-08-19 |
 | digital-shosai | メイン | **2026-08-19: App Store へ審査提出済み（1.0.0/build1・`com.shinsei.shosai`・iPhone/iPad）。** Capacitor化→シミュレータで取り込み→本棚→読書→紙面→検索を通し確認→Archive→提出まで実施。**青空文庫の著作権切れ4作品を同梱**し初回起動で自動的に書斎へ入る（4冊352ページ→索引679KB）。読書画面の枠とボタンを固定、safe-area・入力欄16px未満の自動拡大によるズレも解消。スクショは3サイズ（6.9/6.5/12.9インチ）、サポート・プライバシーページは gh-pages `digital-shosai-support/` に公開。**次は ①審査結果の確認 ②実機で1度通す**（著作権欄は `SHINSEI PROPERTY MANAGEMENT.K.K.` が既定で決着）。手順は `digital-shosai/HANDOFF-APPSTORE.md` | 2026-08-19 |
 | keyline | メイン | **KeyLine（NFC鍵・備品貸出管理）＋ KeyTag（iOSアプリ）。** サーバーは 8534・社内LAN限定・テスト99件成功。**2026-08-18: KeyTag を App Store へ提出**（1.0.0/build2・掲載名 KeyTagNFC・サポートページ公開済み）。**次はNFCタグ到着後の実機検証**（アプリのNFC機能は一度も実機で動かしていない）。手順は keyline/keytag/RELEASE.md | 2026-08-18 |
@@ -174,20 +174,26 @@
   （初回に `~/.sim-venv` を自動で作る）。**日本語は `keystroke` だと化ける**ので
   クリップボード経由で入れている。`.gitignore` に `!simtap.py` の許可行も入れた
 
-- **★ 8/19 にやること: KeyLine の Zenn と note を「まとめて」出す**（2026-08-18 本人判断）。
+- ~~**★ 8/19 にやること: KeyLine の Zenn と note を「まとめて」出す**~~ ✅ **2026-08-19 完了（サブPC）**。
   本体はもう公開済み → https://ai-tools-base.vercel.app/works/keyline
   1. **20:47 以降**に `cd ai-tools-base && ./publish.sh zenn` → `./publish.sh status` が ✅ になるまで確認
   2. ✅ を見てから `python3 drafts/note/md2html.py who-has-the-key` → note の本文欄で ⌘V → 投稿
   3. `content/works/keyline.json` の `links` に2本のURLを足して `./publish.sh site`
   **手順の詳細と「なぜ20:47以降なのか」は `ai-tools-base/drafts/PUBLISH.md` の8本目の節にある。**
+- **`./publish.sh zenn` は空コミットを作らない。** `articles/` に変更が無いと `git commit` が失敗し、
+  `git push` が "Everything up-to-date" で終わって **Zenn のデプロイが走らない**。
+  弾かれた1本を再pushするときは、先に `git commit --allow-empty` を叩くこと（8/19に実測）
 - **Zennの上限は「pushした本数」ではなく「直近24時間に公開された本数」で数えられる**（8/18に実測）。
   メインPCが前日pushした `llm-pdf-split-gaps` の反映が 8/18 20:47 だったため、その日の枠を消費し、
   3本目の `ios-nfc-safari-entitlement` が弾かれた。**デプロイ履歴のお知らせ欄に理由が明記される**
   （https://zenn.dev/dashboard/deploys ・要ログイン）。`./publish.sh status` の ⬜ でも検知できる
 - **note はこのサブPCからも投稿できる**（8/18に実測）。Chrome拡張が繋がり、noteはログイン済み。
   **拡張が「未接続」と出たら、Chrome を前面に出せば繋がる**（起動していても最前面でないと繋がらない）
-- **Zenn: 原稿8本中6本が公開済み。**残りは `ios-nfc-safari-entitlement`（8/19）と `ai-intake-hearing`。
-  **note は6本とも未公開**（うち4本は対応するZennが公開済みなので、いつでも出せる）
+- **Zenn: 原稿8本中7本が公開済み**（2026-08-19時点）。残りは `ai-intake-hearing` 1本。
+- **note は8本中3本が公開済み**（`photo-inpainter` `ai-generated-building` が8/16、`who-has-the-key` が8/19）。
+  **訂正: ここには「note は6本とも未公開」と書いてあったが誤りだった。**
+  2026-08-19 に note の API（`https://note.com/api/v2/creators/shinsei99/contents?kind=note`）で実測。
+  以後、公開状況は推測で書かず、このAPIか `./publish.sh status` で確かめてから書く
 - **共通 Visual Agent を1つに統合した（2026-08-18・メインPC）。** 2台が別々に作った
   MCP版（`.mcp.json`）と `./va.sh` を、**1つの仕組み・2つの入口**に整理。どちらも消していない。
   - **同じ Google Chrome を headless で開く**ようにしたので、入口が違っても見えるものが食い違わない
@@ -204,7 +210,9 @@
   正なので、必要になったら作り直す。＝この警告は既知・対応不要（毎回調べ直さない）
 - **見つかった未修正のUI崩れ（ai-tools-base・390px幅）**: 比較表が横に484pxはみ出していて
   料金列が読めない（`div.table-scroll` は `overflow-x:auto` だが手がかりが無い）。ロゴも2行に折れる
-- 3媒体への公開はメインPCの担当（Chrome拡張・note/Zenn/Vercelのログインがある）。
+- **3媒体への公開は、Zenn と note はサブPCからもできる**（8/18・8/19に実測）。
+  以前「メインPC担当」と書いていたが、サブPCにも Chrome拡張と note/Zenn のログインがある。
+  **Vercel 本番デプロイ（`./publish.sh site`）だけは未確認。**
   手順は `ai-tools-base/drafts/PUBLISH.md`、入口は `ai-tools-base/publish.sh`
 - ~~ai-tools-base のフォルダ改名の後始末（node_modules 等の移動）~~ → **2026-08-18 完了**
   （`ai-tools-lab` は削除済み。実体は `ai-tools-base/` にある）

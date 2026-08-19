@@ -5,8 +5,8 @@
 
 1. 本体を公開（✅ 済み）
 2. Google にインデックスされるのを待つ（数日〜1週間）
-3. **Zenn** に出す（✅ 2026-08-16 に2本公開／残り3本は原稿済み）
-4. **note** に出す（Zenn の記事URLを本文から参照するため、Zennが先。✅ 2本公開／残り3本は原稿済み）
+3. **Zenn** に出す（✅ 原稿8本中7本が公開済み。残りは `ai-intake-hearing` 1本）
+4. **note** に出す（Zenn の記事URLを本文から参照するため、Zennが先。✅ 3本公開／残り5本は原稿済み）
 
 **転載の対象は本体の「不動産」カテゴリの公開記録だけ**（在庫を揃える）。
 ツール・ゲーム分類は本体のみ。psa-collection は本体からも外した（`drafts/README.md` 参照）。
@@ -22,7 +22,7 @@
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/photo-inpainter |
 | Zenn | `articles/photo-inpainter.md` | ✅ https://zenn.dev/shinsei99/articles/photo-inpainter |
-| note | `note/photo-inpainter.md` | ⬜ 公開後にここへ記入 |
+| note | `note/photo-inpainter.md` | ✅ https://note.com/shinsei99/n/nad3f0dce2889 （2026-08-16 20:20） |
 
 **公開前に直すもの**
 - [x] `note/photo-inpainter.md` の鍵カッコ問題 … **鍵カッコを外して地の文にした**（2026-08-16）。
@@ -41,7 +41,7 @@
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/agent-platform |
 | Zenn | `articles/gemini-api-traps.md` | ✅ https://zenn.dev/shinsei99/articles/gemini-api-traps |
-| note | `note/ai-generated-building.md` | ⬜ 公開後にここへ記入 |
+| note | `note/ai-generated-building.md` | ✅ https://note.com/shinsei99/n/n0388b9c81b5f （2026-08-16 20:22） |
 
 **公開前に直すもの**
 - [x] `zenn/gemini-api-traps.md` の frontmatter を `published: true` に（`articles/` へ複製済み）
@@ -112,13 +112,13 @@
 | 媒体 | 原稿 | URL |
 |---|---|---|
 | 本体 | `content/works/keyline.json` | ✅ https://ai-tools-base.vercel.app/works/keyline （2026-08-18・サブPC） |
-| Zenn | `articles/ios-nfc-safari-entitlement.md` | ⬜ **push済みだが上限で弾かれた。8/19に再push** |
-| note | `note/who-has-the-key.md` | ⬜ **Zennと同じ日にまとめて出す**（2026-08-18 本人判断） |
+| Zenn | `articles/ios-nfc-safari-entitlement.md` | ✅ https://zenn.dev/shinsei99/articles/ios-nfc-safari-entitlement （2026-08-19 22:09・サブPC） |
+| note | `note/who-has-the-key.md` | ✅ https://note.com/shinsei99/n/nf24404f1b55b （2026-08-19 22:18・サブPC） |
 
 **この1本だけ、本体・Zenn・note を同じ日にまとめて作っている**（通常は本体を先に出して
 インデックスを待つ手順だが、今回は本人の指示で同日に進めた）。
 
-### ★ 8/19 にやること（この順番で）
+### ★ 8/19 にやること（この順番で）… **✅ 2026-08-19 に完了（サブPC）**
 
 **1. Zenn を通す。** 枠が空くのは **8/19 20:47 以降**（下の「なぜその時刻か」を見る）。
 
@@ -162,7 +162,8 @@ Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その
 |---|---|---|
 | 8/17 19:56以降 | ✅ ai-agent-always-on / ✅ launchd-restart-loop | ⬜ ai-always-on / ⬜ silent-failure |
 | 8/18 | ✅ llm-pdf-split-gaps（20:47） / ✅ scanned-pdf-orientation（21:32・サブPC） | ⬜ scanned-pile / ⬜ upside-down |
-| 8/19以降 | ⬜ ai-intake-hearing（**Zennで残る最後の1本**） | ⬜ nanka-ugokanai |
+| 8/19 | ✅ ios-nfc-safari-entitlement（22:09・サブPC） | ✅ who-has-the-key（22:18・サブPC） |
+| 8/20以降 | ⬜ ai-intake-hearing（**Zennで残る最後の1本**） | ⬜ nanka-ugokanai |
 
 > **2026-08-18 時点: Zenn は原稿7本中6本が公開済み。残りは `ai-intake-hearing` 1本だけ。**
 > 1日2本の上限に当たるため 8/19 以降に出す。note は**5本すべて未公開**（ブラウザ操作が要るため

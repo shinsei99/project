@@ -8,6 +8,53 @@
 
 ---
 
+## 2026-08-19（サブPC） — KeyLine の Zenn と note を「まとめて」公開
+
+### 完了したこと
+
+- **Zenn `ios-nfc-safari-entitlement` を公開**（22:09）
+  → https://zenn.dev/shinsei99/articles/ios-nfc-safari-entitlement
+  8/18 に投稿数の上限で弾かれていた1本。**24時間の窓が空いてから空コミットを push** して通した。
+  これで Zenn は原稿8本中7本が公開済み（残りは `ai-intake-hearing`）。
+- **note `who-has-the-key` を公開**（22:18・サブPCから）
+  → https://note.com/shinsei99/n/nf24404f1b55b
+  `md2html.py` の HTML をエディタに ⌘V で貼り、本文1,789字・見出し6・引用・リンクが一発で付いた。
+- `content/works/keyline.json` の `links` に上の2本を追記。
+  → `npm run validate` の keyline の ⚠️（転載がまだ）が消えたことを確認した。
+- `drafts/PUBLISH.md` の8本目の表と「公開待ちの順番」を実績に合わせて更新。
+
+### 発生したエラーと解決策
+
+- **症状**: `./publish.sh zenn` を叩いても Zenn が再デプロイされない見込みだった。
+  **原因**: `articles/` に変更が無いと `git commit` が失敗し、`git push` が
+  "Everything up-to-date" で終わる＝**GitHub連携のフックが飛ばない**。
+  **直し方**: `git commit --allow-empty` で空コミットを1つ作ってから push する。
+  PUBLISH.md にも「変更が無ければ空コミットでよい」とあるが、`publish.sh zenn` 自体は
+  空コミットを作らないので、**人が先に作る必要がある**。
+- **症状**: note の見出し画像が、みんなのフォトギャラリーで「この画像を挿入」を押しても
+  エディタに反映されない（2回試して2回とも）。本文には混入していない。
+  **原因**: **未特定**。ブラウザ操作は3回目を試さず、本人に設定してもらって解決した。
+  手で設定すれば普通に入る（南京錠・Photo by aoneko）。
+- **判明した誤り**: PUBLISH.md と直下 TODO.md に「note は5〜6本とも未公開」と書いてあったが
+  **誤りだった**。note の API（`https://note.com/api/v2/creators/shinsei99/contents?kind=note`）で
+  実測したところ、**8/16 に2本すでに公開されていた**（`photo-inpainter` 20:20 /
+  `ai-generated-building` 20:22）。PUBLISH.md の冒頭には「✅ 2本公開」と正しく書いてあり、
+  下の表と食い違っていた。→ 表とサマリを実測値に直し、訂正の経緯も残した。
+- **あわせて訂正**: 「note の投稿はメインPC担当（ブラウザ操作が要るため）」も実態と違う。
+  **サブPCから投稿できる**（8/18・8/19 に実測）。
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **Zenn の残り1本**: `ai-intake-hearing`（ai-ticket-counter の記録）。8/20 以降に出せる。
+  対応する note は `nanka-ugokanai`。
+- **note の未公開は5本**: `ai-always-on` / `silent-failure` / `scanned-pile` / `upside-down` /
+  `nanka-ugokanai`。うち4本は対応する Zenn が公開済みなので、いつでも出せる。
+- **本番サイトへの反映が未了**: `content/works/keyline.json` を直したので
+  `./publish.sh site`（Vercel 本番デプロイ）が要る。**外部に出る操作なので人の判断待ち。**
+- 未修正のUI崩れ: 390px幅で比較表が横に484pxはみ出す（`div.table-scroll`）。ロゴも2行に折れる。
+
+---
+
 ## 2026-08-17 — 「AIツールラボ」→「AIツールベース」に改名（メインPCで追従）
 
 ### 完了したこと
