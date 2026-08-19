@@ -21,7 +21,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from db.connection import get_conn  # noqa: E402
 from db.migrate import migrate  # noqa: E402
-from services import admin_ops, attachments, config, line_client, qa  # noqa: E402
+from services import (admin_ops, attachments, claude_health, config,  # noqa: E402
+                      line_client, pending, qa)
+from services.claude_client import ClaudeStalledError  # noqa: E402
 
 PORT = int(os.environ.get("CWAI_LINE_PORT", "8530"))
 
@@ -102,18 +104,53 @@ def _handle_event(ev):
         attach_note = attachments.read_line_file(msg.get("id"), fname)
         text = attachments.with_attachments(text, attach_note)
 
+    # ── claudeが既に詰まっていると分かっている場合は、呼ばずに預かる ──
+    # 詰まりは全プロセス共通（Keychainのトークン）なので、2人目以降は待つだけ無駄。
+    # ここで即答することで「90秒すら待たせない」（2026-08-19の障害対応・Stage 8）。
+    if claude_health.is_stalled():
+        _queue_and_reply(user_id, text, reply_token, first_victim=False)
+        return
+
     # 即時ack（reply_tokenは短命・1回）。処理は続けてpushで返す。
     if reply_token:
         line_client.reply(reply_token, "受け付けました。調べています…🔎")
+        reply_token = None
 
     try:
         res = qa.answer(text, channel="line", asker="オーナー(LINE)", line_user_id=user_id)
         answer_text = res.get("answer") or "（回答を生成できませんでした）"
+    except ClaudeStalledError as e:
+        # 詰まりを最初に踏んだ人。依頼は捨てずに預かり、復旧後に自動で処理する。
+        _log_line(user_id, text, note=f"詰まり検知→キューへ: {e}")
+        _queue_and_reply(user_id, text, reply_token, first_victim=True)
+        return
     except Exception as e:
-        answer_text = f"処理中にエラーが発生しました: {type(e).__name__}"
+        # 詰まり以外の失敗は、**何が起きたかを本文で伝える**
+        #   （従来は type(e).__name__ だけで「ClaudeError」としか出ず、原因が消えていた）
+        answer_text = f"処理中にエラーが発生しました。\n{type(e).__name__}: {e}"
         _log_line(user_id, text, note=str(e))
     line_client.push(user_id, answer_text)
     _log_line(user_id, text, reply_text=answer_text)
+
+
+def _queue_and_reply(user_id: str, text: str, reply_token, first_victim: bool):
+    """依頼を預かり、待たせない返事をする（結果は復旧後に push で届く）。"""
+    pending.enqueue(text, channel="line", requester="オーナー(LINE)", line_user_id=user_id)
+    n = pending.queued_count()
+    if first_victim:
+        head = "いま claude の認証が詰まっているようです（アプリの不具合ではありません）。"
+    else:
+        head = "いま claude の認証が詰まっている状態が続いています。"
+    # LINEはMarkdownを解釈しないので装飾記号は使わない（** がそのまま文字として出る）
+    msg = (f"⏳ {head}\n\n"
+           f"ご依頼はお預かりしました。復旧しだい自動で処理して、結果をこちらへお送りします。\n"
+           f"投げ直していただく必要はありません。\n\n"
+           f"（お預かり中のご依頼: {n}件）")
+    if reply_token:
+        line_client.reply(reply_token, msg)
+    else:
+        line_client.push(user_id, msg)
+    _log_line(user_id, text, reply_text=msg, note="詰まり中のためキューへ預かった")
 
 
 class Handler(BaseHTTPRequestHandler):

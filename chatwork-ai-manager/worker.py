@@ -120,7 +120,63 @@ def run_forever():
                 print(f"[worker] dev {r}", flush=True)
         except Exception as e:
             print(f"[worker] dev error: {type(e).__name__}: {e}", flush=True)
+        # claudeの詰まり監視と、預かった依頼の消化（Stage 8・2026-08-19の障害対応）
+        try:
+            _health_and_pending()
+        except Exception as e:
+            print(f"[worker] health error: {type(e).__name__}: {e}", flush=True)
         time.sleep(interval)
+
+
+def _health_and_pending():
+    """claudeが詰まっていれば復旧を待ち、復旧したら預かった依頼を流す。
+
+    正常時はほぼ何もしない（`claude_health.tick()` は詰まっているときだけ probe する）。
+    """
+    from services import claude_health, pending
+    was_stalled = claude_health.is_stalled()
+    if was_stalled:
+        _notify_admin_once()
+    r = claude_health.tick()
+    if r.get("recovered"):
+        n = pending.queued_count()
+        print(f"[worker] claude 復旧。預かり {n} 件を処理します。", flush=True)
+        _notify_admin(f"✅ claude が復旧しました。\nお預かりしていた {n} 件を"
+                      f"これから順に処理してお送りします。" if n else
+                      "✅ claude が復旧しました。（お預かり中の依頼はありません）")
+    if not claude_health.is_stalled():
+        d = pending.drain()
+        if d:
+            print(f"[worker] pending {d}", flush=True)
+
+
+def _notify_admin_once():
+    """詰まりを検知したことを1回だけ知らせる（毎周送らない）。"""
+    from services import claude_health, settings as st
+    if st.get_state(claude_health.STALL_NOTIFIED, "0") == "1":
+        return
+    st.set_state(claude_health.STALL_NOTIFIED, "1")
+    from services import pending
+    _notify_admin(
+        f"⚠️ claude の認証・接続が詰まっています（{claude_health.stalled_since()} から）。\n"
+        f"アプリの不具合ではなく、claude 側のトークン更新が固まっている状態です。\n"
+        f"復旧を1分ごとに確認しており、直りしだいお預かり分を自動で処理します。\n\n"
+        f"お預かり中: {pending.queued_count()}件\n"
+        f"理由: {claude_health.reason()}")
+
+
+def _notify_admin(text: str):
+    """管理者のLINEへ知らせる（宛先が無ければ黙って何もしない）。"""
+    try:
+        from services import config, line_client
+        raw = config.get("line_admin_user_ids", "") or ""
+        ids = [u.strip() for u in str(raw).split(",") if u.strip()]
+        if not ids:
+            ids = sorted(line_client.allowed_user_ids())
+        for uid in ids:
+            line_client.push(uid, f"🩺 AI業務マネージャー\n\n{text}")
+    except Exception as e:
+        print(f"[worker] notify error: {type(e).__name__}: {e}", flush=True)
 
 
 def _recover_processing():

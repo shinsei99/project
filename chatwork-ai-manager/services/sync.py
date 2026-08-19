@@ -6,8 +6,9 @@ worker のループからも、管理画面の「今すぐ同期」ボタンか�
 import re
 
 from db.connection import get_conn, query
-from services import analyzer, attachments, outbox, qa, settings
+from services import analyzer, attachments, outbox, pending, qa, settings
 from services.chatwork import ChatworkClient, mention
+from services.claude_client import ClaudeStalledError
 
 # Chatwork の記法タグ（[To:..] [rp ..] [qt][info] 等）を除いた質問本文を得るため
 _TAG_RE = re.compile(r"\[[^\]]*\]")
@@ -81,6 +82,26 @@ def process_questions(client, room, ai_account_id) -> int:
         try:
             res = qa.answer(question, room_id=rid, asker=m["account_name"],
                             asker_account_id=m["account_id"])
+        except ClaudeStalledError as e:
+            # claudeの認証・接続が詰まっている。質問を捨てずに預かり、復旧後に自動で答える。
+            # （2026-08-19の障害では、ここで continue して質問が黙って消えていた）
+            _log_error(rid, e)
+            pending.enqueue(question, channel="chatwork", requester=m["account_name"],
+                            room_id=rid, asker_account_id=m["account_id"],
+                            source_message_id=m["message_id"], dedup_key=dedup)
+            wait_dedup = f"wait:{m['message_id']}"
+            if not outbox.has_dedup(wait_dedup):
+                wait_body = (f"{to}\n{prefix}\n\n⏳ いま claude の認証が詰まっているため、"
+                             f"すぐにお答えできません。\nご質問はお預かりしました。"
+                             f"復旧しだい自動で回答します（投げ直し不要です）。")
+                wait_id = outbox.enqueue(rid, wait_body, kind="ack",
+                                         reason="claude詰まり中の一次応答",
+                                         to_account_ids=str(m["account_id"]),
+                                         related_message_id=m["message_id"],
+                                         dedup_key=wait_dedup)
+                if wait_id:
+                    outbox.send_one(client, wait_id)
+            continue
         except Exception as e:
             _log_error(rid, e)
             continue

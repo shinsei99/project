@@ -11,6 +11,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 import time
 
 DEFAULT_MODEL = "sonnet"
@@ -19,6 +20,27 @@ DEFAULT_TIMEOUT = 300
 
 class ClaudeError(RuntimeError):
     pass
+
+
+class ClaudeStalledError(ClaudeError):
+    """claude が「API と会話を始める前」で止まっている（＝認証・接続の詰まり）。
+
+    2026-08-19 の障害で判明した現象。claude CLI の OAuth トークン更新がハングすると、
+    最初の API 往復に入る前で固まり、こちらからは無応答にしか見えない。
+    トークンは全プロセス共通の Keychain にあるため、**1本詰まると全員詰まる**。
+
+    通常の ClaudeError（モデルがエラーを返した・JSONが壊れている等）と区別する理由:
+      - フォールバックを打っても同じ理由で必ず失敗するので、打たずに即座に諦めたい
+      - 依頼を捨てずにキューへ回し、復旧後に自動で実行し直したい
+    詳しい切り分け手順は README「処理中にエラーが発生しました…」節にある。
+    """
+
+
+# 最初の assistant イベント（＝API往復が成った証拠）をどれだけ待つか。
+# 実測（2026-08-19・正常時）: system/init 0.4秒 → assistant 10.5秒。90秒は9倍の余裕。
+# ここを過ぎても assistant が来なければ「詰まり」と判定する。
+# ※ assistant が来た後は打ち切らない（正常な長時間処理を切らないため）。
+FIRST_RESPONSE_GRACE = 90
 
 
 def _resolve_claude_bin() -> str:
@@ -56,7 +78,10 @@ def run_claude(prompt: str, model: str = DEFAULT_MODEL, timeout: int = DEFAULT_T
     except FileNotFoundError:
         raise ClaudeError("`claude` コマンドが見つかりません。Claude Code CLI を確認してください。")
     except subprocess.TimeoutExpired:
-        raise ClaudeError(f"claude 応答が {timeout} 秒を超えました。")
+        # 満了しても何も返らないのは、実質「詰まり」と区別できない（2026-08-19の障害では
+        # 300秒の解析も180秒の一発RAGも揃って無言のまま満了した）。詰まり扱いにして
+        # 呼び出し側がキューへ回せるようにする。
+        raise ClaudeStalledError(f"claude 応答が {timeout} 秒を超えました。")
     if proc.returncode != 0:
         raise ClaudeError(
             f"claude 失敗（code={proc.returncode}）: {proc.stderr.strip()[:500]}"
@@ -73,7 +98,7 @@ def run_claude(prompt: str, model: str = DEFAULT_MODEL, timeout: int = DEFAULT_T
 
 def run_agent(prompt: str, model: str = DEFAULT_MODEL, timeout: int = 600,
               cwd: str = None, tools: str = "Bash,Read,WebSearch,WebFetch",
-              env_extra: dict = None) -> dict:
+              env_extra: dict = None, first_response_grace: int = FIRST_RESPONSE_GRACE) -> dict:
     """ツール（Bash/Read/WebSearch/WebFetch）を使える「エージェント」として claude を実行する。
 
     - Bash: 共通Tool層 agent_tool.py（社内RAG/TODO/Chatwork/案件/国交省API）を反復実行
@@ -85,27 +110,95 @@ def run_agent(prompt: str, model: str = DEFAULT_MODEL, timeout: int = 600,
     --strict-mcp-config: 業務QAは MCP を一切使わない（ブラウザ等の追加ツールで
       コンテキストと枠を消費しない）。Visual Agent は開発エージェント側で明示的に読む。
     """
-    cmd = [CLAUDE_BIN, "-p", prompt, "--output-format", "json",
+    # stream-json にしているのは「詰まりを早く見抜く」ため（2026-08-19の障害対応）。
+    # 一発の json だと最後まで何も届かず、600秒経つまで詰まりに気づけなかった。
+    cmd = [CLAUDE_BIN, "-p", prompt, "--output-format", "stream-json", "--verbose",
            "--dangerously-skip-permissions", "--model", model, "--tools", tools,
            "--strict-mcp-config"]
     if cwd:
         cmd += ["--add-dir", cwd]
+    return _run_streaming(cmd, cwd=cwd, env_extra=env_extra, timeout=timeout,
+                          grace=first_response_grace, label="claude(agent)")
+
+
+def _run_streaming(cmd, cwd, env_extra, timeout: int, grace: int, label: str) -> dict:
+    """stream-json を1行ずつ読み、最後の result エンベロープを返す。
+
+    2つの見張りを別々に持つ:
+      - grace  : 最初の `assistant`（＝API往復が成った証拠）が来るまでの上限。
+                 超えたら ClaudeStalledError（＝認証・接続の詰まり）。
+      - timeout: 全体の上限。assistant が来た後はこちらだけで見る
+                 （正常な長時間処理を途中で切らないため）。
+    """
+    start = time.time()
     try:
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=cwd,
-                              env=_child_env(env_extra))
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                text=True, bufsize=1, cwd=cwd, env=_child_env(env_extra))
     except FileNotFoundError:
         raise ClaudeError("`claude` コマンドが見つかりません。")
-    except subprocess.TimeoutExpired:
-        raise ClaudeError(f"claude(agent) 応答が {timeout} 秒を超えました。")
-    if proc.returncode != 0:
-        raise ClaudeError(f"claude(agent) 失敗（code={proc.returncode}）: {proc.stderr.strip()[:500]}")
+
+    envelope = None
+    saw_response = False
+    stalled = False
+    timed_out = False
+
+    def _watchdog():
+        """別スレッドで見張る（stdout の readline は止められないため kill で解除する）。"""
+        nonlocal stalled, timed_out
+        while proc.poll() is None:
+            elapsed = time.time() - start
+            if not saw_response and elapsed > grace:
+                stalled = True
+                proc.kill()
+                return
+            if elapsed > timeout:
+                timed_out = True
+                proc.kill()
+                return
+            time.sleep(0.5)
+
+    t = threading.Thread(target=_watchdog, daemon=True)
+    t.start()
     try:
-        env = json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        raise ClaudeError(f"claude(agent) 出力の JSON 解析に失敗: {proc.stdout[:500]}")
-    if env.get("is_error"):
-        raise ClaudeError(f"claude(agent) がエラーを返しました: {env.get('result')}")
-    return env
+        for line in proc.stdout:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                d = json.loads(line)
+            except json.JSONDecodeError:
+                continue          # 進捗行が壊れていても本処理は止めない
+            kind = d.get("type")
+            if kind == "assistant":
+                saw_response = True      # ここで grace の見張りは無効になる
+            elif kind == "result":
+                envelope = d
+    finally:
+        try:
+            proc.stdout.close()
+        except Exception:
+            pass
+        stderr = ""
+        try:
+            stderr = (proc.stderr.read() or "")[:500]
+            proc.stderr.close()
+        except Exception:
+            pass
+        proc.wait()
+
+    if stalled:
+        raise ClaudeStalledError(
+            f"{label} が {grace} 秒経っても応答を始めませんでした"
+            "（claudeの認証・接続が詰まっている可能性）。")
+    if timed_out:
+        raise ClaudeStalledError(f"{label} 応答が {timeout} 秒を超えました。")
+    if envelope is None:
+        # 応答は始まったのに result が来ない＝異常終了。詰まりとは区別する。
+        raise ClaudeError(f"{label} が結果を返しませんでした（code={proc.returncode}）: {stderr.strip()}")
+    if envelope.get("is_error"):
+        raise ClaudeError(f"{label} がエラーを返しました: {envelope.get('result')}")
+    envelope["_elapsed_ms"] = int((time.time() - start) * 1000)
+    return envelope
 
 
 def _child_env(env_extra: dict = None) -> dict:

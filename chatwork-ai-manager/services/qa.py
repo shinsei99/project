@@ -522,7 +522,8 @@ def answer(question: str, room_id=None, asker=None, channel="chatwork",
     asker_account_id / line_user_id: 「依頼がどこから来たか」。開発タスク(dev_task_create)が
       結果の返し先と権限判定に使う。**プロンプトには入れず環境変数で子プロセスへ渡す**（識別子を出力しない）。
     """
-    from services.claude_client import ClaudeError, run_agent
+    from services import claude_health
+    from services.claude_client import ClaudeError, ClaudeStalledError, run_agent
     from services.settings import get_setting
     prompt = _agent_prompt(question, room_id, asker=asker, channel=channel,
                            line_user_id=line_user_id)
@@ -540,11 +541,21 @@ def answer(question: str, room_id=None, asker=None, channel="chatwork",
         env = run_agent(prompt, cwd=APP_DIR, timeout=600, model=get_setting("model_qa", "sonnet"),
                         env_extra=env_extra)
         text = (env.get("result") or "").strip()
+    except ClaudeStalledError as e:
+        # ★詰まり（認証・接続）のときは**フォールバックを打たない**。
+        #   フォールバックも同じ claude を呼ぶので必ず同じ理由で失敗し、180秒を捨てるだけになる。
+        #   2026-08-19の障害では、これで利用者を 600+180=780秒（13分）待たせていた。
+        #   ここで諦めて呼び出し側へ投げ、呼び出し側が依頼をキューへ預ける。
+        claude_health.mark_stalled(str(e))
+        raise
     except ClaudeError as e:
-        # フォールバック: 従来の一発RAG（ツールを一切持たないため、DBは絶対に書けない）
+        # 詰まり以外（モデルがエラーを返した・出力が壊れている等）は従来どおり
+        # フォールバック: 一発RAG（ツールを一切持たないため、DBは絶対に書けない）
         used_fallback = True
         chunks = search(question)
         text, env = run_text(build_prompt(question, chunks, room_id=room_id), timeout=180)
+    else:
+        claude_health.note_success()   # 通ったので、詰まりフラグが残っていれば解除
     _check_workspace_untouched(snapshot, question, room_id)
     text, dropped = strip_english_preamble(text)
     if dropped:

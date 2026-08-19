@@ -235,6 +235,30 @@ CREATE TABLE IF NOT EXISTS scheduled_runs (
 );
 
 -- ============================================================
+-- 保留中の依頼（claudeの詰まり中に受けた質問を捨てないための待避所。Stage 8・2026-08-19）
+-- 業務TODO(tasks)とも開発タスク(dev_tasks)とも別物。「AIがまだ答えられていない質問」だけを持つ。
+-- status: queued（復旧待ち）/ done（回答済み）/ failed（再試行しても駄目）/ cancelled
+-- ============================================================
+CREATE TABLE IF NOT EXISTS pending_requests (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel          TEXT NOT NULL,              -- 'line' / 'chatwork'
+    question         TEXT NOT NULL,
+    requester        TEXT,                       -- 表示名
+    line_user_id     TEXT,                       -- channel='line' のときの返し先
+    room_id          INTEGER,                    -- channel='chatwork' のときの返し先
+    asker_account_id INTEGER,
+    source_message_id TEXT,                      -- Chatworkの元メッセージ（重複積み防止）
+    dedup_key        TEXT UNIQUE,                -- 同じ依頼を二重に積まない
+    status           TEXT NOT NULL DEFAULT 'queued',
+    attempts         INTEGER NOT NULL DEFAULT 0,
+    last_error       TEXT,
+    created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    answered_at      TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_pending_status ON pending_requests(status, created_at);
+
+-- ============================================================
 -- 開発タスク（DEVELOPMENT Agent）。既存の tasks（業務TODO）とは別物。混同しないこと。
 -- status: RECEIVED / PLANNING / RUNNING / WAITING_USER / TESTING / FAILED / COMPLETED / CANCELLED
 -- kind:   NEW_APP / EXISTING_APP / FEATURE_ADD / BUG_FIX / UI_CHANGE / API_DEVELOPMENT /
