@@ -235,6 +235,27 @@ CREATE TABLE IF NOT EXISTS scheduled_runs (
 );
 
 -- ============================================================
+-- AIがChatworkへ送ったファイルの記録（Stage 9・2026-08-19）
+-- 社内資料を外へ出す操作なので、「いつ・何を・どこへ・誰の依頼で」を必ず残す。
+-- status: sent（送信済み）/ blocked（安全確認で弾いた）/ failed（送信失敗）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS sent_files (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id       INTEGER NOT NULL,
+    file_path     TEXT NOT NULL,          -- 送った元ファイル（共有フォルダ内の絶対パス）
+    file_name     TEXT NOT NULL,
+    file_size     INTEGER,
+    message       TEXT,                   -- 添付時に添えた本文
+    requester     TEXT,                   -- 誰に頼まれて送ったか
+    requester_account_id INTEGER,
+    chatwork_file_id TEXT,
+    status        TEXT NOT NULL DEFAULT 'sent',
+    error         TEXT,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_sent_files_room ON sent_files(room_id, created_at);
+
+-- ============================================================
 -- 保留中の依頼（claudeの詰まり中に受けた質問を捨てないための待避所。Stage 8・2026-08-19）
 -- 業務TODO(tasks)とも開発タスク(dev_tasks)とも別物。「AIがまだ答えられていない質問」だけを持つ。
 -- status: queued（復旧待ち）/ done（回答済み）/ failed（再試行しても駄目）/ cancelled

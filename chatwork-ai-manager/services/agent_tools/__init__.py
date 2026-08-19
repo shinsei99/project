@@ -10,6 +10,7 @@ REGISTRY は「実装済みToolの唯一の真実」。System Prompt はこれ�
 from services.agent_tools import (
     chatwork_tools,
     dev_tools,
+    file_tools,
     gis_tools,
     knowledge_tools,
     progress_tools,
@@ -49,6 +50,37 @@ REGISTRY = {
         "func": chatwork_tools.chatwork_post_message,
         "desc": "AI専用アカウントからChatworkへ投稿（post_modeにより自動送信/確認待ち。AI投稿と分かる接頭辞が付く）",
         "usage": 'chatwork_post_message {"room_id":12345678,"body":"...","reason":"依頼","to_account_ids":"87654321"}',
+    },
+    # ---- ファイル送付（社内資料をChatworkへ添付） ----
+    "chatwork_send_file": {
+        "func": file_tools.chatwork_send_file,
+        "desc": "社内共有フォルダのファイルをChatworkへ**添付送信**する。"
+                "「資料を送って」「図面ください」と言われたら、パスを案内するのではなく"
+                "**これで実際に送る**。送信元は社内共有フォルダ配下に限定・5MBまで・"
+                "送信は記録されLINEへ通知される。送れないときは理由が返るので、"
+                "その理由を利用者にそのまま伝えてパスを案内すること",
+        "usage": 'chatwork_send_file {"room_id":12345678,"path":"/Users/apple/Library/CloudStorage/.../間取図面(新)/か/グランビルド岩城/グランビルド岩城3F.jpg","message":"3階の間取図をお送りします","requester":"塚本"}',
+    },
+    "find_files": {
+        "func": file_tools.find_files,
+        "desc": "共有フォルダからファイル名の一部で実体を探す（絶対パス・サイズ・保管フォルダを返す）。"
+                "「○○の図面を送って」のように名前しか分からないときは、まずこれで探してから"
+                "chatwork_send_file に path を渡す。**archived=true は削除予定フォルダなので、"
+                "同じ資料で archived=false があれば必ずそちらを送る**。"
+                "sendable=false はサイズ超過で送れないもの",
+        "usage": 'find_files {"name":"グランビルド岩城","limit":20}',
+    },
+    "chatwork_can_send_file": {
+        "func": file_tools.chatwork_can_send_file,
+        "desc": "そのファイルが送れるかだけ先に確認する（実際には送らない）。"
+                "サイズ超過や共有フォルダ外を、送る前に見分けるのに使う",
+        "usage": 'chatwork_can_send_file {"path":"/Users/apple/Library/CloudStorage/.../物件資料/か/グランビルド岩城.xls"}',
+    },
+    "find_sendable_files": {
+        "func": file_tools.find_sendable_files,
+        "desc": "候補パスをまとめて判定し、送れるもの／送れないもの（理由つき）に仕分ける。"
+                "kb_searchや全ファイル一覧で複数の候補が出たときに、まずこれで絞る",
+        "usage": 'find_sendable_files {"paths":["/…/グランビルド岩城3F.jpg","/…/グランビルド岩城.xls"]}',
     },
     # ---- TODO ----
     "task_search": {

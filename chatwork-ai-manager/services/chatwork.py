@@ -111,6 +111,65 @@ class ChatworkClient:
         res = self._request("POST", f"/rooms/{room_id}/messages", data=data)
         return str(res.get("message_id")) if isinstance(res, dict) else None
 
+    def post_file(self, room_id: int, file_path: str, message: str = None,
+                  filename: str = None) -> str:
+        """ファイルを添付投稿する。戻り値: 作成された file_id。
+
+        Chatwork の /rooms/{id}/files は **multipart/form-data 限定**（他のAPIのような
+        urlencode では通らない）ため、ここだけ独自に本文を組み立てる。
+        依存を増やさない方針なので requests は使わず標準ライブラリで作る。
+
+        **上限5MB**（Chatwork側の制限）。超えるものは呼ぶ前に弾くこと。
+        """
+        import mimetypes
+        import os
+        import uuid
+
+        name = filename or os.path.basename(file_path)
+        with open(file_path, "rb") as f:
+            payload = f.read()
+        ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
+        boundary = "----cwai" + uuid.uuid4().hex
+
+        def _part(header: str, value: bytes) -> bytes:
+            return (f"--{boundary}\r\n{header}\r\n\r\n").encode("utf-8") + value + b"\r\n"
+
+        body = b""
+        if message:
+            body += _part('Content-Disposition: form-data; name="message"',
+                          message.encode("utf-8"))
+        # ファイル名は **生の UTF-8 のまま** 入れる。
+        # ここは実地で確かめた（2026-08-19）: RFC2231 の filename*=UTF-8''… も一緒に付けて
+        # filename= 側をパーセントエンコードしたところ、Chatwork は filename= の値を
+        # そのまま採用し、受信側に「%E3%82%B0…jpg」という名前で見えてしまった。
+        # Chatwork は filename= の生UTF-8を正しく扱えるので、素直にそれだけを渡す。
+        safe_name = name.replace('"', "").replace("\r", "").replace("\n", "")
+        body += _part(
+            f'Content-Disposition: form-data; name="file"; filename="{safe_name}"\r\n'
+            f"Content-Type: {ctype}", payload)
+        body += f"--{boundary}--\r\n".encode("utf-8")
+
+        url = f"{BASE_URL}/rooms/{room_id}/files"
+        headers = {"X-ChatworkToken": self.token, "Accept": "application/json",
+                   "Content-Type": f"multipart/form-data; boundary={boundary}"}
+        req = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        try:
+            with urllib.request.urlopen(req, timeout=max(self.timeout, 120)) as resp:
+                self._update_rate(resp.headers)
+                raw = resp.read().decode("utf-8")
+                res = json.loads(raw) if raw else {}
+                return str(res.get("file_id")) if isinstance(res, dict) else None
+        except urllib.error.HTTPError as e:
+            self._update_rate(e.headers)
+            detail = ""
+            try:
+                detail = e.read().decode("utf-8")[:300]
+            except Exception:
+                pass
+            raise ChatworkError(f"Chatwork ファイル送信 {e.code}: {detail}", status=e.code)
+        except urllib.error.URLError as e:
+            raise ChatworkError(f"Chatwork 接続失敗（ファイル送信）: {e.reason}")
+
 
 def mention(account_id, name: str = None) -> str:
     """Chatwork のメンション記法 [To:account_id] を生成。"""
