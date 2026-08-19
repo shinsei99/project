@@ -113,12 +113,20 @@ def get_events(task_id: int):
     return query("SELECT * FROM task_events WHERE task_id=? ORDER BY id", (task_id,))
 
 
-def open_tasks_in_room(room_id: int):
-    """同一ルームの未完了 TODO（analyzer の文脈・重複判定用）。"""
-    ph = ",".join("?" * len(OPEN_STATUSES))
+def open_tasks_in_room(room_id: int, include_ai_confirm: bool = False):
+    """同一ルームの未完了 TODO（analyzer の文脈・重複判定用）。
+
+    include_ai_confirm=True で status=AI確認待ち も含める（グローバルな OPEN_STATUSES
+    自体は変えない。ダッシュボード集計等、AI確認待ちを含めたくない既存呼び出しがあるため。
+    §既知の残課題 TASK-20260818-006 と同じ「呼び出し側で局所拡張する」パターン）。
+    呼び出し側にAI確認待ちのTODOが見えないと、それへの進捗報告を target_task_id で
+    紐付けられず、イベントが無言で捨てられる（2026-08-19 TASK-20260819-002 で実害確認）。
+    """
+    statuses = OPEN_STATUSES + [STATUS_AI_CONFIRM] if include_ai_confirm else OPEN_STATUSES
+    ph = ",".join("?" * len(statuses))
     return query(
         f"SELECT * FROM tasks WHERE room_id=? AND status IN ({ph}) ORDER BY id",
-        (room_id, *OPEN_STATUSES),
+        (room_id, *statuses),
     )
 
 

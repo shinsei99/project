@@ -219,9 +219,22 @@ def _apply_events(room_id, events, members, msg_by_id):
             })
             created += 1
 
-        elif etype in ("progress_update", "completion", "due_change") and target:
-            t = T.get_task(target)
+        elif etype in ("progress_update", "completion", "due_change"):
+            t = T.get_task(target) if target else None
             if not t:
+                # target_task_id が無い/存在しない = どのTODOのことか特定できなかった。
+                # 従来はここで無言で continue しており、進捗報告そのものがDBに一切残らず消えていた
+                # （2026-08-19 TASK-20260819-002 の実害）。人が「⏰ 定時処理ログ」画面の
+                # notifications で拾えるよう必ず記録する（推測でどれかのTODOに紐付けはしない）。
+                src = dict(msg_by_id[mid]) if mid and mid in msg_by_id else {}
+                with get_conn() as conn:
+                    conn.execute(
+                        "INSERT INTO notifications (type, room_id, payload) VALUES ('unresolved_task_link', ?, ?)",
+                        (room_id, json.dumps({
+                            "message_id": mid, "event_type": etype, "target_task_id": target,
+                            "reason": reason, "text": src.get("body"),
+                        }, ensure_ascii=False)),
+                    )
                 continue
             if etype == "completion":
                 new_status = ev.get("new_status") or T.STATUS_WAITING  # 完了候補は既定で確認待ち
@@ -277,7 +290,7 @@ def analyze_room(room_id: int, ai_account_id=None) -> dict:
 
     members = _members(room_id)
     context_msgs = _recent_context(room_id)
-    open_tasks = T.open_tasks_in_room(room_id)
+    open_tasks = T.open_tasks_in_room(room_id, include_ai_confirm=True)
     msg_by_id = {m["message_id"]: m for m in new_msgs}
     prompt = _build_prompt(room_id, new_msgs, context_msgs, members, open_tasks)
     new_ids = [m["message_id"] for m in new_msgs]

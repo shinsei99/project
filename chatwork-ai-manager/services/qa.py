@@ -83,7 +83,9 @@ def search(question: str, top_k: int = TOP_K):
 
 def _open_tasks_context(room_id=None, limit=20):
     rows = T.list_tasks(room_id=room_id)
-    rows = [r for r in rows if r["status"] in T.OPEN_STATUSES + [T.STATUS_WAITING]][:limit]
+    # AI確認待ちも含める（含めないと、そのTODOへの進捗報告が来てもエージェントが
+    # 対象を見つけられない。2026-08-19 TASK-20260819-002 の実害＝§analyzer.pyと同じ穴）。
+    rows = [r for r in rows if r["status"] in T.OPEN_STATUSES + [T.STATUS_WAITING, T.STATUS_AI_CONFIRM]][:limit]
     if not rows:
         return "（該当なし）"
     return "\n".join(
@@ -255,6 +257,10 @@ def build_prompt(question, chunks, room_id=None):
 - 社内資料を使った箇所は、末尾に「根拠: <資料名> <ページ/シート>」を必ず添える。
 - 事実（資料/会話で確認できたこと）と、あなたの推測を区別する。
 - Chatwork に投稿する前提の、簡潔で丁寧な日本語で答える。
+- **あなたはこの経路ではTODOやデータベースを書き換える手段を一切持っていません。**
+  質問が進捗報告・完了報告・依頼のような「何かを実行してほしい」内容に見えても、
+  「反映しました」「更新しました」「完了にしました」「登録しました」等、何かを実行済みであるかのような
+  表現を絶対に使わないこと。実行できないので、その旨と「少し時間をおいて再度お知らせください」を正直に伝える。
 {coverage_rule}"""
 
 
@@ -359,6 +365,11 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork", line_u
 - 「田中さんに○○を明日までにお願いして」等の依頼 → まず task_search で重複確認 → 無ければ task_create（依頼者=質問者, 担当者, 期限, room_id, source_message_id を保存）。必要なら chatwork_post_message で担当者へ依頼を投稿。
 - 期限変更・担当変更・内容修正は task_update（新規作成しない）。完了報告は task_complete。進捗報告は task_progress_update。
 - 書込み系(task_create/update/complete, chatwork_post_message)は post_mode 設定に従い自動送信/確認待ちになる。ツールの返り(sent/queued)をそのまま信じ、結果を回答に反映する。
+- **「反映しました」「更新しました」「完了にしました」等と書いてよいのは、対応するTool呼び出しの結果が
+  `"ok": true` で返ってきたのを実際に確認した時だけ**。Toolを呼んでいない／`"ok": false`／
+  エラーが返った場合は、絶対に成功したかのように書かない。何が起きたか（例:「対象のTODOが
+  見つかりませんでした」「ツール実行がタイムアウトしました」）を正直に伝え、必要なら
+  `task_search` 等で自力で立て直す。反復しても解決しなければ「今回は反映できませんでした」と述べる。
 
 # 回答ルール（トーン）
 - 結論ファースト。実務でそのまま使える簡潔かつ丁寧なトーン。
@@ -468,6 +479,36 @@ def _check_workspace_untouched(before, question, room_id):
         pass
 
 
+# 「実際にDBを更新した」という主張。task_events は task_create/update_status/update_fields/
+# touch_activity のすべてが必ず書き込む共通の記録先なので、「主張はあるのに1行も増えていない」
+# ＝実際には何も反映されていない、という機械的な検証ができる（2026-08-19 TASK-20260819-002）。
+_ACTION_CLAIM_RE = re.compile(r"(反映しました|更新しました|完了にしました|登録しました|作成しました|変更しました)")
+
+_FALSE_CLAIM_NOTICE = (
+    "確認しましたが、システムの都合で今回はTODOへの反映ができませんでした。"
+    "お手数ですが少し時間をおいて再度お知らせいただくか、管理画面でご確認ください。"
+)
+
+
+def _task_events_count():
+    from db.connection import query as _q
+    row = _q("SELECT COUNT(*) AS c FROM task_events")
+    return row[0]["c"] if row else 0
+
+
+def _log_guard(room_id, question, text, note):
+    print(f"[qa] ⚠️ {note}", flush=True)
+    try:
+        with get_conn() as conn:
+            conn.execute(
+                "INSERT INTO ai_analysis_logs (room_id, kind, model, prompt, raw_output, error) "
+                "VALUES (?, 'guard', 'qa', ?, ?, ?)",
+                (room_id, question[:2000], text[:2000], note),
+            )
+    except Exception:
+        pass
+
+
 def answer(question: str, room_id=None, asker=None, channel="chatwork",
            asker_account_id=None, line_user_id=None) -> dict:
     """エージェント型: claude が共通Tool層(agent_tool.py)を反復的に使って回答/操作する。
@@ -488,12 +529,15 @@ def answer(question: str, room_id=None, asker=None, channel="chatwork",
         "CWAI_LINE_USER_ID": line_user_id,
     }
     snapshot = _workspace_snapshot()   # 実行前の足跡（QAがコードを触っていないかの見張り）
+    events_before = _task_events_count()   # 実行前のtask_events件数（書込みが本当にあったかの見張り）
+    used_fallback = False
     try:
         env = run_agent(prompt, cwd=APP_DIR, timeout=600, model=get_setting("model_qa", "sonnet"),
                         env_extra=env_extra)
         text = (env.get("result") or "").strip()
     except ClaudeError as e:
-        # フォールバック: 従来の一発RAG
+        # フォールバック: 従来の一発RAG（ツールを一切持たないため、DBは絶対に書けない）
+        used_fallback = True
         chunks = search(question)
         text, env = run_text(build_prompt(question, chunks, room_id=room_id), timeout=180)
     _check_workspace_untouched(snapshot, question, room_id)
@@ -501,6 +545,16 @@ def answer(question: str, room_id=None, asker=None, channel="chatwork",
     if dropped:
         # 何を落としたかは残す（過剰に消していないか後から検証できるように）
         _log(room_id, f"[前置き除去] {question}", "落とした行: " + " / ".join(dropped), None, [])
+    # ★実行結果の検証: 「反映しました/更新しました」等と言っているのに、実際は
+    #   task_events が1件も増えていない＝ツール呼び出しが成功していない（または一度も呼んでいない）。
+    #   これを確認せずそのままChatworkへ送ると「言っていることとDBの中身が食い違う」実害になる
+    #   （2026-08-19 実例: パールハイム101の進捗報告に『反映しました』と返信したが tasks は無更新のままだった）。
+    if _ACTION_CLAIM_RE.search(text) and _task_events_count() == events_before:
+        note = (f"{'フォールバック(ツールなし)' if used_fallback else 'エージェント'}経路で"
+                f"『反映した』という趣旨の回答を生成しましたが、task_events が実行前後で"
+                f"増えておらず、実際にはDBへの書き込みが確認できませんでした。回答を差し替えます。")
+        _log_guard(room_id, question, text, note)
+        text = _FALSE_CLAIM_NOTICE
     _log(room_id, question, text, env, [])
     return {"answer": text, "sources": [], "chunk_count": 0}
 
