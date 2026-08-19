@@ -225,7 +225,11 @@ def send(room_id, file_path: str, message: str = None,
 
     _record(room_id, real, name, size, body, requester, requester_account_id,
             file_id, "sent", None)
-    _notify_sent(room_id, name, size, requester)
+    # LINE通知は**既定で送らない**（2026-08-19 オーナー判断で撤回。送るたびに通知が来て煩い）。
+    # 記録は sent_files に必ず残るので、後から見返すことはできる。
+    # 監視したくなったら設定 file_send_notify_line=1 で戻せる。
+    if settings.get_setting("file_send_notify_line", "0") == "1":
+        _notify_sent(room_id, name, size, requester)
     return {"ok": True, "sent": True, "file_id": file_id, "file_name": name, "size": size}
 
 
