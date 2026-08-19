@@ -192,6 +192,45 @@ geopandas は fiona/GDAL のバイナリを引き込むため、共有環境を�
 - 日本語検索が弱い: FTSは trigram、索引は NFKC 正規化済み（半角/全角カナ吸収）。
 - ログ: `~/Library/Logs/com.shinsei.chatwork-ai-manager*.log`。
 
+### 「処理中にエラーが発生しました: ClaudeError」が返る＝まずトークン更新を疑う（2026-08-19 実証）
+
+**症状**: LINE/Chatworkの返答が全滅し、13分待たされて `ClaudeError` だけが返る。
+worker の解析(extract)も同時にタイムアウトする。**worker を再起動しても直らない。**
+
+**正体**: claude CLI の **OAuthトークン更新がハング**すると、APIを叩く前段で止まる。
+トークンは全プロセス共通のKeychainにあるため、**worker も line_webhook も同時に沈む**。
+アプリのバグではないので、コードを見ても何も見つからない。
+
+**3分で切り分ける手順**（この順に叩く）:
+
+```bash
+# ① 復旧しているか（一番速い判定。平常は5〜10秒で返る）
+time /opt/homebrew/bin/claude -p "1+1は？数字だけ答えて" --model sonnet
+
+# ② トークンが最後に更新された時刻（UTC）。障害の終了時刻と一致するはず
+security find-generic-password -s "Claude Code-credentials" | grep mdat
+
+# ③ 完走した claude が居るか。障害中は「1件も無い」のが特徴
+ls -lt ~/.claude/projects/-Users-apple-chatwork-ai-manager/*.jsonl | head
+#    ※セッション記録は完走時に一括で書かれる。ハングした実行は痕跡を残さない
+
+# ④ 実際に何秒でタイムアウトしたか
+sqlite3 data/app.db "SELECT id,kind,error,created_at FROM ai_analysis_logs \
+  WHERE error LIKE '%秒を超えました%' ORDER BY id DESC LIMIT 20;"
+```
+
+**見分け方（ここを間違えない）**:
+
+| 観測 | 意味 |
+|---|---|
+| 親の計測は長いが、セッション記録内の実作業は数十秒 | **トークン更新待ち**。APIは遅くない |
+| Chatworkのメッセージ取得(`messages.fetched_at`)は成功し続けている | ネットワークは正常。Anthropic宛だけの問題 |
+| worker再起動で直らない／再起動していない line_webhook も一緒に復旧する | プロセス状態ではなく**共有状態**（Keychain）が原因 |
+| `status.claude.com/api/v2/incidents.json` に該当なし | **公表されない詰まりがある。**statusページを復旧判断に使わない |
+
+**対処**: 待てば直る（2026-08-19の実績で約50分）。**コードは触らない。**
+復旧後、障害中の依頼は**黙って消えている**（`dev_tasks` に入らない）ので、取りこぼしを確認して再依頼する。
+
 ## 主要ファイル
 `worker.py`（デーモン）/ `app.py`＋`views/`（管理画面）/ `services/`（sync, analyzer, qa, scheduler,
 chatwork, tasks, projects, knowledge, outbox, settings, agent_tools/,
