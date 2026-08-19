@@ -4,10 +4,28 @@
   "visibility": "public",
   "category": "realestate",
   "summary": "登記事項証明書のPDFを最大5枚読み込み、土地・建物・マンションを自動判別して媒介契約書のExcelを下書きする。読み取り精度を落とすのは文字ではなく「紙の向き」だった。",
-  "stack": ["Python", "Streamlit", "claude CLI", "pdfplumber", "PyMuPDF", "openpyxl"],
+  "stack": [
+    "Python",
+    "Streamlit",
+    "claude CLI",
+    "pdfplumber",
+    "PyMuPDF",
+    "openpyxl"
+  ],
   "year": 2026,
   "buildTime": "既存の帳票読み取り処理を流用",
-  "links": [],
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/scanned-pdf-orientation",
+      "note": "スキャンの向きが読み取り精度を左右する話"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/n8795d3d6b45c",
+      "note": "技術用語なしで、原因が紙の向きだったと気づくまでを書いた版"
+    }
+  ],
   "prompts": [],
   "features": [
     "登記簿PDFを最大5枚まとめて読み込み、土地・建物・マンションを自動判別する",

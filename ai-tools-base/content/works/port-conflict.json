@@ -4,7 +4,11 @@
   "visibility": "public",
   "category": "realestate",
   "summary": "常時起動させていたAPIサーバーが、実は起動の度にクラッシュして再起動を繰り返していた。原因はポート番号の重複。",
-  "stack": ["Node.js", "launchd", "Vite"],
+  "stack": [
+    "Node.js",
+    "launchd",
+    "Vite"
+  ],
   "year": 2026,
   "buildTime": "特定と修正で1時間程度",
   "prompts": [],
@@ -36,5 +40,17 @@
       "fix": "全アプリで待ち受けアドレスを明示。個人情報を含むものは特に確認した"
     }
   ],
-  "featured": false
+  "featured": false,
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/launchd-restart-loop",
+      "note": "自動再起動が起動失敗を隠す仕組みを追った版"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/nb5835690091a",
+      "note": "「ちゃんと動いています」を誰も確かめていなかった、という話"
+    }
+  ]
 }

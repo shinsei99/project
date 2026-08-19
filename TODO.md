@@ -159,7 +159,7 @@
 | psa-collection | メイン | **PSAカード管理**（旧「PSA保有カード管理」・8527）。**2026-08-19: ポケモンカード図鑑をオプションとして中から開けるようにし、アルバムに「⭐ 欲しいカード」を入れられるようにした**（バインダーは保有カードと欲しいカードを上下2枠に分離）。あわせてグレード絞り込みを削除・セット/年を「さらに絞り込む」へ格納・タイトルの絵文字を削除。次は「欲しいカード」の集計/書き出しが要るかの判断 | 2026-08-19 |
 | flyer-creator | サブ | チラシクリエーター。型10種はagent-platform共通（直すのはagent-platform/core）。下帯ロゴ＋メイン写真の切取位置(上下)スライダー追加。次は物件データの未決3点 | 2026-08-16 |
 | agent-platform | サブ | **完成扱いへ移行（2026-08-17）**: launchd 登録・0.0.0.0・社内LAN共有（8532）。残るのは作り込み（出来た .pptx 11枚の見栄え目視確認／字幕焼き込み／投稿API）で、通し実行はできる | 2026-08-17 |
-| ai-tools-base | サブ | **AIツールベース**（https://ai-tools-base.vercel.app）。**2026-08-19（サブPC）: KeyLine の Zenn と note をまとめて公開**（Zenn https://zenn.dev/shinsei99/articles/ios-nfc-safari-entitlement 22:09 ／ note https://note.com/shinsei99/n/nf24404f1b55b 22:18）。`keyline.json` の `links` も更新済みで `npm run validate` の ⚠️ は解消。**次は ①`./publish.sh site` で本番反映（人の判断待ち）②Zenn 最後の1本 `ai-intake-hearing` ③note の残り5本** | 2026-08-19 |
+| ai-tools-base | サブ | **AIツールベース**（https://ai-tools-base.vercel.app）。**2026-08-19（サブPC）: Zenn 7本 = note 7本に揃えた**（KeyLine の Zenn/note に加え、note を4本まとめて公開）。`links` も6件ぶん追記し、`npm run validate` の転載⚠️は **ai-ticket-counter の1件だけ**。**次は ①`./publish.sh site` で本番反映（人の判断待ち）②Zenn `ai-intake-hearing` を空コミットで再push（8/19 22:35 の push は上限で弾かれた）③Zennが✅になってから note `nanka-ugokanai`** | 2026-08-19 |
 | scrapmemo-petapeta | メイン | **2026-08-19: 保存容量の問題を根本解決し、1.0.4/build8 を審査へ提出済み。** 画像だけ IndexedDB へ移した（localStorage 5,100KB は WebKit固定／IndexedDB quota 9,830MB）。旧データは起動時に自動移行。実測で**写真30枚・77.3MB でも保持**（以前は1枚で上限）。`save()` の握りつぶしも解消し、孤児画像の掃除を追加。すべてXcodeシミュレータで実測確認済み。**次は審査結果の確認**（通ったら CLAUDE.md を「配信済み」へ）。リリースノート文案は `RELEASE_NOTES.md` | 2026-08-19 |
 | digital-shosai | メイン | **2026-08-19: App Store へ審査提出済み（1.0.0/build1・`com.shinsei.shosai`・iPhone/iPad）。** Capacitor化→シミュレータで取り込み→本棚→読書→紙面→検索を通し確認→Archive→提出まで実施。**青空文庫の著作権切れ4作品を同梱**し初回起動で自動的に書斎へ入る（4冊352ページ→索引679KB）。読書画面の枠とボタンを固定、safe-area・入力欄16px未満の自動拡大によるズレも解消。スクショは3サイズ（6.9/6.5/12.9インチ）、サポート・プライバシーページは gh-pages `digital-shosai-support/` に公開。**次は ①審査結果の確認 ②実機で1度通す**（著作権欄は `SHINSEI PROPERTY MANAGEMENT.K.K.` が既定で決着）。手順は `digital-shosai/HANDOFF-APPSTORE.md` | 2026-08-19 |
 | keyline | メイン | **KeyLine（NFC鍵・備品貸出管理）＋ KeyTag（iOSアプリ）。** サーバーは 8534・社内LAN限定・テスト99件成功。**2026-08-18: KeyTag を App Store へ提出**（1.0.0/build2・掲載名 KeyTagNFC・サポートページ公開済み）。**次はNFCタグ到着後の実機検証**（アプリのNFC機能は一度も実機で動かしていない）。手順は keyline/keytag/RELEASE.md | 2026-08-18 |
@@ -183,17 +183,25 @@
 - **`./publish.sh zenn` は空コミットを作らない。** `articles/` に変更が無いと `git commit` が失敗し、
   `git push` が "Everything up-to-date" で終わって **Zenn のデプロイが走らない**。
   弾かれた1本を再pushするときは、先に `git commit --allow-empty` を叩くこと（8/19に実測）
-- **Zennの上限は「pushした本数」ではなく「直近24時間に公開された本数」で数えられる**（8/18に実測）。
+- **Zenn の上限本数は公開されていない**（2026-08-19に公式FAQで確認）。「1日2本」はこちらの推測だった。
+  判定は「直近24時間以内の投稿数」だが、**本数のロジックは不正防止のため非開示**
+  （https://zenn.dev/faq/rate-limit）。実際 8/19 は**直近24時間の公開が1本だけ**の状態で
+  2本目が弾かれた。**本数で予定を組まず、毎回 `./publish.sh status` とデプロイ履歴で確かめる**
+- （参考・8/18の事例）**「pushした本数」ではなく「直近24時間に公開された本数」で数えられる**。
   メインPCが前日pushした `llm-pdf-split-gaps` の反映が 8/18 20:47 だったため、その日の枠を消費し、
   3本目の `ios-nfc-safari-entitlement` が弾かれた。**デプロイ履歴のお知らせ欄に理由が明記される**
   （https://zenn.dev/dashboard/deploys ・要ログイン）。`./publish.sh status` の ⬜ でも検知できる
 - **note はこのサブPCからも投稿できる**（8/18に実測）。Chrome拡張が繋がり、noteはログイン済み。
   **拡張が「未接続」と出たら、Chrome を前面に出せば繋がる**（起動していても最前面でないと繋がらない）
-- **Zenn: 原稿8本中7本が公開済み**（2026-08-19時点）。残りは `ai-intake-hearing` 1本。
-- **note は8本中3本が公開済み**（`photo-inpainter` `ai-generated-building` が8/16、`who-has-the-key` が8/19）。
-  **訂正: ここには「note は6本とも未公開」と書いてあったが誤りだった。**
-  2026-08-19 に note の API（`https://note.com/api/v2/creators/shinsei99/contents?kind=note`）で実測。
-  以後、公開状況は推測で書かず、このAPIか `./publish.sh status` で確かめてから書く
+- **Zenn 7本 / note 7本で揃っている**（2026-08-19 22:36時点）。残りは `ai-intake-hearing`（Zenn）と
+  `nanka-ugokanai`（note）の1組だけ。**Zenn→note の順で、対にして出す**
+- **公開状況は推測で書かない。** note は API
+  （`https://note.com/api/v2/creators/shinsei99/contents?kind=note&page=N`・1ページ6件）、
+  Zenn は `./publish.sh status` で確かめてから書く。2026-08-19 に
+  「note は6本とも未公開」という記述が誤りだったことが実測で判明している
+- **note の見出し画像は「この画像を挿入」のあとに出る「保存」まで押す。** 押さないと入らない
+  （2026-08-19 に2回とりこぼした）。貼ったあとは画像を目で見る（「書類の山」で検索して
+  出てきた画像が実際は札束だった）
 - **共通 Visual Agent を1つに統合した（2026-08-18・メインPC）。** 2台が別々に作った
   MCP版（`.mcp.json`）と `./va.sh` を、**1つの仕組み・2つの入口**に整理。どちらも消していない。
   - **同じ Google Chrome を headless で開く**ようにしたので、入口が違っても見えるものが食い違わない

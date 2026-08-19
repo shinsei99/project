@@ -4,7 +4,13 @@
   "visibility": "public",
   "category": "realestate",
   "summary": "業務チャットに常駐し、会話からTODOを抽出・進捗管理し、社内資料を横断検索して質問に答えるエージェント。再起動しても状態を失わない冪等設計が中心課題。",
-  "stack": ["Python", "Streamlit", "SQLite (WAL/FTS5)", "launchd", "claude CLI"],
+  "stack": [
+    "Python",
+    "Streamlit",
+    "SQLite (WAL/FTS5)",
+    "launchd",
+    "claude CLI"
+  ],
   "year": 2026,
   "buildTime": "Stage0〜6で複数セッション",
   "prompts": [],
@@ -54,5 +60,17 @@
       "fix": "シェル側にフルディスクアクセスを付与。未付与でも他機能は動くよう例外を握って案内表示にした"
     }
   ],
-  "featured": true
+  "featured": true,
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/ai-agent-always-on",
+      "note": "常駐させて踏んだ4つの罠を技術面からまとめた版"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/neeabacbf122b",
+      "note": "技術用語なしで、24時間見張らせて怖かったことを書いた版"
+    }
+  ]
 }

@@ -4,7 +4,12 @@
   "visibility": "public",
   "category": "realestate",
   "summary": "クリアファイル1冊を一括スキャンした巨大PDFを、書類1件ずつに分割・分類・リネームする機能。AIがページを飛ばしても取りこぼさない後処理が肝。",
-  "stack": ["Python", "Streamlit", "PyMuPDF", "claude CLI"],
+  "stack": [
+    "Python",
+    "Streamlit",
+    "PyMuPDF",
+    "claude CLI"
+  ],
   "year": 2026,
   "buildTime": "既存アプリへのタブ追加として実装",
   "prompts": [],
@@ -38,5 +43,17 @@
       "fix": "西暦への変換を指示に明記"
     }
   ],
-  "featured": false
+  "featured": false,
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/llm-pdf-split-gaps",
+      "note": "長いPDFをLLMで分割したときページが欠ける問題と対策"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/n89278eb6e657",
+      "note": "技術用語なしで、書類の山を仕分けた経緯を書いた版"
+    }
+  ]
 }

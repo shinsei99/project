@@ -56,7 +56,7 @@
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/chatwork-ai-manager |
 | Zenn | `articles/ai-agent-always-on.md` | ✅ https://zenn.dev/shinsei99/articles/ai-agent-always-on （2026-08-17 20:09） |
-| note | `note/ai-always-on.md` | ⬜ 公開後にここへ記入 |
+| note | `note/ai-always-on.md` | ✅ https://note.com/shinsei99/n/neeabacbf122b （2026-08-19 22:28・サブPC） |
 
 ---
 
@@ -66,7 +66,7 @@
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/port-conflict |
 | Zenn | `articles/launchd-restart-loop.md` | ✅ https://zenn.dev/shinsei99/articles/launchd-restart-loop （2026-08-17 20:09） |
-| note | `note/silent-failure.md` | ⬜ 公開後にここへ記入 |
+| note | `note/silent-failure.md` | ✅ https://note.com/shinsei99/n/nb5835690091a （2026-08-19 22:30・サブPC） |
 
 ---
 
@@ -76,7 +76,7 @@
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/shorui-cabinet |
 | Zenn | `articles/llm-pdf-split-gaps.md` | ✅ https://zenn.dev/shinsei99/articles/llm-pdf-split-gaps （2026-08-18 20:47） |
-| note | `note/scanned-pile.md` | ⬜ 公開後にここへ記入 |
+| note | `note/scanned-pile.md` | ✅ https://note.com/shinsei99/n/n89278eb6e657 （2026-08-19 22:33・サブPC） |
 
 **3〜5本目に共通の手順**
 - [ ] Zenn: `zenn/<名前>.md` を `~/articles/` にコピーして push（1本ずつでよい）
@@ -93,7 +93,7 @@
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/baikai-generator |
 | Zenn | `articles/scanned-pdf-orientation.md` | ✅ https://zenn.dev/shinsei99/articles/scanned-pdf-orientation （2026-08-18 21:32・サブPC） |
-| note | `note/upside-down.md` | ⬜ 公開後に記入 |
+| note | `note/upside-down.md` | ✅ https://note.com/shinsei99/n/n8795d3d6b45c （2026-08-19 22:36・サブPC） |
 
 ---
 
@@ -102,8 +102,8 @@
 | 媒体 | 原稿 | URL |
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/ai-ticket-counter |
-| Zenn | `zenn/ai-intake-hearing.md` | ⬜ 公開後に記入（slug `ai-intake-hearing`） |
-| note | `note/nanka-ugokanai.md` | ⬜ 公開後に記入 |
+| Zenn | `articles/ai-intake-hearing.md` | ⬜ **`articles/` へ複製して push 済み（2026-08-19 22:35）だが、投稿数の上限で弾かれた。**空コミットで再push する |
+| note | `note/nanka-ugokanai.md` | ⬜ **Zenn 待ち。**本文から上の Zenn 記事にリンクしているので、先に Zenn を通すこと |
 
 ---
 
@@ -120,7 +120,7 @@
 
 ### ★ 8/19 にやること（この順番で）… **✅ 2026-08-19 に完了（サブPC）**
 
-**1. Zenn を通す。** 枠が空くのは **8/19 20:47 以降**（下の「なぜその時刻か」を見る）。
+**1. Zenn を通す。**（実施済み: 2026-08-19 22:09）
 
 ```bash
 cd ~/ai-tools-base && ./publish.sh zenn     # 変更が無ければ空コミットでよい
@@ -140,9 +140,22 @@ python3 drafts/note/md2html.py who-has-the-key   # → 本文欄で ⌘V
 **3. 両方公開したら**、`content/works/keyline.json` の `links` に2本のURLを足して
 `./publish.sh site`。これで `npm run validate` の ⚠️ が消える。
 
-### なぜ 8/19 20:47 以降なのか（2026-08-18 に実測して分かったこと）
+### Zenn の投稿数の上限について（2026-08-19 に公式FAQを確認して訂正）
 
-**Zennの上限は「自分がpushした本数」ではなく「直近24時間に公開された本数」で数えられる。**
+**上限の本数は公開されていない。**「1日2本まで」と書いていたのは、こちらの推測だった。
+Zenn の FAQ（https://zenn.dev/faq/rate-limit）の記述は次のとおり:
+
+- 上限は「**さまざまな要素を組み合わせたロジック**により決定」され、**不正防止のため開示していない**
+- 記事は「**直近24時間以内の投稿数**（投稿予約中を含む）」で判定される
+- 上限に達しても、一定時間が経過すれば再び投稿できる
+
+**2026-08-19 の実測**: 直近24時間の公開が **1本だけ**（22:09 の `ios-nfc-safari-entitlement`）の
+状態で `ai-intake-hearing` を push したが、**弾かれた**。デプロイ履歴の文言は
+「次の記事は投稿数の上限に達したためデプロイされませんでした: ai-intake-hearing」。
+→ **「24時間に2本までなら通る」とは限らない。** 本数で予定を組まず、
+`./publish.sh status` の ⬜ とデプロイ履歴（https://zenn.dev/dashboard/deploys）で毎回確かめる。
+
+### 参考: 2026-08-18 の事例（当時の理解）
 
 `llm-pdf-split-gaps` はメインPCが 8/17 に push したものだが、**Zenn側の反映が 8/18 20:47**
 だったため、8/18 の枠を1本消費した。そこへ `scanned-pdf-orientation`（21:32）が入って2本になり、
@@ -162,8 +175,8 @@ Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その
 |---|---|---|
 | 8/17 19:56以降 | ✅ ai-agent-always-on / ✅ launchd-restart-loop | ⬜ ai-always-on / ⬜ silent-failure |
 | 8/18 | ✅ llm-pdf-split-gaps（20:47） / ✅ scanned-pdf-orientation（21:32・サブPC） | ⬜ scanned-pile / ⬜ upside-down |
-| 8/19 | ✅ ios-nfc-safari-entitlement（22:09・サブPC） | ✅ who-has-the-key（22:18・サブPC） |
-| 8/20以降 | ⬜ ai-intake-hearing（**Zennで残る最後の1本**） | ⬜ nanka-ugokanai |
+| 8/19 | ✅ ios-nfc-safari-entitlement（22:09） | ✅ who-has-the-key（22:18）／✅ ai-always-on（22:28）／✅ silent-failure（22:30）／✅ scanned-pile（22:33）／✅ upside-down（22:36） |
+| 8/20以降 | ⬜ ai-intake-hearing（**Zennで残る最後の1本。上限で弾かれたので再push**） | ⬜ nanka-ugokanai |
 
 > **2026-08-18 時点: Zenn は原稿7本中6本が公開済み。残りは `ai-intake-hearing` 1本だけ。**
 > 1日2本の上限に当たるため 8/19 以降に出す。note は**5本すべて未公開**（ブラウザ操作が要るため

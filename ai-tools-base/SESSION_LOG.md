@@ -43,12 +43,41 @@
 - **あわせて訂正**: 「note の投稿はメインPC担当（ブラウザ操作が要るため）」も実態と違う。
   **サブPCから投稿できる**（8/18・8/19 に実測）。
 
+### 追記（同日・note を Zenn の本数に揃えた）
+
+- **note を4本まとめて公開し、Zenn 7本 = note 7本に揃えた**（本人の指示）。
+  `ai-always-on`(22:28) / `silent-failure`(22:30) / `scanned-pile`(22:33) / `upside-down`(22:36)。
+  PUBLISH.md の「一度に出さない（TLが新着順なので互いに埋もれる）」に反する進め方だが、
+  本数を揃える指示だったのでそのまま実施した。
+- **見出し画像が入らなかった原因が分かった**: 「この画像を挿入」のあとに
+  **トリミングの「保存」ダイアログ**が出る。ここを押していなかった。押せば普通に入る。
+  → 手順: 画像アイコン → 記事にあう画像を選ぶ → 検索 → 画像 → **この画像を挿入 → 保存**。
+- 画像は内容に合うものを選ぶこと。`scanned-pile` で最初に選んだ「書類の山」が
+  実際は**札束**の画像だったので、目視して差し替えた（貼ったあと必ず見る）。
+- `content/works/` の `links` を4件追記（chatwork-ai-manager / port-conflict /
+  shorui-cabinet / baikai-generator）。`npm run validate` の転載⚠️は **ai-ticket-counter 1件だけ**になった。
+
+### Zenn の投稿数の上限 — 「1日2本」は推測で、公式には非公開だった
+
+`ai-intake-hearing` を `articles/` へ複製して push（22:35）したが、**弾かれた**。
+デプロイ履歴の文言: 「次の記事は投稿数の上限に達したためデプロイされませんでした: ai-intake-hearing」。
+
+このとき**直近24時間の公開は1本だけ**（22:09 の `ios-nfc-safari-entitlement`）だった。
+つまり **「24時間に2本までなら通る」という理解は誤り**。公式FAQ（https://zenn.dev/faq/rate-limit）:
+
+- 上限は「さまざまな要素を組み合わせたロジックにより決定」され、**不正防止のため開示していない**
+- 記事は「**直近24時間以内の投稿数**（投稿予約中を含む）」で判定される
+- 一定時間が経過すれば再び投稿できる
+
+→ **本数で予定を組まない。** 毎回 `./publish.sh status` の ⬜ と
+デプロイ履歴（https://zenn.dev/dashboard/deploys ・要ログイン）で確かめる。
+
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **Zenn の残り1本**: `ai-intake-hearing`（ai-ticket-counter の記録）。8/20 以降に出せる。
-  対応する note は `nanka-ugokanai`。
-- **note の未公開は5本**: `ai-always-on` / `silent-failure` / `scanned-pile` / `upside-down` /
-  `nanka-ugokanai`。うち4本は対応する Zenn が公開済みなので、いつでも出せる。
+- **Zenn の残り1本 `ai-intake-hearing` は push 済みだが未反映**（上限で弾かれた）。
+  時間を空けて **空コミットで再push** する。`articles/ai-intake-hearing.md` はもう置いてある。
+- **note の残り1本 `nanka-ugokanai` は Zenn 待ち。** 本文から上の Zenn 記事にリンクしているので、
+  Zenn が ✅ になってから出す（順序を崩さない）。
 - **本番サイトへの反映が未了**: `content/works/keyline.json` を直したので
   `./publish.sh site`（Vercel 本番デプロイ）が要る。**外部に出る操作なので人の判断待ち。**
 - 未修正のUI崩れ: 390px幅で比較表が横に484pxはみ出す（`div.table-scroll`）。ロゴも2行に折れる。
