@@ -81,8 +81,8 @@ Xcode のキャッシュのみだった（Xcode再起動で解消）。App ID �
 
 - **審査結果の確認**（通ったら CLAUDE.md と一覧を「配信済み」へ）
 - **実機（iPhone）では未確認**。シミュレータのみ
-- **著作権欄が `SHINSEI PROPERTY MANAGEMENT.K.K.`** になっている。他アプリは
-  「新誠プロパティマネジメント」で揃える方針（[[reference_developer_entity]]）。**判断待ち**
+- ~~著作権欄の表記~~ → **`SHINSEI PROPERTY MANAGEMENT.K.K.` が既定**で決着（2026-08-19オーナー判断）。
+  他アプリも同じ表記。メモリ [[reference_developer_entity]] の「新誠プロパティマネジメント」は誤りだったので訂正済み
 - PWA化（manifest/service worker）は未着手。アプリ版には必須ではない
 - 同梱PDFで5.7MB増える。アプリサイズを抑えたいなら「こころ」(3.0MB) を外す選択もある
 
