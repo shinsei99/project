@@ -8,6 +8,8 @@
 > - **ストリートビューを `jyuusetsu-research` に組み込んだ**が、Webキーのリファラ制限で
 >   社内画面からは 403（**Console 設定が要る＝人の作業**。下の A-2 ⑦-b）
 > - **e-Stat の appId を登録し、人口・世帯数を実装**（不具合②を解消）
+> - **e-Gov 法令API を使える状態にした**（キー不要・無料。共通クライアント `egov_law_api.py`）
+> - **保有APIの一覧説明書（Excel）を作成** … 直下 `API一覧説明書.xlsx`（3シート）
 
 - Google Maps の料金・規約の詳細 … `GOOGLE_MAPS_API.md`
 - 日本郵便のコード … 直下 `japanpost_api.py`
@@ -70,6 +72,7 @@
 |---|---|---|---|
 | **Google Maps / Street View** | `.env.google-maps` | `GOOGLE_MAPS_WEB_KEY` / `GOOGLE_MAPS_SERVER_KEY` | ✅ **本番・動作確認済み** |
 | **e-Stat（政府統計）** | `.env.estat` | `ESTAT_APP_ID` | ✅ **動作確認済み**（2026-08-20 登録・実装） |
+| **e-Gov 法令API（v2）** | （キー不要） | — | ✅ **動作確認済み**（2026-08-20。共通クライアント `egov_law_api.py`） |
 | **日本郵便 デジタルアドレス** | `.env.japanpost` | `JAPANPOST_CLIENT_ID` / `_SECRET_KEY` | ✅ **本番・動作確認済み**（2026-08-20 差し替え）。`JAPANPOST_HOST` の行は消した＝本番に向く。テスト用stubは `.env.japanpost.bak-stub` に退避 |
 
 - 日本郵便は **`searchcode "100"` がテスト用では2件、本番では466件**返る（＝実データかどうかの判別に使える）
@@ -157,6 +160,10 @@
 ---
 
 ## E. 検討中（まだ取っていない・判断待ち）
+
+> **優先順つきの「取りに行くリスト」は `API一覧説明書.xlsx` の2枚目にある**（★1〜★5・申請先・所要時間つき）。
+> 無料ですぐ取れるのは ★1 法人番号（発行2週〜1か月なので今日出す）／★1 App Store Connect(.p8)／
+> ★2 Dropbox／★2 PSA公開API／★2 Pokémon TCG API。
 
 | 候補 | 効く先 | 状態 |
 |---|---|---|

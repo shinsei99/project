@@ -40,6 +40,10 @@
 # Google Maps の共通クライアント（住所→緯度経度・ストリートビュー。複数アプリから使う）
 # キーは .env.google-maps 側（gitignoreのまま・secrets-manifest.txt で運ぶ）
 !google_maps_api.py
+
+# e-Gov 法令API の共通クライアント（法令の最新条文。キー不要・無料）
+# 取得した全文のキャッシュ .egov-cache/ は入れない（1行目の * で既に除外）
+!egov_law_api.py
 !va.sh
 !visual_agent.py
 !handwriting-ocr/
