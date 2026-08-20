@@ -1,8 +1,75 @@
 # 引き継ぎメモ（別PCで作業を続けるために）
 
-最終更新：2026-08-16
+最終更新：2026-08-20
 
 ---
+
+## 2026-08-20 mail-archiver（メールアーカイバ・8535）を新規追加 ★本セッション（サブPC）
+
+IMAPサーバーの容量圧迫（2026-08-08に shin@ が40GB＝総容量107%で受信も送信も止まった件）の恒久策。
+メールを `.eml` 原本のままローカルへ落として全文検索し、**取り込みから14日以上たったものだけ**を
+サーバーから消す。ツール分類・port 8535・標準ライブラリ＋Streamlit だけで動く。
+
+### 置き場（ここが一番大事）
+
+| もの | 場所 | なぜ |
+|---|---|---|
+| 原本 `.eml`・添付・サイドカー `.eml.json` | **個人Dropbox**（`ARCHIVE_STORE_DIR`） | write-once なので同期と喧嘩しない。2台から見えてバックアップにもなる |
+| SQLite の索引 `mail.db` | **ローカル固定**（`ARCHIVE_DB_PATH`＝`mail-archiver/local/`） | **同期フォルダに置くと壊れる**（本体・WAL・shm を同時に書くため） |
+
+**DBは原本から作り直せる**（`python3 sync.py --rebuild`）。サイドカーに `synced_at`・UID・
+UIDVALIDITY・フラグ・添付・SHA256 を書いてあるので、**作り直しても14日ルールの起点がずれない**。
+実証済み: DBを削除 → `--rebuild` で19通・添付2件を復元、`--verify` 問題0件、日本語検索も復旧。
+
+### 別PC（メインPC）でのセットアップ
+
+```bash
+git pull
+cd ~/mail-archiver
+cp .env.mail-archiver.example .env.mail-archiver   # ← 機密。secrets-sync.sh でも運べる
+#   ARCHIVE_STORE_DIR を **そのPCのDropbox-個人のパス**に直す（ユーザー名が違うため）
+#   ARCHIVE_DB_PATH は ~/mail-archiver/local/mail.db のままでよい（ローカル固定）
+python3 smoke_test.py            # 偽IMAPサーバーで30項目。本物には繋がない
+python3 sync.py --rebuild        # 原本がDropboxに同期されていればDBはこれで出来る
+./run.sh                         # http://127.0.0.1:8535
+```
+
+スマホから見るときだけ `./run-lan.sh`（0.0.0.0）。**`UI_PASSWORD` が未設定なら起動しない**
+（シェル側とアプリ側の二重で止める。メール本文を扱うため素通りにしない）。
+
+### ⚠️ 別PCで気をつけること
+
+- **launchd で常駐させるなら `/bin/bash` にフルディスクアクセスが要る。**
+  launchd のプロセスは Dropbox（CloudStorage）を読めない。書類キャビネット(8528)と同じ罠。
+  → まだ `_launchd/install-launchd.sh` には**登録していない**（常駐させるかは未判断のため）。
+- **サブPCでは常駐させない**（役割分担のとおり）。動作確認は `./run.sh` で都度起動。
+- 削除は**既定で無効**。`.env` の `ARCHIVE_DELETE_ENABLED=1` ＋ `--delete` ＋ `--yes` の3つが
+  揃って初めて実行される。付けなければ必ず dry-run。
+
+### 未対応・次にやること
+
+1. **IMAP経由の取り込みは一度も実行していない。** このPCの Mail.app は iCloud 1本のみで、
+   iCloud は外部アプリからのIMAPに **App用パスワード**（appleid.apple.com で発行）が要るため。
+   発行したら `security add-generic-password -s mail-archiver -a <アドレス> -w` で入れる
+   （`.env` は既にキーチェーンを見る設定）。初回は `--since-days 7 --limit 20` から。
+2. **Tailscale 未導入**（外出先からスマホで見る用。アカウントログインが要るので人の作業）。
+   公開URLを作る方式（ngrok等）はメール本文を扱うので使わない。
+3. `restore.py`（`.eml` を IMAP APPEND でサーバーへ戻す）が未実装。削除を実運用する前に欲しい。
+4. 本番の shin@daikyocorp.co.jp（メインPC側）で使うかは**要オーナー確認**。約40GBあるので
+   期間を切って始める。Dropboxの残量は潤沢との由（2026-08-20 本人確認）。
+
+### 実測・調べて分かったこと（再調査不要）
+
+- Mail.app から AppleScript でソースごと取り込む口（`import_from_mail.py`）を用意した。
+  **IMAPパスワード不要**。取り込んだ分は `server_state='local'` で入り、**削除候補には一生入らない**。
+  速度は1通あたり約3秒（20通で58秒）。実データ19通・4.0MB・添付2件で確認。
+- `RFC822` で取るとサーバー側で `\Seen` が付く → `BODY.PEEK[]` を使う。
+- 素の `EXPUNGE` は他で付いた `\Deleted` も道連れにする → `UID EXPUNGE`（UIDPLUS）。
+  **iCloud は認証前に UIDPLUS を名乗らない**ので、ログイン後に CAPABILITY を取り直す。
+- FTS5 の `unicode61` では日本語が検索できない → `trigram`（3文字以上の部分一致）。
+- Streamlit は再実行ごとに別スレッドになる → SQLite接続は `check_same_thread=False`。
+- **公開リポジトリなので、手順書に実メールアドレスを書かない**（今回1つ載せてしまい伏せ字に直した。
+  push済みの履歴には残っている）。
 
 ## 2026-08-16 chatwork-ai-manager（Chatwork/LINE常駐AIエージェント）を追加・引き継ぎ整備 ★本セッション
 
