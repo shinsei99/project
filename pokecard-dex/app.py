@@ -290,6 +290,94 @@ def image_of(row):
 
 # ── カード詳細 ───────────────────────────────────────────────────────────────
 
+def _fx_rates():
+    """為替レートを {'EUR/JPY': (レート, 出所, 取得日時)} で返す。無ければ空。"""
+    try:
+        rows = conn().execute("SELECT pair, rate, source, fetched_at FROM fx").fetchall()
+    except Exception:
+        return {}          # まだ ingest_tcgdex_price.py を流していない場合
+    return {r["pair"]: (r["rate"], r["source"], r["fetched_at"]) for r in rows}
+
+
+def _price_of(card):
+    """カード1枚の相場。無ければ None。"""
+    tcg_id = card["tcg_id"]
+    if not tcg_id or "-off" in tcg_id:
+        return None        # 公式サイト由来の合成ID。TCGdex には存在しない
+    try:
+        return conn().execute(
+            "SELECT * FROM prices WHERE tcg_id=?", (tcg_id,)).fetchone()
+    except Exception:
+        return None
+
+
+def show_price(card):
+    """参考相場を出す。
+
+    **これは欧州（Cardmarket）の相場で、日本国内の相場ではない。**
+    日本語カードには TCGplayer の市場価がほとんど付かないため、実質 EUR のみ。
+    グレード品（PSA鑑定済み）の相場でもない＝生カードの相場。
+    見た人が国内相場と取り違えると売買の判断を誤るので、画面に明記する。
+
+    `avg`（取引の平均）が空で `low`（出品の最安）だけあるカードがある。
+    発売直後などで**まだ売買が成立していない**もので、このとき `trend` は 0 が入る。
+    平均が無いからと何も出さないと情報を捨てることになるので、
+    **「出品最安」だと分かる書き方で出す**（取引価格と混同させない）。
+    """
+    p = _price_of(card)
+    if p is None:
+        return
+    has_any = any(p[k] is not None for k in
+                  ("cm_avg", "cm_low", "cm_avg7", "cm_avg30", "tp_market"))
+    if not has_any:
+        return
+    fx = _fx_rates()
+    st.divider()
+    st.markdown("**参考相場**")
+
+    def _yen(val, cur):
+        r = fx.get(f"{cur}/JPY")
+        return f"　≒ {val * r[0]:,.0f} 円" if r and val is not None else ""
+
+    traded = p["cm_avg"] is not None
+    if traded:
+        st.write(f"€{p['cm_avg']:,.2f}{_yen(p['cm_avg'], 'EUR')}　"
+                 f"<span style='color:#78909c'>（Cardmarket 取引平均）</span>",
+                 unsafe_allow_html=True)
+    elif p["cm_low"] is not None:
+        st.write(f"€{p['cm_low']:,.2f}{_yen(p['cm_low'], 'EUR')}　"
+                 f"<span style='color:#78909c'>（Cardmarket **出品最安**）</span>",
+                 unsafe_allow_html=True)
+        st.caption("まだ売買が成立していないため、取引平均はありません（売り手の希望価格）")
+
+    sub = []
+    if traded and p["cm_low"] is not None:
+        sub.append(f"最安 €{p['cm_low']:,.2f}")
+    # trend は取引が無いと 0 が入る。0 をそのまま出すと「相場0円」に見えるので隠す
+    if p["cm_trend"]:
+        sub.append(f"トレンド €{p['cm_trend']:,.2f}")
+    if p["cm_avg7"] is not None:
+        sub.append(f"7日平均 €{p['cm_avg7']:,.2f}")
+    if p["cm_avg30"] is not None:
+        sub.append(f"30日平均 €{p['cm_avg30']:,.2f}")
+    if sub:
+        st.caption("　/　".join(sub))
+
+    if p["tp_market"] is not None:
+        st.write(f"${p['tp_market']:,.2f}{_yen(p['tp_market'], 'USD')}　"
+                 f"<span style='color:#78909c'>（TCGplayer 市場価）</span>",
+                 unsafe_allow_html=True)
+
+    stamp = (p["src_updated"] or "")[:10]
+    rate = fx.get("EUR/JPY")
+    note = f"相場は TCGdex 経由" + (f"・{stamp} 時点" if stamp else "")
+    if rate:
+        note += f"／為替 1€={rate[0]:.1f}円（{rate[1]}・{rate[2][:10]}）"
+    st.caption(note)
+    st.caption("⚠️ **欧州（Cardmarket）の相場**であって国内相場ではない。"
+               "**鑑定品ではなく生カード**の値。売買の判断には国内の実売価格を見ること")
+
+
 def show_detail(card):
     col_img, col_txt = st.columns([1, 1.4])
     with col_img:
@@ -357,6 +445,7 @@ def show_detail(card):
             st.caption(f"Illus. {card['illustrator']}")
         if not attacks and not card["tcg_id"]:
             st.caption("ワザや効果文は未収録です（TCGdex に該当カードがありません）")
+        show_price(card)
 
 
 def show_cards(rows, cols=6, key_prefix=""):
