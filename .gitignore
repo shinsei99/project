@@ -36,6 +36,10 @@
 # 日本郵便「郵便番号・デジタルアドレスAPI」の共通クライアント（住所の正規化。複数アプリから使う）
 # 資格情報は .env.japanpost 側（gitignoreのまま・secrets-manifest.txt で運ぶ）
 !japanpost_api.py
+
+# Google Maps の共通クライアント（住所→緯度経度・ストリートビュー。複数アプリから使う）
+# キーは .env.google-maps 側（gitignoreのまま・secrets-manifest.txt で運ぶ）
+!google_maps_api.py
 !va.sh
 !visual_agent.py
 !handwriting-ocr/

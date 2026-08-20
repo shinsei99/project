@@ -5,8 +5,10 @@
 """
 
 import os
+import sys
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from models.property_data import create_property_data, merge
 from services import (
@@ -23,6 +25,13 @@ from services import (
 )
 from utils import formatter
 
+# 直下の共通クライアント（google_maps_api.py）。キーが無ければ使わないだけ。
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+try:
+    import google_maps_api
+except Exception:
+    google_maps_api = None
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(BASE_DIR, "templates", "jyuusetsu_template.xlsx")
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
@@ -35,6 +44,8 @@ def run_pipeline(address, land_pdf, building_pdf):
     data = create_property_data()
     facilities = {}
     hazard_url = hazard_service.hazard_link(None, None)
+    coords = None
+    coords_source = ""
 
     # ① 住所からの自動調査
     if address:
@@ -42,6 +53,7 @@ def run_pipeline(address, land_pdf, building_pdf):
             addr_result = address_service.investigate(address)
             merge(data, addr_result["data"])
             coords = addr_result["coords"]
+            coords_source = addr_result.get("coords_source", "")
 
         if coords:
             lat, lon = coords
@@ -59,7 +71,39 @@ def run_pipeline(address, land_pdf, building_pdf):
         with st.spinner("登記簿PDFを解析中..."):
             merge(data, registry_service.parse_registry(land_pdf, building_pdf))
 
-    return data, facilities, hazard_url
+    return data, facilities, hazard_url, coords, coords_source
+
+
+def render_streetview(coords, address):
+    """現地の見え方（ストリートビュー）。
+
+    **規約**: Street View の Embed は無制限・無料だが、**印刷物には一切使えない**。
+    また Google 以外の地図（地理院地図・ハザードマップ）と同一画面に並べない
+    （この画面はハザードマップを"リンク"で置くだけで地図は描画していない）。
+    """
+    st.subheader("🛣 現地の見え方（ストリートビュー）")
+    if not coords:
+        st.caption("※ 住所から位置を特定できていないため表示できません。")
+        return
+    if google_maps_api is None or not google_maps_api.web_key():
+        st.caption("※ GOOGLE_MAPS_WEB_KEY（直下 .env.google-maps）が未設定のため表示していません。")
+        return
+
+    lat, lon = coords
+    meta = google_maps_api.streetview_metadata(lat, lon)
+    if not meta:
+        st.caption("※ この地点の周辺50mにストリートビューの撮影がありません。")
+        return
+
+    url = google_maps_api.streetview_embed_url(lat, lon)
+    if not url:
+        st.caption("※ 埋め込みURLを生成できませんでした。")
+        return
+    components.iframe(url, height=420)
+    st.caption(
+        "撮影時期: {} ／ 画面で確認する用途のみ。**印刷物（チラシ・DM・重説の紙面）には使用不可**"
+        "（Google Geo Guidelines）。".format(meta.get("date") or "不明")
+    )
 
 
 def render_section(title, fields):
@@ -109,11 +153,19 @@ def main():
         st.error("住所、または登記簿PDFのいずれかを入力してください。")
         return
 
-    data, facilities, hazard_url = run_pipeline(address, land_pdf, building_pdf)
+    data, facilities, hazard_url, coords, coords_source = run_pipeline(
+        address, land_pdf, building_pdf
+    )
     comment = comment_service.generate_comment(data)
 
     # ===== 結果画面 =====
     render_section("📌 基本情報", formatter.section_basic(data))
+    if coords:
+        st.caption(
+            "座標: {:.6f}, {:.6f}（出典 {}）。用途地域・災害情報はこの地点で判定しています。".format(
+                coords[0], coords[1], coords_source or "不明"
+            )
+        )
     st.divider()
 
     render_section("🏛 都市計画 / 法令制限", formatter.section_city_planning(data))
@@ -136,6 +188,9 @@ def main():
                         st.markdown("- {}".format(n))
                 else:
                     st.markdown("- （周辺に該当なし/未取得）")
+    st.divider()
+
+    render_streetview(coords, address)
     st.divider()
 
     render_section("📄 登記情報", formatter.section_registry(data))
