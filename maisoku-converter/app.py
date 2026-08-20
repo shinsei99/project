@@ -204,6 +204,13 @@ _placement_editor = components.declare_component(
     path=str(APP_DIR / "placement_component"),
 )
 
+# ── カスタムコンポーネント（切り取り枠エディタ）──────────────────────────────
+# プレビュー上で枠そのものをドラッグ移動・リサイズできる。返り値は {x1,y1,x2,y2}（0〜1の率）。
+_crop_editor = components.declare_component(
+    "crop_editor",
+    path=str(APP_DIR / "crop_component"),
+)
+
 def _pil_to_b64(img: Image.Image, max_size: int = 320) -> str:
     thumb = img.copy()
     thumb.thumbnail((max_size, max_size), Image.LANCZOS)
@@ -455,6 +462,38 @@ def crop_overlay(image: Image.Image, region: dict,
     lw = max(3, w // 250)
     d.rectangle([x1, y1, x2 - 1, y2 - 1], outline=color, width=lw)
     return out
+
+
+_REGION_STEP = 0.001   # スライダーの刻み。枠ドラッグの値もこの格子に丸めて食い違いを防ぐ
+_REGION_MIN  = 0.02    # 枠が潰れないための最小幅・最小高さ（率）
+
+def normalize_region(r) -> dict | None:
+    """{x1,y1,x2,y2} を 0〜1 に収め、最小サイズを保証し、スライダーの刻みに丸める。
+    枠ドラッグ（コンポーネント）とスライダーの両方がここを通るので、
+    同じ入力なら必ず同じ dict になり、無限に再実行し合うのを防げる。"""
+    if not isinstance(r, dict):
+        return None
+    try:
+        x1, y1 = float(r.get("x1", 0.0)), float(r.get("y1", 0.0))
+        x2, y2 = float(r.get("x2", 1.0)), float(r.get("y2", 1.0))
+    except (TypeError, ValueError):
+        return None
+
+    def snap(v: float) -> float:
+        return round(round(min(1.0, max(0.0, v)) / _REGION_STEP) * _REGION_STEP, 4)
+
+    x1, y1, x2, y2 = snap(x1), snap(y1), snap(x2), snap(y2)
+    if x2 - x1 < _REGION_MIN:
+        if x1 + _REGION_MIN <= 1.0:
+            x2 = snap(x1 + _REGION_MIN)
+        else:
+            x1, x2 = snap(1.0 - _REGION_MIN), 1.0
+    if y2 - y1 < _REGION_MIN:
+        if y1 + _REGION_MIN <= 1.0:
+            y2 = snap(y1 + _REGION_MIN)
+        else:
+            y1, y2 = snap(1.0 - _REGION_MIN), 1.0
+    return {"x1": x1, "y1": y1, "x2": x2, "y2": y2}
 
 
 # ─── テンプレート XLS → openpyxl 変換 ───────────────────────────────────────
@@ -1473,18 +1512,109 @@ if mode == _MODE_BAND:
         st.stop()
 
     st.markdown("**✂️ 貼り付け範囲を調整** — 他社の帯（会社情報）を除いて、上に載せる範囲を指定")
-    bs_c1, bs_c2 = st.columns([1, 2])
+
+    _BAND_DEFAULT = {"x1": 0.00, "y1": 0.00, "x2": 1.00, "y2": 0.88}
+
+    def _forget_last_drag() -> None:
+        """コンポーネント側に残っている最後のドラッグ値を「もう見た」ことにする。
+        消す（pop する）と、次の実行でそれが新しい値に見えて範囲を引き戻してしまう。"""
+        _cur = normalize_region(st.session_state.get("band_crop_editor"))
+        st.session_state["band_drag_seen"] = _cur if _cur else {}
+
+    # 別のファイルに差し替えたら範囲を初期値に戻す
+    _bs_sig = f"{bs_file.name}:{len(bs_file.getvalue())}"
+    if st.session_state.get("band_file_sig") != _bs_sig:
+        st.session_state["band_file_sig"] = _bs_sig
+        st.session_state["band_region"]   = dict(_BAND_DEFAULT)
+        _forget_last_drag()
+    region = normalize_region(st.session_state.get("band_region")) or dict(_BAND_DEFAULT)
+
+    # ① プレビューで枠を動かした結果を取り込む。
+    #    「前回見た値と違うときだけ」採用するのが要点。
+    #    そうしないと、スライダーを動かしたときに
+    #    古いドラッグ値が残っていて引き戻されてしまう。
+    _drag = normalize_region(st.session_state.get("band_crop_editor"))
+    if _drag and _drag != st.session_state.get("band_drag_seen"):
+        st.session_state["band_drag_seen"] = _drag
+        region = _drag
+        st.session_state["band_region"] = region
+
+    # プレビューを大きくしたときは、左右2列だと幅が足りない。
+    # 1200px 以上を選んだらスライダーを上段（横4列）に回し、プレビューに全幅を渡す
+    _pv_sel  = int(st.session_state.get("bs_preview_w", 1000))
+    _stacked = _pv_sel >= 1200
+    if _stacked:
+        bs_c1, bs_c2 = st.container(), st.container()
+    else:
+        bs_c1, bs_c2 = st.columns([1, 3])
+
     with bs_c1:
-        cut_bottom = st.slider("下カット（他社帯を除く位置）", 0.50, 1.00, 0.88, 0.01,
-                               help="他社マイソク下部の会社情報帯を切り落とす位置")
-        cut_top   = st.slider("上カット",   0.00, 0.40, 0.00, 0.01)
-        cut_left  = st.slider("左カット",   0.00, 0.40, 0.00, 0.01)
-        cut_right = st.slider("右カット",   0.60, 1.00, 1.00, 0.01)
-    region = {"x1": cut_left, "y1": cut_top, "x2": cut_right, "y2": cut_bottom}
+        # 枠をドラッグすると値が外から変わるので、
+        # key に現在値を混ぜてスライダーを作り直す（既存ウィジェットは値を書き換えられないため）
+        _k = "%.3f_%.3f_%.3f_%.3f" % (region["x1"], region["y1"], region["x2"], region["y2"])
+        for _stale in [k for k in st.session_state
+                       if k.startswith(("bs_bottom_", "bs_top_", "bs_left_", "bs_right_"))
+                       and not k.endswith(_k)]:
+            st.session_state.pop(_stale, None)   # 古い key の残骸を掃除
+
+        _sc = st.columns(4) if _stacked else [st.container()] * 4
+        with _sc[0]:
+            cut_bottom = st.slider("下カット（他社帯を除く位置）",
+                                   0.05, 1.00, region["y2"], _REGION_STEP,
+                                   key=f"bs_bottom_{_k}", format="%.3f",
+                                   help="他社マイソク下部の会社情報帯を切り落とす位置")
+        with _sc[1]:
+            cut_top   = st.slider("上カット", 0.00, 0.95, region["y1"], _REGION_STEP,
+                                  key=f"bs_top_{_k}",   format="%.3f")
+        with _sc[2]:
+            cut_left  = st.slider("左カット", 0.00, 0.95, region["x1"], _REGION_STEP,
+                                  key=f"bs_left_{_k}",  format="%.3f")
+        with _sc[3]:
+            cut_right = st.slider("右カット", 0.05, 1.00, region["x2"], _REGION_STEP,
+                                  key=f"bs_right_{_k}", format="%.3f")
+
+        _bc = st.columns([1, 2]) if _stacked else [st.container()] * 2
+        with _bc[0]:
+            if st.button("↺ 範囲をリセット", use_container_width=True, key="bs_region_reset"):
+                st.session_state["band_region"] = dict(_BAND_DEFAULT)
+                _forget_last_drag()
+                st.rerun()
+        with _bc[1]:
+            pv_w = st.select_slider(
+                "プレビューの大きさ", options=[640, 800, 1000, 1200, 1400, 1600],
+                value=1000, key="bs_preview_w",
+                help="大きくすると細かい位置合わせがしやすくなります"
+                     "（1200以上にするとスライダーが上段に移り、横幅いっぱいで表示します）",
+            )
+
+    # ② スライダー側の変更を反映（こちらが後なので、同じ実行内で枠にも伝わる）
+    _slid = normalize_region({"x1": cut_left, "y1": cut_top, "x2": cut_right, "y2": cut_bottom})
+    if _slid and _slid != region:
+        region = _slid
+        st.session_state["band_region"] = region
+
     bs_crop = crop_region(bs_img, region) or bs_img
+
     with bs_c2:
-        st.caption("元画像（緑枠が貼り付け範囲・外側は除外されます）")
-        st.image(crop_overlay(bs_img, region), use_container_width=True)
+        st.caption("元画像 — **枠の中をドラッグ＝移動 ／ ■をドラッグ＝サイズ変更**"
+                   "（つかんでいる間は拡大鏡が出ます。■を1回クリック→**矢印キー**で1ドットずつ）")
+        # 拡大鏡で拡大しても粗くならないよう、元画像は表示幅より大きめに渡す。
+        # 再実行のたびに JPEG を作り直すと重いので、同じ寸法なら使い回す
+        _img_px  = min(2000, max(1400, int(pv_w * 1.5)))
+        _img_key = (_bs_sig, _img_px)
+        if st.session_state.get("band_img_key") != _img_key:
+            st.session_state["band_img_key"] = _img_key
+            st.session_state["band_img_b64"] = _pil_to_b64(bs_img, _img_px)
+        _crop_editor(
+            image=st.session_state["band_img_b64"],
+            region=region,
+            aspect=bs_img.width / max(1, bs_img.height),
+            max_w=int(pv_w),
+            src_w=bs_img.width,
+            src_h=bs_img.height,
+            key="band_crop_editor",
+            default=region,
+        )
 
     st.markdown("**🖼️ 切り取り後のイメージ（この画像が案内書の上部に入ります）**")
     st.image(bs_crop, use_container_width=True)

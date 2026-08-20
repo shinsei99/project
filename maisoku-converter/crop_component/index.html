@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: sans-serif; font-size: 12px; background: #fff; user-select: none;
+       -webkit-user-select: none; touch-action: none; }
+
+#wrap { padding: 2px 4px 4px; }
+
+#stage {
+  position: relative;
+  display: inline-block;
+  border: 1px solid #ccc;
+  background: #f5f5f5;
+  overflow: hidden;
+  cursor: crosshair;
+}
+#base { display: block; width: 100%; height: 100%; pointer-events: none; }
+
+/* 範囲外を暗く落とす4枚 */
+.shade { position: absolute; background: rgba(0,0,0,0.45); pointer-events: none; }
+
+/* 貼り付け範囲の枠 */
+#frame {
+  position: absolute;
+  border: 2px solid #28b45a;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.7) inset;
+  cursor: move;
+  outline: none;
+}
+#frame:focus { box-shadow: 0 0 0 1px rgba(255,255,255,0.7) inset, 0 0 0 3px rgba(40,180,90,0.25); }
+#frame-label {
+  position: absolute; top: 2px; left: 2px;
+  background: rgba(40,180,90,0.85); color: #fff;
+  font-size: 10px; padding: 1px 6px; border-radius: 3px;
+  pointer-events: none; white-space: nowrap;
+}
+
+/* リサイズハンドル（四隅＋四辺） */
+.h {
+  position: absolute;
+  background: #fff;
+  border: 2px solid #28b45a;
+  border-radius: 2px;
+  width: 12px; height: 12px;
+  z-index: 5;
+}
+.h.sel { background: #28b45a; box-shadow: 0 0 0 3px rgba(40,180,90,0.3); }
+.h.nw { left: -7px;  top: -7px;    cursor: nwse-resize; }
+.h.ne { right: -7px; top: -7px;    cursor: nesw-resize; }
+.h.sw { left: -7px;  bottom: -7px; cursor: nesw-resize; }
+.h.se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.h.n  { left: 50%; top: -7px;    margin-left: -6px; cursor: ns-resize; }
+.h.s  { left: 50%; bottom: -7px; margin-left: -6px; cursor: ns-resize; }
+.h.w  { top: 50%; left: -7px;    margin-top: -6px;  cursor: ew-resize; }
+.h.e  { top: 50%; right: -7px;   margin-top: -6px;  cursor: ew-resize; }
+
+/* 拡大鏡（つかんでいる辺・角の周りを拡大して見せる）*/
+#loupe {
+  position: absolute;
+  width: 190px; height: 190px;
+  border: 2px solid #28b45a;
+  border-radius: 6px;
+  background-repeat: no-repeat;
+  background-color: #fff;
+  box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+  pointer-events: none;
+  display: none;
+  z-index: 20;
+  image-rendering: pixelated;
+}
+#loupe .cross { position: absolute; background: rgba(40,180,90,0.9); }
+#loupe .cross.hz { left: 0; right: 0; height: 1px; top: 50%; }
+#loupe .cross.vt { top: 0; bottom: 0; width: 1px;  left: 50%; }
+#loupe .zlabel {
+  position: absolute; right: 3px; bottom: 2px;
+  background: rgba(0,0,0,0.55); color: #fff;
+  font-size: 9px; padding: 0 4px; border-radius: 2px;
+}
+
+#readout { color: #666; font-size: 11px; padding: 4px 2px 0; line-height: 1.6; }
+#readout b { color: #28b45a; }
+#readout .px { color: #999; }
+#hint { color: #999; font-size: 10px; padding: 1px 2px 0; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div id="wrap">
+  <div id="stage">
+    <img id="base">
+    <div class="shade" id="sh-t"></div>
+    <div class="shade" id="sh-b"></div>
+    <div class="shade" id="sh-l"></div>
+    <div class="shade" id="sh-r"></div>
+    <div id="frame" tabindex="0">
+      <div id="frame-label">貼り付け範囲</div>
+      <div class="h nw" data-dir="nw"></div>
+      <div class="h n"  data-dir="n"></div>
+      <div class="h ne" data-dir="ne"></div>
+      <div class="h w"  data-dir="w"></div>
+      <div class="h e"  data-dir="e"></div>
+      <div class="h sw" data-dir="sw"></div>
+      <div class="h s"  data-dir="s"></div>
+      <div class="h se" data-dir="se"></div>
+    </div>
+    <div id="loupe">
+      <div class="cross hz"></div>
+      <div class="cross vt"></div>
+      <div class="zlabel"></div>
+    </div>
+  </div>
+  <div id="readout"></div>
+  <div id="hint">
+    枠の中をドラッグ＝移動／■をドラッグ＝サイズ変更（つかんでいる間は拡大鏡が出ます）。<br>
+    <b>細かく合わせるとき</b>: ■を1回クリックしてから <b>矢印キー</b>（1ドットずつ／Shiftで10ドット）。枠の中をクリックしてから矢印なら枠ごと移動。
+  </div>
+</div>
+
+<script>
+var args = null;
+var reg  = { x1: 0, y1: 0, x2: 1, y2: 0.88 };  // 表示中の範囲（0〜1の率）
+var lastSync = null;                            // 最後にPython側と一致していた範囲
+var W = 600, H = 400;                           // ステージのピクセルサイズ
+var MIN_PX = 24;                                // 枠の最小サイズ
+var ZOOM   = 3.5;                               // 拡大鏡の倍率
+var selected = 'move';                          // 矢印キーの対象（'move' か 'nw' 等）
+var keyTimer = null;
+
+// ── Streamlit通信 ─────────────────────────────────
+function sendValue() {
+  var v = {
+    x1: Math.round(reg.x1 * 10000) / 10000,
+    y1: Math.round(reg.y1 * 10000) / 10000,
+    x2: Math.round(reg.x2 * 10000) / 10000,
+    y2: Math.round(reg.y2 * 10000) / 10000,
+  };
+  lastSync = key(v);
+  window.parent.postMessage({
+    isStreamlitMessage: true,
+    type: 'streamlit:setComponentValue',
+    value: v,
+    dataType: 'json',
+  }, '*');
+}
+function sendValueSoon() {                       // 矢印キー連打で毎回再実行しないように少し待つ
+  if (keyTimer) clearTimeout(keyTimer);
+  keyTimer = setTimeout(function () { keyTimer = null; sendValue(); }, 450);
+}
+function sendHeight() {
+  window.parent.postMessage({
+    isStreamlitMessage: true,
+    type: 'streamlit:setFrameHeight',
+    height: document.body.scrollHeight + 8,
+  }, '*');
+}
+function key(r) {
+  return [r.x1, r.y1, r.x2, r.y2]
+    .map(function (n) { return (Math.round(n * 10000) / 10000).toFixed(4); }).join(',');
+}
+
+window.addEventListener('message', function (e) {
+  if (!e.data || e.data.type !== 'streamlit:render') return;
+  var first = (args === null);
+  args = e.data.args;
+
+  if (args.image && document.getElementById('base').src !== args.image) {
+    document.getElementById('base').src = args.image;
+    document.getElementById('loupe').style.backgroundImage = 'url("' + args.image + '")';
+  }
+
+  // Python側（スライダー）で変わっていたら、そちらを正として取り込む
+  var incoming = args.region || reg;
+  if (first || key(incoming) !== lastSync) {
+    reg = { x1: +incoming.x1, y1: +incoming.y1, x2: +incoming.x2, y2: +incoming.y2 };
+    lastSync = key(reg);
+  }
+  layout();
+  render();
+  setTimeout(sendHeight, 50);
+});
+
+window.parent.postMessage({
+  isStreamlitMessage: true,
+  type: 'streamlit:componentReady',
+  apiVersion: 1,
+}, '*');
+
+// ── ステージのサイズ決定（画像の縦横比を保つ）──────
+function layout() {
+  var maxW   = args && args.max_w  ? args.max_w  : 520;
+  var aspect = args && args.aspect ? args.aspect : 1.4;   // 幅 / 高さ
+  var avail  = document.body.clientWidth - 12;
+  W = Math.max(200, Math.min(maxW, avail));
+  H = Math.max(120, Math.round(W / aspect));
+  var st = document.getElementById('stage');
+  st.style.width  = W + 'px';
+  st.style.height = H + 'px';
+}
+
+// ── 描画 ──────────────────────────────────────────
+function render() {
+  var L = reg.x1 * W, T = reg.y1 * H;
+  var R = reg.x2 * W, B = reg.y2 * H;
+
+  var f = document.getElementById('frame');
+  f.style.left   = L + 'px';
+  f.style.top    = T + 'px';
+  f.style.width  = (R - L) + 'px';
+  f.style.height = (B - T) + 'px';
+
+  css('sh-t', 0, 0, W, T);
+  css('sh-b', 0, B, W, H - B);
+  css('sh-l', 0, T, L, B - T);
+  css('sh-r', R, T, W - R, B - T);
+
+  // 選ばれているハンドルを目立たせる（矢印キーの対象）
+  var hs = document.querySelectorAll('.h');
+  for (var i = 0; i < hs.length; i++) {
+    if (hs[i].dataset.dir === selected) hs[i].classList.add('sel');
+    else hs[i].classList.remove('sel');
+  }
+
+  var sw = args && args.src_w ? args.src_w : 0;
+  var sh = args && args.src_h ? args.src_h : 0;
+  var px = function (v, total) {
+    return total ? ' <span class="px">(' + Math.round(v * total) + 'px)</span>' : '';
+  };
+  document.getElementById('readout').innerHTML =
+    '上 <b>' + pct(reg.y1) + '</b>' + px(reg.y1, sh) +
+    '／下 <b>' + pct(reg.y2) + '</b>' + px(reg.y2, sh) +
+    '　左 <b>' + pct(reg.x1) + '</b>' + px(reg.x1, sw) +
+    '／右 <b>' + pct(reg.x2) + '</b>' + px(reg.x2, sw) +
+    '　<span class="px">切り取り ' +
+      (sw ? Math.round((reg.x2 - reg.x1) * sw) + ' × ' + Math.round((reg.y2 - reg.y1) * sh) + 'px' : '') +
+    '</span>';
+}
+function css(id, x, y, w, h) {
+  var el = document.getElementById(id);
+  el.style.left   = x + 'px';
+  el.style.top    = y + 'px';
+  el.style.width  = Math.max(0, w) + 'px';
+  el.style.height = Math.max(0, h) + 'px';
+}
+function pct(v) { return (v * 100).toFixed(1) + '%'; }
+
+// ── 拡大鏡 ────────────────────────────────────────
+// いま動かしている辺・角のところを ZOOM 倍で見せる。
+// 背景画像を (W*ZOOM) 幅に引き伸ばし、注目点が中央に来るようずらす。
+function showLoupe(fx, fy) {
+  var lp = document.getElementById('loupe');
+  var LS = 190;
+  lp.style.display = 'block';
+  lp.style.backgroundSize = (W * ZOOM) + 'px ' + (H * ZOOM) + 'px';
+  lp.style.backgroundPosition = (-(fx * ZOOM) + LS / 2) + 'px ' + (-(fy * ZOOM) + LS / 2) + 'px';
+  lp.querySelector('.zlabel').textContent = '×' + ZOOM;
+  // 注目点と重ならない側の隅に出す
+  var left = (fx > W / 2) ? 8 : (W - LS - 8);
+  var top  = (fy > H / 2) ? 8 : (H - LS - 8);
+  lp.style.left = Math.max(0, left) + 'px';
+  lp.style.top  = Math.max(0, top)  + 'px';
+}
+function hideLoupe() { document.getElementById('loupe').style.display = 'none'; }
+
+// いま動かしている点（拡大鏡の中心）を返す
+function focusPoint(mode, pointer) {
+  var L = reg.x1 * W, T = reg.y1 * H, R = reg.x2 * W, B = reg.y2 * H;
+  switch (mode) {
+    case 'nw': return [L, T];
+    case 'ne': return [R, T];
+    case 'sw': return [L, B];
+    case 'se': return [R, B];
+    case 'n':  return [(L + R) / 2, T];
+    case 's':  return [(L + R) / 2, B];
+    case 'w':  return [L, (T + B) / 2];
+    case 'e':  return [R, (T + B) / 2];
+    default:   return pointer || [(L + R) / 2, (T + B) / 2];
+  }
+}
+
+// ── ドラッグ（移動・リサイズ共通）──────────────────
+var drag = null;
+
+document.getElementById('frame').addEventListener('pointerdown', function (e) {
+  var dir = e.target.dataset ? e.target.dataset.dir : null;
+  selected = dir || 'move';
+  document.getElementById('frame').focus();
+  start(e, selected);
+});
+
+function start(e, mode) {
+  e.preventDefault();
+  e.stopPropagation();
+  drag = {
+    mode: mode,
+    sx: e.clientX,
+    sy: e.clientY,
+    o: { x1: reg.x1 * W, y1: reg.y1 * H, x2: reg.x2 * W, y2: reg.y2 * H },
+  };
+  render();
+  var sr = document.getElementById('stage').getBoundingClientRect();
+  var fp = focusPoint(mode, [e.clientX - sr.left, e.clientY - sr.top]);
+  showLoupe(fp[0], fp[1]);
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup',   onUp);
+  document.addEventListener('pointercancel', onUp);
+}
+
+function onMove(e) {
+  if (!drag) return;
+  var dx = e.clientX - drag.sx;
+  var dy = e.clientY - drag.sy;
+  var o  = drag.o;
+  var x1 = o.x1, y1 = o.y1, x2 = o.x2, y2 = o.y2;
+  var sr = document.getElementById('stage').getBoundingClientRect();
+
+  if (drag.mode === 'new') {
+    var cx = clamp(e.clientX - sr.left, 0, W);
+    var cy = clamp(e.clientY - sr.top,  0, H);
+    x1 = Math.min(drag.ax, cx); x2 = Math.max(drag.ax, cx);
+    y1 = Math.min(drag.ay, cy); y2 = Math.max(drag.ay, cy);
+    if (x2 - x1 < MIN_PX) x2 = Math.min(W, x1 + MIN_PX);
+    if (y2 - y1 < MIN_PX) y2 = Math.min(H, y1 + MIN_PX);
+
+  } else if (drag.mode === 'move') {
+    var w = o.x2 - o.x1, h = o.y2 - o.y1;
+    x1 = Math.max(0, Math.min(W - w, o.x1 + dx));
+    y1 = Math.max(0, Math.min(H - h, o.y1 + dy));
+    x2 = x1 + w;
+    y2 = y1 + h;
+
+  } else {
+    if (drag.mode.indexOf('w') >= 0) x1 = clamp(o.x1 + dx, 0, o.x2 - MIN_PX);
+    if (drag.mode.indexOf('e') >= 0) x2 = clamp(o.x2 + dx, o.x1 + MIN_PX, W);
+    if (drag.mode.indexOf('n') >= 0) y1 = clamp(o.y1 + dy, 0, o.y2 - MIN_PX);
+    if (drag.mode.indexOf('s') >= 0) y2 = clamp(o.y2 + dy, o.y1 + MIN_PX, H);
+  }
+  reg = { x1: x1 / W, y1: y1 / H, x2: x2 / W, y2: y2 / H };
+  render();
+  var fp = focusPoint(drag.mode, [clamp(e.clientX - sr.left, 0, W), clamp(e.clientY - sr.top, 0, H)]);
+  showLoupe(fp[0], fp[1]);
+}
+function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+
+function onUp() {
+  if (!drag) return;
+  drag = null;
+  hideLoupe();
+  document.removeEventListener('pointermove', onMove);
+  document.removeEventListener('pointerup',   onUp);
+  document.removeEventListener('pointercancel', onUp);
+  sendValue();
+}
+
+// ── 矢印キーで1ドットずつ動かす ────────────────────
+document.getElementById('frame').addEventListener('keydown', function (e) {
+  var d = {ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]}[e.key];
+  if (!d) return;
+  e.preventDefault();
+  var step = e.shiftKey ? 10 : 1;
+  var dx = d[0] * step, dy = d[1] * step;
+  var x1 = reg.x1 * W, y1 = reg.y1 * H, x2 = reg.x2 * W, y2 = reg.y2 * H;
+
+  if (selected === 'move') {
+    var w = x2 - x1, h = y2 - y1;
+    x1 = clamp(x1 + dx, 0, W - w); y1 = clamp(y1 + dy, 0, H - h);
+    x2 = x1 + w; y2 = y1 + h;
+  } else {
+    if (selected.indexOf('w') >= 0) x1 = clamp(x1 + dx, 0, x2 - MIN_PX);
+    if (selected.indexOf('e') >= 0) x2 = clamp(x2 + dx, x1 + MIN_PX, W);
+    if (selected.indexOf('n') >= 0) y1 = clamp(y1 + dy, 0, y2 - MIN_PX);
+    if (selected.indexOf('s') >= 0) y2 = clamp(y2 + dy, y1 + MIN_PX, H);
+  }
+  reg = { x1: x1 / W, y1: y1 / H, x2: x2 / W, y2: y2 / H };
+  render();
+  var fp = focusPoint(selected, null);
+  showLoupe(fp[0], fp[1]);
+  sendValueSoon();
+});
+document.getElementById('frame').addEventListener('blur', hideLoupe);
+
+// ── ステージ上で新しく矩形を引く（枠の外からドラッグ）──
+document.getElementById('stage').addEventListener('pointerdown', function (e) {
+  if (e.target.id === 'frame' || (e.target.dataset && e.target.dataset.dir)) return;
+  if (e.target.id === 'frame-label') return;
+  e.preventDefault();
+  var r  = this.getBoundingClientRect();
+  var px = clamp(e.clientX - r.left, 0, W);
+  var py = clamp(e.clientY - r.top,  0, H);
+  reg = { x1: px / W, y1: py / H, x2: px / W, y2: py / H };
+  selected = 'se';
+  drag = { mode: 'new', ax: px, ay: py, sx: e.clientX, sy: e.clientY,
+           o: { x1: px, y1: py, x2: px, y2: py } };
+  render();
+  showLoupe(px, py);
+  document.addEventListener('pointermove', onMove);
+  document.addEventListener('pointerup',   onUp);
+  document.addEventListener('pointercancel', onUp);
+});
+
+window.addEventListener('resize', function () { layout(); render(); sendHeight(); });
+</script>
+</body>
+</html>
