@@ -27,7 +27,7 @@
 
 ### 追記（同日・実データで試した）
 
-- このPCの Mail.app を調べたら **iCloud 1アカウントのみ**（`s.washimi@icloud.com` /
+- このPCの Mail.app を調べたら **iCloud 1アカウントのみ**（`<自分のiCloudアドレス>` /
   p61-imap.mail.me.com:993 / SMTPも1つ）。`mail-merge-pro` は**自前で資格情報を持たず
   Mail.app のアカウントを読むだけ**の作りで、設定にも差出人情報は無かった（あるのは窓の位置だけ）。
 - **iCloud は外部アプリからのIMAPに App用パスワードが要る**（AUTH=ATOKEN/XOAUTH2。Mail.app の
@@ -71,7 +71,7 @@
 - **メインPCで常駐させるときは、`/bin/bash` にフルディスクアクセスが要る**
   （launchd は CloudStorage=Dropbox を読めない。書類キャビネットと同じ）。
 - **IMAP経由の取り込みは未実行のまま。** iCloud の App用パスワードを発行して
-  `security add-generic-password -s mail-archiver -a s.washimi@icloud.com -w` で入れれば、
+  `security add-generic-password -s mail-archiver -a <自分のiCloudアドレス> -w` で入れれば、
   `.env.mail-archiver` は既に用意済みなのですぐ試せる（削除は無効のまま）。
 - 実行中に **maisoku-converter が 127.0.0.1:8505 で起動していた**（10:30起動）。
   `maisoku-converter/` に未コミットの変更と未追跡フォルダ（`crop_component/`）があり、

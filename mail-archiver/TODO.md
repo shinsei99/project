@@ -4,7 +4,7 @@
 
 - [ ] **iCloud の App用パスワードを発行して、IMAP経由の取り込みを試す**（このPCのMail.appは
       iCloud 1本のみ。`.env.mail-archiver` は用意済み・削除は無効のまま）。
-      `security add-generic-password -s mail-archiver -a s.washimi@icloud.com -w` で入れる
+      `security add-generic-password -s mail-archiver -a <自分のiCloudアドレス> -w` で入れる
 - [ ] 本番アカウント（shin@daikyocorp.co.jp・メインPC側）で試すかを決める … 要オーナー確認
 - [ ] 初回取り込みの実測を残す（何通で何分・何MB か。README に数値で書く）
 - [ ] `restore.py`（`.eml` を IMAP APPEND で戻す）… 削除を実運用する前に用意したい
