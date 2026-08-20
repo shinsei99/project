@@ -32,6 +32,7 @@ UIDPLUS が無いサーバーでは `--allow-full-expunge` を明示しない限
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import sys
@@ -151,11 +152,25 @@ def do_sync(conn, cfg: Dict[str, str], only_folder: Optional[str], limit: int,
             pass
 
 
+def sidecar_path(raw_abs: str) -> str:
+    return raw_abs + ".json"
+
+
+def write_sidecar(raw_abs: str, meta: Dict[str, Any]) -> None:
+    """原本の隣に「DBを作り直すのに必要な情報」を置く（write-once）。
+
+    DBは同期フォルダに置けない（壊れる）ので、**原本だけあればDBを再構築できる**形にしておく。
+    ここに `synced_at` も入れるので、作り直しても14日ルールの起点がずれない。
+    """
+    with open(sidecar_path(raw_abs), "w", encoding="utf-8") as fp:
+        json.dump(meta, fp, ensure_ascii=False, indent=1)
+
+
 def save_one(conn, cfg, account_id: int, frow, uidvalidity: int, uid: int,
-             raw: bytes, flags: str) -> int:
+             raw: bytes, flags: str, state: str = "present") -> int:
     """原本を先にディスクへ、そのあとDBへ。**DBに行があるのにファイルが無い状態を作らない。**"""
-    folder_dir = os.path.join(safe_name(cfg["MAIL_ACCOUNT"]), safe_name(frow["name"]),
-                              str(uidvalidity))
+    account_name = cfg.get("MAIL_ACCOUNT") or "default"
+    folder_dir = os.path.join(safe_name(account_name), safe_name(frow["name"]), str(uidvalidity))
     raw_rel = os.path.join("raw", folder_dir, "{}.eml".format(uid))
     raw_abs = os.path.join(config.DATA_DIR, raw_rel)
     os.makedirs(os.path.dirname(raw_abs), exist_ok=True)
@@ -164,6 +179,7 @@ def save_one(conn, cfg, account_id: int, frow, uidvalidity: int, uid: int,
     digest = db.sha256_bytes(raw)
 
     parsed = iu.parse_message(raw)
+    synced_at = db.utcnow()   # ★ここが2週間の起点
     rec = {
         "account_id": account_id, "folder_id": frow["id"], "uid": uid,
         "uidvalidity": uidvalidity, "message_id": parsed["message_id"],
@@ -174,10 +190,11 @@ def save_one(conn, cfg, account_id: int, frow, uidvalidity: int, uid: int,
         "body_text": parsed["body_text"],
         "has_attachments": 1 if parsed["attachments"] else 0,
         "raw_path": raw_rel, "raw_sha256": digest,
-        "synced_at": db.utcnow(),   # ★ここが2週間の起点
+        "synced_at": synced_at, "server_state": state,
     }
     row_id = db.insert_message(conn, rec)
 
+    atts = []
     for i, (fname, ctype, payload) in enumerate(parsed["attachments"], 1):
         rel = os.path.join("attachments", folder_dir, str(uid),
                            "{:02d}_{}".format(i, safe_name(fname)))
@@ -185,8 +202,19 @@ def save_one(conn, cfg, account_id: int, frow, uidvalidity: int, uid: int,
         os.makedirs(os.path.dirname(abs_path), exist_ok=True)
         with open(abs_path, "wb") as fp:
             fp.write(payload)
-        db.insert_attachment(conn, row_id, fname, ctype, len(payload), rel,
-                             db.sha256_bytes(payload))
+        sha = db.sha256_bytes(payload)
+        db.insert_attachment(conn, row_id, fname, ctype, len(payload), rel, sha)
+        atts.append({"filename": fname, "content_type": ctype, "size_bytes": len(payload),
+                     "path": rel, "sha256": sha})
+
+    write_sidecar(raw_abs, {
+        "account": account_name, "account_host": cfg.get("IMAP_HOST", ""),
+        "folder_name": frow["name"], "folder_raw": frow["raw_name"],
+        "uid": uid, "uidvalidity": uidvalidity, "flags": flags,
+        "message_id": parsed["message_id"], "size_bytes": len(raw), "sha256": digest,
+        "synced_at": synced_at, "server_state": state,
+        "raw_path": raw_rel, "attachments": atts,
+    })
     conn.commit()
     return row_id
 
@@ -226,6 +254,84 @@ def do_verify(conn) -> int:
             print("NG id={} uid={} {} — {}".format(r["id"], r["uid"], r["subject"], why))
     print("点検 {}通 / 問題 {}件".format(len(rows), bad))
     return bad
+
+
+def do_rebuild(conn) -> int:
+    """原本(.eml)とサイドカーから **DBを作り直す**。
+
+    DBはローカル固定・原本は同期フォルダ、という置き方にしているので、DBが壊れても
+    ここで戻せる。`synced_at` もサイドカーから復元するので、**14日ルールの起点がずれない**。
+    """
+    root = os.path.join(config.DATA_DIR, "raw")
+    if not os.path.isdir(root):
+        print("原本の置き場がありません: {}".format(root))
+        return 1
+
+    sidecars = []
+    for dirpath, _dirs, files in os.walk(root):
+        for fn in files:
+            if fn.endswith(".eml.json"):
+                sidecars.append(os.path.join(dirpath, fn))
+    print("サイドカー {} 件から作り直します（置き場: {}）".format(len(sidecars), config.DATA_DIR))
+
+    for t in ("messages_fts", "attachments", "messages", "folders", "accounts", "delete_log"):
+        conn.execute("DELETE FROM {}".format(t))
+    conn.commit()
+
+    accounts: Dict[str, int] = {}
+    folders: Dict[tuple, Any] = {}
+    ok = ng = 0
+    for sc in sorted(sidecars):
+        try:
+            with open(sc, encoding="utf-8") as fp:
+                meta = json.load(fp)
+            raw_abs = sc[:-len(".json")]
+            with open(raw_abs, "rb") as fp:
+                raw = fp.read()
+            if db.sha256_bytes(raw) != meta.get("sha256"):
+                print("  SHA256不一致のため飛ばす: {}".format(meta.get("raw_path")))
+                ng += 1
+                continue
+            acc = meta.get("account") or "default"
+            if acc not in accounts:
+                accounts[acc] = db.upsert_account(conn, acc, meta.get("account_host") or "",
+                                                  993, meta.get("account_host") or acc)
+            fkey = (acc, meta.get("folder_raw") or meta.get("folder_name"))
+            if fkey not in folders:
+                folders[fkey] = db.upsert_folder(conn, accounts[acc], fkey[1],
+                                                 meta.get("folder_name") or fkey[1])
+                db.set_folder_uidvalidity(conn, folders[fkey]["id"],
+                                          int(meta.get("uidvalidity") or 0))
+            frow = folders[fkey]
+            state = meta.get("server_state") or "present"
+            if os.path.exists(raw_abs + ".deleted.json"):
+                state = "deleted"
+            parsed = iu.parse_message(raw)
+            rec = {
+                "account_id": accounts[acc], "folder_id": frow["id"],
+                "uid": int(meta.get("uid") or 0), "uidvalidity": int(meta.get("uidvalidity") or 0),
+                "message_id": parsed["message_id"], "subject": parsed["subject"],
+                "from_name": parsed["from_name"], "from_addr": parsed["from_addr"],
+                "to_addrs": parsed["to_addrs"], "cc_addrs": parsed["cc_addrs"],
+                "date_utc": parsed["date_utc"], "size_bytes": len(raw),
+                "flags": meta.get("flags") or "", "body_text": parsed["body_text"],
+                "has_attachments": 1 if parsed["attachments"] else 0,
+                "raw_path": meta.get("raw_path"), "raw_sha256": meta.get("sha256"),
+                "synced_at": meta.get("synced_at") or db.utcnow(),   # ★起点を復元
+                "server_state": state,
+            }
+            row_id = db.insert_message(conn, rec)
+            for a in meta.get("attachments") or []:
+                db.insert_attachment(conn, row_id, a["filename"], a.get("content_type") or "",
+                                     int(a.get("size_bytes") or 0), a["path"], a.get("sha256") or "")
+            db.update_folder_progress(conn, frow["id"], int(meta.get("uid") or 0))
+            ok += 1
+        except Exception as e:
+            print("  失敗 {}: {}".format(os.path.basename(sc), e))
+            ng += 1
+    conn.commit()
+    print("作り直し完了: {}通 / 失敗 {}件".format(ok, ng))
+    return 1 if ng else 0
 
 
 # ------------------------------------------------------------------ 削除
@@ -358,6 +464,15 @@ def do_delete(conn, cfg: Dict[str, str], days: int, really: bool, only_folder: O
                     break
                 for r in ok_rows[i:i + BATCH]:
                     db.mark_server_deleted(conn, r["id"])
+                    # 原本の隣に「サーバーからは消した」印を置く（DBを作り直しても分かる）
+                    try:
+                        marker = os.path.join(config.DATA_DIR, r["raw_path"]) + ".deleted.json"
+                        with open(marker, "w", encoding="utf-8") as fp:
+                            json.dump({"deleted_at": db.utcnow(), "uid": r["uid"],
+                                       "uidvalidity": r["uidvalidity"],
+                                       "message_id": r["message_id"]}, fp, ensure_ascii=False)
+                    except Exception as e:
+                        log("  墓標を書けなかった（削除自体は成功）: {}".format(e))
                     db.log_delete(conn, r, "deleted", "")
                     freed += int(r["size_bytes"] or 0)
                     done += 1
@@ -385,6 +500,8 @@ def main() -> int:
     p.add_argument("--delete", action="store_true", help="サーバー側の削除（既定は dry-run）")
     p.add_argument("--yes", action="store_true", help="★dry-run ではなく本当に消す")
     p.add_argument("--verify", action="store_true", help="保存済み .eml の総点検")
+    p.add_argument("--rebuild", action="store_true",
+                   help="原本(.eml)とサイドカーからDBを作り直す（DBを消しても戻せる）")
     p.add_argument("--stats", action="store_true", help="件数・容量を表示")
     p.add_argument("--days", type=int, default=None, help="削除の据置日数（既定14）")
     p.add_argument("--folder", default=None, help="対象フォルダ名を1つに絞る")
@@ -409,6 +526,9 @@ def main() -> int:
         print("  サーバーから削除済み: {}通 ({:.1f} MB)".format(s["deleted"], s["deleted_bytes"] / 1024 / 1024))
         print("  添付 {}件 ({:.1f} MB)".format(s["attachments"], s["attachment_bytes"] / 1024 / 1024))
         return 0
+
+    if args.rebuild:
+        return do_rebuild(conn)
 
     if args.verify:
         return 1 if do_verify(conn) else 0

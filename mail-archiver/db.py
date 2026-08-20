@@ -225,11 +225,13 @@ def insert_message(conn: sqlite3.Connection, m: Dict[str, Any]) -> int:
     """1通を登録する。**同じトランザクションで FTS も入れる**（片方だけ入る状態を作らない）。"""
     cols = ("account_id", "folder_id", "uid", "uidvalidity", "message_id", "subject",
             "from_name", "from_addr", "to_addrs", "cc_addrs", "date_utc", "size_bytes",
-            "flags", "body_text", "has_attachments", "raw_path", "raw_sha256", "synced_at")
+            "flags", "body_text", "has_attachments", "raw_path", "raw_sha256", "synced_at",
+            "server_state", "server_deleted_at")
     cur = conn.execute(
         "INSERT INTO messages ({}) VALUES ({})".format(
             ",".join(cols), ",".join("?" * len(cols))),
-        tuple(m.get(c) for c in cols),
+        tuple(m.get(c) if c != "server_state" else (m.get("server_state") or "present")
+              for c in cols),
     )
     mid = int(cur.lastrowid)
     addrs = " ".join(filter(None, [m.get("from_name") or "", m.get("from_addr") or "",

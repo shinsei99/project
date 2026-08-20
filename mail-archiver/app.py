@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import hmac
 import os
 from datetime import date, datetime, timedelta, timezone
 
@@ -18,6 +19,65 @@ import db
 st.set_page_config(page_title="メールアーカイバ", page_icon="📥", layout="wide")
 
 PAGE_SIZE = 50
+
+# スマホ（縦画面）で使うための調整。Streamlit の横並びは狭い画面だと潰れるので折り返す
+st.markdown("""
+<style>
+@media (max-width: 700px) {
+  /* 上はStreamlitの固定ヘッダ(約3rem)の下から始める。詰めすぎると題字が隠れる */
+  .block-container { padding: 3.2rem 0.7rem 3rem 0.7rem !important; }
+  /* 指標4つ・列組みを折り返す（潰れて読めなくなるのを防ぐ） */
+  div[data-testid="stHorizontalBlock"] { flex-wrap: wrap !important; }
+  div[data-testid="stHorizontalBlock"] > div { min-width: 45% !important; }
+  div[data-testid="stMetricValue"] { font-size: 1.4rem !important; }
+  /* 一覧の見出しは2行まで見せる。指で押しやすいよう高さを確保 */
+  details summary { font-size: 0.95rem !important; line-height: 1.5 !important;
+                    min-height: 44px !important; }
+  h1 { font-size: 1.5rem !important; }
+  textarea { font-size: 16px !important; }  /* 16px未満だとiOSが勝手に拡大する */
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+def _bound_to_lan() -> bool:
+    """いまLANに出ているか（＝自分のPC以外から開けるか）。"""
+    try:
+        addr = str(st.get_option("server.address") or "")
+    except Exception:
+        addr = ""
+    return addr not in ("127.0.0.1", "localhost", "::1", "")
+
+
+def _check_password() -> bool:
+    """パスワード認証。`.env.mail-archiver` の `UI_PASSWORD` と照合する。
+
+    **LANに出ているのにパスワードが無いときは、画面を出さずに止める。**
+    ここが扱うのはメール本文＝個人情報なので、「未設定なら素通り」にはしない。
+    """
+    expected = config.load().get("UI_PASSWORD", "")
+    if not expected:
+        if _bound_to_lan():
+            st.error("🔒 パスワード（`UI_PASSWORD`）が未設定のまま、LANに公開された状態で"
+                     "起動されています。メール本文を扱うため、この状態では画面を出しません。\n\n"
+                     "`.env.mail-archiver` に `UI_PASSWORD=...` を書いて起動し直してください。")
+            return False
+        return True   # 自分のPCからだけ（127.0.0.1）なら不要
+    if st.session_state.get("authed"):
+        return True
+    st.title("📥 メールアーカイバ")
+    pw = st.text_input("パスワード", type="password")
+    if st.button("ログイン", use_container_width=True):
+        if hmac.compare_digest(str(pw), str(expected)):
+            st.session_state["authed"] = True
+            st.rerun()
+        else:
+            st.error("パスワードが違います。")
+    return False
+
+
+if not _check_password():
+    st.stop()
 
 
 @st.cache_resource

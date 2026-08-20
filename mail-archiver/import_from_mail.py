@@ -132,15 +132,13 @@ def main() -> int:
             skipped += 1
             continue
         try:
+            # ★state='local'（IMAP管理外）で入れる。削除候補（present）には一生入らない
             row_id = sync.save_one(conn, {"MAIL_ACCOUNT": "mailapp-{}".format(args.account)},
-                                   account_id, frow, 0, i, raw, "\\Seen")
+                                   account_id, frow, 0, i, raw, "\\Seen", state="local")
         except Exception as e:
             conn.rollback()
             print("  {}通目 保存失敗: {}".format(i, e))
             continue
-        # ★IMAP管理外。--delete の候補（server_state='present'）には一生入らない
-        conn.execute("UPDATE messages SET server_state='local' WHERE id=?", (row_id,))
-        conn.commit()
         got += 1
         if got % 10 == 0:
             print("  … {}/{}".format(got, n))

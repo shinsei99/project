@@ -49,8 +49,27 @@
 - 気づき（バグではない）: 実データ19通は**すべて件名が空**だった（iPhoneから自分宛に送るメモ）。
   一覧が「(件名なし)」だらけになるので、件名が無いときは本文の冒頭を出すようにした。
 
+### 追記2（同日・置き場の分離とスマホ対応）
+
+- **原本は個人Dropbox・DBはローカル**に分けた（本人の判断）。
+  `ARCHIVE_STORE_DIR` / `ARCHIVE_DB_PATH` を `.env` で指定する形。
+  実際に `Library/CloudStorage/Dropbox-個人/mail-archive/` へ移し、DBは `mail-archiver/local/` に置いた。
+- **DBを原本から作り直せるようにした**（`sync.py --rebuild`）。保存時に原本の隣へ
+  write-once のサイドカー `<uid>.eml.json`（synced_at・UID・UIDVALIDITY・フラグ・添付・SHA256）を書く。
+  **検証: DBを削除 → `--rebuild` で19通・添付2件を復元、`--verify` 問題0件、日本語検索も復旧。**
+  サーバーから消したメールには `<uid>.eml.deleted.json` の墓標を残すので、その状態も戻る。
+- **画面のパスワード認証**（`UI_PASSWORD`）と `run-lan.sh`（0.0.0.0）を追加。
+  パスワード未設定でLANに出そうとしたら、**シェル側でもアプリ側でも止める**
+  （「未設定なら素通り」にはしない。扱うのがメール本文のため）。
+- **スマホ表示**を調整（指標の折り返し・タップ領域44px・入力欄16px・上余白）。
+  実測で 390×844 / 768×1024 / 1440×900 とも横スクロールなし。題字がヘッダに隠れていたのを直した。
+
 ### 次回への引き継ぎ事項（更新）
 
+- **Tailscale は未導入**（外出先から見るのに要る）。アカウントのログインが必要なので**人の作業**。
+  手順は README「外出先からも見たいとき」。
+- **メインPCで常駐させるときは、`/bin/bash` にフルディスクアクセスが要る**
+  （launchd は CloudStorage=Dropbox を読めない。書類キャビネットと同じ）。
 - **IMAP経由の取り込みは未実行のまま。** iCloud の App用パスワードを発行して
   `security add-generic-password -s mail-archiver -a s.washimi@icloud.com -w` で入れれば、
   `.env.mail-archiver` は既に用意済みなのですぐ試せる（削除は無効のまま）。

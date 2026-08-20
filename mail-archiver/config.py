@@ -15,12 +15,45 @@ import subprocess
 from typing import Dict, Optional
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-# 保存先。動作確認用に別のデータで画面を開きたいときは MAIL_ARCHIVER_DATA_DIR を渡す
-DATA_DIR = os.environ.get("MAIL_ARCHIVER_DATA_DIR") or os.path.join(APP_DIR, "data")
-DB_PATH = os.environ.get("MAIL_ARCHIVER_DB") or os.path.join(DATA_DIR, "mail.db")
+ENV_FILE = os.path.join(APP_DIR, ".env.mail-archiver")
+
+
+def _read_env_file(path):
+    out = {}
+    if not os.path.exists(path):
+        return out
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            k, v = line.split("=", 1)
+            out[k.strip()] = v.strip().strip('"').strip("'")
+    return out
+
+
+def _setting(key, default):
+    """優先順: 環境変数 > .env > 既定値。パスの決定は import 時に済ませる。"""
+    return os.environ.get(key) or _read_env_file(ENV_FILE).get(key) or default
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 置き場の分離（2026-08-20 決定）
+#
+#   原本(.eml)・添付・サイドカー  → ARCHIVE_STORE_DIR（**個人Dropbox**を想定）
+#   SQLite の索引                → ARCHIVE_DB_PATH（**必ずローカル**）
+#
+# **DBを同期フォルダに置いてはいけない。** SQLite は本体・WAL・shm の複数ファイルを
+# 同時に書くので、書き込み途中でDropboxが持っていくと壊れる。原本は書いたら二度と
+# 書き換えない（write-once）ので同期と喧嘩しない。DBが壊れても
+# `python3 sync.py --rebuild` で原本から作り直せる。
+# ─────────────────────────────────────────────────────────────────────────────
+DATA_DIR = (os.environ.get("MAIL_ARCHIVER_DATA_DIR")
+            or _setting("ARCHIVE_STORE_DIR", os.path.join(APP_DIR, "data")))
+DB_PATH = (os.environ.get("MAIL_ARCHIVER_DB")
+           or _setting("ARCHIVE_DB_PATH", os.path.join(APP_DIR, "local", "mail.db")))
 RAW_DIR = os.path.join(DATA_DIR, "raw")
 ATTACH_DIR = os.path.join(DATA_DIR, "attachments")
-ENV_FILE = os.path.join(APP_DIR, ".env.mail-archiver")
 
 DEFAULTS = {
     "MAIL_ACCOUNT": "default",
@@ -34,21 +67,9 @@ DEFAULTS = {
     "ARCHIVE_DELETE_ENABLED": "0",
     "ARCHIVE_DELETE_DAYS": "14",
     "ARCHIVE_EXCLUDE_FOLDERS": "Trash,Deleted Messages,Junk,ゴミ箱,迷惑メール",
+    # 画面のパスワード。LANに出すときは必須（未設定なら画面を出さない）
+    "UI_PASSWORD": "",
 }
-
-
-def _read_env_file(path: str) -> Dict[str, str]:
-    out: Dict[str, str] = {}
-    if not os.path.exists(path):
-        return out
-    with open(path, encoding="utf-8") as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            k, v = line.split("=", 1)
-            out[k.strip()] = v.strip().strip('"').strip("'")
-    return out
 
 
 def _keychain_password(service: str, account: str) -> Optional[str]:
