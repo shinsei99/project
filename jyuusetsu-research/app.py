@@ -85,8 +85,11 @@ def render_streetview(coords, address):
     if not coords:
         st.caption("※ 住所から位置を特定できていないため表示できません。")
         return
-    if google_maps_api is None or not google_maps_api.web_key():
-        st.caption("※ GOOGLE_MAPS_WEB_KEY（直下 .env.google-maps）が未設定のため表示していません。")
+    if google_maps_api is None or not google_maps_api.embed_key():
+        st.caption(
+            "※ 埋め込み用キー（直下 .env.google-maps の GOOGLE_MAPS_EMBED_KEY "
+            "／無ければ GOOGLE_MAPS_WEB_KEY）が未設定のため表示していません。"
+        )
         return
 
     lat, lon = coords
@@ -100,6 +103,12 @@ def render_streetview(coords, address):
         st.caption("※ 埋め込みURLを生成できませんでした。")
         return
     components.iframe(url, height=420)
+    if not google_maps_api._load_env().get("GOOGLE_MAPS_EMBED_KEY"):
+        st.caption(
+            "※ 社内画面用の GOOGLE_MAPS_EMBED_KEY が未設定です。公開ページ用キーは"
+            "リファラが daikyocorp.co.jp に限定されているため、ここは 403 になります"
+            "（Maps Embed だけに制限したキーを作って .env.google-maps に追記してください）。"
+        )
     st.caption(
         "撮影時期: {} ／ 画面で確認する用途のみ。**印刷物（チラシ・DM・重説の紙面）には使用不可**"
         "（Google Geo Guidelines）。".format(meta.get("date") or "不明")

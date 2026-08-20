@@ -2,9 +2,10 @@
 
 ## 進行中・未了
 
-- [ ] **ストリートビューが社内画面で 403**。`GOOGLE_MAPS_WEB_KEY` のリファラ制限が
-      `https://daikyocorp.co.jp/*` のみ。**Google Cloud Console の設定なので人がやる**。
-      推奨は「Maps Embed だけに絞ったキーを新規作成して社内画面用に使う」（README 参照）
+- [ ] **ストリートビューが社内画面で 403**。方針は決定済み（**Embed専用キーを新規作成**）。
+      **人がやること**: Console で `Maps Embed API` だけに制限したキーを作り、
+      直下 `.env.google-maps` に `GOOGLE_MAPS_EMBED_KEY=...` を追記する。
+      **コード側は対応済み**（`google_maps_api.embed_key()`）＝1行足せば表示される。手順は README
 - [ ] **e-Stat（人口・世帯数）が未実装**。`population_service.get_population()` は
       地域名を抜き出すだけでAPIを呼んでいない。**appId 登録が前提**。
       解き方: 住所 → 緯度経度 → 国土地理院 逆ジオコーディングで市区町村コード →

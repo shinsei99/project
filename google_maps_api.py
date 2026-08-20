@@ -11,7 +11,14 @@
 キーは **`.env.google-maps`（直下・gitignore・600）**。値をコードに書かない。
 
     GOOGLE_MAPS_SERVER_KEY=...   # サーバー用（Geocoding / Directions / Static）
-    GOOGLE_MAPS_WEB_KEY=...      # ブラウザ用（Embed）
+    GOOGLE_MAPS_WEB_KEY=...      # 公開ページ用（リファラ制限 https://daikyocorp.co.jp/*）
+    GOOGLE_MAPS_EMBED_KEY=...    # 社内画面用（**Maps Embed だけに制限**。任意）
+
+**社内画面（localhost / 192.168.x.x）から Embed を出すときは `GOOGLE_MAPS_EMBED_KEY` が要る。**
+`GOOGLE_MAPS_WEB_KEY` はリファラが `https://daikyocorp.co.jp/*` に限定されているため、
+社内画面から使うと **403** になる（2026-08-20 実測）。Embed は無制限・無料なので、
+**Maps Embed API だけに制限したキー**を別に作れば、万一漏れても課金は発生しない。
+未設定のあいだは `GOOGLE_MAPS_WEB_KEY` にフォールバックする（＝公開ページ側は今までどおり）。
 
 ## ジオコーディングの使い分け（2026-08-20 実測。ここが肝）
 
@@ -85,8 +92,18 @@ def server_key() -> str:
 
 
 def web_key() -> str:
-    """ブラウザ用キー（Embed 用）。無ければ空文字。"""
+    """公開ページ用キー（リファラ制限つき）。無ければ空文字。"""
     return _load_env().get("GOOGLE_MAPS_WEB_KEY", "")
+
+
+def embed_key() -> str:
+    """埋め込み（Embed）に使うキー。
+
+    社内画面用の `GOOGLE_MAPS_EMBED_KEY` を優先し、無ければ公開ページ用にフォールバックする。
+    フォールバック時は社内画面（localhost 等）で 403 になる（リファラ制限のため）。
+    """
+    env = _load_env()
+    return env.get("GOOGLE_MAPS_EMBED_KEY", "") or env.get("GOOGLE_MAPS_WEB_KEY", "")
 
 
 def geocode(address: str) -> Optional[Dict[str, Any]]:
@@ -161,7 +178,7 @@ def streetview_embed_url(lat: float, lon: float, heading: int = 0, pitch: int = 
 
     印刷は不可。ハザードマップ等と同一画面に並べない（別タブにする）。
     """
-    key = web_key()
+    key = embed_key()
     if not key or lat is None or lon is None:
         return ""
     return (
@@ -172,7 +189,7 @@ def streetview_embed_url(lat: float, lon: float, heading: int = 0, pitch: int = 
 
 def map_embed_url(lat: float, lon: float, zoom: int = 17) -> str:
     """埋め込み用の地図URL（**Embed は無制限・無料**）。"""
-    key = web_key()
+    key = embed_key()
     if not key or lat is None or lon is None:
         return ""
     return "https://www.google.com/maps/embed/v1/place?key={}&q={},{}&zoom={}".format(
