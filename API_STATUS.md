@@ -9,7 +9,25 @@
 >   社内画面からは 403（**Console 設定が要る＝人の作業**。下の A-2 ⑦-b）
 > - **e-Stat の appId を登録し、人口・世帯数を実装**（不具合②を解消）
 > - **e-Gov 法令API を使える状態にした**（キー不要・無料。共通クライアント `egov_law_api.py`）
+> - **App Store Connect API を取得**し、`ios-build-guard.sh` を実データ判定へ改修
 > - **保有APIの一覧説明書（Excel）を作成** … 直下 `API一覧説明書.xlsx`（3シート）
+
+> **App Store Connect で分かったこと（2026-08-20 実測）**
+>
+> | アプリ | 登録済み最大build | 備考 |
+> |---|---|---|
+> | スクラップメモ | 8 | 1.0.4/build8 が登録済み |
+> | 不動産電卓Pro | 7 | |
+> | ネオンブロックス | 4 | |
+> | ママカウンター | 4 | |
+> | フォトリメイク | 3 | |
+> | KeyTagNFC | 2 | |
+> | デジタル書斎 | 1 | |
+> | 水泳記録トラッカー | 1 | |
+> | **にゃんこのアイス屋さん** | **0（登録ビルドなし）** | ★CLAUDE.md は「申請中」だが、**ビルドが1つも上がっていない**。要確認 |
+>
+> **サブPCはアーカイブが0件**なので、従来のローカル判定では「衝突なし」と誤判定していた
+> （scrapmemo build8・photo-remake build3 で実際に誤判定→APIで正しく検出）。
 
 - Google Maps の料金・規約の詳細 … `GOOGLE_MAPS_API.md`
 - 日本郵便のコード … 直下 `japanpost_api.py`
@@ -26,7 +44,7 @@
 | 1 | **国税庁 法人番号 Web-API の申請** | 5分 | **発行に2週間〜1か月**。出さないと待ちが始まらない |
 | ~~2~~ | ~~e-Stat の appId 登録~~ | — | **✅ 2026-08-20 完了**（appId 受領・`.env.estat` に保管・実装まで済み） |
 | ~~3~~ | ~~日本郵便の本番申込~~ | — | **✅ 2026-08-20 完了**（本番の資格情報を受領して差し替え済み） |
-| 4 | **App Store Connect の APIキー（.p8）作成** | 5分 | 追加費用なし・審査待ちなし |
+| ~~4~~ | ~~App Store Connect の APIキー（.p8）作成~~ | — | **✅ 2026-08-20 完了**（`ios-build-guard.sh` を実際の登録済みビルド番号で判定するよう改修済み） |
 
 **1 の文面（このまま送れる）** — 先にフォーム
 （https://www.invoice-kohyo.nta.go.jp/web-api/index.html#cmsprereg ）を出してから
@@ -73,6 +91,7 @@
 | **Google Maps / Street View** | `.env.google-maps` | `GOOGLE_MAPS_WEB_KEY` / `GOOGLE_MAPS_SERVER_KEY` | ✅ **本番・動作確認済み** |
 | **e-Stat（政府統計）** | `.env.estat` | `ESTAT_APP_ID` | ✅ **動作確認済み**（2026-08-20 登録・実装） |
 | **e-Gov 法令API（v2）** | （キー不要） | — | ✅ **動作確認済み**（2026-08-20。共通クライアント `egov_law_api.py`） |
+| **App Store Connect API** | `.env.appstore` ＋ `.appstore/AuthKey_35U53KWY5J.p8` | `ASC_KEY_ID` / `ASC_ISSUER_ID` / `ASC_PRIVATE_KEY_PATH` | ✅ **動作確認済み**（2026-08-20。iOS 9本の登録済みビルドを照会できた） |
 | **日本郵便 デジタルアドレス** | `.env.japanpost` | `JAPANPOST_CLIENT_ID` / `_SECRET_KEY` | ✅ **本番・動作確認済み**（2026-08-20 差し替え）。`JAPANPOST_HOST` の行は消した＝本番に向く。テスト用stubは `.env.japanpost.bak-stub` に退避 |
 
 - 日本郵便は **`searchcode "100"` がテスト用では2件、本番では466件**返る（＝実データかどうかの判別に使える）

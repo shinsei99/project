@@ -44,6 +44,10 @@
 # e-Gov 法令API の共通クライアント（法令の最新条文。キー不要・無料）
 # 取得した全文のキャッシュ .egov-cache/ は入れない（1行目の * で既に除外）
 !egov_law_api.py
+
+# App Store Connect API の共通クライアント（登録済みビルド番号の照会）
+# 資格情報は .env.appstore と .appstore/AuthKey_*.p8 側（gitignoreのまま）
+!appstore_api.py
 !va.sh
 !visual_agent.py
 !handwriting-ocr/

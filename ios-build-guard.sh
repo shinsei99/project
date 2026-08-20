@@ -4,8 +4,13 @@
 # 2026-07-22の事故対策：修正版を build 番号を上げずに再アーカイブすると
 # App Store Connect が「build は既存」で弾き、古いビルドが配信されてしまう。
 # このスクリプトは、対象アプリのプロジェクト上の CURRENT_PROJECT_VERSION と、
-# ローカルの既存 Xcode アーカイブ（＝過去にアップロードした可能性のあるビルド）を比較し、
-# 「現在の番号 <= 既存の最大番号」なら衝突リスクとして警告する。
+#   (1) App Store Connect に **実際に登録済み** のビルド番号（.env.appstore がある場合）
+#   (2) ローカルの既存 Xcode アーカイブ
+# の大きいほうを比較し、「現在の番号 <= 既存の最大番号」なら衝突リスクとして警告する。
+#
+# ★(1) が本命。ローカルのアーカイブだけだと「別のPCでアップロードしたビルド」が見えず、
+#   2026-07-22 の事故（build 1 のまま再アップ → 修正前が配信）を取り逃がす。
+#   .env.appstore が無いPCでは (2) だけで動く（従来どおり）。
 #
 # 使い方:
 #   ./ios-build-guard.sh <app-folder>          # チェックのみ
@@ -67,16 +72,41 @@ if [[ -d "$ARCH_DIR" ]]; then
 fi
 
 echo "既存アーカイブ: ${FOUND}件（同Bundle ID）／最大build番号: $MAX_ARCH"
+
+# App Store Connect API に照会（.env.appstore があるときだけ）
+MAX_API=0
+if [[ -f "$ROOT/.env.appstore" ]]; then
+  API_OUT=$(/usr/bin/python3 -c "
+import sys
+sys.path.insert(0, '$ROOT')
+try:
+    import appstore_api as a
+    print(a.max_build('$BUNDLE') if a.is_configured() else -1)
+except Exception:
+    print(-1)
+" 2>/dev/null || echo "-1")
+  if [[ "$API_OUT" =~ ^[0-9]+$ ]]; then
+    MAX_API=$API_OUT
+    echo "App Store Connect: 登録済み最大build番号: $MAX_API"
+  else
+    echo "⚠ App Store Connect へ照会できませんでした（ローカルのアーカイブだけで判定します）"
+  fi
+else
+  echo "App Store Connect: 未設定（.env.appstore が無いのでローカル判定のみ）"
+fi
+
+MAX_ALL=$MAX_ARCH
+(( MAX_API > MAX_ALL )) && MAX_ALL=$MAX_API
 echo "----------------------------------------"
 
-if (( CUR > MAX_ARCH )); then
-  echo "✅ 衝突なし: 現在build $CUR > 既存最大 ${MAX_ARCH}。このままArchive可能。"
+if (( CUR > MAX_ALL )); then
+  echo "✅ 衝突なし: 現在build $CUR > 既存最大 ${MAX_ALL}。このままArchive可能。"
   exit 0
 fi
 
-echo "🚨 衝突リスク: 現在build $CUR <= 既存最大 $MAX_ARCH"
+echo "🚨 衝突リスク: 現在build $CUR <= 既存最大 $MAX_ALL"
 echo "   → このままアーカイブ/アップロードすると弾かれ、古いビルドが配信されたままになります。"
-NEXT=$((MAX_ARCH + 1))
+NEXT=$((MAX_ALL + 1))
 
 if [[ "$BUMP" == "--bump" ]]; then
   # pbxproj 内の全 CURRENT_PROJECT_VERSION を NEXT に更新
