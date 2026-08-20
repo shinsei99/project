@@ -132,7 +132,7 @@ def _deliver(row, text: str) -> bool:
     if row["channel"] == "line":
         if not row["line_user_id"]:
             return False
-        return line_client.push(row["line_user_id"], f"{prefix}\n\n{text}")
+        return line_client.push(row["line_user_id"], f"{prefix}\n\n{text}", label="pending_deliver")
     if row["channel"] == "chatwork":
         if not row["room_id"]:
             return False

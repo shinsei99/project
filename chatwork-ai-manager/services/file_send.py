@@ -266,6 +266,6 @@ def _notify_sent(room_id, name, size, requester):
                 f"送信先: {room or room_id}\n"
                 f"依頼者: {requester or '不明'}")
         for uid in ids:
-            line_client.push(uid, f"🩺 AI業務マネージャー\n\n{text}")
+            line_client.push(uid, f"🩺 AI業務マネージャー\n\n{text}", label="file_send")
     except Exception as e:
         print(f"[file_send] 通知に失敗: {type(e).__name__}: {e}", flush=True)

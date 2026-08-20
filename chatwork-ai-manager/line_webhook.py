@@ -129,8 +129,32 @@ def _handle_event(ev):
         #   （従来は type(e).__name__ だけで「ClaudeError」としか出ず、原因が消えていた）
         answer_text = f"処理中にエラーが発生しました。\n{type(e).__name__}: {e}"
         _log_line(user_id, text, note=str(e))
-    line_client.push(user_id, answer_text)
-    _log_line(user_id, text, reply_text=answer_text)
+    ok = line_client.push(user_id, answer_text, label="qa_answer")
+    _log_line(user_id, text, reply_text=answer_text,
+              note=None if ok else f"LINEへの送信に失敗: {line_client.last_error()}")
+    if not ok:
+        # 黙って消えると「質問したのに無反応」にしか見えない（2026-08-20の障害）。
+        # 回答そのものはLINEの都合で送れないので、起きた事実だけChatworkへ回す。
+        _alert_send_failure(user_id, text)
+
+
+def _alert_send_failure(user_id: str, asked: str):
+    """LINEへ回答を送れなかったことを、Chatworkの管理者ルームへ知らせる。"""
+    try:
+        from services import line_alert
+        err = line_client.last_error() or {}
+        if err.get("kind") == "quota_exhausted":
+            why = ("LINEの送信可能メッセージ数（月の上限）を使い切っています。"
+                   "プランを上げるか、月初のリセットをお待ちください。")
+        else:
+            why = f"理由: {err.get('kind')} / status={err.get('status')} {err.get('body', '')[:120]}"
+        line_alert.alert(
+            f"⚠️ LINEへ回答を送れませんでした。\n\n"
+            f"ご質問: {asked[:150]}\n\n{why}\n\n"
+            f"※お手数ですが、同じ内容をこちらのChatworkへ送っていただければ回答できます。",
+            dedup_key=None)
+    except Exception as e:
+        print(f"[line] 失敗通知そのものに失敗: {type(e).__name__}: {e}", flush=True)
 
 
 def _queue_and_reply(user_id: str, text: str, reply_token, first_victim: bool):
@@ -149,7 +173,7 @@ def _queue_and_reply(user_id: str, text: str, reply_token, first_victim: bool):
     if reply_token:
         line_client.reply(reply_token, msg)
     else:
-        line_client.push(user_id, msg)
+        line_client.push(user_id, msg, label="stalled_ack")
     _log_line(user_id, text, reply_text=msg, note="詰まり中のためキューへ預かった")
 
 

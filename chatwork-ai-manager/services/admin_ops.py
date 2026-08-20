@@ -173,7 +173,7 @@ def main() -> int:
         try:
             sys.path.insert(0, APP_DIR)
             from services import line_client
-            line_client.push(a.notify_line, text)
+            line_client.push(a.notify_line, text, label="admin_ops")
         except Exception:
             pass
     return 0

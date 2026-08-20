@@ -21,7 +21,7 @@ def notify(task: dict, text: str, dedup_key=None) -> bool:
         user_id = task.get("line_user_id")
         if not user_id:
             return False
-        return line_client.push(user_id, f"{_PREFIX}\n{body}")
+        return line_client.push(user_id, f"{_PREFIX}\n{body}", label="dev_notify")
     if channel == "chatwork":
         room_id = task.get("room_id")
         if not room_id:

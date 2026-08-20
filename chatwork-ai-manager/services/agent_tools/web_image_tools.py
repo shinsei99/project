@@ -54,5 +54,5 @@ def line_send_web_image(image_token, message=None, user_id=None):
     if not ok:
         return {"ok": False, "error": "LINEへの画像送信に失敗しました"}
     if message:
-        line_client.push(target, message)
+        line_client.push(target, message, label="web_image")
     return {"ok": True, "sent": True}

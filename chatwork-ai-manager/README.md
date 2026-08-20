@@ -229,6 +229,80 @@ geopandas は fiona/GDAL のバイナリを引き込むため、共有環境を�
 4. **送信直後の `get_file` は404を返すことがある**（Chatwork側の反映待ち）。
    数秒待って再試行すれば取れる。送信自体は成功しているので失敗と誤判定しないこと。
 
+## LINEに送っても回答が返らない — まず送信可能メッセージ数を疑う（2026-08-20の障害）
+
+**症状**: LINEで質問すると「受け付けました。調べています…🔎」までは来るのに、
+そのあとの回答が永久に来ない。Chatworkは普通に動いている。
+
+**原因**: LINE公式アカウントの **送信可能メッセージ数（月の上限）を使い切っている**。
+
+LINEで課金対象なのは **push（こちらから任意のタイミングで送る）だけ**で、
+**reply（reply_tokenを使った受信直後の返信）は無料・無制限**。本アプリは
+「ackはreply・回答はpush」で作ってあるため、枠が切れると**受付だけ届いて回答が消える**
+という、いちばん分かりにくい壊れ方をする。
+
+**確認コマンド**（アプリrootで実行。読み取りのみ・副作用なし）:
+
+```bash
+/usr/bin/python3 -c "import sys;sys.path.insert(0,'.');from services import line_client;print(line_client.quota())"
+# → {'limit': 200, 'used': 200, 'remaining': 0, 'type': 'limited'} なら枠切れ
+```
+
+枠が切れていると push は HTTP 429 と
+`{"message":"You have reached your monthly limit."}` を返す。
+
+**プランと通数**（[LY Corporation公式](https://www.lycbiz.com/jp/service/line-official-account/plan/)）:
+
+| プラン | 月額(税別) | 無料通数 | 追加課金 |
+|---|---|---|---|
+| コミュニケーション | ¥0 | 200通 | **不可** |
+| ライト | ¥5,000 | 5,000通 | **不可** |
+| スタンダード | ¥15,000 | 30,000通 | 可（〜¥3/通） |
+
+**月中のアップグレードは差額精算で当月から適用され、差分の通数がその場で付与される**
+（ダウングレードのみ翌月適用）。つまり**月初のリセットを待たずに復旧できる**。
+ライト以下は追加課金ができないので、**上限に達したらその月はもう送れない**。
+
+**実測ペース**（2026-08-20 に LINE Insight API で測定）: 稼働日 **1日あたり約50通**、
+月あたり約1,000通。無料の200通は **4日で枯渇**した。使用量は次で測れる:
+
+```bash
+curl -s -H "Authorization: Bearer $TOKEN" \
+  "https://api.line.me/v2/bot/insight/message/delivery?date=20260819"
+# apiPush が課金対象、apiReply は無料
+```
+
+**送信数はメッセージオブジェクト単位で数える。** `line_client._text_messages()` は
+長文を4800文字ごとに分割するので、**長い回答は1回のpushで複数通を消費する**。
+
+### 実装されている再発防止（2026-08-20）
+
+- `line_client._post()` は失敗理由を捨てない。429を「枠切れ」と判別し `last_error()` で読める
+- 枠切れは `settings` の `line_quota_exhausted` に記録される
+- `worker._watch_line_quota()` が**1日1回**残通数を見て、残り1割以下で予告・0で枠切れ通知
+- 通知先は **Chatwork**（`services/line_alert.py`）。以前は障害通知もLINEのpushで送っていたため、
+  「LINEの枠切れ」という障害では**通知自体が同じ理由で届かなかった**。この循環を断ってある
+- push の呼び出し元は `label=` としてログに出る（`[line] push ok label=qa_answer messages=2`）。
+  どの経路が枠を食っているかはこのログで数える
+
+### 遠隔からの切り分け（サブPCなど社内LANの外から）
+
+**サブPCから 192.168.1.105 にpingが通らないのは異常ではない**（サブPCは別ネットワークに居る）。
+外側から確かめられるのは次の3つで、これがメインPCの生死を知る唯一の手段になる。
+
+```bash
+curl -s https://<ngrok固定ドメイン>/          # → line-webhook ok なら line_webhook は生存
+curl -s -X POST https://api.line.me/v2/bot/channel/webhook/test \
+  -H "Authorization: Bearer $LINE_TOKEN" -H "Content-Type: application/json" -d '{}'
+                                              # → success:true なら LINE→メインPC の到達もOK
+curl -s -H "X-ChatWorkToken: $CW_TOKEN" https://api.chatwork.com/v2/me
+                                              # → 200 なら Chatworkトークン有効
+```
+
+Chatwork worker が生きているかは、監視ルームの直近メッセージに claude の返信があるかで見る
+（`GET /rooms/<id>/messages?force=1`）。**`unread_num` / `mention_num` は判断材料にならない** —
+workerは既読を付けず `last_message_id` で境界を管理するので、これらは正常でも増え続ける。
+
 ## トラブルシューティング
 - worker が応答しない: `ps -eo pid,command | awk '/MacOS\/Python worker\.py$/{print $1}'` で稼働確認（1個であるべき）。
   再起動は `launchctl unload/load ~/Library/LaunchAgents/com.shinsei.chatwork-ai-manager-worker.plist`。

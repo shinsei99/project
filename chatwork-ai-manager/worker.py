@@ -125,7 +125,51 @@ def run_forever():
             _health_and_pending()
         except Exception as e:
             print(f"[worker] health error: {type(e).__name__}: {e}", flush=True)
+        # LINEの送信枠の見張り（Stage 9・2026-08-20の障害対応）。1日1回だけ問い合わせる。
+        try:
+            _watch_line_quota()
+        except Exception as e:
+            print(f"[worker] line quota error: {type(e).__name__}: {e}", flush=True)
         time.sleep(interval)
+
+
+# 残りがこれを下回ったらChatworkで予告する（ライトプラン5,000通に対して1割）
+LINE_QUOTA_WARN_RATIO = 0.1
+LINE_QUOTA_CHECKED_DATE = "line_quota_checked_date"
+
+
+def _watch_line_quota():
+    """LINEの送信可能メッセージ数を1日1回見て、少なくなったらChatworkで知らせる。
+
+    ライトプラン(5,000通/月)は**追加メッセージを課金できない**ので、使い切ると
+    その月はもう push が届かない。無言で止まる前に人へ渡すのが目的。
+    枠のリセットは月初なので、日付が変わったときだけ問い合わせる（API消費を抑える）。
+    """
+    import datetime
+    from services import line_client, settings as st
+
+    today = datetime.date.today().isoformat()
+    if st.get_state(LINE_QUOTA_CHECKED_DATE, "") == today:
+        return
+    q = line_client.quota()
+    st.set_state(LINE_QUOTA_CHECKED_DATE, today)
+    limit, used, remaining = q.get("limit"), q.get("used"), q.get("remaining")
+    if q.get("type") != "limited" or not isinstance(remaining, int):
+        # 無制限プラン、または取得できなかった。前者は見張る必要がない。
+        print(f"[worker] line quota: {q}", flush=True)
+        return
+    print(f"[worker] line quota: 残り{remaining}通 / {limit}通（消費{used}）", flush=True)
+    if remaining <= 0:
+        _notify_admin(
+            f"⚠️ LINEの送信可能メッセージ数を使い切りました（{used}/{limit}通）。\n"
+            f"AIの回答はLINEへ届きません（受付の返信だけは無料枠外なので届きます）。\n"
+            f"LINE Official Account Manager でプランを上げるか、月初のリセットをお待ちください。",
+            dedup_key=f"line-quota-out-{today[:7]}")
+    elif remaining <= max(1, int(limit * LINE_QUOTA_WARN_RATIO)):
+        _notify_admin(
+            f"⚠️ LINEの送信可能メッセージ数が残り{remaining}通です（{used}/{limit}通を消費）。\n"
+            f"使い切るとAIの回答がLINEへ届かなくなります。",
+            dedup_key=f"line-quota-low-{today[:7]}")
 
 
 def _health_and_pending():
@@ -165,8 +209,14 @@ def _notify_admin_once():
         f"理由: {claude_health.reason()}")
 
 
-def _notify_admin(text: str):
-    """管理者のLINEへ知らせる（宛先が無ければ黙って何もしない）。"""
+def _notify_admin(text: str, dedup_key=None):
+    """管理者へ知らせる。LINEを試し、**送れなければChatworkへ回す**。
+
+    2026-08-20の障害では「LINEの送信枠を使い切った」ことが障害の中身だったため、
+    LINEだけに知らせる作りでは通知そのものが届かなかった（壊れた経路で壊れたことを
+    伝えようとしていた）。Chatworkは通数無制限なので、こちらを最後の砦にする。
+    """
+    delivered = False
     try:
         from services import config, line_client
         raw = config.get("line_admin_user_ids", "") or ""
@@ -174,9 +224,21 @@ def _notify_admin(text: str):
         if not ids:
             ids = sorted(line_client.allowed_user_ids())
         for uid in ids:
-            line_client.push(uid, f"🩺 AI業務マネージャー\n\n{text}")
+            if line_client.push(uid, f"🩺 AI業務マネージャー\n\n{text}", label="admin_notify"):
+                delivered = True
+        if not delivered and ids:
+            err = line_client.last_error() or {}
+            reason = err.get("kind") or "不明"
+            text = f"{text}\n\n（LINEへ送れなかったためChatworkへ回しました。理由: {reason}）"
     except Exception as e:
         print(f"[worker] notify error: {type(e).__name__}: {e}", flush=True)
+    if delivered:
+        return
+    try:
+        from services import line_alert
+        line_alert.alert(text, dedup_key=dedup_key)
+    except Exception as e:
+        print(f"[worker] chatwork fallback error: {type(e).__name__}: {e}", flush=True)
 
 
 def _recover_processing():
