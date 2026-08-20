@@ -360,6 +360,14 @@ keyline/.secret_key
 keyline/*.db
 keyline/**/*.db
 
+# メールアーカイバ（IMAP容量対策のローカル保管＋検索）。**data/ はメール本文＝個人情報の塊**
+# なので絶対に追跡しない。接続情報も同様（.env.mail-archiver。見本だけ入れる）
+!mail-archiver/
+!mail-archiver/**
+mail-archiver/data/
+mail-archiver/.env.mail-archiver
+mail-archiver/.venv/
+
 # ── 依存関係・ログはPCごとに作るもの。**全アプリまとめて除外**
 # （以前はアプリごとに1行ずつ書いていたため、新しく作った .venv が載りかけた）
 **/.venv/

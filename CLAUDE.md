@@ -197,7 +197,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全52本）※不動産32・ツール14・ゲーム6  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全53本）※不動産32・ツール15・ゲーム6  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
 ### 不動産（32本）
@@ -237,7 +237,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | 事業計画案ジェネレーター（投資収支→Excel） | business-plan-generator | 8533 | ✅ | — |
 | KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | — |
 
-### ツール（14本）※社内LAN共有なし
+### ツール（15本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
@@ -255,6 +255,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | ポケモンカード図鑑（全31,520枚・画像100%収録／**PSAカード管理の中からも開ける**） | pokecard-dex | 8531 | — |
 | チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
 | AIツールベース（Claude Code主軸の比較メディア＋制作記録） | ai-tools-base | 3004 | Vercel（**ai-tools-base.vercel.app**・手動 `npx vercel --prod`） |
+| メールアーカイバ（IMAP容量対策・ローカル保管＋全文検索） | mail-archiver | 8535 | — |
 
 ### ゲーム（6本）※社内LAN共有なし
 
@@ -303,6 +304,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 - **THETAパノラマ3D空間化**（`theta-viewer`） … `theta-viewer/README.md`
 - **KeyLine（NFC鍵・備品貸出管理）**（`keyline`・port 8534） … `keyline/README.md`
   （iOSアプリ **KeyTag** の配信手順は `keyline/keytag/RELEASE.md`）
+- **メールアーカイバ**（`mail-archiver`・port 8535） … `mail-archiver/README.md`
 - **デジタル書斎**（`digital-shosai`・port 3001） … `digital-shosai/README.md`
   （App Store 提出の手順は `digital-shosai/HANDOFF-APPSTORE.md`）
 
@@ -353,6 +355,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8532 | マルチプロダクション | com.shinsei.agent-platform |
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
 | 8534 | KeyLine（NFC鍵・備品貸出管理／※画像自動削除は -purge が毎日3:30） | com.shinsei.keyline ＋ -purge |
+| 8535 | メールアーカイバ（※ツール・127.0.0.1・launchd未登録／メール本文＝個人情報のためLANに出さない） | （未登録） |
 | 8530 | AI業務マネージャー LINE webhook（※メインPCのみ稼働。ngrok固定ドメイン経由で公開） | com.shinsei.chatwork-ai-manager-line ＋ -ngrok |
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
@@ -366,7 +369,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 |---|---|---|
 | 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8534 keyline＋8540 chatwork-ai-manager |
 | 不動産だが**開発中** | `--server.address 127.0.0.1` | （現在なし。8532 agent-platform は2026-08-17に完成扱いへ移行） |
-| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 3004 ai-tools-base（Next.js） |
+| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 8535 mail-archiver / 3004 ai-tools-base（Next.js） |
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
 
