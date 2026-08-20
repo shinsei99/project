@@ -265,7 +265,7 @@ def do_delete(conn, cfg: Dict[str, str], days: int, really: bool, only_folder: O
                       cfg["IMAP_PASSWORD"], cfg.get("IMAP_SSL", "1") == "1")
     uidplus = False
     try:
-        caps = [c.decode() if isinstance(c, bytes) else str(c) for c in (imap.capabilities or ())]
+        caps = iu.capabilities(imap)   # ログイン後に取り直す（認証前は名乗らないサーバーがある）
         uidplus = "UIDPLUS" in caps
         if really and not uidplus and not allow_full_expunge:
             print("!! このサーバーは UIDPLUS 非対応です。素の EXPUNGE は、あなたが Apple Mail 等で")

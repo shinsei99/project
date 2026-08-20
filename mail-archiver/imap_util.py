@@ -89,6 +89,22 @@ def connect(host: str, port: int, username: str, password: str, use_ssl: bool = 
 _LIST_RE = re.compile(rb'\((?P<flags>[^)]*)\) "(?P<delim>[^"]*)" (?P<name>.*)')
 
 
+def capabilities(conn) -> List[str]:
+    """**ログイン後に CAPABILITY を取り直す。** サーバーは認証前後で名乗る能力が違い、
+    iCloud は認証前だと UIDPLUS を出さない。接続直後の `conn.capabilities` だけを見て
+    「UIDPLUS 非対応」と判断すると、使えるはずの UID EXPUNGE を諦めてしまう。"""
+    caps = set(c.decode() if isinstance(c, bytes) else str(c) for c in (conn.capabilities or ()))
+    try:
+        typ, data = conn.capability()
+        if typ == "OK":
+            for line in data:
+                text = line.decode("ascii", "replace") if isinstance(line, bytes) else str(line)
+                caps.update(text.upper().split())
+    except Exception:
+        pass
+    return sorted(caps)
+
+
 def list_folders(conn) -> List[Dict[str, Any]]:
     """(raw_name, name, flags) の一覧。`\\Noselect` のフォルダは除く。"""
     typ, data = conn.list()

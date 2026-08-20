@@ -52,6 +52,10 @@ class FakeIMAP:
     def logout(self):
         return ("BYE", [b"bye"])
 
+    def capability(self):
+        # 本物と同じく、ログイン後に取り直せる形にしておく
+        return ("OK", [" ".join(self.capabilities).encode()])
+
     def list(self):
         return ("OK", ['(\\HasNoChildren) "." "{}"'.format(k).encode() for k in self.folders])
 
