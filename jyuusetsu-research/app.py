@@ -62,7 +62,7 @@ def run_pipeline(address, land_pdf, building_pdf):
                 merge(data, zoning_service.get_zoning(lat, lon))
                 merge(data, hazard_service.get_hazard(lat, lon))
                 facilities = facility_service.nearby_facilities(lat, lon)
-            merge(data, population_service.get_population(address))
+            merge(data, population_service.get_population(address, coords))
         else:
             st.warning("住所から位置を特定できませんでした。住所表記をご確認ください。")
 
@@ -151,8 +151,13 @@ def main():
         run = st.button("調査を実行", type="primary", use_container_width=True)
 
         st.divider()
-        st.caption("任意の環境変数（設定すると取得項目が増えます）")
-        st.code("REINFOLIB_API_KEY  # 用途地域\nESTAT_APP_ID       # 人口・世帯", language="text")
+        st.caption("外部データのキー（未設定の項目は空欄で継続します）")
+        st.code(
+            "REINFOLIB_API_KEY  # 用途地域（.streamlit/secrets.toml でも可）\n"
+            "ESTAT_APP_ID       # 人口・世帯（直下 .env.estat でも可）\n"
+            "GOOGLE_MAPS_*      # 座標の精度・ストリートビュー（直下 .env.google-maps）",
+            language="text",
+        )
 
     if not run:
         st.info("左の入力欄に住所を入れ、必要に応じてPDFを添付して「調査を実行」を押してください。")

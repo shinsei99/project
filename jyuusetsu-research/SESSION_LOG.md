@@ -18,6 +18,11 @@
 - 直下に共通クライアント **`google_maps_api.py`** を新設（`japanpost_api.py` と同じ置き方）。
   `.gitignore` に許可行 `!google_maps_api.py` を追加済み
 
+- **e-Stat の人口・世帯数を実装した**（`services/population_service.py`）。appId を受領。
+  住所 → 緯度経度 → 市区町村コード（国土地理院 `muniCd`）→ e-Stat `0000020101` の
+  `A1101`（総人口）/`A7101`（世帯数）。画面で 103,726人 / 67,139世帯 の表示を確認
+- appId は直下 **`.env.estat`**（600・gitignore）に置き、`secrets-manifest.txt` に登録した
+
 ### 発生したエラーと解決策
 
 - **症状**: 建ぺい率が `80%%` になりかけた → **原因**: APIが既に `"80%"` の文字列を返す →
@@ -29,10 +34,12 @@
 - **症状**: `smoke_test.py` が `ModuleNotFoundError: reportlab` → **原因**: システムPythonで
   実行していた → **直し方**: `.venv/bin/python smoke_test.py` で実行（PASSED）
 
+- **症状**: 人口の括弧内が「大阪府大阪市」になり、実データ（中央区）と食い違った →
+  **原因**: 住所文字列から正規表現で市区町村を抜いていたため、**区が落ちた** →
+  **直し方**: `metaGetFlg=Y` で e-Stat が返す地域の正式名称を使う
+
 ### 次回への引き継ぎ事項・未解決の課題
 
 - **ストリートビューのキー設定**（上記403）。Console 作業なので人がやる
-- **e-Stat（人口・世帯数）は未実装のまま**。`population_service.get_population()` は
-  地域名を抜き出すだけでAPIを呼んでいない。appId 登録後に実装する
-  （住所 → 緯度経度 → 市区町村コード → `statsDataId` + `cdArea` の順で解ける）
+- ~~e-Stat（人口・世帯数）~~ → **同日に実装・確認済み**
 - 防火地域・高度地区は不動産情報ライブラリに無い。別の入手経路を決めるまで空欄
