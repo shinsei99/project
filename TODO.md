@@ -1,5 +1,42 @@
 # TODO — 全アプリの索引
 
+> ## 🖥 2026-08-21（サブPC）で進んだこと — 次はここから
+>
+> **① AI業務マネージャーのLINE無反応を解決した（原因確定・コードはpush済み）**
+> 原因は **LINEプッシュの無料枠切れ**（200/200。LINE自身が `You have reached your monthly limit.`
+> を返して確定）。Chatworkは最初から正常だった。**★メインPCで反映が必要**:
+> ```bash
+> cd ~/chatwork-ai-manager && git pull
+> launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-worker
+> launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-line
+> ```
+> `services/line_client.py` は worker と line_webhook の**両方**が読むので片方だけでは不足。
+> 調べた事実は `chatwork-ai-manager/README.md` の「LINEに送っても回答が返らない」節にある
+> （SESSION_LOG/TODOはgitignoreでメインPCに届かないため、READMEに書いた）。
+> **LINEのプラン変更（ライトプラン月5,000通）はオーナーが実施中。** 未完了なら枠は0のまま。
+>
+> **② ポケモンカード図鑑に相場を追加した**（`ingest_tcgdex_price.py` 新設・`app.py` に表示）。
+> 8,346件取り込み、**8,175枚（25.9%）で相場が出る**。為替連動の円換算つき。
+> 相場は日々動くので**週1回 `.venv/bin/python ingest_tcgdex_price.py` を回す**とよい
+> （サブPCなのでlaunchd登録はしていない）。
+>
+> **③ APIの棚卸しで「未確認」を6件潰した**（詳細は `API_STATUS.md` の E-2）。
+> RESAS=提供終了／Pokémon TCG API=実質停止でTCGdexへ代替／登記所備付地図=API不要・DL／
+> PSA公開API=承認制で403・代替ルートで解決済み（見送り）／銀行API=要情報2つ／
+> Document AI=月1,000ページ無料だが精度比較は未測定。
+>
+> **④ 法人番号Web-APIを申請完了**（橙＝法人番号のみ。フォーム 2026-08-20 ＋ メール 2026-08-21）。
+> **発行見込みは 2026-09-04〜09-21。** 橙のため**インボイスWeb-APIは含まれない**（★3は別申請のまま）。
+>
+> **⑤ AIツールベースの note 1本が未公開のまま**（`ai-ticket-counter` の `nanka-ugokanai`）。
+> **このサブPCでは自動投稿できない**と判明: MCPは拡張ではなくPlaywrightで `--isolated --headless`
+> ＝ログインが残らず、headedで開くと **note がボット検知でブロック**（回避はしない方針）。
+> Chrome拡張は入っていて有効・claude.aiもログイン済みだが**接続だけ通らない**（未解決）。
+> → **手貼りか、メインPCで出すのが早い。** 詳細は `ai-tools-base/SESSION_LOG.md` の 2026-08-21 の節。
+>
+> **人にお願いする残り**: 上記①の反映／★2 Dropbox APIのアプリ作成／★3 Google Drive・
+> Search Console・Analytics（Console操作）／銀行APIは**取引銀行と会計ソフト**を教えてもらえれば再開。
+
 > ## 🖥 サブPCの作業を受領した（2026-08-18 メインPCで実施）
 >
 > **合流は完了。** サブPCの22コミット と メインPCの未pushだった27コミット（KeyLine/KeyTag・

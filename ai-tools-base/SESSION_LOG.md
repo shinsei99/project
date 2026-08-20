@@ -8,6 +8,65 @@
 
 ---
 
+## 2026-08-21（サブPC）— note の1本を出そうとして、このPCでは自動投稿できないと分かった
+
+### 完了したこと
+
+- **残っている転載漏れが `ai-ticket-counter` の1件だけだと確定させた。**
+  `npm run validate` の転載漏れ警告はこれ1本（他は tools の review 空欄で別件）。
+  本体 `/works/ai-ticket-counter` と Zenn `ai-intake-hearing` は**公開済み（ともに HTTP 200）**、
+  **note だけ未公開**で `content/works/ai-ticket-counter.json` の `links` が空だった
+- **原稿は完成していた**（`drafts/note/nanka-ugokanai.md`・100行）。末尾の導線に
+  本体とZennのURLが入っており、**3つとも生存確認済み**＝死んだリンクは出ない
+- `./publish.sh note nanka-ugokanai` でHTML 5,382バイトをクリップボードに載せるところまで完了
+
+### 発生したエラーと解決策
+
+- **症状**: note へ自動投稿しようとしたらログイン画面から先に進めなかった。
+  **原因**: `~/.mcp.json` の Playwright MCP が **`--isolated --headless`** で動いており、
+  **プロファイルが毎回まっさら＝ログイン状態が残らない**。headless なので人がログインもできない。
+  **このPCの「入口A(MCP)」は Claude in Chrome拡張ではなく Playwright**
+  （`./visual-agent-check.sh --mcp` の出力で確認）。
+- **さらに**: `./va.sh start --headed` で画面つきブラウザを出してログインを試みたが、
+  **note 側がボット検知でブロック**した。証拠はコンソール:
+  `Failed to load resource: 429` ／ `pageerror solveSimpleChallenge is not defined` ／
+  sandbox付きiframeの警告。ページ本文も空で返る。
+  → **ボット検知の回避はしない方針なのでこの経路は断念した。**
+  **自動操作ブラウザから note にログインしようとしないこと**（次の担当も同じ壁に当たる）。
+- **切り分けた結果、拡張側は問題なかった**:
+
+  | 確認項目 | 結果 | 確認方法 |
+  |---|---|---|
+  | 拡張のインストール | ✅ `fcoeoabgfenejglbffodgkkbkcdhcgfn`（Claude in Chrome） | Chrome の Extensions の manifest を読んだ |
+  | 拡張の有効/無効 | ✅ 有効・v1.0.85・`disable_reasons` 空 | `Default/Secure Preferences` を読んだ |
+  | claude.ai のログイン | ✅ ログイン済み（シン・Max） | 画面を撮って確認 |
+  | Claude Code からの接続 | ❌ **ここだけ通らない** | `tabs_context_mcp` が「未接続」 |
+
+  **未解決。** 残る容疑は ①拡張の**サイトごとの許可**が未設定（この拡張は実行前に
+  サイト単位の許可が要る）②**Claude Code の自動更新が失敗している**
+  （`✗ Auto-update failed · Run claude doctor` が出続けている。CLI 2.1.237 / 拡張 1.0.85 の
+  噛み合わせは未確認）
+- 途中で **Playwright用のChromeが残ってDockにChromeが2つ並んだ**。`--isolated` は
+  一時プロファイル（`/var/folders/.../playwright_chromiumdev_profile-*`）を作るので
+  `va.sh stop` では消えない。`pkill -f playwright_chromiumdev_profile` で片付けた
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **note の1本（`nanka-ugokanai`）は未公開のまま。** 出し方は2つ:
+  1. **普段のChromeで手貼り**（確実・1分）: `./publish.sh note nanka-ugokanai` →
+     note の本文欄で ⌘V → 見出し画像 → 公開
+  2. **拡張を繋いで自動投稿**: 上の①②を潰す。**メインPCでは繋がっている**ので、
+     急ぐならメインPCで出すのが早い
+- **公開後にやること**（3点セットを完成させる）:
+  1. `content/works/ai-ticket-counter.json` の `links` に **Zenn と note の両方のURL**を追記
+     （Zennは `https://zenn.dev/shinsei99/articles/ai-intake-hearing`）
+  2. `npm run validate` で転載漏れの ⚠️ が消えることを確認
+  3. **`npx vercel --prod`**（Vercelはgit連携ではないので push だけでは本番が変わらない）
+- **`drafts/README.md` の一覧表の ✅公開 印が古い。** photo-inpainter と agent-platform にしか
+  付いていないが、実際は Zenn 8本すべて公開済み。次に触るとき現状に合わせる
+
+---
+
 ## 2026-08-19（サブPC） — KeyLine の Zenn と note を「まとめて」公開
 
 ### 完了したこと
