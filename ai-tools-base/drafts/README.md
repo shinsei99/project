@@ -32,12 +32,14 @@ Google はそちらを本命と判断し、本体が自分の記事に負ける�
 |---|---|---|---|
 | photo-inpainter | `zenn/photo-inpainter.md` ✅公開 | `note/photo-inpainter.md` ✅公開 | `/works/photo-inpainter` |
 | agent-platform | `zenn/gemini-api-traps.md` ✅公開 | `note/ai-generated-building.md` ✅公開 | `/works/agent-platform` |
-| chatwork-ai-manager | `zenn/ai-agent-always-on.md` | `note/ai-always-on.md` | `/works/chatwork-ai-manager` |
-| port-conflict | `zenn/launchd-restart-loop.md` | `note/silent-failure.md` | `/works/port-conflict` |
-| shorui-cabinet | `zenn/llm-pdf-split-gaps.md` | `note/scanned-pile.md` | `/works/shorui-cabinet` |
-| baikai-generator | `zenn/scanned-pdf-orientation.md` | `note/upside-down.md` | `/works/baikai-generator` |
-| ai-ticket-counter | `zenn/ai-intake-hearing.md` | `note/nanka-ugokanai.md` | `/works/ai-ticket-counter` |
-| keyline | `zenn/ios-nfc-safari-entitlement.md` | `note/who-has-the-key.md` | `/works/keyline` |
+| chatwork-ai-manager | `zenn/ai-agent-always-on.md` ✅公開 | `note/ai-always-on.md` ✅公開 | `/works/chatwork-ai-manager` |
+| port-conflict | `zenn/launchd-restart-loop.md` ✅公開 | `note/silent-failure.md` ✅公開 | `/works/port-conflict` |
+| shorui-cabinet | `zenn/llm-pdf-split-gaps.md` ✅公開 | `note/scanned-pile.md` ✅公開 | `/works/shorui-cabinet` |
+| baikai-generator | `zenn/scanned-pdf-orientation.md` ✅公開 | `note/upside-down.md` ✅公開 | `/works/baikai-generator` |
+| ai-ticket-counter | `zenn/ai-intake-hearing.md` ✅公開 | `note/nanka-ugokanai.md` ✅公開 | `/works/ai-ticket-counter` |
+| keyline | `zenn/ios-nfc-safari-entitlement.md` ✅公開 | `note/who-has-the-key.md` ✅公開 | `/works/keyline` |
+
+**2026-08-21: 一覧の ✅公開 印を実態に合わせた**（Zenn 8本・note 8本とも公開済み。本体の `links` にURLを記録するまでが1本で、`npm run validate` が漏れを警告する）。
 
 **note の原稿には Zenn 記事のURLを先に書いてある。** ZennのURLはファイル名から決まる
 （`https://zenn.dev/shinsei99/articles/<ファイル名>`）ので、公開前でも確定できる。

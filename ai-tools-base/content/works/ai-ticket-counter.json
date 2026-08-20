@@ -4,10 +4,26 @@
   "visibility": "public",
   "category": "realestate",
   "summary": "社内アプリへの不具合報告・改善要望を、AIが対話でヒアリングして構造化し、タスク起票と報告書メールまで作る受付システム。人が書けない報告書を、聞き出して埋める。",
-  "stack": ["Python", "FastAPI", "claude CLI", "AppleScript"],
+  "stack": [
+    "Python",
+    "FastAPI",
+    "claude CLI",
+    "AppleScript"
+  ],
   "year": 2026,
   "buildTime": "既存アプリのAI解析方式を流用して構築",
-  "links": [],
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/ai-intake-hearing",
+      "note": "対話の切り方と、AIに任せる範囲の決め方を書いた版"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/n4111730fb93f",
+      "note": "「なんか動かない」しか来ないので、AIに聞き役をやらせた、という話"
+    }
+  ],
   "prompts": [],
   "features": [
     "要件（不具合／改善要望／新アプリ希望／その他）と対象アプリを選ぶと、AI受付が業務口調で対話を始める",
