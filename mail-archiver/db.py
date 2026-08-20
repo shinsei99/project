@@ -69,7 +69,9 @@ CREATE TABLE IF NOT EXISTS messages (
   raw_path          TEXT NOT NULL,    -- data/ からの相対パス
   raw_sha256        TEXT NOT NULL,
   synced_at         TEXT NOT NULL,    -- ★ローカルへ取り込んだ日時（UTC ISO8601）
-  server_state      TEXT NOT NULL DEFAULT 'present',  -- present / deleted / gone
+  server_state      TEXT NOT NULL DEFAULT 'present',  -- present / deleted / gone / local
+                                                    --   local = Mail.app から取り込んだIMAP管理外。
+                                                    --   削除候補（present）に一生入らない
   server_deleted_at TEXT,
   UNIQUE(account_id, folder_id, uidvalidity, uid)
 );
@@ -130,7 +132,11 @@ def sha256_bytes(b: bytes) -> str:
 
 def connect(db_path: str) -> sqlite3.Connection:
     os.makedirs(os.path.dirname(os.path.abspath(db_path)), exist_ok=True)
-    conn = sqlite3.connect(db_path, timeout=30)
+    # check_same_thread=False … Streamlit は再実行のたびに別スレッドで動くことがあり、
+    # 使い回した接続が「SQLite objects created in a thread can only be used in that same
+    # thread」で落ちる（2026-08-20に実データで発生）。書き込みは短いトランザクションだけで、
+    # 実質1人しか触らないので、SQLite自身のロックに任せてスレッド制限を外す
+    conn = sqlite3.connect(db_path, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
     return conn
@@ -294,7 +300,7 @@ def search(conn: sqlite3.Connection, q: str = "", sender: str = "",
     if date_to:
         where.append("m.date_utc <= ?")
         params.append(date_to)
-    if state in ("present", "deleted", "gone"):
+    if state in ("present", "deleted", "gone", "local"):
         where.append("m.server_state=?")
         params.append(state)
     if has_attach:

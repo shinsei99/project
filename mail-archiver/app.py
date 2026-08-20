@@ -84,10 +84,11 @@ with tab_search:
             date_to = d2.strftime("%Y-%m-%dT23:59:59Z")
         has_attach = st.checkbox("添付ありのみ")
         state = st.selectbox("サーバー側の状態",
-                             ["all", "present", "deleted", "gone"],
+                             ["all", "present", "deleted", "gone", "local"],
                              format_func=lambda x: {"all": "（すべて）", "present": "残っている",
                                                     "deleted": "このアプリが削除済",
-                                                    "gone": "他で消された"}[x])
+                                                    "gone": "他で消された",
+                                                    "local": "Mail.appから取込(IMAP管理外)"}[x])
 
     q = st.text_input("キーワード（件名・本文・宛先を横断。3文字以上が速い）", "")
     page = st.number_input("ページ", min_value=1, value=1, step=1)
@@ -106,10 +107,17 @@ with tab_search:
         else:
             st.info("該当なし。")
     for r in rows:
-        badge = {"present": "🟢", "deleted": "🗑", "gone": "❓"}.get(r["server_state"], "")
+        badge = {"present": "🟢", "deleted": "🗑", "gone": "❓", "local": "💻"}.get(
+            r["server_state"], "")
+        # 件名が無いメールは珍しくない（iPhoneから自分宛に送るメモ等）。実データで19通中19通が
+        # 無題だった。「(件名なし)」が並ぶと一覧として使えないので、本文の冒頭を代わりに出す
+        title = (r["subject"] or "").strip()
+        if not title:
+            head = " ".join((r["body_text"] or "").split())[:60]
+            title = "（件名なし）{}".format(head) if head else "（件名なし）"
         label = "{} {} — {} ｜ {} ｜ {}{}".format(
             badge, to_local(r["date_utc"]) or "(日付不明)",
-            (r["subject"] or "(件名なし)")[:70],
+            title[:70],
             r["from_addr"] or r["from_name"] or "",
             r["folder_name"], " 📎" if r["has_attachments"] else "")
         with st.expander(label):
@@ -126,7 +134,9 @@ with tab_search:
                 st.markdown("**取込日時**: {}".format(to_local(r["synced_at"])))
                 st.markdown("**状態**: {}".format(
                     {"present": "サーバーにも在る", "deleted": "サーバーからは削除済",
-                     "gone": "サーバーには無い"}.get(r["server_state"], r["server_state"])))
+                     "gone": "サーバーには無い",
+                     "local": "Mail.appから取込（IMAP管理外・削除対象にならない）"
+                     }.get(r["server_state"], r["server_state"])))
             st.text_area("本文", r["body_text"] or "(本文なし)", height=280,
                          key="body_{}".format(r["id"]))
 

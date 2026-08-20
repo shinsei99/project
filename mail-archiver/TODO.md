@@ -2,8 +2,10 @@
 
 ## 進行中・次にやること
 
-- [ ] **本番アカウント（shin@daikyocorp.co.jp）で初回の取り込みを試す** … 要オーナー確認。
-      `--since-days 7 --limit 20` の小さい範囲から。実サーバーへの接続はまだ一度も行っていない
+- [ ] **iCloud の App用パスワードを発行して、IMAP経由の取り込みを試す**（このPCのMail.appは
+      iCloud 1本のみ。`.env.mail-archiver` は用意済み・削除は無効のまま）。
+      `security add-generic-password -s mail-archiver -a s.washimi@icloud.com -w` で入れる
+- [ ] 本番アカウント（shin@daikyocorp.co.jp・メインPC側）で試すかを決める … 要オーナー確認
 - [ ] 初回取り込みの実測を残す（何通で何分・何MB か。README に数値で書く）
 - [ ] `restore.py`（`.eml` を IMAP APPEND で戻す）… 削除を実運用する前に用意したい
 - [ ] メインPCへ渡すか決める（常駐させるなら launchd 登録・ポート8535。サブPCでは常駐させない）
@@ -15,6 +17,9 @@
 - [x] サーバー側削除（`--delete` / `--yes`）… 14日ルール＋5つの照合＋UID EXPUNGE
 - [x] 閲覧UI（`app.py` / port 8535 / 127.0.0.1）
 - [x] `smoke_test.py`（偽IMAPサーバーで30項目。本物には繋がない）
+- [x] `import_from_mail.py`（Mail.appから取り込む。パスワード不要・削除対象にならない）
+- [x] **実データで確認**（Mail.app経由で19通・4.0MB・添付2件。`--verify` 問題0件、
+      日本語検索・添付保存・画面まで確認。2026-08-20）
 
 ## 決めたこと（蒸し返さない）
 

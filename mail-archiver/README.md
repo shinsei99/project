@@ -23,6 +23,7 @@ IMAPサーバーの容量を空けるための、**ローカル保管＋全文�
 | `imap_util.py` | IMAP 接続・フォルダ名(修正UTF-7)のデコード・メールの分解 |
 | `sync.py` | **CLI**。取り込み(`--sync`)・サーバー側削除(`--delete`)・点検(`--verify`) |
 | `app.py` | **閲覧UI**（Streamlit）。検索・本文表示・添付/原本のダウンロード |
+| `import_from_mail.py` | **Mail.app から取り込む**（IMAPパスワード不要）。取り込んだ分は削除対象にならない |
 | `smoke_test.py` | 偽IMAPサーバーでの通し検証（本物には繋がない） |
 | `config.py` | `.env.mail-archiver` からの設定読み込み（キーチェーン対応） |
 
@@ -59,6 +60,10 @@ python3 sync.py --verify              # 保存済み .eml が壊れていない�
 python3 sync.py --delete              # 削除候補を出すだけ（dry-run。何も消えない）
 python3 sync.py --delete --yes        # ★実際にサーバーから消す
 python3 smoke_test.py                 # 偽サーバーでの通し検証（本物に繋がない）
+
+# IMAPのパスワードがまだ無いとき（macOS標準メールから直接もらう）
+python3 import_from_mail.py --list                            # アカウントとメールボックス
+python3 import_from_mail.py --mailbox "Sent Messages" --limit 20
 ```
 
 主なオプション: `--days 14`（据置日数）／`--folder <名前>`／`--max-delete 500`（1回の上限）／
@@ -92,6 +97,22 @@ UIDPLUS が無いサーバーでは `--allow-full-expunge` を明示しない限
 **消してもローカルの原本は消えない。** `server_state` が `deleted` になるだけで、
 `.eml` も添付もそのまま。UIから `.eml` をダウンロードすれば Apple Mail で開ける。
 
+## Mail.app からの取り込み（パスワード不要の入口）
+
+iCloud のように2ファクタ認証のアカウントは、外部アプリからのIMAPログインに **App用パスワード**
+（appleid.apple.com で発行）が要る。Mail.app が使っている ATOKEN/OAuth のトークンは流用できない。
+発行前でも中身を確かめられるよう、**Mail.app から AppleScript でメールのソースごと受け取る**
+入口を用意した（`import_from_mail.py`）。
+
+**ここから入れたメールは、サーバー側削除の対象に絶対にならない。** `server_state='local'`
+（IMAP管理外）で保存しており、削除候補の抽出は `server_state='present'` だけを見るため。
+UIDもIMAPのものではないので、取り違えて別のメールを消す余地が最初から無い。
+
+限界: Mail.app が返す `source` はテキストなので、8bitのまま送られた本文は化ける可能性がある
+（base64/quoted-printable の普通のメールは問題ない）。**原本の完全性が要るなら IMAP 経由**。
+速度は **1通あたり約3秒**（`osascript` を1通ごとに起動するため。実測: 20通で58秒）。
+IMAP経由のほうがずっと速いので、これはあくまで「パスワードが無いとき」の入口。
+
 ## 調べて分かった事実（次の担当が同じ調査をしないために）
 
 - **`RFC822` で取ると `\Seen` が付く。** 取り込んだだけで未読が既読になる。`BODY.PEEK[]` を使う。
@@ -103,6 +124,13 @@ UIDPLUS が無いサーバーでは `--allow-full-expunge` を明示しない限
   しないと同じ名前のフォルダが2つあるように見える。
 - **FTS5 の `unicode61` では日本語が検索できない**（空白で区切られないため）。`trigram` を使うと
   3文字以上の部分一致が効く（SQLite 3.34+、macOS標準の3.43で動作確認）。2文字以下は LIKE に落とす。
+- **iCloud は認証前に UIDPLUS を名乗らない。** 接続直後の `capabilities` だけを見て「非対応」と
+  判断すると、使えるはずの `UID EXPUNGE` を諦めてしまう。**ログイン後に CAPABILITY を取り直す**。
+- **Streamlit は再実行のたびに別スレッドで動くことがある。** SQLite接続を使い回すと
+  `SQLite objects created in a thread can only be used in that same thread` で落ちる
+  （2026-08-20に実データで発生）。`check_same_thread=False` で接続する。
+- **件名が空のメールは普通にある。** 実データ19通が全部そうだった（iPhoneから自分宛に送るメモ）。
+  一覧に「(件名なし)」が並ぶと使えないので、本文の冒頭を代わりに出している。
 - **削除だけでは容量は減らない。** `\Deleted` を立ててから `EXPUNGE` して初めて空く。
   （2026-08-08 の障害でも「ゴミ箱に入れただけ」では減らなかった）
 
@@ -110,5 +138,7 @@ UIDPLUS が無いサーバーでは `--allow-full-expunge` を明示しない限
 
 - `restore.py`（`.eml` を `IMAP APPEND` でサーバーへ戻す）は未着手。いまは手元の `.eml` を
   Apple Mail にドラッグして開く運用で足りる想定。
-- 本番アカウントへの接続は**まだ一度も実行していない**（2026-08-20時点）。
-  検証はすべて `smoke_test.py` の偽サーバー。初回は必ず `--since-days 7 --limit 20` から試す。
+- **IMAP経由の取り込みは、まだ一度も本物のサーバーで実行していない**（2026-08-20時点）。
+  iCloud の App用パスワードが未発行のため。検証は `smoke_test.py` の偽サーバーと、
+  Mail.app 経由で取り込んだ実メール19通（4.0MB・添付2件）で行った。
+  パスワードが用意できたら `--since-days 7 --limit 20` から試す。
