@@ -11,6 +11,20 @@ import re
 _WD = "月火水木金土日"
 
 
+def _text_units(text: str) -> int:
+    """文字の表示幅を数える（全角=2 / 半角=1）。Excelの列幅と同じ単位。"""
+    import unicodedata
+    return sum(2 if unicodedata.east_asian_width(c) in ("W", "F", "A") else 1 for c in text)
+
+
+def _wrapped_lines(text: str, width_units: int) -> int:
+    """列幅 width_units のセルに収めたときの行数。改行も数える。"""
+    n = 0
+    for ln in (text or "").split("\n"):
+        n += max(1, -(-_text_units(ln) // max(1, width_units)))
+    return n
+
+
 def parse_sections(body: str):
     """本文Markdownを [(見出し, [行, ...]), ...] に分解する。"""
     sections, heading, lines = [], None, []
@@ -162,6 +176,10 @@ def build_xlsx(date_str: str, rows, path: str) -> str:
     body_font = Font(name="游ゴシック", size=10)
 
     wb = Workbook()
+    # ※ 標準スタイル（wb._named_styles["Normal"]）のフォントは書き換えないこと。
+    #   openpyxl の内部APIで、触ると Excel がファイルを修復扱いにして
+    #   題字「業務日報」などの書式が落ちる（2026-08-21 に実際に起きた）。
+    #   列幅の単位ずれは、行の高さを多めに見積もることで吸収する。
     ws = wb.active
     ws.title = f"業務日報{date_str[5:].replace('-', '')}"
     ws.column_dimensions["A"].width = 22
@@ -202,10 +220,13 @@ def build_xlsx(date_str: str, rows, path: str) -> str:
             for c in (1, 2):
                 ws.cell(r, c).border = box
                 ws.cell(r, c).alignment = Alignment(vertical="top", wrap_text=True)
-            # 折り返し行数から高さを見積もる。B列の幅74（≒全角37文字）で割る。
-            # Excelは高さ未指定なら自動調整するが、他のビューアで潰れるので明示しておく。
-            n = sum(max(1, -(-len(ln) // 37)) for ln in (lines or ["特になし"]))
-            ws.row_dimensions[r].height = max(18, min(400, n * 14 + 4))
+            # 折り返し行数から高さを出す。B列の幅は74なので、余白を見て 68 単位で折り返すとみなす。
+            # （Excelは高さ未指定でも自動調整することがあるが、当てにすると文字が切れる）
+            # 高さは Excel の自動調整の実測に合わせている（2026-08-21 に実機で採寸）:
+            #   1行 = 18pt ／ 折り返しは B列の幅と同じ 74 単位（全角=2・半角=1）で起きる。
+            # 実測9ブロック中8つが一致、残り1つは1行多く見積もる（＝切れない側）。
+            n = _wrapped_lines(text, 74)
+            ws.row_dimensions[r].height = max(18, min(600, n * 18))
             r += 1
         r += 1   # 人と人のあいだを1行あける
 

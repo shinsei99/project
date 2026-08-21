@@ -27,6 +27,14 @@ DEFAULT_SETTINGS = {
     "due_reminder_days": "2",            # 期限の何日前にリマインドするか
     "weekly_report_mon_time": "10:30",   # 週次棚卸し（月曜・やり残し確認）の時刻
     "weekly_report_fri_time": "18:00",   # 週次棚卸し（金曜）の時刻
+    # 業務日報（Stage 10・2026-08-21 オーナー指示で 18:30 自動）
+    "daily_report_enabled": "1",
+    "daily_report_time": "18:30",
+    "daily_report_people": "塚本,松本,森",   # 空なら監視ルームのメンバー全員
+    "daily_report_room_id": "",              # 空なら manager_room_id → 監視中のgroupルーム
+    "daily_report_upload": "1",              # 1でChatworkへ自動アップ（post_modeは見ない）
+    "daily_report_save_dir": ("/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/"
+                              "共有フォルダ/（★必読★）新共有フォルダ/社内・総務/業務日報"),
     # 日次ナレッジ増分リフレッシュ（Stage 5）
     "knowledge_refresh_enabled": "1",
     "knowledge_refresh_time": "07:00",

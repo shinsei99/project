@@ -359,4 +359,146 @@ def tick(client, now=None):
             ran.append(run_knowledge_refresh(now=now))
     except Exception as e:
         ran.append({"job": "knowledge_refresh", "error": f"{type(e).__name__}: {e}"})
+    # 業務日報（18:30・作成→Dropboxへ保管→Chatworkへアップ）
+    try:
+        if _daily_report_due(now):
+            ran.append(run_daily_report(client, now=now))
+    except Exception as e:
+        ran.append({"job": DAILY_REPORT_JOB, "error": f"{type(e).__name__}: {e}"})
     return ran
+
+
+# ---- 業務日報の自動作成・保管・アップ（Stage 10・2026-08-21 オーナー指示）----
+# 毎日 18:30 に当日分をまとめて作り、Dropbox の共有フォルダへ保管し、Chatwork へアップする。
+#
+# ★ここは post_mode を見ない。**オーナーが「18時30分に自動的に行って」と明示指示**したため
+#   （2026-08-21）。止めたいときは設定 daily_report_upload を 0 にする。
+#
+# ★launchd から動かすときの注意（メインPC）:
+#   常時起動プロセスは CloudStorage（Dropbox）を読み書きできない。**/bin/bash に
+#   フルディスクアクセス**を与えること（shorui-cabinet で同じ対処を実施済み）。
+#   保管に失敗しても Chatwork へのアップは続行し、失敗した事実を管理者ルームへ知らせる。
+
+DAILY_REPORT_JOB = "daily_report"
+
+
+def _daily_report_due(now):
+    if settings.get_setting("daily_report_enabled", "1") != "1":
+        return False
+    h, m = _parse_hhmm(settings.get_setting("daily_report_time", "18:30"), "18:30")
+    if now < now.replace(hour=h, minute=m, second=0, microsecond=0):
+        return False
+    today = now.date().isoformat()
+    return not query_one(
+        "SELECT 1 FROM scheduled_runs WHERE run_date=? AND job_type=?",
+        (today, DAILY_REPORT_JOB))
+
+
+def _daily_report_people():
+    """対象者。設定が空なら監視ルームのメンバー全員（AIを除く）。"""
+    from services import daily_report as DR
+    names = [n.strip() for n in
+             (settings.get_setting("daily_report_people", "") or "").split(",") if n.strip()]
+    roster = {p["name"]: p for p in DR.roster()}
+    if names:
+        return [roster[n] for n in names if n in roster]
+    return list(roster.values())
+
+
+def _daily_report_room_id():
+    rid = settings.get_setting("daily_report_room_id", "") or \
+        settings.get_setting("manager_room_id", "")
+    if rid:
+        return int(rid)
+    row = query_one("SELECT room_id FROM rooms WHERE monitored=1 AND type='group' "
+                    "ORDER BY room_id LIMIT 1")
+    return row["room_id"] if row else None
+
+
+def run_daily_report(client, now=None):
+    """当日分の日報を作り、Dropboxへ保管し、Chatworkへアップする。"""
+    import os
+    from services import daily_report as DR
+    from services import daily_report_export as EX
+
+    now = now or datetime.datetime.now()
+    today = now.date().isoformat()
+    if not _claim(DAILY_REPORT_JOB, today):
+        return {"job": DAILY_REPORT_JOB, "claimed": False}
+
+    result = {"date": today, "people": [], "errors": [], "saved": [], "uploaded": None}
+
+    # 1) 直前までの会話を取り込む（18:30 までの発言を漏らさない）
+    try:
+        DR.sync_from_chatwork()
+    except Exception as e:
+        result["errors"].append(f"sync: {type(e).__name__}: {e}")
+
+    # 2) 1人ずつ作る（1人が失敗しても他は作る）
+    people = _daily_report_people()
+    rows = []
+    for p in people:
+        try:
+            DR.generate(today, p["name"], account_id=p["account_id"],
+                        generated_by="scheduled")
+            result["people"].append(p["name"])
+        except Exception as e:
+            result["errors"].append(f"{p['name']}: {type(e).__name__}: {e}")
+    order = {p["name"]: i for i, p in enumerate(people)}
+    rows = sorted([r for r in DR.list_for_date(today) if r["person"] in order],
+                  key=lambda r: order[r["person"]])
+    if not rows:
+        _finish(DAILY_REPORT_JOB, today, result)
+        return {"job": DAILY_REPORT_JOB, "claimed": True, **result}
+
+    # 3) ファイルを作る（保管先が使えなくても、アップ用に一時ファイルは必ず作る）
+    import tempfile
+    tmpdir = tempfile.mkdtemp(prefix="daily_report_")
+    xlsx = os.path.join(tmpdir, f"業務日報_{today}.xlsx")
+    docx = os.path.join(tmpdir, f"業務日報_{today}.docx")
+    EX.build_xlsx(today, rows, xlsx)
+    EX.build_docx(today, rows, docx)
+
+    # 4) Dropbox の共有フォルダへ保管
+    save_dir = settings.get_setting("daily_report_save_dir", "") or ""
+    if save_dir:
+        try:
+            os.makedirs(save_dir, exist_ok=True)
+            for src in (xlsx, docx):
+                dst = os.path.join(save_dir, os.path.basename(src))
+                with open(src, "rb") as f, open(dst, "wb") as g:
+                    g.write(f.read())
+                result["saved"].append(dst)
+        except OSError as e:
+            # launchd は CloudStorage を読めない（/bin/bash にフルディスクアクセスが要る）
+            result["errors"].append(f"保管失敗: {type(e).__name__}: {e}")
+
+    # 5) Chatwork へアップ
+    if settings.get_setting("daily_report_upload", "1") == "1":
+        rid = _daily_report_room_id()
+        if not rid:
+            result["errors"].append("アップ先ルームが決まらない（daily_report_room_id 未設定）")
+        else:
+            wd = "月火水木金土日"[now.weekday()]
+            msg = (f"{settings.get_setting('ai_prefix', '🤖AI業務マネージャー')}\n"
+                   f"📝 業務日報（{now.month}月{now.day}日（{wd}）分）を作成しました。\n"
+                   f"対象: {'・'.join(r['person'] for r in rows)}\n"
+                   f"事実と違う点があれば直してください。")
+            try:
+                fid = client.post_file(rid, xlsx, message=msg)
+                result["uploaded"] = {"room_id": rid, "file_id": fid}
+            except Exception as e:
+                result["errors"].append(f"アップ失敗: {type(e).__name__}: {e}")
+
+    # 6) 失敗があれば管理者へ知らせる（黙って止まらない）
+    if result["errors"]:
+        try:
+            from services import line_alert
+            line_alert.alert(
+                "📝 業務日報の自動処理で問題が出ました:\n- " + "\n- ".join(result["errors"]),
+                dedup_key=f"daily_report_error:{today}")
+        except Exception:
+            pass
+
+    _finish(DAILY_REPORT_JOB, today, result)
+    return {"job": DAILY_REPORT_JOB, "claimed": True, **result}

@@ -69,17 +69,30 @@ def day_bounds(date_str: str):
     return int(start.timestamp()), int(end.timestamp())
 
 
-def day_messages(date_str: str, room_ids=None):
-    """対象日のメッセージを時系列で返す（監視ルームのみ）。"""
+def day_messages(date_str: str, room_ids=None, account_id=None):
+    """対象日のメッセージを時系列で返す。
+
+    監視ルームに加え、**その社員とAIのダイレクトチャット**も読む。
+    2026-08-21 以降、社員が「[To:claude] 大京西ビルの検診完了」のように AI 宛へ
+    業務報告を送る運用が始まるため（グループに流さない報告を取りこぼさない）。
+    ※ ただし worker が取り込むのは監視ルームだけなので、**そのダイレクトチャットも
+      「ルーム設定」で監視対象にしておく**必要がある。
+    """
     lo, hi = day_bounds(date_str)
-    sql = ("SELECT m.*, r.name AS room_name FROM messages m "
-           "JOIN rooms r ON r.room_id=m.room_id "
-           "WHERE m.send_time>=? AND m.send_time<? AND r.monitored=1 ")
+    where = ["m.send_time>=?", "m.send_time<?"]
     params = [lo, hi]
+    scope = ["r.monitored=1"]
+    if account_id is not None:
+        scope.append("(r.type='direct' AND EXISTS (SELECT 1 FROM members mb "
+                     "WHERE mb.room_id=r.room_id AND mb.account_id=?))")
+        params.append(account_id)
+    where.append("(" + " OR ".join(scope) + ")")
     if room_ids:
-        sql += "AND m.room_id IN (%s) " % ",".join("?" * len(room_ids))
+        where.append("m.room_id IN (%s)" % ",".join("?" * len(room_ids)))
         params += list(room_ids)
-    sql += "ORDER BY m.send_time, m.message_id"
+    sql = ("SELECT m.*, r.name AS room_name FROM messages m "
+           "JOIN rooms r ON r.room_id=m.room_id WHERE " + " AND ".join(where) +
+           " ORDER BY m.send_time, m.message_id")
     return [dict(r) for r in query(sql, tuple(params))]
 
 
@@ -136,6 +149,18 @@ _PROMPT = """あなたは不動産会社「大京商事」のAI業務マネー�
   他の人の発言から分かる範囲（依頼を受けた・宛先に入っていた等）だけを事実として書く。
 - ★ は本人の発言を示す**内部の印**です。日報の文章の中に「★」や「★付き」と書かない。
 
+# AI宛の報告も、本人がやった業務として必ず反映する
+会話には、社員が AI（claude / AI業務マネージャー）宛に送った**業務報告**が混ざります。
+例:「[To:claude] 大京西ビルの検診完了」「クロードさん 〇〇の鍵を返却しました」
+
+- これは**本人が実際にやった業務の報告**です。日報に必ず反映してください。
+- 「AIに報告した」「claudeへ連絡した」とは**書かない**。報告された**業務の中身**を書く。
+  - 例:「[To:claude] 大京西ビルの検診完了」
+    → 本日の対応「大京西ビルの検診」／完了したこと「大京西ビルの検診」
+- claude / AI業務マネージャー / クロード は社内の人と同じ扱いで、**名前を本文に書かない**。
+- AI（claude）**自身の発言は本人の業務ではない**ので、実績にしない
+  （催促・確認・回答はAIの発言。本人が返した内容だけが本人の業務）。
+
 # 本日の会話（{n_msgs}件・時系列）
 {conversation}
 
@@ -165,21 +190,22 @@ body_md は**次の3つの見出しだけ**を、この順で書いてくださ�
 
 **「本人が実際にやった業務」だけを書く。時刻も、依頼元も書かない。**
 
-### ① 誰から依頼・指示されたかは書かない
-「〜さんより依頼を受け」「〜より指示され」「〜から依頼があり」「〜の依頼で」は**すべて不要**。
-やった業務そのものを書く。
+### ① 社内の人の名前は書かない
+**社内の同僚（下記）の名前は、日報の本文に一切書かない。** 依頼元としても、
+連絡・確認した相手としても書かない。社内でのやり取りは省き、業務の中身だけを書く。
 
+  社内の人: {colleagues}
+
+- 悪い例: 「グレイスのオーナー広告料の内訳（当社1ヶ月・業者2ヶ月）を鷲見さんに確認」
+- 良い例: 「グレイスのオーナー広告料の内訳（当社1ヶ月・業者2ヶ月）を確認」
 - 悪い例: 「メゾンのランドリー電灯の交換を鷲見さんより依頼され対応」
 - 良い例: 「メゾンのランドリー電灯（奥2本）を交換」
-- 悪い例: 「コーポラベリエール603号室 古田様のガラス破損の修理対応を鷲見さんより指示され担当。
-  連絡・訪問を行ったが不在で、再度連絡予定」
-- 良い例: 「コーポラベリエール603号室 古田様のベランダガラス破損の件で連絡・訪問（不在）」
 - 悪い例: 「西ビル3階テナントの問合せ対応を大鹿さんより依頼を受け、対応」
 - 良い例: 「西ビル3階テナント（美容室・ディークルーズ井口様）の翌日夜間のビル出入りの問合せに対応」
 
-**ただし、本人が連絡・確認・訪問した相手は残す**（それ自体が本人のやった業務なので）。
-例:「グレイスのオーナー広告料の内訳（当社1ヶ月・業者2ヶ月）を鷲見さんに確認」は正しい。
-「鷲見さんに確認した」＝本人の行動、「鷲見さんに依頼された」＝依頼元、この2つを混同しない。
+**社外の相手の名前は必ず残す。** オーナー・入居者・テナント・業者は業務の中身そのものなので消さない。
+例:「サニカと8/26（水）午前に約束」「カリルム 片岡様へ連絡」「コーポラベリエール603号室 古田様」
+「ディークルーズ井口様」はすべて正しい。
 
 ### ② 時刻は書かない
 やり取りの経過を時系列に並べず、**何をしたか**を1行の要点にする。
@@ -212,8 +238,11 @@ def build_prompt(date_str: str, person: str, account_id, msgs, tasks) -> str:
     moved = "\n".join(_task_line(t) for t in tasks["moved"]) or "（本日動いたTODOはありません）"
     open_ = "\n".join(_task_line(t) for t in tasks["open"]) or "（未完了のTODOはありません）"
     wd = "月火水木金土日"[datetime.date.fromisoformat(date_str).weekday()]
+    # 社内の人＝監視ルームのメンバー。この名前は日報の本文に出させない（社外の相手だけ残す）
+    colleagues = "、".join(p["name"] for p in roster() if p["name"] != person) or "（不明）"
     return _PROMPT.format(date=date_str, wd=wd, person=person, n_msgs=len(msgs),
-                          conversation=conversation, tasks_moved=moved, tasks_open=open_)
+                          conversation=conversation, tasks_moved=moved, tasks_open=open_,
+                          colleagues=colleagues)
 
 
 # --- 生成・保存 ---------------------------------------------------------------
@@ -224,7 +253,7 @@ def model() -> str:
 def generate(date_str: str, person: str, account_id=None, room_ids=None,
              generated_by: str = "manual") -> dict:
     """1人分の日報を作って保存し、保存した行を返す。既存があれば上書き（冪等）。"""
-    msgs = day_messages(date_str, room_ids)
+    msgs = day_messages(date_str, room_ids, account_id=account_id)
     own = [m for m in msgs if account_id is not None and m["account_id"] == account_id]
     tasks = person_tasks(date_str, person, account_id)
     prompt = build_prompt(date_str, person, account_id, msgs, tasks)
