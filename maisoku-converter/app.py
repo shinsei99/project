@@ -443,6 +443,51 @@ def crop_region(image: Image.Image, region: dict) -> Image.Image | None:
     return image.crop((int(x1*w), int(y1*h), int(x2*w), int(y2*h)))
 
 
+def trim_white_margins(image: Image.Image, tol: int = 14,
+                       max_cut: float = 0.30) -> tuple[Image.Image, dict]:
+    """外周の白い余白（フチ）を切り落として「中身」だけにする。
+
+    なぜ要るか: マイソクは元PDFが左右に余白を持っていることが多く、そのまま貼ると
+    **自社帯だけが左右に張り出して見える**（実例: 帯202mm に対して中身181mm）。
+    中身を基準に紙へ合わせれば、縦・横・正方形・フチの太いスキャンのどれでも
+    帯と左右がそろう。
+
+    tol     … 白とみなす許容差（0-255）。JPEG のにじみ・薄いグレーを白に含める
+    max_cut … 1辺あたり切ってよい上限（画像幅・高さに対する比）。
+              これを超えるときは「フチではない」と判断して切らない
+              （枠線で囲んだデザインや、白背景に小さく写した写真を壊さないため）
+
+    戻り値: (切り取り後の画像, 切った量の内訳)
+    """
+    rgb = image.convert("RGB")
+    w, h = rgb.size
+    try:
+        from PIL import ImageChops
+        bg   = Image.new("RGB", rgb.size, (255, 255, 255))
+        diff = ImageChops.difference(rgb, bg).convert("L")
+        bbox = diff.point(lambda v: 255 if v > tol else 0).getbbox()
+    except Exception:
+        bbox = None
+
+    info = {"left": 0.0, "right": 0.0, "top": 0.0, "bottom": 0.0, "trimmed": False}
+    if not bbox:
+        return rgb, info      # 真っ白 or 判定できず → 触らない
+
+    l, t, r, b = bbox
+    cut = {"left": l / w, "right": (w - r) / w,
+           "top": t / h, "bottom": (h - b) / h}
+    if max(cut.values()) > max_cut:
+        return rgb, info      # フチではなさそう → 触らない
+    if (r - l) < w * 0.5 or (b - t) < h * 0.5:
+        return rgb, info      # 切りすぎ（中身が小さすぎる）→ 触らない
+    if max(cut.values()) < 0.004:
+        return rgb, info      # ほぼフチ無し → そのまま
+
+    info.update(cut)
+    info["trimmed"] = True
+    return rgb.crop(bbox), info
+
+
 def crop_overlay(image: Image.Image, region: dict,
                  color=(40, 180, 90)) -> Image.Image:
     """元画像に、切り取り範囲を示す半透明の目安枠を重ねて返す。
@@ -1028,29 +1073,47 @@ def _fill_ippan(ws, specs: dict, company: dict, catchphrases: list[str]):
 
 # ─── 画像挿入 ─────────────────────────────────────────────────────────────────
 
+# 列幅(文字)→ポイント の換算係数。**Excel に実測させて決めた値**（2026-08-21）。
+# 生成した .xlsx を Excel for Mac で開き AppleScript で問い合わせたところ、
+# 幅 3.796875 の列 50 本（A..AX）が 1150pt ＝ 1列 23pt だった。
+# round(3.796875 * 6) = 23 と一致するので、1文字 = 6pt（= 8px）として扱う。
+# 「文字数×7px」で計算していたころは 2割狭く見積もっており、貼った画像が
+# セル範囲まで横に引き伸ばされて「縦が縮んで見える」原因になっていた。
+_PT_PER_CHAR = 6.0
+
+
+def _col_px(ws, col: int) -> float:
+    """列の実寸(px)。Excel は列幅をポイントの整数に丸めて描くので、そこまで真似る。"""
+    ltr = get_column_letter(col)
+    cd  = ws.column_dimensions[ltr] if ltr in ws.column_dimensions else None
+    w   = cd.width if cd and cd.width else 8.43
+    return round(w * _PT_PER_CHAR) * _PT2PX
+
+
+def _row_px(ws, row: int) -> float:
+    """行の実寸(px)。行高(pt) × 96/72。列と違って丸めは要らない
+    （行高はこちらが整数ポイントで書き込むため）。"""
+    rd = ws.row_dimensions[row] if row in ws.row_dimensions else None
+    return (rd.height if rd and rd.height else 15.0) * _PT2PX
+
+
 def _insert_image(ws, pil_img: Image.Image,
                   col_from: int, row_from: int,
                   col_to: int,   row_to: int,
                   col_w: float = 3.89, row_h: float = 12.0,
-                  measure: bool = False):
-    """TwoCellAnchor で画像を指定セル範囲に収まるよう挿入する。
-    measure=True のときは実際の列幅・行高から枠の実寸を算出し、白背景に
-    アスペクト比を保って自動縮小（thumbnail）するため、枠からはみ出さない。
+                  measure: bool = False, valign: str = "center"):
+    """画像を指定セル範囲(col_from..col_to-1 × row_from..row_to-1)の中に、
+    **縦横比を保ったまま**最大サイズで中央配置する。
+
+    OneCellAnchor で実寸(EMU)を固定する。TwoCellAnchor はセル範囲に合わせて
+    画像を引き伸ばすので、列幅の見積もりが少しでもずれると絵が歪む
+    （実際に横へ2割伸びていた）。実寸固定なら、ずれても歪まず位置が少し動くだけで済む。
     """
     px_per_char = 7.0
     if measure:
-        # 実際の列幅(文字単位)・行高(pt)から枠のピクセル寸法を算出
-        w_px = 0.0
-        for c in range(col_from, col_to):
-            ltr = get_column_letter(c)
-            cd  = ws.column_dimensions[ltr] if ltr in ws.column_dimensions else None
-            w_px += (cd.width if cd and cd.width else 8.43) * px_per_char
-        h_px = 0.0
-        for r in range(row_from, row_to):
-            rd = ws.row_dimensions[r] if r in ws.row_dimensions else None
-            h_px += (rd.height if rd and rd.height else 15.0) * (96 / 72)
-        w_px = round(w_px)
-        h_px = round(h_px)
+        # 実際の列幅・行高から枠のピクセル寸法を算出
+        w_px = round(sum(_col_px(ws, c) for c in range(col_from, col_to)))
+        h_px = round(sum(_row_px(ws, r) for r in range(row_from, row_to)))
     else:
         # 1pt = 96/72 px (96dpi)。int() の丸め誤差を防ぐため round() を使用
         w_px = round((col_to - col_from) * col_w * px_per_char)
@@ -1059,25 +1122,33 @@ def _insert_image(ws, pil_img: Image.Image,
     h_px = max(1, h_px)
 
     img = pil_img.convert("RGB").copy()
-    img.thumbnail((w_px, h_px), Image.LANCZOS)
-    # 白背景にセンタリング
-    canvas = Image.new("RGB", (w_px, h_px), (255, 255, 255))
-    canvas.paste(img, ((w_px - img.width) // 2, (h_px - img.height) // 2))
+
+    # 枠に収まる最大サイズ（＝表示寸法）。thumbnail は縮小しかしないので、
+    # 元画像が枠より小さいときに枠いっぱいへ引き伸ばせない。表示寸法は別に計算する
+    fit    = min(w_px / max(1, img.width), h_px / max(1, img.height))
+    iw     = max(1, int(round(img.width  * fit)))
+    ih     = max(1, int(round(img.height * fit)))
+
+    # 画素は表示寸法の2倍まであれば十分（それ以上は容量の無駄なので落とす）
+    if img.width > iw * 2:
+        img = img.resize((iw * 2, max(1, round(img.height * iw * 2 / img.width))),
+                         Image.LANCZOS)
 
     buf = io.BytesIO()
     # 96dpi を明示して保存（指定なしだと LibreOffice/Excel が 72dpi と解釈し133%に拡大する）
-    canvas.save(buf, "PNG", dpi=(96, 96))
+    img.save(buf, "PNG", dpi=(96, 96))
     buf.seek(0)
     xl = XLImage(buf)
-    xl.width  = w_px
-    xl.height = h_px
+    xl.width  = iw
+    xl.height = ih
 
-    anchor = TwoCellAnchor()
-    anchor._from = AnchorMarker(col=col_from - 1, colOff=0,
-                                row=row_from - 1, rowOff=0)
-    anchor.to    = AnchorMarker(col=col_to - 1,   colOff=0,
-                                row=row_to - 1,   rowOff=0)
-    anchor.editAs = "twoCell"
+    EMU = 9525  # 1px = 9525 EMU (96dpi)
+    off_x = max(0.0, (w_px - iw) / 2)
+    off_y = 0.0 if valign == "top" else max(0.0, (h_px - ih) / 2)
+    anchor = OneCellAnchor()
+    anchor._from = AnchorMarker(col=col_from - 1, colOff=int(off_x * EMU),
+                                row=row_from - 1, rowOff=int(off_y * EMU))
+    anchor.ext   = XDRPositiveSize2D(cx=int(iw * EMU), cy=int(ih * EMU))
     xl.anchor = anchor
     ws.add_image(xl)
 
@@ -1089,19 +1160,8 @@ def _insert_logo(ws, pil_img: Image.Image,
     """ロゴを枠(col_from..col_to-1 × row_from..row_to-1)内に、縦横比を保ったまま
     枠最大サイズで中央配置する。OneCellAnchor で実寸固定するので引き伸ばし歪み無し。
     """
-    px_per_char = 7.0
-
-    def _col_px(c):
-        ltr = get_column_letter(c)
-        cd  = ws.column_dimensions[ltr] if ltr in ws.column_dimensions else None
-        return (cd.width if cd and cd.width else 8.43) * px_per_char
-
-    def _row_px(r):
-        rd = ws.row_dimensions[r] if r in ws.row_dimensions else None
-        return (rd.height if rd and rd.height else 15.0) * (96 / 72)
-
-    frame_w = sum(_col_px(c) for c in range(col_from, col_to))
-    frame_h = sum(_row_px(r) for r in range(row_from, row_to))
+    frame_w = sum(_col_px(ws, c) for c in range(col_from, col_to))
+    frame_h = sum(_row_px(ws, r) for r in range(row_from, row_to))
     box_w   = max(1, frame_w * margin)
     box_h   = max(1, frame_h * margin)
 
@@ -1379,9 +1439,216 @@ def create_fudosan_excel(
     return buf.getvalue()
 
 
+# ─── 帯変え出力の用紙合わせ（縦マイソク対応）──────────────────────────────────
+# テンプレートは A4 横向きの寸法でできている。縦向き（A4縦）のマイソクをそのまま
+# 入れると左右が大きく余り、印刷すると本来の半分ほどの大きさでしか出ない。
+_IMG_ROWS   = (1, 52)      # 他社マイソク画像を貼る領域
+_BAND_ROWS  = (53, 58)     # 自社情報帯（ロゴ＋会社情報）
+_MAX_COL    = 50           # A..AX
+_A4_LONG_MM  = 297.0
+_A4_SHORT_MM = 210.0
+_MARGIN_MM   = 0.16 * 25.4   # 上下の余白（page_margins と揃える）
+# A4縦のときに本体（マイソク枠＋自社帯）が使う幅。紙幅いっぱい(202mm)にすると、
+# 元マイソクが持っている白フチのぶん**自社帯だけが左右へ張り出して**見える。
+# 195mm に固定して中央へ置くと、マイソクの形やフチの太さが変わっても帯が動かない。
+_BODY_MM_PORTRAIT = 195.0
+# マイソクと自社帯の間に入れるすき間（mm）。0 だと帯がマイソクに貼り付いて見える
+_GAP_MM = 4.0
+_PT2PX       = 96 / 72
+
+
+
+def _sheet_px(ws) -> tuple[float, float, float]:
+    """シートの実寸(px)を返す: (本体の幅, 画像領域の高さ, 自社帯の高さ)。"""
+    w = sum(_col_px(ws, c) for c in range(1, _MAX_COL + 1))
+
+    def _rows_px(r1, r2):
+        return sum(_row_px(ws, r) for r in range(r1, r2 + 1))
+
+    return w, _rows_px(*_IMG_ROWS), _rows_px(*_BAND_ROWS)
+
+
+def _fit_sheet_to_image(ws, img_aspect: float,
+                        body_mm: float | None = None,
+                        gap_mm: float | None = None) -> str:
+    """貼り付ける画像の縦横比に合わせて、用紙の向きと行高を調整する。
+
+    ① 画像領域(rows1-52)の行高を伸縮し、枠の縦横比を画像に一致させる
+       → 枠の中に白い余白が出ないので、マイソクが小さく刷られない
+    ② 縦長の画像なら用紙も A4 縦に切り替える
+    ③ A4縦のときは本体（マイソク枠＋自社帯）の幅を 195mm に固定し、左右の余白で中央へ置く
+       マイソクと自社帯の間には すき間（既定 4mm）を空ける
+    ④ 自社情報帯(rows53-58)は、用紙上の実寸(mm)が横向きのときと同じになるよう
+       合わせて伸ばす（縦向きにすると、そのままでは帯だけ相対的に細るため）
+
+    戻り値: (用紙の向き, 帯フォントの倍率)
+      帯フォントの倍率 … A4縦にすると横幅が 289mm→195mm に縮むぶん、
+      シート全体が小さく刷られる。帯の文字を同じ倍率だけ大きくして、
+      紙の上での実寸（読みやすさ）を横向きのときと揃えるための係数。
+    """
+    portrait, img_h_px, gap_px, band_h_px, font_scale = _choose_paper(
+        _sheet_px(ws), img_aspect, body_mm, gap_mm)
+
+    def _set(rows, total_px):
+        """行高を整数ポイントで割り振る。
+
+        Excel は行高を整数ポイントに丸めて描くので、こちらも整数で書く
+        （中途半端な値だと計算上の枠と実際の枠がずれ、画像が枠からはみ出す）。
+        全行を同じ値に丸めると 52 行分の誤差が積もって縦横比が 2% ほど狂うので、
+        端数のぶんだけ 1pt 大きい行を混ぜて合計を合わせる。
+        """
+        r1, r2 = rows
+        n     = r2 - r1 + 1
+        total = int(round(min(400 * n, max(4 * n, total_px / _PT2PX))))
+        base, extra = divmod(total, n)
+        for i, r in enumerate(range(r1, r2 + 1)):
+            ws.row_dimensions[r].height = float(base + (1 if i < extra else 0))
+
+    # 画像の段は「マイソク＋すき間」。画像は上端に寄せるので、余りが帯との間に残る
+    _set(_IMG_ROWS,  img_h_px + gap_px)
+    _set(_BAND_ROWS, band_h_px)
+
+    ws.page_setup.orientation = "portrait" if portrait else "landscape"
+
+    # 左右の余白で本体の幅を決める。horizontalCentered=True なので中央に来る
+    paper_w_mm = _A4_SHORT_MM if portrait else _A4_LONG_MM
+    side_mm    = max(_MARGIN_MM, (paper_w_mm - _body_width_mm(portrait, body_mm)) / 2)
+    ws.page_margins.left = ws.page_margins.right = round(side_mm / 25.4, 4)
+
+    return ws.page_setup.orientation, font_scale
+
+
+def _choose_paper(sheet_px: tuple, img_aspect: float,
+                  body_mm: float | None = None,
+                  gap_mm: float | None = None) -> tuple:
+    """用紙の向きと、各段の高さ(px)、帯フォントの倍率を決める。
+
+    紙の上での縦の積み方は  マイソク → すき間 → 自社帯  の3段。
+    すき間と帯は「紙の上で何mm」で決め打ちし、マイソクだけが伸び縮みする。
+
+    縦・横の両方で刷ってみて、マイソクが大きく出るほうを採る。
+    「縦画像なら縦用紙」と決め打ちにしないのは、正方形に近いマイソクだと
+    横向きでは左右が大きく余り、縦向きのほうが1割以上大きく刷れるため。
+
+    戻り値: (縦向きか, マイソクの高さpx, すき間px, 自社帯の高さpx, 帯フォントの倍率)
+    """
+    w_px, img_px, band_px = sheet_px
+
+    # 横向きテンプレートで自社帯が紙面上に占める実寸(mm)。これを基準に据える
+    land_h_mm = _A4_SHORT_MM - 2 * _MARGIN_MM
+    band_mm   = band_px / max(1.0, img_px + band_px) * land_h_mm
+    gap       = _GAP_MM if gap_mm is None else max(0.0, float(gap_mm))
+
+    aspect   = min(6.0, max(0.15, img_aspect or 1.0))   # 極端な比は丸める
+    img_h_px = w_px / aspect                            # 幅いっぱいに置いたときの高さ
+
+    best = None
+    for portrait in (False, True):
+        pw_mm = _body_width_mm(portrait, body_mm)
+        ph_mm = (_A4_LONG_MM if portrait else _A4_SHORT_MM) - 2 * _MARGIN_MM
+        # fitToPage の倍率(mm/px)。幅で決まる場合と、高さで決まる場合がある。
+        # 高さで決まるときは「紙の高さ − すき間 − 帯」をマイソクが使える
+        scale = min(pw_mm / w_px,
+                    max(1e-6, ph_mm - gap - band_mm) / img_h_px)
+        if best is None or scale > best[0]:
+            best = (scale, portrait)
+    scale_now, portrait = best
+
+    gap_px  = gap / scale_now       # 紙の上で gap mm になる px 数
+    band_h_px = band_mm / scale_now
+
+    # A4縦は本体幅が 289mm→195mm に縮むぶん、シート全体が小さく刷られる。
+    # 帯の文字を同じ倍率だけ大きくして、紙の上での実寸を横向きと揃える
+    scale_ref  = _body_width_mm(False) / w_px
+    font_scale = min(2.0, max(1.0, scale_ref / max(1e-6, scale_now)))
+    return portrait, img_h_px, gap_px, band_h_px, font_scale
+
+
+def _body_width_mm(portrait: bool, body_mm: float | None = None) -> float:
+    """本体（マイソク枠＋自社帯）が紙面上で使う幅(mm)。A4縦は既定 195mm・中央寄せ。
+
+    body_mm を渡すとその幅にする（画面のスライダー用）。広げるほど縦も伸びるので、
+    上下の余白も狭くなる。A4横は従来どおり紙幅いっぱい。
+    """
+    if not portrait:
+        return _A4_LONG_MM - 2 * _MARGIN_MM
+    w = _BODY_MM_PORTRAIT if body_mm is None else float(body_mm)
+    return min(_A4_SHORT_MM - 2 * _MARGIN_MM, max(60.0, w))
+
+
+@st.cache_data(show_spinner=False)
+def _tpl_sheet_px(tpl_key: str) -> tuple:
+    """テンプレートの実寸(px)。用紙の向きを画面で予告するために使う（結果を再利用）。"""
+    _, ws = _load_xls_as_openpyxl(TEMPLATE_XLS.get(tpl_key, TEMPLATE_XLS["賃貸"]))
+    return _sheet_px(ws)
+
+
+def _scale_band_fonts(ws, scale: float):
+    """自社情報帯(rows53-58)の文字を scale 倍にする（A4縦のとき用）。
+
+    シート全体が用紙に合わせて縮小されるので、A4縦では帯の横幅が
+    289mm→202mm になり、そのままでは文字も 7 割の大きさで刷られてしまう。
+    ここで文字だけ拡大して、紙の上での実寸を横向きのときと揃える。
+    枠からはみ出す場合は、その枠に収まるところまでサイズを戻す（はみ出すと Excel は
+    結合セル内の文字を切り落とすため）。
+    """
+    if scale <= 1.001:
+        return
+
+    # 結合セルの範囲を引くための索引（左上セル → 右端の列）
+    merged: dict = {}
+    for rng in ws.merged_cells.ranges:
+        if rng.min_row >= _BAND_ROWS[0] and rng.max_row <= _BAND_ROWS[1]:
+            merged[(rng.min_row, rng.min_col)] = rng.max_col
+
+    for r in range(_BAND_ROWS[0], _BAND_ROWS[1] + 1):
+        for c in range(1, _MAX_COL + 1):
+            cell = ws.cell(r, c)
+            if cell.value in (None, ""):
+                continue
+            base  = cell.font
+            avail = _cols_px(ws, c, merged.get((r, c)) or _box_end_col(ws, r, c))
+            text  = str(cell.value)
+            # 全角=1.0em / 半角=0.55em の概算で必要幅を見る
+            em    = sum(1.0 if ord(ch) > 0x2000 else 0.55 for ch in text)
+            size  = (base.size or 9) * scale
+            if em > 0:
+                size = min(size, (avail * 0.96) / (em * _PT2PX))
+            cell.font = Font(name=base.name or "ＭＳ Ｐゴシック",
+                             size=round(max(5.0, size), 1), bold=bool(base.bold),
+                             italic=bool(base.italic), color=base.color)
+
+
+def _box_end_col(ws, row: int, col: int) -> int:
+    """罫線で囲まれた「枠」の右端の列を返す（結合されていない欄用）。
+
+    帯の欄は結合セルとは限らず、罫線だけで区切られているものがある
+    （宅建免許番号 K-R など）。Excel は結合していないセルの文字を隣へはみ出して
+    描くので、枠の右端まででサイズを決めないと隣の欄（担当者）に重なる。
+    """
+    def _has(side) -> bool:
+        return bool(side and side.style)
+
+    end = col
+    while end < _MAX_COL:
+        if _has(ws.cell(row, end).border.right) or _has(ws.cell(row, end + 1).border.left):
+            break
+        if ws.cell(row, end + 1).value not in (None, ""):
+            break
+        end += 1
+    return end
+
+
+def _cols_px(ws, c1: int, c2: int) -> float:
+    """列 c1..c2 の実寸(px)。"""
+    return sum(_col_px(ws, c) for c in range(c1, c2 + 1))
+
+
 def create_band_swap_excel(maisoku_img: Image.Image,
                            company_info: dict,
-                           tpl_key: str = "賃貸") -> bytes:
+                           tpl_key: str = "賃貸",
+                           body_mm: float | None = None,
+                           gap_mm: float | None = None) -> bytes:
     """【帯変えモード（時短）】他社マイソク画像を上部にそのまま貼り付け、
     下部の自社情報帯（ロゴ＋会社情報）だけ現行レイアウトで差し替えて出力する。
     AI解析・項目入力なしで即作成できる。
@@ -1402,9 +1669,15 @@ def create_band_swap_excel(maisoku_img: Image.Image,
             cell.value  = None
             cell.border = Border()
 
+    # 用紙の向き・行高を画像の縦横比に合わせる（縦マイソクなら A4 縦で出す）。
+    # ロゴ・画像の挿入は行高を測って寸法を決めるので、必ずこの後に行う
+    _, _band_font_scale = _fit_sheet_to_image(
+        ws, maisoku_img.width / max(1, maisoku_img.height), body_mm, gap_mm)
+
     # 自社情報帯（rows53-58）を現行レイアウトで構築
     _reshape_company_band(ws)
     _fill_company(ws, company_info)
+    _scale_band_fonts(ws, _band_font_scale)   # A4縦のとき、帯の文字を実寸で揃える
     if LOGO_PATH.exists():
         try:
             _insert_logo(ws, Image.open(LOGO_PATH), 1, 53, 5, 59)
@@ -1413,7 +1686,7 @@ def create_band_swap_excel(maisoku_img: Image.Image,
 
     # 他社マイソク画像を上部(A1:AX52)に貼付（縦横比保持で最大配置）
     try:
-        _insert_image(ws, maisoku_img, 1, 1, 51, 53, measure=True)
+        _insert_image(ws, maisoku_img, 1, 1, 51, 53, measure=True, valign="top")
     except Exception:
         pass
 
@@ -1616,8 +1889,63 @@ if mode == _MODE_BAND:
             default=region,
         )
 
+    # 元マイソクが持っている白フチのぶん、自社帯だけが左右に張り出して見えることがある。
+    # 切り落とすとマイソクの中身が帯と同じ幅まで広がって、左右がそろう
+    _tc1, _tc2 = st.columns([2, 3])
+    with _tc1:
+        _trim_on = st.checkbox(
+            "元マイソクの白フチ（外周の余白）を自動で切り落とす",
+            value=True, key="bs_trim_v2",   # 既定を変えたので key も変える（古い画面の状態が残ると効かない）
+            help="スキャンや他社PDFの外周にある白い余白を検出して切ります。"
+                 "切ると中身が自社帯と同じ幅まで広がり、上下の余白も狭くなります。"
+                 "1辺で3割を超えて切ることになる場合は『フチではない』と判断して切りません。",
+        )
+    with _tc2:
+        _body_mm = st.slider(
+            "本体（マイソク枠＋自社帯）の幅  ※A4縦のときだけ効く", 160, 202,
+            int(_BODY_MM_PORTRAIT), 1, key="bs_body_mm", format="%d mm",
+            help="広げるほど上下の余白も狭くなります（縦横比は保つため）。"
+                 "202mm が A4縦の紙いっぱい。既定は 195mm。",
+        )
+        _gap_mm = st.slider(
+            "マイソクと自社帯の間のすき間", 0, 15, int(_GAP_MM), 1,
+            key="bs_gap_mm", format="%d mm",
+            help="0 にすると帯がマイソクに貼り付きます。既定は 4mm。",
+        )
+    _trim_info = {"trimmed": False}
+    if _trim_on:
+        bs_crop, _trim_info = trim_white_margins(bs_crop)
+        if _trim_info["trimmed"]:
+            st.caption("✂️ 白フチを切りました — 左 {:.1f}% / 右 {:.1f}% / 上 {:.1f}% / 下 {:.1f}%"
+                       .format(_trim_info["left"] * 100, _trim_info["right"] * 100,
+                               _trim_info["top"] * 100, _trim_info["bottom"] * 100))
+        else:
+            st.caption("✂️ 切れる白フチは見つかりませんでした（そのまま貼ります）")
+
     st.markdown("**🖼️ 切り取り後のイメージ（この画像が案内書の上部に入ります）**")
     st.image(bs_crop, use_container_width=True)
+
+    # 切り取り後の縦横比から、どの用紙で出るかを先に知らせる
+    try:
+        _w_px  = _tpl_sheet_px("賃貸")[0]
+        _portrait, _ih, _gp, _bh, _ = _choose_paper(
+            _tpl_sheet_px("賃貸"), bs_crop.width / max(1, bs_crop.height),
+            _body_mm, _gap_mm)
+        _pw_mm = _body_width_mm(_portrait, _body_mm)
+        _ph_mm = (_A4_LONG_MM if _portrait else _A4_SHORT_MM) - 2 * _MARGIN_MM
+        _sc    = min(_pw_mm / _w_px, _ph_mm / (_ih + _gp + _bh))
+        _paper_h = _A4_LONG_MM if _portrait else _A4_SHORT_MM
+        _paper_w = _A4_SHORT_MM if _portrait else _A4_LONG_MM
+        _updown  = (_paper_h - (_ih + _gp + _bh) * _sc) / 2
+        st.caption(
+            f"📄 用紙: **A4 {'縦' if _portrait else '横'}**（縦横比から自動判定）／"
+            f"マイソクは約 {_w_px * _sc:.0f} × {_ih * _sc:.0f} mm、"
+            f"すき間 {_gp * _sc:.0f} mm、"
+            f"自社帯は幅 {_w_px * _sc:.0f} mm・高さ約 {_bh * _sc:.0f} mm で中央。"
+            f"**紙の余白は上下 各 {_updown:.0f} mm・左右 各 {_paper_w / 2 - _w_px * _sc / 2:.0f} mm** になります。"
+        )
+    except Exception:
+        pass
 
     company_now = ci if ci.get("商号") else load_company_info()
 
@@ -1625,7 +1953,8 @@ if mode == _MODE_BAND:
     if st.button("⚡ 帯変え Excel を作成", type="primary", use_container_width=True):
         with st.spinner("Excel を生成中..."):
             try:
-                xlsx = create_band_swap_excel(bs_crop, company_now)
+                xlsx = create_band_swap_excel(bs_crop, company_now,
+                                              body_mm=_body_mm, gap_mm=_gap_mm)
                 pname = Path(bs_file.name).stem.replace(" ", "_").replace("/", "_")
                 st.download_button(
                     "⬇️ Excel をダウンロード",
@@ -1634,7 +1963,10 @@ if mode == _MODE_BAND:
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True,
                 )
-                st.success("✅ 作成しました。ダウンロードしてください。")
+                _msg = ("白フチを切って貼りました" if _trim_info["trimmed"]
+                        else "白フチは切らずにそのまま貼りました")
+                st.success(f"✅ 作成しました（{_msg}／本体幅 {_body_mm}mm／"
+                           f"すき間 {_gap_mm}mm）。ダウンロードしてください。")
             except Exception as e:
                 st.error(f"❌ 生成エラー: {e}")
     st.stop()
