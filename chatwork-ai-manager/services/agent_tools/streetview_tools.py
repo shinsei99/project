@@ -209,3 +209,97 @@ def streetview_lookup(address=None, lat=None, lon=None, property=None, question=
         "image_hint": "この画像自体を送りたい場合は chatwork_send_web_image / line_send_web_image に"
                       "この image_token を渡す（数時間で失効するので、必要な時にすぐ送る）",
     }
+
+
+# ─── ストリートビューを「人が見る」ための入口（2026-08-21 追加） ────────────────
+#
+# 2026-08-19 に Google Maps のキーを取得したので、**その地点にSVがあるか**を無料の
+# metadata API で確かめられるようになった。ただし **SV画像そのものをAIに読ませることは
+# しない**（Maps規約 3.2.3(c)(vii) AIモデルへの利用禁止。API_STATUS.md の D表で
+# 「やらない」と決着済み）。ここで返すのは**人が開いて見るためのリンク**で、
+# 「画面でSVを見る」は規約上やってよい使い方。
+#
+# チャットに貼るURLは **キーを含まない公開URL** にしている（Embed URL はキーが
+# 剥き出しになるので、社員に配るチャットには流さない。Embedは社内画面用）。
+
+_ROOT_FOR_MAPS = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+
+def _maps_api():
+    import sys
+    parent = os.path.dirname(_ROOT_FOR_MAPS)   # /Users/apple
+    if parent not in sys.path:
+        sys.path.insert(0, parent)
+    import google_maps_api
+    return google_maps_api
+
+
+def _public_urls(lat, lon):
+    """キーを含まない公開URL。チャットに貼っても資格情報が漏れない。"""
+    return {
+        "streetview_url": (
+            "https://www.google.com/maps/@?api=1&map_action=pano"
+            f"&viewpoint={lat},{lon}"
+        ),
+        "map_url": f"https://www.google.com/maps/search/?api=1&query={lat},{lon}",
+    }
+
+
+def streetview_available(address=None, lat=None, lon=None, property=None, radius=50):
+    """その地点にストリートビューがあるか／撮影がいつかを調べる（無料のmetadata）。
+
+    リンクを渡す前にこれで確かめると、**開いても何も映らないリンクを送らずに済む**。
+    戻り: あり → pano_id・撮影年月（"2021-08"）・実際のパノラマ位置、なし → ok=False。
+    """
+    point, err = _resolve_point(address=address, lat=lat, lon=lon, property=property)
+    if err:
+        return {"ok": False, "error": err}
+    gm = _maps_api()
+    if not gm.server_key():
+        return {"ok": False, "error": "GOOGLE_MAPS_SERVER_KEY が未設定です（直下 .env.google-maps）",
+                "point": point}
+    meta = gm.streetview_metadata(point["lat"], point["lon"], radius=int(radius))
+    if not meta:
+        return {"ok": False, "label": point["label"], "point": point,
+                "error": "この地点にストリートビューはありません（半径 %dm）" % int(radius),
+                "hint": "半径を広げるか、前面道路側の座標で引き直す"}
+    return {
+        "ok": True,
+        "label": point["label"],
+        "requested": {"lat": point["lat"], "lon": point["lon"]},
+        "panorama": {"lat": meta.get("lat"), "lon": meta.get("lon")},
+        "captured": meta.get("date"),
+        "pano_id": meta.get("pano_id"),
+        **_public_urls(meta.get("lat") or point["lat"], meta.get("lon") or point["lon"]),
+        "source": "Google Street View Static API (metadata・無料)",
+    }
+
+
+def streetview_link(address=None, lat=None, lon=None, property=None):
+    """現地のストリートビューを**人が開いて見る**ためのリンクを作って返す。
+
+    「○○の外観を見たい」「現地の様子を確認したい」ときに、このURLをそのまま伝える。
+    あるかどうかと撮影年月も一緒に確かめる（無ければその旨と地図リンクだけ返す）。
+
+    ⚠️ SV画像をこちらで取得してAIに読ませることはしない（Maps規約 3.2.3(c)(vii)）。
+       印刷・チラシへの掲載も不可。**画面で見るのは可**。
+    """
+    point, err = _resolve_point(address=address, lat=lat, lon=lon, property=property)
+    if err:
+        return {"ok": False, "error": err}
+    got = streetview_available(lat=point["lat"], lon=point["lon"], property=None)
+    urls = _public_urls(point["lat"], point["lon"])
+    if got.get("ok"):
+        return {
+            "ok": True, "label": point["label"],
+            "streetview_url": got["streetview_url"], "map_url": got["map_url"],
+            "captured": got.get("captured"),
+            "note": "ブラウザで開いて見てください（撮影 %s）。印刷・チラシへの掲載は規約上できません。"
+                    % (got.get("captured") or "時期不明"),
+        }
+    return {
+        "ok": True, "label": point["label"], "streetview": False,
+        "map_url": urls["map_url"],
+        "note": "この地点にストリートビューはありませんでした。地図のリンクだけ返します。",
+        "detail": got.get("error"),
+    }

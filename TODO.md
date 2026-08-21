@@ -17,9 +17,12 @@
 > 2. TASK-20260819-003（QAのTODO一覧回答を定時確認と同じ担当者グループ化に統一）
 > 3. **LINE無反応の再発防止**（失敗の握りつぶし修正・Chatworkへフォールバック通知・残通数の日次見張り）
 > 4. **業務日報**（毎日18:30の自動処理。**サブPCに worker は常駐していないのでメインPCでしか動かない**）
-> 5. **AIのToolを2系統ぶん追加**（法令の現行条文＝e-Gov／郵便番号と住所の照合＝日本郵便）。
->    法令のほうはキー不要でそのまま動くが、**郵便番号のほうは `.env.japanpost` がメインPCに無い**
->    （8/19以降に取得した資格情報。`./secrets-sync.sh` で運ぶ対象＝**受け渡しが要る**）
+> 5. **AIのToolを3系統ぶん追加**（法令の現行条文＝e-Gov／郵便番号と住所の照合＝日本郵便／
+>    ストリートビューのリンク＝Google Maps）。法令はキー不要で動くが、**郵便番号と
+>    ストリートビューは資格情報が要る** → 上の **A-2** で受け取ってから再起動する。
+>    ストリートビューは**リンクを返すだけ**（SV画像をAIに読ませない・印刷しないという規約の線引きは
+>    `chatwork-ai-manager/README.md` に書いた）。`{"property":"○○"}` の形は物件マスタDBが
+>    サブPCに無くて試せていないので、**メインPCで一度確認すること**
 >
 > `services/line_client.py` は worker と line_webhook の**両方**が読むので、片方だけの再起動では不足。
 >
@@ -30,6 +33,27 @@
 > launchctl kickstart -k gui/$(id -u)/com.shinsei.maisoku-converter
 > lsof -nP -iTCP:8505 -sTCP:LISTEN   # *:8505 で待ち受けていること
 > ```
+>
+> ### A-2. APIの資格情報を受け取る（**Dropboxに置いた。受け取ったら消す**）
+>
+> **2026-08-19以降に取った API キーがメインPCに1つも渡っていない。** 24件を書き出した:
+>
+> ```
+> Dropbox-個人/apps-secrets-handoff/apps-secrets-MacBookAir.tar   （992K・33項目・2026-08-21 21:18）
+> ```
+>
+> ```bash
+> cd ~ && ./secrets-sync.sh check     # 何が無いかを見る
+> ./secrets-sync.sh import            # 取り込む（既にある物は上書きしない）
+> ```
+>
+> **この tar で新しく渡るもの**: `.env.google-maps`（Web/Server/**Embed** の3キー）／
+> `.env.japanpost`（本番）／`.env.estat`／`.env.appstore` ＋ `.appstore/AuthKey_*.p8`（**再発行不可**）／
+> `mail-archiver/.env.mail-archiver`。ほかに既存の19件も入っている（上書きされない）。
+>
+> **★受け取りを確認したら、`apps-secrets-handoff/` を置き場ごと消すこと**（機密を同期フォルダに
+> 置きっぱなしにしない決まり）。消す前に `./secrets-sync.sh check` で「無い 0件」を確かめる。
+> なお 8/19 に書き出したまま残っていた古い tar は、**今回のものが完全な上位互換だったので削除した**。
 >
 > ### B. 人の手が要る設定（コードでは解決しない）
 >

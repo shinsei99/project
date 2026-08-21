@@ -203,6 +203,20 @@ REGISTRY = {
         "usage": 'streetview_lookup {"address":"大阪市都島区中野町1-4-18","question":"1階の店舗名は？"} '
                  'または {"property":"メゾンドール都島"} や {"lat":34.69,"lon":135.52}',
     },
+    "streetview_link": {
+        "func": streetview_tools.streetview_link,
+        "desc": "現地のストリートビューを**人が開いて見る**ためのリンクを返す（住所/物件名/緯度経度）。"
+                "「外観を見たい」「現地の様子を確認したい」に使う。撮影年月も一緒に返し、"
+                "SVが無い地点なら地図リンクだけ返す。URLにキーは含まないのでそのまま貼ってよい。"
+                "⚠️ SV画像をAIに読ませたり、印刷・チラシに載せることは規約上できない（画面で見るのは可）",
+        "usage": 'streetview_link {"property":"メゾンドール都島"} または {"address":"大阪市都島区中野町1-4-18"}',
+    },
+    "streetview_available": {
+        "func": streetview_tools.streetview_available,
+        "desc": "その地点にストリートビューがあるか・撮影がいつかだけを調べる（無料のmetadata）。"
+                "リンクを送る前の確認や、「この写真いつのもの？」に答えるときに使う",
+        "usage": 'streetview_available {"address":"大阪市都島区中野町1-4-18","radius":50}',
+    },
     "chatwork_send_web_image": {
         "func": web_image_tools.chatwork_send_web_image,
         "desc": "streetview_lookup等でネットから取得した画像（image_token）をChatworkへ添付送信する。"

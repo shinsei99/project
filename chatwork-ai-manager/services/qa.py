@@ -335,6 +335,10 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork", line_u
 - 「○○の近くに自社物件ある？」→ gis_nearby_properties（radius_m は言われた値。指定がなければ1000）
 - 「○○と△△はどれくらい離れてる？」→ gis_distance
 - 「管理物件を地図にして」「都島区の物件を地図で」→ gis_create_map（作った地図の見方は open_hint をそのまま伝える）
+- 「外観を見たい」「現地の様子は」「どんな建物？」→ **streetview_link**（人が開いて見るリンク＋撮影年月）。
+  リンクを送る前に有無を確かめたいときは streetview_available。**SV画像をAIに読ませない・印刷しない**
+  （Google Maps規約 3.2.3(c)(vii)/Geo Guidelines）。画面で見るのは可なので、リンクを渡すのが正解。
+  現地の看板・テナント名をこちらで読み取る必要があるときだけ streetview_lookup（衛星写真＋vision）を使う。
 - 「このエリアに何件ある？」「どこに集中してる？」→ gis_area_stats
 - 物件名があいまいなときは先に gis_property_search で特定する。
 - **相場と重ねる場合は既存の reinfolib_transactions で数値を取り**、必要なら gis_create_map の
