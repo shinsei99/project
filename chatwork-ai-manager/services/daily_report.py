@@ -256,15 +256,18 @@ def delete(date_str: str, person: str):
 
 
 def to_markdown(date_str: str, rows=None) -> str:
-    """1日分をまとめた Markdown（ファイル書き出し用）。"""
+    """1日分をまとめた Markdown（ファイル書き出し用）。
+
+    本文の見出しは `##` で保存されているので、氏名の下にぶら下がるよう `###` に落とす。
+    """
+    from services import daily_report_export as EX
     rows = list_for_date(date_str) if rows is None else rows
-    out = [f"# 業務日報 {date_str}", ""]
+    out = [f"# 業務日報 {EX.date_label(date_str)}", ""]
     for r in rows:
-        s = json.loads(r["stats"] or "{}")
-        out += [f"## {r['person']}", "",
-                f"> {r['summary'] or ''}", "",
-                r["body"], "",
-                f"<!-- 発言{s.get('messages_own', 0)}件 / "
-                f"TODO動き{s.get('tasks_moved', 0)}件 / 未完了{s.get('tasks_open', 0)}件 -->",
-                "", "---", ""]
+        body = re.sub(r"^##(?=\s)", "###", r["body"] or "", flags=re.MULTILINE)
+        out += [f"## {r['person']} さん", "",
+                f"**要約:** {r['summary'] or '-'}", "",
+                body, "",
+                f"_{EX.stats_label(r)}_", "",
+                "---", ""]
     return "\n".join(out)

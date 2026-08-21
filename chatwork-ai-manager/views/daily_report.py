@@ -5,12 +5,24 @@ Chatwork へは**この画面からは送らない**。送るときは「承認�
 """
 import datetime
 import json
+import os
+import tempfile
 
 import streamlit as st
 
 from services import daily_report as DR
+from services import daily_report_export as EX
 from services import outbox
 from services.chatwork import mention
+
+
+def _built(builder, date_str: str, rows, ext: str) -> bytes:
+    """docx/xlsx はファイルにしか書けないので、一時ファイル経由でバイト列にする。"""
+    with tempfile.TemporaryDirectory() as d:
+        path = os.path.join(d, f"report.{ext}")
+        builder(date_str, rows, path)
+        with open(path, "rb") as f:
+            return f.read()
 
 
 def _local(ts: str) -> str:
@@ -77,8 +89,22 @@ def render():
         return
 
     st.divider()
-    st.download_button("⬇ 1日分をMarkdownで保存", DR.to_markdown(date_str, rows),
-                       file_name=f"日報_{date_str}.md", mime="text/markdown")
+    st.markdown("**書き出し（1日分まとめて）**")
+    d1, d2, d3 = st.columns(3)
+    d1.download_button("📄 Word（.docx）", _built(EX.build_docx, date_str, rows, "docx"),
+                       file_name=f"業務日報_{date_str}.docx",
+                       mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                       help="1人1ページ。そのまま印刷・回覧できる形")
+    d2.download_button("📊 Excel（.xlsx）", _built(EX.build_xlsx, date_str, rows, "xlsx"),
+                       file_name=f"業務日報_{date_str}.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                       help="先頭に一覧シート＋1人1シート")
+    d3.download_button("⬇ Markdown（.md）", DR.to_markdown(date_str, rows),
+                       file_name=f"業務日報_{date_str}.md", mime="text/markdown")
+
+    st.checkbox("Chatwork投稿に「気づき・注意点（AI所見）」も含める", key="dr_opinion",
+                help="既定は含めません。所見は上長向けの指摘（フォロー漏れ等）を含むためです。"
+                     "Word/Excel/Markdown には常に入ります。")
 
     for r in rows:
         with st.expander(f"**{r['person']}** — {r['summary'] or '(要約なし)'}", expanded=True):
@@ -95,13 +121,14 @@ def render():
                 except Exception as e:
                     st.error(f"{type(e).__name__}: {e}")
             if col[1].button("📤 Chatworkへ（承認待ちに積む）", key=f"ob_{r['id']}"):
-                _enqueue(r, date_str, by_name.get(r["person"], {}))
+                _enqueue(r, date_str, by_name.get(r["person"], {}),
+                         include_opinion=st.session_state.get("dr_opinion", False))
             if col[2].button("🗑 削除", key=f"del_{r['id']}"):
                 DR.delete(date_str, r["person"])
                 st.rerun()
 
 
-def _enqueue(row, date_str, person):
+def _enqueue(row, date_str, person, include_opinion=False):
     """outbox に pending で積むだけ。実送信は「投稿承認」画面で人が行う。"""
     room_id = person.get("room_id")
     if not room_id:
@@ -109,7 +136,7 @@ def _enqueue(row, date_str, person):
         return
     aid = person.get("account_id")
     to = mention(aid, row["person"]) if aid else ""
-    body = f"{to}\n📝 業務日報（{date_str}・AI作成のたたき台）\n\n{row['body']}"
+    body = f"{to}\n{EX.chatwork_body(row, date_str, include_opinion=include_opinion)}"
     ob_id = outbox.enqueue(room_id, body, kind="daily_report",
                            reason=f"{date_str} の業務日報",
                            to_account_ids=str(aid) if aid else None,
