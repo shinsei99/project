@@ -83,7 +83,10 @@ def render():
             bar.progress((i + 1) / len(targets))
         st.rerun()
 
+    # 並び順は「対象者」で選んだ順（既定は 塚本・松本・森）。書き出しもこの順になる。
+    rank = {n: i for i, n in enumerate(targets)}
     rows = [r for r in DR.list_for_date(date_str) if not targets or r["person"] in targets]
+    rows.sort(key=lambda r: rank.get(r["person"], 999))
     if not rows:
         st.info("この日の日報はまだありません。上のボタンで作成してください。")
         return
@@ -98,13 +101,9 @@ def render():
     d2.download_button("📊 Excel（.xlsx）", _built(EX.build_xlsx, date_str, rows, "xlsx"),
                        file_name=f"業務日報_{date_str}.xlsx",
                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                       help="先頭に一覧シート＋1人1シート")
+                       help="1シートに全員分。対象者で選んだ順に並ぶ")
     d3.download_button("⬇ Markdown（.md）", DR.to_markdown(date_str, rows),
                        file_name=f"業務日報_{date_str}.md", mime="text/markdown")
-
-    st.checkbox("Chatwork投稿に「気づき・注意点（AI所見）」も含める", key="dr_opinion",
-                help="既定は含めません。所見は上長向けの指摘（フォロー漏れ等）を含むためです。"
-                     "Word/Excel/Markdown には常に入ります。")
 
     for r in rows:
         with st.expander(f"**{r['person']}** — {r['summary'] or '(要約なし)'}", expanded=True):
@@ -121,8 +120,7 @@ def render():
                 except Exception as e:
                     st.error(f"{type(e).__name__}: {e}")
             if col[1].button("📤 Chatworkへ（承認待ちに積む）", key=f"ob_{r['id']}"):
-                _enqueue(r, date_str, by_name.get(r["person"], {}),
-                         include_opinion=st.session_state.get("dr_opinion", False))
+                _enqueue(r, date_str, by_name.get(r["person"], {}))
             if col[2].button("🗑 削除", key=f"del_{r['id']}"):
                 DR.delete(date_str, r["person"])
                 st.rerun()

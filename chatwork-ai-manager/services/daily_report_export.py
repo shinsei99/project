@@ -153,64 +153,52 @@ def build_docx(date_str: str, rows, path: str) -> str:
 
 # ---- Excel -------------------------------------------------------------------
 def build_xlsx(date_str: str, rows, path: str) -> str:
-    """1人1シート＋先頭に一覧シートの Excel 日報を書き出す。"""
+    """1シートに全員分を縦に並べた Excel 日報（渡された rows の順に並べる）。"""
     from openpyxl import Workbook
     from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
-    from openpyxl.utils import get_column_letter
 
     thin = Side(style="thin", color="AAAAAA")
     box = Border(left=thin, right=thin, top=thin, bottom=thin)
     head_fill = PatternFill("solid", fgColor="E8EEF7")
+    name_fill = PatternFill("solid", fgColor="D6E1F2")
     title_font = Font(name="游ゴシック", size=16, bold=True)
+    name_font = Font(name="游ゴシック", size=12, bold=True)
     label_font = Font(name="游ゴシック", size=10, bold=True)
     body_font = Font(name="游ゴシック", size=10)
     note_font = Font(name="游ゴシック", size=8, color="808080")
 
     wb = Workbook()
-    idx = wb.active
-    idx.title = "一覧"
-    idx.append(["日付", "氏名", "要約", "発言数", "動いたTODO", "完了TODO", "未完了TODO"])
-    for c in idx[1]:
-        c.font = label_font
-        c.fill = head_fill
-        c.border = box
-        c.alignment = Alignment(horizontal="center", vertical="center")
+    ws = wb.active
+    ws.title = f"業務日報{date_str[5:].replace('-', '')}"
+    ws.column_dimensions["A"].width = 22
+    ws.column_dimensions["B"].width = 74
+
+    ws["A1"] = "業務日報"
+    ws["A1"].font = title_font
+    ws.merge_cells("A1:B1")
+    ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[1].height = 28
+    ws["A2"] = "日付"
+    ws["A2"].font = label_font
+    ws["A2"].fill = head_fill
+    ws["B2"] = date_label(date_str)
+    ws["B2"].font = body_font
+    for c in ("A2", "B2"):
+        ws[c].border = box
+        ws[c].alignment = Alignment(vertical="center")
+
+    r = 4
     for row in rows:
-        s = stats_of(row)
-        idx.append([date_str, row["person"], row["summary"] or "",
-                    s.get("messages_own", 0), s.get("tasks_moved", 0),
-                    s.get("tasks_done_today", 0), s.get("tasks_open", 0)])
-    for col, w in zip("ABCDEFG", (12, 12, 52, 9, 12, 11, 12)):
-        idx.column_dimensions[col].width = w
-    for r in idx.iter_rows(min_row=2):
-        for c in r:
-            c.font = body_font
-            c.border = box
-            c.alignment = Alignment(vertical="center", wrap_text=(c.column == 3))
-
-    for row in rows:
-        ws = wb.create_sheet(title=str(row["person"])[:28])
-        ws.column_dimensions["A"].width = 22
-        ws.column_dimensions["B"].width = 74
-        ws["A1"] = "業務日報"
-        ws["A1"].font = title_font
-        ws.merge_cells("A1:B1")
-        ws["A1"].alignment = Alignment(horizontal="center", vertical="center")
-        ws.row_dimensions[1].height = 28
-
-        r = 3
-        for label, value in (("日付", date_label(date_str)),
-                             ("氏名", f"{row['person']} さん"),
-                             ("要約", row["summary"] or "-")):
-            ws.cell(r, 1, label).font = label_font
-            ws.cell(r, 1).fill = head_fill
-            ws.cell(r, 2, value).font = body_font
-            for c in (1, 2):
-                ws.cell(r, c).border = box
-                ws.cell(r, c).alignment = Alignment(vertical="center", wrap_text=True)
-            r += 1
-
+        ws.cell(r, 1, f"{row['person']} さん")
+        ws.cell(r, 1).font = name_font
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=2)
+        for c in (1, 2):
+            ws.cell(r, c).fill = name_fill
+            ws.cell(r, c).border = box
+        ws.cell(r, 1).alignment = Alignment(vertical="center")
+        ws.row_dimensions[r].height = 22
         r += 1
+
         for heading, lines in parse_sections(row["body"]):
             ws.cell(r, 1, heading).font = label_font
             ws.cell(r, 1).fill = head_fill
@@ -224,15 +212,13 @@ def build_xlsx(date_str: str, rows, path: str) -> str:
             n = sum(max(1, -(-len(ln) // 37)) for ln in (lines or ["特になし"]))
             ws.row_dimensions[r].height = max(18, min(400, n * 14 + 4))
             r += 1
+        r += 1   # 人と人のあいだを1行あける
 
-        r += 1
-        ws.cell(r, 1, stats_label(row)).font = note_font
-        ws.cell(r + 1, 1, "※ Chatworkの会話からAIが作成した草案です。事実と違う点は直してください。").font = note_font
-        ws.sheet_view.showGridLines = False
-        ws.print_options.horizontalCentered = True
-        ws.page_setup.orientation = "portrait"
-        ws.page_setup.fitToWidth = 1
-        ws.sheet_properties.pageSetUpPr.fitToPage = True
-
+    ws.cell(r, 1, "※ Chatworkの会話からAIが作成した草案です。事実と違う点は直してください。").font = note_font
+    ws.sheet_view.showGridLines = False
+    ws.print_options.horizontalCentered = True
+    ws.page_setup.orientation = "portrait"
+    ws.page_setup.fitToWidth = 1
+    ws.sheet_properties.pageSetUpPr.fitToPage = True
     wb.save(path)
     return path
