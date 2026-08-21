@@ -383,3 +383,12 @@ CREATE TABLE IF NOT EXISTS daily_reports (
     UNIQUE(report_date, person)
 );
 CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date);
+
+-- 会社の休業日（年間休暇スケジュールExcelのオレンジ塗り＝休み）を写したもの。
+-- 元ファイルは Google Drive 上にあり launchd からは読めないことがあるため、DBに持つ。
+CREATE TABLE IF NOT EXISTS holidays (
+    holiday_date TEXT PRIMARY KEY,           -- 'YYYY-MM-DD'
+    note         TEXT,
+    source       TEXT,
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+);

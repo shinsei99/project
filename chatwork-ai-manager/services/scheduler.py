@@ -421,10 +421,19 @@ def run_daily_report(client, now=None):
     from services import daily_report as DR
     from services import daily_report_export as EX
 
+    from services import holidays
+
     now = now or datetime.datetime.now()
     today = now.date().isoformat()
     if not _claim(DAILY_REPORT_JOB, today):
         return {"job": DAILY_REPORT_JOB, "claimed": False}
+
+    # 会社の休業日（年間休暇スケジュールのオレンジ）は日報を作らない。
+    # claim 済みなので、この日はもう走らない（夕方じゅう再試行しない）。
+    if holidays.is_holiday(today):
+        res = {"date": today, "skipped": "休業日"}
+        _finish(DAILY_REPORT_JOB, today, res)
+        return {"job": DAILY_REPORT_JOB, "claimed": True, **res}
 
     result = {"date": today, "people": [], "errors": [], "saved": [], "uploaded": None}
 
@@ -453,22 +462,20 @@ def run_daily_report(client, now=None):
 
     # 3) ファイルを作る（保管先が使えなくても、アップ用に一時ファイルは必ず作る）
     import tempfile
+    # ★Excel だけ作る（オーナー指示 2026-08-21）。Word は画面から手で出せる。
     tmpdir = tempfile.mkdtemp(prefix="daily_report_")
     xlsx = os.path.join(tmpdir, f"業務日報_{today}.xlsx")
-    docx = os.path.join(tmpdir, f"業務日報_{today}.docx")
     EX.build_xlsx(today, rows, xlsx)
-    EX.build_docx(today, rows, docx)
 
     # 4) Dropbox の共有フォルダへ保管
     save_dir = settings.get_setting("daily_report_save_dir", "") or ""
     if save_dir:
         try:
             os.makedirs(save_dir, exist_ok=True)
-            for src in (xlsx, docx):
-                dst = os.path.join(save_dir, os.path.basename(src))
-                with open(src, "rb") as f, open(dst, "wb") as g:
-                    g.write(f.read())
-                result["saved"].append(dst)
+            dst = os.path.join(save_dir, os.path.basename(xlsx))
+            with open(xlsx, "rb") as f, open(dst, "wb") as g:
+                g.write(f.read())
+            result["saved"].append(dst)
         except OSError as e:
             # launchd は CloudStorage を読めない（/bin/bash にフルディスクアクセスが要る）
             result["errors"].append(f"保管失敗: {type(e).__name__}: {e}")

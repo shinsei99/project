@@ -35,6 +35,10 @@ DEFAULT_SETTINGS = {
     "daily_report_upload": "1",              # 1でChatworkへ自動アップ（post_modeは見ない）
     "daily_report_save_dir": ("/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/"
                               "共有フォルダ/（★必読★）新共有フォルダ/社内・総務/業務日報"),
+    # 会社の休業日（年間休暇スケジュール。オレンジ＝休み）。この日は日報を作らない
+    "holiday_schedule_path": ("/Users/apple/Library/CloudStorage/GoogleDrive-daikyocorp.s@gmail.com/"
+                              "その他のパソコン/マイ Mac mini/Desktop/ルーティーン/"
+                              "年間休暇スケジュール2026.xlsx"),
     # 日次ナレッジ増分リフレッシュ（Stage 5）
     "knowledge_refresh_enabled": "1",
     "knowledge_refresh_time": "07:00",
