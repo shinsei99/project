@@ -75,9 +75,12 @@ cd ~/chatwork-ai-manager
 
 ### 7. 人にしかできない残り
 
-- **業務日報のメール送信用に `smtp_password` を入れる**（`shin@daikyocorp.co.jp` のパスワード）。
-  ホスト・ポート・暗号化は実測済みで `secrets.toml.example` に書いてある。入れたら
-  画面の「📝 業務日報」→「⏰ 18:30 の自動処理」→ **✉️ テスト送信** で1通試す
+- **業務日報のメール送信用に、メインPCでもキーチェーンにパスワードを入れる**（1行で済む）:
+  `security add-generic-password -s chatwork-ai-manager-smtp -a shin@daikyocorp.co.jp -w`
+  そのうえで `.streamlit/secrets.toml` に `smtp_host` / `smtp_port` / `smtp_user` /
+  `smtp_password_keychain` / `smtp_from` の5行を足す（`secrets.toml.example` からコピー）。
+  **サブPCでは送信まで実測済み**なので、メインPCは同じ設定を入れるだけ。
+  入れたら画面の「📝 業務日報」→「⏰ 18:30 の自動処理」→ **✉️ テスト送信** で1通試す
 - **LINE のライトプラン（月5,000通・¥5,000税別）への変更**。無料枠200通は**実測1日約50通で4日で枯れる**。
   未実施ならLINEは無反応のまま（Chatworkは正常）。**Safariでは支払い画面に進めない**ので別ブラウザで
 - **業務日報の初回の自動処理を、人が見ている時間に見届ける**（18:30）。
@@ -385,6 +388,17 @@ security add-generic-password -s chatwork-ai-manager-smtp -a shin@daikyocorp.co.
 
 **パスワードが未設定のうちは送らず、「SMTPの設定が足りない」を日報の結果に記録して
 管理者へ通知する**（黙って送らないことがないようにしている）。
+
+#### 実測（2026-08-21・サブPCで確認）
+
+| 確かめたこと | 結果 |
+|---|---|
+| SMTP認証（STARTTLS＋AUTH LOGIN） | **成功**。ユーザー名は `shin@daikyocorp.co.jp` でそのまま通る |
+| 実際の送信（8/21の日報Excelを添付・自分宛） | **成功**（9.6KB・添付 `業務日報_2026-08-21.xlsx` 6KB） |
+| パスワードの置き場 | **キーチェーン**（`chatwork-ai-manager-smtp`）。secrets.toml は参照名だけ |
+
+**`info@daikyocorp.co.jp` へは、まだ1通も送っていない**（本番の宛先に試し打ちしないため）。
+18:30 の自動処理が動けば、そこから初めて info@ 宛に出る。
 
 #### 確認のしかた
 

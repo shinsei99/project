@@ -60,10 +60,13 @@
 >
 > ### B. 人の手が要る設定（コードでは解決しない）
 >
-> - **業務日報のメール送信用に `smtp_password` を入れる**（`chatwork-ai-manager/.streamlit/secrets.toml`）。
+> - **業務日報のメール送信の設定をメインPCにも入れる**（`chatwork-ai-manager/.streamlit/secrets.toml` ＋ キーチェーン）。
 >   18:30 に Chatwork へのアップと併せて **`info@daikyocorp.co.jp` へExcelを添付して送る**機能を
 >   2026-08-21 に追加した。**ホスト・ポート・暗号化は実測で確定済み**（`smtp.daikyocorp.co.jp` /
->   **587のみ** / STARTTLS / 上限30MB）。**パスワードだけ人が入れる**。入れるまでは送らず、
+>   **587のみ** / STARTTLS / 上限30MB）。**サブPCで認証・実送信まで確認済み**（2026-08-21・自分宛）。
+>   メインPCは同じ設定を入れるだけ: キーチェーン1行
+>   （`security add-generic-password -s chatwork-ai-manager-smtp -a shin@daikyocorp.co.jp -w`）＋
+>   `secrets.toml` に5行（`secrets.toml.example` からコピー）。入れるまでは送らず、
 >   「設定が足りない」を日報の結果に記録して管理者へ通知する（黙って止まらない）
 > - **`/bin/bash` にフルディスクアクセス**（システム設定＞プライバシーとセキュリティ）。
 >   launchd 常駐は CloudStorage を読み書きできず、日報の保管先 Dropbox『社内・総務/業務日報』と
