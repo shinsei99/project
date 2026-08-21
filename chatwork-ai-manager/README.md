@@ -7,6 +7,78 @@ Claude Code 型の**エージェント**（自分で複数ツールを反復実�
 
 > 運用ルール・アーキテクチャ詳細は `CLAUDE.md`、計画は `TODO.md`、作業履歴は `SESSION_LOG.md` を参照。
 
+## ★ メインPCで最初にやること（2026-08-21 サブPCより・上から順に）
+
+**メインPCは 2026-08-19 から触っていない。以降サブPCで 8/20・8/21 の2日ぶんが入っており、
+本番の worker は 8/19 09:00 起動のまま＝3日ぶんの修正が1つも効いていない。**
+（`SESSION_LOG.md` と `TODO.md` は識別子を含むため gitignore＝メインPCには届かない。だからここに書く）
+
+### 1. コードを取る
+
+```bash
+cd ~/chatwork-ai-manager && git pull
+```
+
+### 2. APIの資格情報を受け取る（**これを先にしないと新しいToolが動かない**）
+
+8/19以降に取ったキーがメインPCに1件も無い。個人Dropboxに置いてある。
+
+```bash
+cd ~ && ./secrets-sync.sh check     # 何が無いかを見る
+./secrets-sync.sh import            # Dropbox-個人/apps-secrets-handoff から取り込む
+```
+
+要るのは **`.env.google-maps`**（ストリートビュー）と **`.env.japanpost`**（郵便番号）。
+**受け取りを確認したら `apps-secrets-handoff/` を置き場ごと消す**（機密を同期フォルダに残さない）。
+
+### 3. `/bin/bash` にフルディスクアクセスを与える（システム設定＞プライバシーとセキュリティ）
+
+launchd の常駐は CloudStorage を読み書きできない。無いと**業務日報が保管も休業日判定もできない**:
+保管先 Dropbox『共有フォルダ/（★必読★）新共有フォルダ/社内・総務/業務日報』／
+休暇スケジュール GoogleDrive『…/ルーティーン/年間休暇スケジュール2026.xlsx』。
+（`shorui-cabinet` 8528 で同じ対処を実施済み）
+
+### 4. 常駐を入れ替える
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-worker
+launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-line
+```
+
+**`services/line_client.py` は worker と line_webhook の両方が読む**ので、片方だけでは不足。
+ngrok（`-ngrok`）は触らなくてよい。
+
+### 5. これで本番に入るもの（8/19以降にサブPCで直したもの）
+
+| いつ | 中身 |
+|---|---|
+| 8/19 | TASK-20260819-002 … QAが未実行のTODO更新を「反映しました」と嘘をつく不具合の修正 |
+| 8/19 | TASK-20260819-003 … QAのTODO一覧回答を定時確認と同じ担当者グループ化＋アイコン整形に統一 |
+| 8/20 | **LINEが黙って止まらないようにした**（送信失敗の握りつぶしを修正／Chatworkへフォールバック通知／残通数の日次見張り／push呼び出し元のlabel記録） |
+| 8/21 | **業務日報**（会話とTODOから社員1人ずつの日報。管理画面の10画面目。**毎日18:30に自動作成→Dropbox保管→Chatworkへアップ**。休業日は作らない。**Chatworkへの自動投稿はしない**＝必ず人が承認） |
+| 8/21 | **法令Tool**（`law_article` / `law_find_articles` / `law_search`。e-Gov・キー不要） |
+| 8/21 | **郵便番号Tool**（`address_to_zip` / `zip_lookup`。要 `.env.japanpost`） |
+| 8/21 | **ストリートビューTool**（`streetview_link` / `streetview_available`。要 `.env.google-maps`） |
+
+### 6. 動いたか確かめる
+
+```bash
+cd ~/chatwork-ai-manager
+/usr/bin/python3 agent_tool.py law_article '{"law":"宅建業法","number":"35"}'       # キー不要
+/usr/bin/python3 agent_tool.py zip_lookup  '{"code":"5340024"}'                     # .env.japanpost
+/usr/bin/python3 agent_tool.py streetview_link '{"property":"メゾンドール都島"}'   # .env.google-maps
+```
+
+**3つ目はメインPCでしか試せない**（物件マスタDBは gitignore で、サブPCは0件のまま）。
+住所指定（`{"address":"…"}`）ではサブPCで動作を確認済み。
+
+### 7. 人にしかできない残り
+
+- **LINE のライトプラン（月5,000通・¥5,000税別）への変更**。無料枠200通は**実測1日約50通で4日で枯れる**。
+  未実施ならLINEは無反応のまま（Chatworkは正常）。**Safariでは支払い画面に進めない**ので別ブラウザで
+- **業務日報を一度、人が見ている時間に手で回す**。サブPCのDBは tasks が3件しか無く、
+  日報の「本日動いたTODO／未完了TODO」欄だけ実測できていない
+
 ## 必要環境
 - macOS / Python **`/usr/bin/python3`**（3.9系）。venv Python は使わない（claude subprocess が SIGSEGV するため）。
 - `claude` CLI（ログイン済み・MAX/Pro。Anthropic APIキー不要）。
