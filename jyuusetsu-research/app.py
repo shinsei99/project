@@ -15,7 +15,7 @@ from services import (
     address_service,
     comment_service,
     excel_export_service,
-    format_export_service,
+    format_catalog,
     facility_service,
     hazard_service,
     pdf_export_service,
@@ -132,15 +132,21 @@ def main():
     )
 
     with st.sidebar:
-        st.header("① 取引種別を選ぶ")
-        categories = format_export_service.list_categories()
-        category = st.selectbox("取引種別（カテゴリー）", options=categories)
-        formats = format_export_service.formats_in_category(category)
-        fmt_key = st.selectbox(
-            "書式",
-            options=list(formats.keys()),
-            format_func=lambda k: formats[k],
-        )
+        st.header("① 作る書類を選ぶ")
+        catalog_error = format_catalog.status_message()
+        if catalog_error:
+            st.error(catalog_error)
+            category, entry = None, None
+        else:
+            category = st.selectbox("書類の分類", options=format_catalog.categories())
+            entries = format_catalog.formats_in(category)
+            entry = st.selectbox(
+                "書式（全宅連 公式）",
+                options=entries,
+                format_func=format_catalog.label,
+            )
+            st.caption("{} 分類 / この分類に {} 本".format(
+                len(format_catalog.categories()), len(entries)))
 
         st.divider()
         st.header("② 物件情報を入力")
@@ -214,28 +220,43 @@ def main():
     st.write(comment)
     st.divider()
 
-    # ===== 実書式への流し込み =====
-    st.subheader("📥 実書式テンプレートへ流し込み")
-    st.markdown("選択中の書式：**{}**（{}）".format(formats[fmt_key], category))
-    st.caption(
-        "書式は左サイドバー①で変更できます。登記記録に基づき「所在地・地番・地目・地積・家屋番号・種類・"
-        "構造・床面積（書式により所有者）」を該当欄へ下書きします。"
-        "法令制限・災害・ライフライン等のチェック欄は判定値を持たないため既定のまま残します。"
-    )
-    try:
-        filled = format_export_service.export_to_format(
-            data, fmt_key, os.path.join(REPORTS_DIR, "{}_filled.xlsx".format(fmt_key))
+    # ===== 公式書式への流し込み =====
+    st.subheader("📥 公式書式へ流し込んで書類を作る")
+    if entry is None:
+        st.error(format_catalog.status_message() or "書式が選ばれていません。")
+    else:
+        st.markdown("選択中：**{}**（{}）".format(entry["name"], category))
+        got = format_catalog.filled_fields(entry, data)
+        st.caption(
+            "この書式に自動で入るのは {} 項目：{}".format(len(got), "・".join(got) or "（該当なし）")
         )
-        with open(filled, "rb") as f:
-            st.download_button(
-                "実書式（{}）をダウンロード".format(formats[fmt_key]),
-                f.read(),
-                file_name="{}_filled.xlsx".format(fmt_key),
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                use_container_width=True,
+        docs = format_catalog.document_sheets(entry)
+        if entry.get("fanout_count") and len(docs) > 1:
+            st.info(
+                "この書式は **重要事項説明書に入力すると他の書類へ自動転記される**作りです。"
+                "1ファイルで {} 書類が同時に仕上がります：{}".format(len(docs), " / ".join(docs))
             )
-    except Exception as e:
-        st.error("実書式への流し込みに失敗しました: {}".format(e))
+        st.caption(
+            "賃料・売買代金・手付金・引渡日などの取引条件は自動では入りません（どのデータにも無いため）。"
+            "選択欄やチェック欄も書式の既定のまま残します。最終確認は宅地建物取引士が行ってください。"
+        )
+        try:
+            out = format_catalog.generate(entry, data, os.path.join(REPORTS_DIR, "official"))
+            mime = (
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                if out.lower().endswith(".docx")
+                else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            with open(out, "rb") as f:
+                st.download_button(
+                    "「{}」をダウンロード".format(entry["name"]),
+                    f.read(),
+                    file_name=os.path.basename(out),
+                    mime=mime,
+                    use_container_width=True,
+                )
+        except Exception as e:
+            st.error("書式への流し込みに失敗しました: {}".format(e))
     st.divider()
 
     # ===== ダウンロード（汎用ドラフト） =====

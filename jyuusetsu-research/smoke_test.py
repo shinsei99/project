@@ -59,3 +59,22 @@ assert os.path.exists(out_pdf) and os.path.getsize(out_pdf) > 1000
 print("pdf bytes:", os.path.getsize(out_pdf))
 
 print("\nALL SMOKE TESTS PASSED")
+
+
+# 9) 公式書式カタログ（レジストリが無い環境では skip）
+from services import format_catalog  # noqa: E402
+
+msg = format_catalog.status_message()
+if msg:
+    print("[skip] 公式書式カタログ:", msg)
+else:
+    cats = format_catalog.categories()
+    assert cats, "分類が空"
+    total = sum(len(format_catalog.formats_in(c)) for c in cats)
+    assert total > 0, "書式が0本"
+    # 自動入力書式は「重説へ入れると他書式へ波及する」ものが必ずある
+    fanout = [f for c in cats for f in format_catalog.formats_in(c) if f.get("fanout_count")]
+    assert fanout, "波及する書式が見つからない（レジストリの作りが変わった可能性）"
+    print("[ok] 公式書式カタログ: %d分類 / %d本 / 波及型 %d本" % (len(cats), total, len(fanout)))
+
+print("smoke test: all assertions passed")
