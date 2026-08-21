@@ -8,6 +8,44 @@
 
 ---
 
+## 2026-08-22（サブPC・朝）— 9本目の外部公開を最後まで通した
+
+### 完了したこと
+
+- **Zenn `openpyxl-row-height-autofit` を公開**（08:2x）
+  → https://zenn.dev/shinsei99/articles/openpyxl-row-height-autofit
+  前夜に投稿上限で弾かれていた1本。**空コミットを push したら約30秒で反映**した
+  （前回は9分待って404だったので、上限に掛かっているかどうかは待ち時間で見分けられる）。
+- **note `moji-ga-kireteru` を公開**（08:29・サブPCから）
+  → https://note.com/shinsei99/n/na1ff4ed050f4
+  見出し画像はみんなのフォトギャラリーの「ルーラー」（Photo by r68929）。記事が
+  「たぶんこれくらい」をやめて実測した話なので、目盛りの画像を選んだ。
+- `content/works/excel-row-height.json` の `links` に Zenn / note を追記。
+  `npm run validate` の**転載⚠️は 0 件**になった（残る⚠️4件は tools の review 空欄で別件）。
+- `drafts/PUBLISH.md` の9本目の表を実績に更新。
+
+### 発生したエラーと解決策
+
+- **症状**: note の本文欄で `computer` の `cmd+v` を送っても貼り付かない（0文字のまま）。
+  **原因**: 拡張が送る合成キーイベントには**OSのクリップボードが載らない**。
+  **直し方**: `javascript_tool` で `DataTransfer` に `text/html` を入れた `ClipboardEvent('paste')`
+  を作り、`.ProseMirror` に `dispatchEvent` した。**見出し・箇条書き・リンクはそのまま入る**
+  （h2×4・ul×3・a×3 を数えて確認）。`md2html.py` の HTML は
+  `md2html.convert()` を import して取り出し、base64 で JS に渡した。
+- **前回「このPCからnoteへ自動投稿はできない」と書いたのは、条件付きで誤りだった。**
+  できなかったのは `~/.mcp.json` の **Playwright（`--isolated --headless`）**の話で、
+  **Claude in Chrome 拡張（＝普段のChromeのセッション）なら投稿できる**。8/22 に実証。
+  ログイン済みのプロファイルをそのまま使うので、ボット検知にも掛からなかった。
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **本体サイトの再デプロイが未実施**。`links` を追記したので
+  `npx vercel --prod --scope brain-dump` を叩くまで、`/works/excel-row-height` に
+  Zenn / note のリンクは出ない（Vercelはgit連携ではない）。
+- `drafts/README.md` の一覧表の ✅公開 印が古いままなのは前回から継続。
+
+---
+
 ## 2026-08-21（サブPC・夜）— 9本目「Excelの行の高さを実機で採寸した」を3媒体ぶん作成
 
 ### 完了したこと

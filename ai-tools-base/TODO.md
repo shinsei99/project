@@ -4,17 +4,17 @@
 
 ---
 
-## ▶ 「続きから」と言われたら、ここから（2026-08-21 22:30 更新）
+## ▶ 「続きから」と言われたら、ここから（2026-08-22 08:35 更新）
 
-**9本目「Excelの行の高さを実機で採寸した」が本体だけ公開済み。**
+**9本目「Excelの行の高さを実機で採寸した」は3媒体とも公開済み。**
+本体 https://ai-tools-base.vercel.app/works/excel-row-height ／
+Zenn https://zenn.dev/shinsei99/articles/openpyxl-row-height-autofit ／
+note https://note.com/shinsei99/n/na1ff4ed050f4
 
-1. **8/21 23:40 以降**に空コミットで再push → `./publish.sh status` で
-   `openpyxl-row-height-autofit` が ✅ になるまで確認（24時間の投稿上限で弾かれている）
-2. ✅になったら note を手貼り（`./publish.sh note moji-ga-kireteru` → ⌘V → 見出し画像 → 公開）
-3. 両方のURLを `content/works/excel-row-height.json` の `links` と `drafts/PUBLISH.md` に追記 →
-   **`npx vercel --prod --scope brain-dump`**（`--scope` 無しは `Not authorized` になる）
-
----
+1. **残っているのは本体サイトの再デプロイだけ**:
+   `npx vercel --prod --scope brain-dump`（`--scope` 無しは `Not authorized`）。
+   これを叩くまで作品ページに Zenn / note のリンクが出ない
+2. そのあとは `drafts/PUBLISH.md` の順番表どおり、10本目の題材選びへ
 
 ## （古い）2026-08-17 の「続きから」— 済んだので参考用に残す
 

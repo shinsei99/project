@@ -250,8 +250,8 @@ Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その
 | 媒体 | 原稿 | URL |
 |---|---|---|
 | 本体 | `content/works/excel-row-height.json` | ✅ https://ai-tools-base.vercel.app/works/excel-row-height （2026-08-21 22:1x・サブPC） |
-| Zenn | `zenn/openpyxl-row-height-autofit.md` | ⬜ **`articles/` へ複製して push 済み（2026-08-21 22:18）だが、9分待って404＝投稿数の上限で弾かれた。**8/21 23:40 以降に空コミットで再push |
-| note | `note/moji-ga-kireteru.md` | ⬜ 未公開（Zennの後に出す） |
+| Zenn | `zenn/openpyxl-row-height-autofit.md` | ✅ https://zenn.dev/shinsei99/articles/openpyxl-row-height-autofit （2026-08-22 08:2x・投稿上限が明けてから空コミットで再push。反映まで約30秒） |
+| note | `note/moji-ga-kireteru.md` | ✅ https://note.com/shinsei99/n/na1ff4ed050f4 （2026-08-22 08:29・見出し画像はみんなのフォトギャラリー「ルーラー」Photo by r68929） |
 
 - 素材は 2026-08-21 の日報Excel。**実機Excelに autofit させた採寸値は本記事作成時に取り直した**
   （`1=27.0 4=20.0 5=36.0 6=18.0`。1行=18pt・2行=36ptを再確認）

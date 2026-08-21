@@ -59,5 +59,16 @@
     }
   ],
   "featured": false,
-  "links": []
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/openpyxl-row-height-autofit",
+      "note": "実測の取り方と、旧式の式がどこでずれるかを数字で書いた版"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/na1ff4ed050f4",
+      "note": "「たぶんこれくらい」で書いた数字が、あとで跳ね返ってきた、という話"
+    }
+  ]
 }
