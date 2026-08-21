@@ -229,7 +229,7 @@ def build_xlsx(date_str: str, rows, path: str) -> str:
             for c in (1, 2):
                 ws.cell(r, c).border = box
                 ws.cell(r, c).alignment = Alignment(vertical="top", wrap_text=True)
-            # 折り返し行数から高さを出す。B列の幅は74なので、余白を見て 68 単位で折り返すとみなす。
+            # 折り返し行数から高さを出す。折り返しは B列の幅と同じ 74 単位で起きるとみなす。
             # （Excelは高さ未指定でも自動調整することがあるが、当てにすると文字が切れる）
             # 高さは Excel の自動調整の実測に合わせている（2026-08-21 に実機で採寸）:
             #   1行 = 18pt ／ 折り返しは B列の幅と同じ 74 単位（全角=2・半角=1）で起きる。
