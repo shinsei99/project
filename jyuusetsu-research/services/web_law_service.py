@@ -1,8 +1,15 @@
 # -*- coding: utf-8 -*-
 """自治体の都市計画情報（マップナビおおさか等）をWeb調査して法令制限を補完する。
 
-国交省APIで取れない 建ぺい率・容積率・防火地域・高度地区・日影規制 等を、
-claude CLI の WebSearch/WebFetch で自治体公式の都市計画情報から取得する。
+**不動産情報ライブラリ（XKT001〜007）には防火地域・高度地区のレイヤが無い**ことを
+2026-08-20 に実測で確認している。日影規制も同様に取れない。ここはAPIでは埋まらないので、
+claude CLI の WebSearch/WebFetch で自治体公式の都市計画情報から拾う。
+
+`legal-crosscheck` から取り込んだ（2026-08-21）。時間がかかる（最大300秒）ので
+画面では既定オフの任意機能にしてある。
+
+**subprocess の作法**: env をフィルタしない・`stdin=DEVNULL` にしない。
+どちらもやると claude CLI が動かない（このリポジトリで何度もはまっている）。
 """
 
 from __future__ import annotations
@@ -52,8 +59,10 @@ def research_web(address: str, use_district: str = "", city: str = "") -> dict:
   "備考": "確認に用いた自治体情報源の名称（例: マップナビおおさか）と注意点を一言"
 }}"""
 
+    # `--tools` は可変長引数。"WebSearch WebFetch" と1つの文字列で渡すと
+    # そんな名前のツールは無いので解決されない（元コードの書き方。2026-08-21 修正）。
     cmd = [CLAUDE_BIN, "-p", prompt, "--output-format", "json",
-           "--tools", "WebSearch WebFetch",
+           "--tools", "WebSearch", "WebFetch",
            "--dangerously-skip-permissions", "--model", "sonnet"]
     try:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=TIMEOUT)
@@ -103,3 +112,33 @@ def merge_into_admin(adm, web: dict):
     if web.get("備考"):
         adm.web_source = str(web["備考"]).strip()
     return adm
+
+
+# PropertyData のキー ← Web調査の戻り値のキー
+_PROPERTY_KEYS = {
+    "用途地域": "用途地域",
+    "建ぺい率": "建ぺい率",
+    "容積率": "容積率",
+    "防火地域": "防火地域",
+    "高度地区": "高度地区",
+}
+
+
+def merge_into_property(data: dict, web: dict) -> dict:
+    """Web調査結果を PropertyData に統合する（**空の項目だけ**埋める）。
+
+    APIで取れた値を上書きしない。行政APIのほうが一次情報に近いため。
+    """
+    for key, web_key in _PROPERTY_KEYS.items():
+        if str(data.get(key, "") or "").strip():
+            continue
+        value = str(web.get(web_key, "") or "").strip()
+        if not value:
+            continue
+        if key in ("建ぺい率", "容積率"):
+            num = _to_float(value)
+            if not num:
+                continue
+            value = "{:g}%".format(num)
+        data[key] = value
+    return data

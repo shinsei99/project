@@ -9,3 +9,4 @@ templates/jyuusetsu_template.xlsx
 .streamlit/secrets.toml
 reports/test/
 data/format_registry.json
+.playwright-mcp/

@@ -23,6 +23,7 @@ from services import (
     pdf_export_service,
     population_service,
     registry_service,
+    web_law_service,
     zoning_service,
 )
 from utils import formatter
@@ -41,7 +42,7 @@ REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 st.set_page_config(page_title="AI重説調査システム", page_icon="🏠", layout="wide")
 
 
-def run_pipeline(address, land_pdf, building_pdf):
+def run_pipeline(address, land_pdf, building_pdf, web_law=False):
     """入力 → 調査 → 整理 を実行し PropertyData と付随情報を返す。"""
     data = create_property_data()
     facilities = {}
@@ -67,6 +68,19 @@ def run_pipeline(address, land_pdf, building_pdf):
             merge(data, population_service.get_population(address, coords))
         else:
             st.warning("住所から位置を特定できませんでした。住所表記をご確認ください。")
+
+    # ①-b Web調査での補完（任意）。
+    # 防火地域・高度地区・日影規制は不動産情報ライブラリに該当レイヤが無いため、
+    # ここだけは自治体の都市計画情報をWebで見にいくしかない（実測で確認済み）。
+    if web_law and address:
+        with st.spinner("自治体の都市計画情報をWeb調査中（最大5分）..."):
+            try:
+                web = web_law_service.research_web(address, data.get("用途地域", ""))
+                web_law_service.merge_into_property(data, web)
+                if web.get("備考"):
+                    st.caption("Web調査の出典: {}".format(web["備考"]))
+            except Exception as e:
+                st.warning("Web調査に失敗したため、この項目は空欄のまま続けます: {}".format(e))
 
     # ② 登記簿 PDF 解析
     if land_pdf is not None or building_pdf is not None:
@@ -242,6 +256,13 @@ def main():
             "売主が宅建業者（業法40条・38条の制限を適用）", value=False
         )
 
+        web_law = st.checkbox(
+            "Web調査で法令制限を補完する（防火地域・高度地区・日影規制）",
+            value=False,
+            help="不動産情報ライブラリにこれらのレイヤが無いため、自治体の都市計画情報を "
+                 "claude CLI の WebSearch で調べます。最大5分かかります。",
+        )
+
         run = st.button("調査を実行", type="primary", use_container_width=True)
 
         st.divider()
@@ -262,7 +283,7 @@ def main():
         return
 
     data, facilities, hazard_url, coords, coords_source = run_pipeline(
-        address, land_pdf, building_pdf
+        address, land_pdf, building_pdf, web_law=web_law
     )
     comment = comment_service.generate_comment(data)
 
