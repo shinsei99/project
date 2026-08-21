@@ -364,3 +364,22 @@ CREATE TABLE IF NOT EXISTS dev_task_events (
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_dev_task_events ON dev_task_events(task_id, created_at);
+
+-- 業務日報（1日1人1本）。その日の会話＋TODOの動きから AI が生成する。
+-- UNIQUE(report_date, person) で作り直しても増えない（冪等）。
+CREATE TABLE IF NOT EXISTS daily_reports (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    report_date  TEXT NOT NULL,               -- 'YYYY-MM-DD'
+    person       TEXT NOT NULL,               -- 表示名（Chatworkの名前）
+    account_id   INTEGER,                     -- Chatwork account_id（不明なら NULL）
+    body         TEXT NOT NULL,               -- 日報本文（Markdown）
+    summary      TEXT,                        -- 1行要約
+    stats        TEXT,                        -- json（発言数/宛先/完了・進行中TODO数 …）
+    evidence     TEXT,                        -- json（根拠にした message_id の配列）
+    model        TEXT,
+    generated_by TEXT,                        -- manual / scheduled
+    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(report_date, person)
+);
+CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date);

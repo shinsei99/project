@@ -34,6 +34,7 @@ DEFAULT_SETTINGS = {
     "model_analyzer": "haiku",   # TODO抽出・進捗・完了判定（分類タスク）
     "model_scheduler": "haiku",  # 定時の催促文生成（定型）
     "model_qa": "sonnet",        # @Claude質問回答・エージェント（多段推論）
+    "model_daily_report": "sonnet",  # 業務日報の文章化（会話をまとめる）
     # ---- DEVELOPMENT Agent（アプリ開発。既存の業務TODOとは別系統）----
     "dev_agent_enabled": "1",           # 0 で開発タスクの実行を停止（受付は残る）
     "dev_model": "sonnet",              # 開発エージェントのモデル
