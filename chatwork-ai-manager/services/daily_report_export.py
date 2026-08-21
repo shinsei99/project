@@ -58,7 +58,6 @@ def chatwork_body(row, date_str: str, include_opinion: bool = False) -> str:
         out.append(f"【{heading}】")
         out += [f"・{ln}" for ln in lines] or ["・特になし"]
         out.append("")
-    out.append("※ Chatworkの会話からAIが作成した草案です。事実と違う点は直してください。")
     return "\n".join(out).strip()
 
 
@@ -114,7 +113,7 @@ def build_docx(date_str: str, rows, path: str) -> str:
         t.autofit = False          # 人によって表の幅が変わらないよう固定する
         _table_borders(t)
         for (col, label, value) in ((0, "日　付", date_label(date_str)),
-                                    (2, "氏　名", f"{row['person']} さん")):
+                                    (2, "氏　名", str(row["person"]))):
             _set_font(t.cell(0, col).paragraphs[0].add_run(label), size=10, bold=True)
             _set_font(t.cell(0, col + 1).paragraphs[0].add_run(value), size=10)
         _set_font(t.cell(1, 0).paragraphs[0].add_run("要　約"), size=10, bold=True)
@@ -142,10 +141,6 @@ def build_docx(date_str: str, rows, path: str) -> str:
         r = fp.add_run(stats_label(row))
         _set_font(r, size=8)
         r.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
-        fp2 = doc.add_paragraph()
-        r2 = fp2.add_run("※ Chatworkの会話からAIが作成した草案です。事実と違う点は直してください。")
-        _set_font(r2, size=8)
-        r2.font.color.rgb = RGBColor(0x80, 0x80, 0x80)
 
     doc.save(path)
     return path
@@ -165,7 +160,6 @@ def build_xlsx(date_str: str, rows, path: str) -> str:
     name_font = Font(name="游ゴシック", size=12, bold=True)
     label_font = Font(name="游ゴシック", size=10, bold=True)
     body_font = Font(name="游ゴシック", size=10)
-    note_font = Font(name="游ゴシック", size=8, color="808080")
 
     wb = Workbook()
     ws = wb.active
@@ -189,7 +183,7 @@ def build_xlsx(date_str: str, rows, path: str) -> str:
 
     r = 4
     for row in rows:
-        ws.cell(r, 1, f"{row['person']} さん")
+        ws.cell(r, 1, str(row["person"]))
         ws.cell(r, 1).font = name_font
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=2)
         for c in (1, 2):
@@ -202,7 +196,8 @@ def build_xlsx(date_str: str, rows, path: str) -> str:
         for heading, lines in parse_sections(row["body"]):
             ws.cell(r, 1, heading).font = label_font
             ws.cell(r, 1).fill = head_fill
-            text = "\n".join(f"・{ln}" for ln in (lines or ["特になし"]))
+            text = "\n".join(("特になし" if ln == "特になし" else f"・{ln}")
+                             for ln in (lines or ["特になし"]))
             ws.cell(r, 2, text).font = body_font
             for c in (1, 2):
                 ws.cell(r, c).border = box
@@ -214,7 +209,6 @@ def build_xlsx(date_str: str, rows, path: str) -> str:
             r += 1
         r += 1   # 人と人のあいだを1行あける
 
-    ws.cell(r, 1, "※ Chatworkの会話からAIが作成した草案です。事実と違う点は直してください。").font = note_font
     ws.sheet_view.showGridLines = False
     ws.print_options.horizontalCentered = True
     ws.page_setup.orientation = "portrait"
