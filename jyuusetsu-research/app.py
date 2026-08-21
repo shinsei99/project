@@ -314,8 +314,13 @@ def main():
             category = None
         else:
             picked = st.session_state.setdefault("picked_formats", [])
-            category = st.selectbox("書類の分類", options=format_catalog.categories())
-            entries = format_catalog.formats_in(category)
+            # ★①で選んだ取引種別で絞る（2026-08-21 オーナー指示）。
+            #   賃貸なのに売買の書類が並ぶと、間違った書式で作ってしまう。
+            #   種別に関係ない書類（犯収法の様式・取引台帳など）は両方に出る。
+            category = st.selectbox(
+                "書類の分類", options=format_catalog.categories(deal),
+                help="「{}」の書類だけを出しています。".format(deal))
+            entries = format_catalog.formats_in(category, deal)
             by_path = {e["path"]: e for e in entries}
             add = st.multiselect(
                 "書式（全宅連 公式・複数可）",
@@ -346,6 +351,16 @@ def main():
             # 貯めた選択（分類をまたぐ）を一覧で出す。1本ずつ外せる
             all_by_path = format_catalog.by_path()
             entries_selected = [all_by_path[p] for p in picked if p in all_by_path]
+            # 取引種別を切り替えたとき、前の種別で選んだ書式が残らないようにする
+            # （残ると賃貸の案件に売買の書式が混ざる）
+            mismatch = [e for e in entries_selected
+                        if format_catalog.deal_of(e) not in (deal, "共通")]
+            if mismatch:
+                for e in mismatch:
+                    picked.remove(e["path"])
+                entries_selected = [e for e in entries_selected if e not in mismatch]
+                st.warning("取引種別が「{}」に変わったので、{} 本を選択から外しました：{}".format(
+                    deal, len(mismatch), "／".join(e["name"][:20] for e in mismatch)))
             if entries_selected:
                 st.caption("作る書類 {} 本".format(len(entries_selected)))
                 for e in entries_selected:
@@ -363,8 +378,8 @@ def main():
                 entries_selected = list(add)
                 if not entries_selected and entries:
                     st.caption("※ 上で書式を選ぶか、「＋ 選択に追加」で複数まとめられます。")
-            st.caption("{} 分類 / この分類に {} 本".format(
-                len(format_catalog.categories()), len(entries)))
+            st.caption("{} の書類のみ表示中：{} 分類 / この分類に {} 本".format(
+                deal, len(format_catalog.categories(deal)), len(entries)))
 
         st.divider()
         st.header("③ 物件情報を入力")

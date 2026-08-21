@@ -70,8 +70,11 @@ def status_message() -> str:
     return ""
 
 
-def categories() -> List[str]:
-    present = {f["category"] for f in load()["formats"]}
+def categories(deal: Optional[str] = None) -> List[str]:
+    """取引種別を渡すと、**その種別の書式が1本も無い分類は出さない**
+    （賃貸なのに「売買契約書」が並ぶのを止めるため。2026-08-21 オーナー指示）。"""
+    formats = [f for f in load()["formats"] if _match_deal(f, deal)]
+    present = {f["category"] for f in formats}
     ordered = [c for c in CATEGORY_ORDER if c in present]
     return ordered + sorted(present - set(ordered))
 
@@ -133,15 +136,59 @@ def preset(deal: str, kind: str) -> List[dict]:
     return out
 
 
+# 取引種別の絞り込み（2026-08-21 オーナー指示）。
+# 賃貸を選んでいるのに売買の書類が並ぶのは事故のもと（間違った書式で作ってしまう）。
+#
+# 分類だけでは決まらないものがある。**重要事項説明書には売買用と貸借用が同居**し、
+# 媒介契約書も売買用と賃貸用がある。そこで「分類で決まるもの」は分類で、
+# 決まらないものは**書式名の語**で判定する。
+#
+# 「共通」は両方に出す（犯収法の様式・取引台帳など、取引種別に関係ない書類）。
+_DEAL_BY_CATEGORY = {
+    "excel版自動入力書式（売買契約書・重要事項説明書）": "売買",
+    "売買契約書": "売買",
+    "付帯設備表及び物件状況確認書（告知書）": "売買",
+    "建築条件付土地売買契約における建物建築・引渡し等に関する業務委託契約書": "売買",
+    "賃貸借契約書": "賃貸",
+    "管理委託・サブリース書式": "賃貸",
+}
+# 分類で決まらないとき、名前に含まれる語で判定する
+_RENT_WORDS = ("貸借", "賃貸", "借地", "サブリース", "定期建物")
+_SALE_WORDS = ("売買", "交換", "売渡", "買付", "購入", "売却")
+
+
+def deal_of(entry: dict) -> str:
+    """その書式が「売買」「賃貸」「共通」のどれか。"""
+    by_cat = _DEAL_BY_CATEGORY.get(entry.get("category", ""))
+    if by_cat:
+        return by_cat
+    name = entry.get("name", "")
+    rent = any(w in name for w in _RENT_WORDS)
+    sale = any(w in name for w in _SALE_WORDS)
+    if rent and not sale:
+        return "賃貸"
+    if sale and not rent:
+        return "売買"
+    return "共通"      # どちらとも取れる／取引種別に関係ない書類
+
+
+def _match_deal(entry: dict, deal: Optional[str]) -> bool:
+    if not deal:
+        return True
+    d = deal_of(entry)
+    return d == deal or d == "共通"
+
+
 def by_path() -> Dict[str, dict]:
     """path -> 書式。画面が「選んだ書式」を分類をまたいで持ち回るために使う
     （選択の実体を path で持てば、分類を切り替えても選択が消えない）。"""
     return {f["path"]: f for f in load().get("formats", [])}
 
 
-def formats_in(category: str) -> List[dict]:
+def formats_in(category: str, deal: Optional[str] = None) -> List[dict]:
     """カテゴリ内の書式。対応項目が多いものを上に出す（使いやすい順）。"""
-    items = [f for f in load()["formats"] if f["category"] == category]
+    items = [f for f in load()["formats"]
+             if f["category"] == category and _match_deal(f, deal)]
 
     def score(f):
         return len(f.get("mapping") or f.get("fields") or [])
