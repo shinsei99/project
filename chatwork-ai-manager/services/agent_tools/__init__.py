@@ -8,11 +8,13 @@ REGISTRY は「実装済みToolの唯一の真実」。System Prompt はこれ�
 存在しないToolをClaudeに説明することが構造的に起きない。
 """
 from services.agent_tools import (
+    address_tools,
     chatwork_tools,
     dev_tools,
     file_tools,
     gis_tools,
     knowledge_tools,
+    law_tools,
     progress_tools,
     project_tools,
     reinfolib_tools,
@@ -256,6 +258,36 @@ REGISTRY = {
         "desc": "国交省: 不動産取引価格情報を都道府県/市区町村・年で集計（相場の客観データ）。"
                 "⚠️ city_code は必ず reinfolib_cities で確認してから使う（27102=都島区 / 27122=西成区）",
         "usage": 'reinfolib_transactions {"prefecture":"大阪府","city_code":"27102","year":2024}',
+    },
+    # ---- 住所・郵便番号（日本郵便API） ----
+    "zip_lookup": {
+        "func": address_tools.zip_lookup,
+        "desc": "日本郵便: 郵便番号（3桁以上）やデジタルアドレスから住所を引く。"
+                "社内資料の住所は人の入力なので、公式データと突き合わせて確かめるときに使う",
+        "usage": 'zip_lookup {"code":"5340024"}',
+    },
+    "address_to_zip": {
+        "func": address_tools.address_to_zip,
+        "desc": "日本郵便: 住所から郵便番号を引く（送付書・宛名・重説の住所欄の裏取り）。"
+                "⚠️ 番地まで入れると見つからないので、番地は自動で落として引き直している",
+        "usage": 'address_to_zip {"address":"大阪市都島区東野田町"}',
+    },
+    # ---- 法令（e-Gov 法令API・キー不要） ----
+    "law_search": {
+        "func": law_tools.law_search,
+        "desc": "e-Gov: 法令名から法令IDを探す（「宅建業法」のような通称も可）",
+        "usage": 'law_search {"title":"宅建業法"}',
+    },
+    "law_article": {
+        "func": law_tools.law_article,
+        "desc": "e-Gov: 条番号で現行条文を原文のまま取り出す（例: 宅建業法35条・借地借家法28条）。"
+                "法律の質問は記憶で答えず必ずこれで引く。施行日も一緒に返る",
+        "usage": 'law_article {"law":"宅地建物取引業法","number":"35"}',
+    },
+    "law_find_articles": {
+        "func": law_tools.law_find_articles,
+        "desc": "e-Gov: 条番号が分からないとき、本文にキーワードを含む条を探す",
+        "usage": 'law_find_articles {"law":"借地借家法","keyword":"更新拒絶"}',
     },
 }
 

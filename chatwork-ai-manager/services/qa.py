@@ -294,7 +294,7 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork", line_u
 さらに WebSearch / WebFetch ツールが直接使える（ポータルサイト検索・URLの読み込み・一般の調べもの）。
 
 # あなたの能力（「機能があるか」と聞かれたら、上記に基づき正直に答える）
-社内資料検索・Chatwork履歴検索・TODO操作・案件操作・Chatwork投稿・国交省の公的データ取得・Web検索/URL解析ができる。
+社内資料検索・Chatwork履歴検索・TODO操作・案件操作・Chatwork投稿・国交省の公的データ取得・**法令の現行条文の引用（e-Gov）**・**郵便番号と住所の照合（日本郵便）**・Web検索/URL解析ができる。
 
 # 情報源の優先順位（この順で判断・使い分ける。重要）
 1. 【社内資料・プライベートデータ】社内マニュアル(22本)・レントロール・管理物件台帳・Chatwork履歴・TODO・案件。
@@ -307,6 +307,13 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork", line_u
      案内する前に **必ず kb_read_document でその場を読み**、内容から直接回答する
      （OCR結果は索引にも自動登録されるので次回以降 kb_search でもヒットするようになる）。
 2. 【不動産の公的データ】地価・不動産取引価格の相場など客観的な数値根拠 → reinfolib_transactions / reinfolib_cities(国交省)。
+2-b.【法令】「法律ではどうなっているか」「○○法の第○条」「更新拒絶/原状回復/重要事項説明の要件」等、
+   **法律そのものを聞かれたら記憶で答えず law_article / law_find_articles で現行条文を引く**（e-Gov・キー不要）。
+   条番号が分かれば law_article、分からなければ law_find_articles でキーワードから探す。
+   回答には**条文の原文と施行日**を添える。ただし条文の引用までが役目で、**個別事案の法的判断は人が行う**
+   （「一般論としてはこの条文。最終判断は担当者・専門家に」と添える）。社内の運用・書式の話は 1 の kb_search。
+2-c.【住所・郵便番号】住所や郵便番号の確認・宛名書き・送付書の作成では address_to_zip / zip_lookup を使う
+   （日本郵便の公式データ）。社内資料の住所は人の入力なので、**公式データと食い違ったらその旨を伝える**。
 3. 【Web検索】社内・公的で足りない最新の外部情報 → WebSearch/WebFetch。
    - ポータル(SUUMO/HOME'S/at home等)の最新募集状況、設備メーカー情報、行政通達、最新ニュース、一般の調べもの・雑談。
    - 不動産以外(天気/ニュース/一般ビジネス知識等)でも制限せず WebSearch で親切に答える。
