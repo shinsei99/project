@@ -14,6 +14,8 @@ from models.property_data import create_property_data, merge
 from services import (
     address_service,
     comment_service,
+    crosscheck_report_service,
+    crosscheck_service,
     excel_export_service,
     format_catalog,
     facility_service,
@@ -115,6 +117,79 @@ def render_streetview(coords, address):
     )
 
 
+def render_crosscheck(data, exp_pdf, con_pdf, seller_pro, address):
+    """④ クロスチェック — 出来た重説・契約書を、調査結果と突き合わせて検閲する。
+
+    元は独立アプリ `legal-crosscheck` だったものを取り込んだ。
+    **行政の正解は、このアプリが調べた PropertyData をそのまま使う**
+    （元アプリのモックは持ち込んでいない。理由は crosscheck_service の冒頭）。
+    """
+    if exp_pdf is None and con_pdf is None:
+        return
+
+    st.subheader("🔍 書類クロスチェック（重説・契約書 × 調査結果・謄本）")
+    missing = crosscheck_service.missing_basis(data)
+    if missing:
+        st.warning(
+            "次の項目は**調査で値が取れていないため判定できません**（確認不可として出ます）: "
+            + "・".join(missing)
+        )
+
+    try:
+        with st.spinner("重説・契約書を解析して照合中..."):
+            cc = crosscheck_service.run(
+                data,
+                exp_pdf.getvalue() if exp_pdf else None,
+                con_pdf.getvalue() if con_pdf else None,
+                seller_is_pro=seller_pro,
+                address=address,
+            )
+    except Exception as e:
+        st.error("クロスチェックに失敗しました: {}".format(e))
+        st.divider()
+        return
+
+    c1, c2, c3 = st.columns(3)
+    c1.metric("🔴 齟齬・リスク", "{} 件".format(cc.ng_count))
+    c2.metric("🟢 一致", "{} 件".format(cc.ok_count))
+    c3.metric("検査項目", "{} 件".format(len(cc.results)))
+
+    ng_items = [r for r in cc.results if r.is_ng]
+    if ng_items:
+        st.error("🚨 {} 件の齟齬・リスクを検出しました。".format(len(ng_items)))
+        for r in ng_items:
+            with st.container(border=True):
+                st.markdown("**[{}] {}**".format(r.category, r.item))
+                a, b, c = st.columns(3)
+                a.markdown("🌐📄 **基準**\n\n{}".format(r.admin_value or "—"))
+                b.markdown("📝 **重説**\n\n{}".format(r.explanation_value or "—"))
+                c.markdown("🛒 **契約書**\n\n{}".format(r.contract_value or "—"))
+                st.markdown(":red[**修正指示:** {}]".format(r.advice))
+    else:
+        st.success("重大な齟齬は検出されませんでした（確認不可の項目は上の注意を参照）。")
+
+    with st.expander("全チェック項目を見る（{} 件）".format(len(cc.results))):
+        for r in cc.results:
+            st.markdown(
+                "{} **{}**（{}） … 基準: {} ／ 重説: {} ／ 契約書: {}".format(
+                    r.icon, r.item, r.category,
+                    r.admin_value or "—", r.explanation_value or "—", r.contract_value or "—",
+                )
+            )
+
+    try:
+        st.download_button(
+            "検閲報告書（Excel）をダウンロード",
+            crosscheck_report_service.build(cc),
+            file_name="crosscheck_report.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+        )
+    except Exception as e:
+        st.error("報告書の生成に失敗しました: {}".format(e))
+    st.divider()
+
+
 def render_section(title, fields):
     st.subheader(title)
     cols = st.columns(2)
@@ -154,6 +229,19 @@ def main():
         land_pdf = st.file_uploader("登記事項証明書（土地PDF）", type=["pdf"])
         building_pdf = st.file_uploader("登記事項証明書（建物PDF）", type=["pdf"])
         st.file_uploader("物件概要書PDF（任意・将来対応）", type=["pdf"], disabled=True)
+
+        st.divider()
+        st.header("③ クロスチェック（任意）")
+        st.caption(
+            "出来上がった重説・契約書を入れると、調査結果・謄本と突き合わせて"
+            "齟齬と法令リスクを検出します。片方だけでも実行できます。"
+        )
+        exp_pdf = st.file_uploader("重要事項説明書 PDF", type=["pdf"], key="cc_exp")
+        con_pdf = st.file_uploader("売買契約書 PDF", type=["pdf"], key="cc_con")
+        seller_pro = st.checkbox(
+            "売主が宅建業者（業法40条・38条の制限を適用）", value=False
+        )
+
         run = st.button("調査を実行", type="primary", use_container_width=True)
 
         st.divider()
@@ -219,6 +307,8 @@ def main():
     st.subheader("📝 AIコメント（下書き）")
     st.write(comment)
     st.divider()
+
+    render_crosscheck(data, exp_pdf, con_pdf, seller_pro, address)
 
     # ===== 公式書式への流し込み =====
     st.subheader("📥 公式書式へ流し込んで書類を作る")

@@ -77,4 +77,47 @@ else:
     assert fanout, "波及する書式が見つからない（レジストリの作りが変わった可能性）"
     print("[ok] 公式書式カタログ: %d分類 / %d本 / 波及型 %d本" % (len(cats), total, len(fanout)))
 
+# 10) クロスチェック（legal-crosscheck から吸収した検閲エンジン）
+import io as _io  # noqa: E402
+from reportlab.pdfgen import canvas as _canvas  # noqa: E402
+from reportlab.pdfbase import pdfmetrics as _pm  # noqa: E402
+from reportlab.pdfbase.cidfonts import UnicodeCIDFont as _CID  # noqa: E402
+from services import crosscheck_service, crosscheck_report_service  # noqa: E402
+
+_pm.registerFont(_CID("HeiseiKakuGo-W5"))
+
+
+def _mkpdf(lines):
+    buf = _io.BytesIO()
+    c = _canvas.Canvas(buf)
+    c.setFont("HeiseiKakuGo-W5", 11)
+    y = 800
+    for ln in lines:
+        c.drawString(50, y, ln)
+        y -= 18
+    c.save()
+    return buf.getvalue()
+
+
+_base = {"所在地": "大阪市都島区東野田町二丁目", "地番": "123番4", "地積": "165.28",
+         "家屋番号": "123番4", "床面積": "98.55", "所有者": "検証太郎",
+         "用途地域": "商業地域", "建ぺい率": "80%", "容積率": "600%"}
+
+# 書類が無ければ「一致」は1件も出ない（比較していないのに緑を出さない）
+_none = crosscheck_service.run(_base, None, None)
+assert _none.ok_count == 0, "書類が無いのに一致が出ている: %d" % _none.ok_count
+
+# わざと食い違わせた重説・契約書を入れると検出する
+_exp = _mkpdf(["重要事項説明書", "地番 123番4", "用途地域 第一種住居地域",
+               "建ぺい率 60%", "容積率 600%", "売主 検証太郎"])
+_con = _mkpdf(["不動産売買契約書", "地番 123番9", "売主 検証太郎",
+               "契約不適合責任の通知期間 引渡しから1年", "違約金 売買代金の30%"])
+_cc = crosscheck_service.run(_base, _exp, _con, seller_is_pro=True)
+_ng = {r.item for r in _cc.results if r.is_ng}
+for _must in ("地番", "用途地域", "指定建ぺい率"):
+    assert _must in _ng, "検出できていない: %s（検出=%s）" % (_must, _ng)
+assert crosscheck_service.build_admin({}).building_coverage == 0.0, "モックが混入している"
+assert len(crosscheck_report_service.build(_cc)) > 3000, "報告書Excelが生成できない"
+print("[ok] クロスチェック: %d項目 / 🔴%d件検出 / 報告書OK" % (len(_cc.results), _cc.ng_count))
+
 print("smoke test: all assertions passed")
