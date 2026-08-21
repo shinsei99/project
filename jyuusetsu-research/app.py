@@ -28,6 +28,12 @@ from services import (
 )
 from utils import formatter
 
+# 特約条項は直下の共有モジュール（8513 と同じ実体）。コピーしないこと。
+try:
+    import tokuyaku_core
+except Exception:
+    tokuyaku_core = None
+
 # 直下の共通クライアント（google_maps_api.py）。キーが無ければ使わないだけ。
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 try:
@@ -131,6 +137,64 @@ def render_streetview(coords, address):
     )
 
 
+def render_tokuyaku(data, items, style, extra):
+    """④ 特約条項 — 選んだ項目の本文を生成して Word で出す（売買のみ）。
+
+    カタログも本文生成も**直下の共有モジュールを使う**（8513 と同じ実体）。
+    ここに条文の作り方を書かないこと。片方だけ直すと契約書に載る特約がずれる。
+
+    調査済みの `PropertyData` から物件・売主を渡すので、**同じ情報を打ち直さなくてよい**。
+    """
+    if not items or tokuyaku_core is None:
+        return
+
+    st.subheader("📜 特約条項（{} 項目）".format(len(items)))
+    ctx = {
+        "property": data.get("所在地", ""),
+        "seller": data.get("所有者", ""),
+        "buyer": "",
+    }
+    st.caption(
+        "物件「{}」／売主「{}」を調査結果から引き継いでいます。買主は空欄のまま生成します。".format(
+            ctx["property"] or "（未取得）", ctx["seller"] or "（未取得）"
+        )
+    )
+
+    if not st.button("本文を生成する（1項目あたり10〜20秒）", key="tok_gen"):
+        st.caption("↑ を押すと `claude` CLI で条文を作ります。押すまでは生成しません。")
+        st.divider()
+        return
+
+    clauses = []
+    bar = st.progress(0.0)
+    for i, it in enumerate(items, 1):
+        try:
+            text = tokuyaku_core.generate_clause(it, ctx, style, extra)
+        except Exception as e:
+            text = "（生成に失敗: {}）".format(e)
+        clauses.append({"title": it["title"], "text": text})
+        bar.progress(i / len(items))
+    bar.empty()
+
+    for idx, c in enumerate(clauses, 1):
+        with st.container(border=True):
+            st.markdown("**第{}条（{}）**".format(idx, c["title"]))
+            st.write(c["text"])
+
+    try:
+        st.download_button(
+            "特約条項（Word）をダウンロード",
+            tokuyaku_core.build_docx(clauses, ctx),
+            file_name="tokuyaku.docx",
+            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            use_container_width=True,
+        )
+    except Exception as e:
+        st.error("Word の生成に失敗しました: {}".format(e))
+    st.caption("※ AIが作った下書きです。必ず専門家のリーガルチェックと表記統一を行ってください。")
+    st.divider()
+
+
 def render_crosscheck(data, exp_pdf, con_pdf, seller_pro, address):
     """④ クロスチェック — 出来た重説・契約書を、調査結果と突き合わせて検閲する。
 
@@ -221,7 +285,17 @@ def main():
     )
 
     with st.sidebar:
-        st.header("① 作る書類を選ぶ")
+        st.header("① 取引種別")
+        deal = st.radio(
+            "取引の種類",
+            options=["売買", "賃貸"],
+            horizontal=True,
+            help="賃貸のときは特約条項とクロスチェック（どちらも売買用）を出しません。",
+        )
+        is_sale = deal == "売買"
+
+        st.divider()
+        st.header("② 作る書類を選ぶ")
         catalog_error = format_catalog.status_message()
         if catalog_error:
             st.error(catalog_error)
@@ -238,23 +312,53 @@ def main():
                 len(format_catalog.categories()), len(entries)))
 
         st.divider()
-        st.header("② 物件情報を入力")
+        st.header("③ 物件情報を入力")
         address = st.text_input("住所（必須）", placeholder="例：東京都千代田区丸の内1-1-1")
         land_pdf = st.file_uploader("登記事項証明書（土地PDF）", type=["pdf"])
         building_pdf = st.file_uploader("登記事項証明書（建物PDF）", type=["pdf"])
         st.file_uploader("物件概要書PDF（任意・将来対応）", type=["pdf"], disabled=True)
 
         st.divider()
-        st.header("③ クロスチェック（任意）")
-        st.caption(
-            "出来上がった重説・契約書を入れると、調査結果・謄本と突き合わせて"
-            "齟齬と法令リスクを検出します。片方だけでも実行できます。"
-        )
-        exp_pdf = st.file_uploader("重要事項説明書 PDF", type=["pdf"], key="cc_exp")
-        con_pdf = st.file_uploader("売買契約書 PDF", type=["pdf"], key="cc_con")
-        seller_pro = st.checkbox(
-            "売主が宅建業者（業法40条・38条の制限を適用）", value=False
-        )
+        st.header("④ 特約条項（売買・任意）")
+        tok_items, tok_style, tok_extra = [], "である調（契約書標準）", ""
+        if not is_sale:
+            st.caption("※ 賃貸では使いません（特約カタログは売買契約用）。")
+        elif tokuyaku_core is None:
+            st.caption("※ 共有モジュール tokuyaku_core が読めません。")
+        else:
+            # CATEGORIES の要素は {no, name, items}。item 側に category を持たせるのは
+            # all_items() なので、生成に渡す item は all_items() から取る
+            # （generate_clause が item["category"] を使うため）。
+            items_all = tokuyaku_core.all_items()
+            cats = [c["name"] for c in tokuyaku_core.CATEGORIES]
+            tok_cat = st.selectbox("特約のカテゴリ", options=cats, key="tok_cat")
+            pool = [it for it in items_all if it.get("category") == tok_cat]
+            tok_items = st.multiselect(
+                "入れる特約（複数可）",
+                options=pool,
+                format_func=lambda it: it["title"],
+                key="tok_items",
+            )
+            tok_style = st.selectbox("文体", options=list(tokuyaku_core.STYLE_GUIDE.keys()))
+            tok_extra = st.text_area("追加の事情（任意）", height=68, key="tok_extra")
+            st.caption("{} カテゴリ / このカテゴリに {} 項目".format(len(cats), len(pool)))
+
+        st.divider()
+        st.header("⑤ クロスチェック（売買・任意）")
+        exp_pdf = con_pdf = None
+        seller_pro = False
+        if not is_sale:
+            st.caption("※ 賃貸では使いません（検閲ルールは売買契約・売買重説用）。")
+        else:
+            st.caption(
+                "出来上がった重説・契約書を入れると、調査結果・謄本と突き合わせて"
+                "齟齬と法令リスクを検出します。片方だけでも実行できます。"
+            )
+            exp_pdf = st.file_uploader("重要事項説明書 PDF", type=["pdf"], key="cc_exp")
+            con_pdf = st.file_uploader("売買契約書 PDF", type=["pdf"], key="cc_con")
+            seller_pro = st.checkbox(
+                "売主が宅建業者（業法40条・38条の制限を適用）", value=False
+            )
 
         web_law = st.checkbox(
             "Web調査で法令制限を補完する（防火地域・高度地区・日影規制）",
@@ -329,7 +433,12 @@ def main():
     st.write(comment)
     st.divider()
 
-    render_crosscheck(data, exp_pdf, con_pdf, seller_pro, address)
+    if is_sale:
+        render_tokuyaku(data, tok_items, tok_style, tok_extra)
+        render_crosscheck(data, exp_pdf, con_pdf, seller_pro, address)
+    else:
+        st.caption("※ 賃貸のため、特約条項とクロスチェック（売買用）は表示していません。")
+        st.divider()
 
     # ===== 公式書式への流し込み =====
     st.subheader("📥 公式書式へ流し込んで書類を作る")

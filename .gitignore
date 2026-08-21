@@ -41,6 +41,8 @@
 # キーは .env.google-maps 側（gitignoreのまま・secrets-manifest.txt で運ぶ）
 !google_maps_api.py
 !registry_parser.py
+!tokuyaku_clauses.py
+!tokuyaku_core.py
 
 # e-Gov 法令API の共通クライアント（法令の最新条文。キー不要・無料）
 # 取得した全文のキャッシュ .egov-cache/ は入れない（1行目の * で既に除外）
