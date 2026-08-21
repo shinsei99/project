@@ -48,6 +48,25 @@
 > - `mail-archiver` をメインPCで常駐させるなら `/bin/bash` の FDA が要る（B と同じ）
 > - `maisoku-converter` は**実際に1枚印刷して**既定値（本体幅195mm・すき間4mm・白フチカット オン）でよいか確認
 >
+> ### E. アプリの増減（`git pull` で手元の構成が変わる）
+>
+> **全53本 → 52本**（不動産32→31・ツール15・ゲーム6）。CLAUDE.md の一覧は更新済み。
+>
+> - **新規: メールアーカイバ `mail-archiver`（8535・ツール）**。IMAP容量対策で `.eml` を
+>   ローカル保管＋FTS5全文検索、取込から14日たったぶんだけサーバーから削除する。
+>   **launchd 未登録・`127.0.0.1` 固定**（メール本文＝個人情報なので社内LANには出さない）。
+>   メインPCで常駐させたい場合だけ登録すること。そのときは **B の `/bin/bash` FDA が前提**
+>   （原本の置き場が個人Dropbox＝CloudStorage のため）。残作業は
+>   ①iCloudのApp用パスワード発行→IMAP取込 ②Tailscale導入（人の作業）③`restore.py`
+> - **削除: `legal-crosscheck`**。`jyuusetsu-research` の④タブへ完全に吸収した。
+>   **`git pull` するとメインPCからもフォルダごと消える**（launchd 登録・`.url` は元から無し）。
+>   `tokuyaku-generator`（8513）は**畳んでいない。恒久的に残す**
+> - **直下に共有モジュールが増えた。コピーを作らないこと**:
+>   `registry_parser.py`（謄本解析）／`tokuyaku_clauses.py`・`tokuyaku_core.py`（特約170項目）／
+>   `doc2docx.py`／API関係4本（`appstore_api.py` `egov_law_api.py` `google_maps_api.py`
+>   `japanpost_api.py`）と `API_STATUS.md` `GOOGLE_MAPS_API.md`
+> - **`jyuusetsu-research` は port 8536 を予約したが、まだ開発中で launchd 未割当**（配布もしない）
+>
 > ### この2日でサブPCが終わらせたこと（メインPC側の作業は不要）
 >
 > - **重説アプリの大改修**: `legal-crosscheck` を吸収してアプリ削除（**53本→52本／不動産32→31**）。
