@@ -14,6 +14,7 @@ from models.property_data import create_property_data, merge
 from services import (
     address_service,
     address_verify_service,
+    maisoku_check_service,
     maisoku_service,
     comment_service,
     crosscheck_report_service,
@@ -303,52 +304,37 @@ def main():
 
         st.divider()
         st.header("② 作る書類を選ぶ")
-        # **複数選べる**（2026-08-21 オーナー指示）。実務では重説と契約書をセットで作るため。
-        # 重説と契約書は**別の分類**にあるので、分類を切り替えても選択が消えないよう
-        # session_state に「選んだ書式のパス」を貯める方式にしている
-        # （multiselect の options が分類ごとに変わると、選択が黙って落ちるため）。
+        # 並びは **セットが先、個別追加は後**（2026-08-21 オーナー指示）。
+        # 普段はセットで足りるので、それを最初に置き、追加したい人だけ下を開く。
         catalog_error = format_catalog.status_message()
         entries_selected = []
         if catalog_error:
             st.error(catalog_error)
-            category = None
         else:
             picked = st.session_state.setdefault("picked_formats", [])
-            # ★①で選んだ取引種別で絞る（2026-08-21 オーナー指示）。
-            #   賃貸なのに売買の書類が並ぶと、間違った書式で作ってしまう。
-            #   種別に関係ない書類（犯収法の様式・取引台帳など）は両方に出る。
-            category = st.selectbox(
-                "書類の分類", options=format_catalog.categories(deal),
-                help="「{}」の書類だけを出しています。".format(deal))
-            entries = format_catalog.formats_in(category, deal)
-            by_path = {e["path"]: e for e in entries}
-            add = st.multiselect(
-                "書式（全宅連 公式・複数可）",
-                options=entries,
-                format_func=format_catalog.label,
-                key="add_formats_{}".format(category),
-                help="重説と契約書のように分類が違うものは、分類を切り替えて追加できます。",
-            )
-            if add and st.button("＋ 選択に追加", use_container_width=True):
-                for e in add:
-                    if e["path"] not in picked:
-                        picked.append(e["path"])
-                st.rerun()
 
-            # よく使う組み合わせを1クリックで足す（中身は普通の追加と同じ）。
-            # 売買は「重説＋契約書（1ファイルに同梱）＋付帯設備表＋物件状況確認書」で3ファイル4書類。
-            kind = st.selectbox("物件の種別（セット用）", options=format_catalog.PROPERTY_KINDS)
-            preset_entries = format_catalog.preset(deal, kind)
-            if preset_entries and st.button(
-                    "＋ よく使う{}点セットを追加".format(len(preset_entries)),
-                    use_container_width=True,
-                    help=" ／ ".join(e["name"] for e in preset_entries)):
-                for e in preset_entries:
-                    if e["path"] not in picked:
-                        picked.append(e["path"])
-                st.rerun()
+            # ── 基本セット ────────────────────────────────────────────
+            kind = st.selectbox("物件の種別",
+                                options=format_catalog.PROPERTY_KINDS)
+            # 売買契約書・重説は**売主の立場で条項が違う**（一般売主／宅建業者売主／
+            # 消費者契約用）。媒介がほとんどなので既定は一般売主。賃貸には無関係。
+            seller = "一般売主"
+            if is_sale:
+                seller = st.selectbox(
+                    "売主の立場", options=format_catalog.SELLER_KINDS,
+                    help="自社が売主のとき（買取再販など）は「宅建業者売主」を選びます。")
+            preset_entries = format_catalog.preset(deal, kind, seller)
+            if preset_entries:
+                st.caption("基本セット：{}".format(
+                    " ／ ".join(format_catalog.short_name(e) for e in preset_entries)))
+                if st.button("＋ 基本セット（{}点）を入れる".format(len(preset_entries)),
+                             type="primary", use_container_width=True):
+                    for e in preset_entries:
+                        if e["path"] not in picked:
+                            picked.append(e["path"])
+                    st.rerun()
 
-            # 貯めた選択（分類をまたぐ）を一覧で出す。1本ずつ外せる
+            # ── 作る書類の一覧（セット＋追加ぶん）──────────────────────
             all_by_path = format_catalog.by_path()
             entries_selected = [all_by_path[p] for p in picked if p in all_by_path]
             # 取引種別を切り替えたとき、前の種別で選んだ書式が残らないようにする
@@ -360,12 +346,13 @@ def main():
                     picked.remove(e["path"])
                 entries_selected = [e for e in entries_selected if e not in mismatch]
                 st.warning("取引種別が「{}」に変わったので、{} 本を選択から外しました：{}".format(
-                    deal, len(mismatch), "／".join(e["name"][:20] for e in mismatch)))
+                    deal, len(mismatch),
+                    "／".join(format_catalog.short_name(e) for e in mismatch)))
             if entries_selected:
-                st.caption("作る書類 {} 本".format(len(entries_selected)))
+                st.markdown("**作る書類 {} 本**".format(len(entries_selected)))
                 for e in entries_selected:
                     c1, c2 = st.columns([6, 1])
-                    c1.markdown("・{}".format(e["name"]))
+                    c1.markdown("・{}".format(format_catalog.short_name(e)))
                     if c2.button("×", key="rm_{}".format(e["path"])):
                         picked.remove(e["path"])
                         st.rerun()
@@ -373,13 +360,41 @@ def main():
                     picked.clear()
                     st.rerun()
             else:
-                # 何も貯めていないときは、いま選んでいるものをそのまま対象にする
-                # （1本だけ作りたい人に「追加」を強制しない）
-                entries_selected = list(add)
-                if not entries_selected and entries:
-                    st.caption("※ 上で書式を選ぶか、「＋ 選択に追加」で複数まとめられます。")
-            st.caption("{} の書類のみ表示中：{} 分類 / この分類に {} 本".format(
-                deal, len(format_catalog.categories(deal)), len(entries)))
+                st.caption("※ まだ何も選んでいません。上のセットを入れるか、"
+                           "下の「追加の書類」から1本ずつ足してください。")
+
+            # ── 追加の書類（任意）─────────────────────────────────────
+            with st.expander("➕ 追加の書類を選ぶ（覚書・解除証書・媒介契約書など）"):
+                # ★①で選んだ取引種別で絞る。賃貸なのに売買の書類が並ぶと、
+                #   間違った書式で作ってしまう。種別に関係ない書類は両方に出る。
+                category = st.selectbox(
+                    "書類の分類", options=format_catalog.categories(deal),
+                    help="「{}」の書類だけを出しています。".format(deal))
+                # 分類の下にもう1段ある（例: 売買契約書 → 一般売主 / 覚書・合意書 /
+                # 解除証書）。出さないと契約書を選びたいのに覚書まで同じ一覧に並ぶ。
+                subs = format_catalog.subcategories(category, deal)
+                sub = None
+                if subs:
+                    choice = st.selectbox(
+                        "小分類", options=subs + ["（すべて）"],
+                        help="この分類のフォルダ構成です。既定は本体の書式だけを出します。")
+                    sub = None if choice == "（すべて）" else choice
+                entries = format_catalog.formats_in(category, deal, sub)
+                # **ここは1つだけ選ぶ**。同じ小分類の中は「区分所有か土地建物か」の
+                # ような排他の選択肢で、1つの物件に両方を使うことはない。
+                add = st.selectbox(
+                    "書式（全宅連 公式）",
+                    options=entries,
+                    format_func=format_catalog.label,
+                    key="add_format_{}_{}".format(category, sub or "all"),
+                )
+                if add is not None and st.button(
+                        "＋ この書式を追加", use_container_width=True):
+                    if add["path"] not in picked:
+                        picked.append(add["path"])
+                    st.rerun()
+                st.caption("{} の書類のみ：{} 分類 / いまの絞り込みで {} 本".format(
+                    deal, len(format_catalog.categories(deal)), len(entries)))
 
         st.divider()
         st.header("③ 物件情報を入力")
@@ -599,6 +614,42 @@ def main():
         st.divider()
 
     # ===== 公式書式への流し込み =====
+    # ===== マイソクの記載の照合 =====
+    # マイソクは他社が作った広告資料で、誤り・古い情報・省略が混ざる。
+    # **読み取った値をそのまま重説へ流すと、他社の誤りを転記してしまう**ので、
+    # こちらで確かめられるものは突き合わせてから使う（2026-08-21 オーナー指示）。
+    # 謄本は**内容そのものは確定**として扱う（2026-08-21 オーナー判断）。
+    # 見るのは鮮度だけ。発行日が古いと、その後に売買・抵当権設定・分筆があり得る。
+    _reg = st.session_state.get("registry_data") or {}
+    if _reg:
+        age = maisoku_check_service.registry_age(_reg)
+        line = "📜 謄本の発行日: **{}**　{}".format(
+            age["発行日"] or "（読み取れず）", age["説明"])
+        if age["結果"] == maisoku_check_service.DIFF:
+            st.warning(line)
+        elif age["結果"] == maisoku_check_service.OK:
+            st.success(line)
+        else:
+            st.info(line)
+        st.caption("謄本の記載内容は確定として扱います。マイソクと食い違ったときに疑うのは"
+                   "マイソクのほうです。")
+
+    _mai = st.session_state.get("maisoku_data") or {}
+    if _mai:
+        rows = maisoku_check_service.check(_mai, _reg, data)
+        if rows:
+            st.subheader("🔎 マイソクの記載を照合しました")
+            st.caption(maisoku_check_service.summary(rows)
+                       + "　※マイソクは他社の資料です。🟡 は必ず人が確かめてください。")
+            st.dataframe(
+                [{"": r["結果"], "項目": r["項目"], "マイソクの記載": r["マイソク"],
+                  "照合した相手": r["照合先"], "説明": r["説明"]} for r in rows],
+                use_container_width=True, hide_index=True)
+            if any(r["結果"] == maisoku_check_service.DIFF for r in rows):
+                st.warning("🟡 の項目はマイソクと突き合わせた結果が食い違っています。"
+                           "**そのまま書類に載せないでください。**")
+        st.divider()
+
     st.subheader("📥 公式書式へ流し込んで書類を作る")
     if not entries_selected:
         st.error(format_catalog.status_message() or
@@ -611,7 +662,7 @@ def main():
         made = []
         for e in entries_selected:
             with st.container(border=True):
-                st.markdown("**{}**".format(e["name"]))
+                st.markdown("**{}**".format(format_catalog.short_name(e)))
                 got = format_catalog.filled_fields(e, data)
                 st.caption("自動で入るのは {} 項目：{}".format(
                     len(got), "・".join(got) or "（該当なし。白紙のまま出します）"))

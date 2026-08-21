@@ -89,61 +89,10 @@ def categories(deal: Optional[str] = None) -> List[str]:
 # したがって売買の4点は **3ファイル** になる。
 #
 # 賃貸には付帯設備表・物件状況確認書の全宅連書式が無い（売買用のみ）ので2点。
-PRESETS = {
-    ("売買", "土地・戸建て"): [
-        "【ファイル14】土地建物公簿用",              # 重説＋契約書＋引渡書ほか5書類
-        "付帯設備表（土地建物用）",
-        "物件状況確認書（告知書／土地建物・土地用）",
-    ],
-    ("売買", "区分所有（マンション）"): [
-        "【ファイル15】区分所有建物用（敷地権）",     # 重説＋契約書ほか8書類
-        "付帯設備表（区分所有建物用）",
-        "物件状況確認書（告知書／区分所有建物用）",
-    ],
-    ("賃貸", "土地・戸建て"): [
-        "建物貸借用 （住宅用）",
-        "住宅賃貸借契約書（A）",
-    ],
-    ("賃貸", "区分所有（マンション）"): [
-        "建物貸借用 （住宅用）",
-        "住宅賃貸借契約書（A）",
-    ],
-}
-
-PROPERTY_KINDS = ["土地・戸建て", "区分所有（マンション）"]
-
-
-def preset(deal: str, kind: str) -> List[dict]:
-    """取引種別と物件種別から「セットで作る書式」を返す。
-
-    名前の一部で引く（書式名には【更新】2026年4月 のような版が付くため）。
-    **同名が複数あるときは最初の1本**。見つからないものは黙って飛ばさず、
-    呼び出し側が件数の差で気づけるよう、単に含めない（画面で件数を出している）。
-    """
-    names = PRESETS.get((deal, kind), [])
-    formats = load().get("formats", [])
-    out, used = [], set()
-    for needle in names:
-        # **前方一致を先に見る。** 部分一致だけだと「住宅賃貸借契約書（A）」で
-        # 「**サブリース**住宅賃貸借契約書（A）」を拾ってしまう（2026-08-21 実測）
-        cand = ([f for f in formats if f["name"].startswith(needle)]
-                or [f for f in formats if needle in f["name"]])
-        for f in cand:
-            if f["path"] not in used:
-                out.append(f)
-                used.add(f["path"])
-                break
-    return out
-
-
 # 取引種別の絞り込み（2026-08-21 オーナー指示）。
 # 賃貸を選んでいるのに売買の書類が並ぶのは事故のもと（間違った書式で作ってしまう）。
-#
-# 分類だけでは決まらないものがある。**重要事項説明書には売買用と貸借用が同居**し、
-# 媒介契約書も売買用と賃貸用がある。そこで「分類で決まるもの」は分類で、
-# 決まらないものは**書式名の語**で判定する。
-#
-# 「共通」は両方に出す（犯収法の様式・取引台帳など、取引種別に関係ない書類）。
+# 分類だけでは決まらないもの（重説には売買用と貸借用が同居、媒介契約書も両方ある）は
+# 書式名の語で判定する。「共通」は両方に出す（犯収法の様式・取引台帳など）。
 _DEAL_BY_CATEGORY = {
     "excel版自動入力書式（売買契約書・重要事項説明書）": "売買",
     "売買契約書": "売買",
@@ -152,7 +101,6 @@ _DEAL_BY_CATEGORY = {
     "賃貸借契約書": "賃貸",
     "管理委託・サブリース書式": "賃貸",
 }
-# 分類で決まらないとき、名前に含まれる語で判定する
 _RENT_WORDS = ("貸借", "賃貸", "借地", "サブリース", "定期建物")
 _SALE_WORDS = ("売買", "交換", "売渡", "買付", "購入", "売却")
 
@@ -169,7 +117,7 @@ def deal_of(entry: dict) -> str:
         return "賃貸"
     if sale and not rent:
         return "売買"
-    return "共通"      # どちらとも取れる／取引種別に関係ない書類
+    return "共通"
 
 
 def _match_deal(entry: dict, deal: Optional[str]) -> bool:
@@ -179,16 +127,110 @@ def _match_deal(entry: dict, deal: Optional[str]) -> bool:
     return d == deal or d == "共通"
 
 
+def subcategory(entry: dict) -> str:
+    """書式が入っている**1つ上のフォルダ名**（小分類）。無ければ空文字。
+
+    全宅連の書式フォルダは分類の下にもう1段ある（2026-08-21 オーナー指摘で判明）。
+    例: 売買契約書/**売買契約書（一般売主）**/土地建物公簿用….xlsx
+        売買契約書/**覚書・合意書**/売買代金変更に関する覚書.docx
+    これを出さないと、契約書を選びたいのに覚書や解除証書まで同じ一覧に並ぶ。
+    """
+    parts = (entry.get("path") or "").split("/")
+    if len(parts) < 3:
+        return ""
+    sub = parts[-2]
+    return "" if sub == entry.get("category") else sub
+
+
+def subcategories(category: str, deal: Optional[str] = None) -> List[str]:
+    """分類の中の小分類。**分類名で始まるもの（＝本体）を先頭に**、あとは名前順。"""
+    subs = {subcategory(f) for f in load()["formats"]
+            if f["category"] == category and _match_deal(f, deal)}
+    subs.discard("")
+    head = sorted(x for x in subs if x.startswith(category[:4]))
+    return head + sorted(subs - set(head))
+
+
+PRESETS = {
+    # 売買。1本目は「売主の立場」で版が変わるので小分類を {seller} で差し込む。
+    ("売買", "土地・建物（戸建て）"): [
+        ("土地建物公簿用", "{seller}"),                    # 重説＋契約書＋引渡書ほか
+        ("付帯設備表（土地建物用）", None),
+        ("物件状況確認書（告知書／土地建物・土地用）", None),
+    ],
+    ("売買", "区分所有（マンション）"): [
+        ("区分所有建物用（敷地権）", "{seller}"),
+        ("付帯設備表（区分所有建物用）", None),
+        ("物件状況確認書（告知書／区分所有建物用）", None),
+    ],
+    # 土地だけの売買には**付帯設備表を入れない**（設備が無いため）。
+    ("売買", "土地のみ"): [
+        ("土地公簿用", "{seller}"),
+        ("物件状況確認書（告知書／土地建物・土地用）", None),
+    ],
+    # 賃貸は売主の立場が関係ない。付帯設備表・物件状況確認書は全宅連の売買用しかない
+    ("賃貸", "土地・建物（戸建て）"): [
+        ("建物貸借用 （住宅用）", None),
+        ("住宅賃貸借契約書（A）", None),
+    ],
+    ("賃貸", "区分所有（マンション）"): [
+        ("建物貸借用 （住宅用）", None),
+        ("住宅賃貸借契約書（A）", None),
+    ],
+    ("賃貸", "土地のみ"): [
+        ("土地貸借用", None),
+        ("普通借地権設定契約書", None),
+    ],
+}
+
+PROPERTY_KINDS = ["土地・建物（戸建て）", "区分所有（マンション）", "土地のみ"]
+# 売買契約書・重説は**売主の立場で版が違う**（条項が変わる）。媒介がほとんどなので
+# 既定は「一般売主」。自社が売主のとき（買取再販など）は宅建業者売主を選ぶ。
+SELLER_KINDS = ["一般売主", "宅建業者売主", "消費者契約用"]
+
+
+def preset(deal: str, kind: str, seller: str = "一般売主") -> List[dict]:
+    """取引種別・物件種別・売主の立場から「セットで作る書式」を返す。
+
+    書式名は版が付く（【更新】2026年4月）ので名前の一部で引く。
+    **同名が複数あるので小分類まで見る**（土地建物公簿用は一般売主/宅建業者売主/
+    消費者契約用の3つある。ここを見ないと宅建業者売主版が出てしまう
+    ＝2026-08-21 に実際に起きた）。
+    """
+    names = PRESETS.get((deal, kind), [])
+    formats = load().get("formats", [])
+    out, used = [], set()
+    for needle, sub in names:
+        want_sub = sub.format(seller=seller) if sub else None
+        cand = [f for f in formats
+                if (not want_sub or subcategory(f) == want_sub)]
+        # **前方一致を先に見る。** 部分一致だけだと「住宅賃貸借契約書（A）」で
+        # 「**サブリース**住宅賃貸借契約書（A）」を拾ってしまう（2026-08-21 実測）
+        hit = ([f for f in cand if f["name"].startswith(needle)]
+               or [f for f in cand if needle in f["name"]])
+        for f in hit:
+            if f["path"] not in used:
+                out.append(f)
+                used.add(f["path"])
+                break
+    return out
+
+
 def by_path() -> Dict[str, dict]:
     """path -> 書式。画面が「選んだ書式」を分類をまたいで持ち回るために使う
     （選択の実体を path で持てば、分類を切り替えても選択が消えない）。"""
     return {f["path"]: f for f in load().get("formats", [])}
 
 
-def formats_in(category: str, deal: Optional[str] = None) -> List[dict]:
-    """カテゴリ内の書式。対応項目が多いものを上に出す（使いやすい順）。"""
+def formats_in(category: str, deal: Optional[str] = None,
+               sub: Optional[str] = None) -> List[dict]:
+    """カテゴリ内の書式。対応項目が多いものを上に出す（使いやすい順）。
+
+    `sub` に小分類を渡すと、そのフォルダのものだけに絞る。
+    """
     items = [f for f in load()["formats"]
-             if f["category"] == category and _match_deal(f, deal)]
+             if f["category"] == category and _match_deal(f, deal)
+             and (not sub or subcategory(f) == sub)]
 
     def score(f):
         return len(f.get("mapping") or f.get("fields") or [])
@@ -204,6 +246,23 @@ def document_sheets(entry: dict):
     return [s for s in entry.get("sheets", []) if not NON_DOCUMENT.search(s)]
 
 
+# 表示から落とす語。**サイドバーは幅が狭く、名前が切れて見分けられなくなる**
+# （2026-08-21 実測: 「土地の売買・交換用」と「土地建物の売買・交換用」が
+#  同じものに見えて重複と誤解された）。版と拡張子は判断に要らないので落とす。
+# **先頭の「【ファイル◯】」も落とす。** 名前の頭に来るせいで肝心の中身
+# （土地建物公簿用なのか区分所有なのか）が押し出されて読めない
+# （2026-08-21 オーナー指摘）。番号は売主の立場ごとの通し番号で、
+# 小分類（一般売主／宅建業者売主／消費者契約用）を見れば分かるため表示に要らない。
+# **作られるファイル名には残る**ので、全宅連の資料と突き合わせるときは困らない。
+_TRIM = re.compile(
+    r"^【ファイル[0-9０-９]+】|【更新】\d{4}年\d{1,2}月|\.(xlsx|xls|docx|doc)$")
+
+
+def short_name(entry: dict) -> str:
+    """一覧に出す名前。版（【更新】2026年4月）と拡張子を落とす。"""
+    return _TRIM.sub("", entry.get("name", "")).strip() or entry.get("name", "")
+
+
 def label(entry: dict) -> str:
     n = len(entry.get("mapping") or entry.get("fields") or [])
     kind = "Excel" if entry.get("kind") == "xlsx" else "Word"
@@ -213,7 +272,7 @@ def label(entry: dict) -> str:
         docs = document_sheets(entry)
         if len(docs) > 1:
             extra = "・{}書類同梱".format(len(docs))
-    return "{}（{}／自動入力 {}項目{}）".format(entry["name"], kind, n, extra)
+    return "{}（{}／自動入力{}項目{}）".format(short_name(entry), kind, n, extra)
 
 
 def source_path(entry: dict) -> str:
