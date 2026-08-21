@@ -242,3 +242,17 @@ Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その
 - [ ] note を出したら、同じ `links` に note のURLを足す
 - [ ] 1週間後にアクセスを見る。**どの媒体から来たか**を必ず確認する
       （どちらが効くか分かれば、次にどこへ力を入れるか決められる）
+
+---
+
+## 9本目：Excelの行の高さを実機で採寸した（chatwork-ai-manager の業務日報）
+
+| 媒体 | 原稿 | URL |
+|---|---|---|
+| 本体 | `content/works/excel-row-height.json` | ⬜ https://ai-tools-base.vercel.app/works/excel-row-height （デプロイ待ち） |
+| Zenn | `zenn/openpyxl-row-height-autofit.md` | ⬜ https://zenn.dev/shinsei99/articles/openpyxl-row-height-autofit （push待ち） |
+| note | `note/moji-ga-kireteru.md` | ⬜ 未公開（Zennの後に出す） |
+
+- 素材は 2026-08-21 の日報Excel。**実機Excelに autofit させた採寸値は本記事作成時に取り直した**
+  （`1=27.0 4=20.0 5=36.0 6=18.0`。1行=18pt・2行=36ptを再確認）
+- 本体→Zenn→note の順で同日に出す（keyline と同じく本人指示による同日進行）
