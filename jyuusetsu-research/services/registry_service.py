@@ -34,7 +34,9 @@ except Exception:  # 共有モジュールが無い環境でもアプリを止�
 
 from utils import parser  # noqa: E402  フォールバック用に残す
 
-PROPERTY_KEYS = ("所在地", "地番", "地目", "地積", "家屋番号",
+# 謄本から取れる項目。**住居表示は謄本に載っていない**ので `所在地` は入れない
+# （謄本の「所在」は `登記所在`）。
+PROPERTY_KEYS = ("登記所在", "地番", "地目", "地積", "家屋番号",
                  "種類", "構造", "床面積", "所有者", "抵当権")
 
 
@@ -50,14 +52,18 @@ def _from_shared(result: dict) -> Dict[str, str]:
     """共有パーサの構造化辞書を PropertyData のキーに移し替える。
 
     共有パーサは土地・建物・マンションを分けて返すので、
-    **区分建物なら専有面積を床面積に、その所在をそのまま所在地に**入れる。
+    **区分建物なら専有面積を床面積に**入れる。
+
+    ★謄本の「所在」は **`登記所在`** に入れる。`所在地`（住居表示）には入れない。
+      謄本に住居表示は載っていないため、ここで `所在地` を上書きすると
+      画面で入力した住居表示が地番表示に置き換わってしまう（2026-08-21 修正）。
     """
     land = result.get("土地") or {}
     bld = result.get("建物") or {}
     mans = result.get("マンション") or {}
 
     return {
-        "所在地": _first(result.get("物件所在地"), bld.get("所在"), land.get("所在")),
+        "登記所在": _first(result.get("物件所在地"), bld.get("所在"), land.get("所在")),
         "地番": _first(land.get("地番")),
         "地目": _first(land.get("地目")),
         "地積": _first(land.get("地積")),
@@ -75,14 +81,18 @@ def _from_shared(result: dict) -> Dict[str, str]:
 def _from_legacy(land_pdf, building_pdf) -> Dict[str, str]:
     """共有モジュールが使えないときの従来経路（正規表現）。"""
     merged = {k: "" for k in PROPERTY_KEYS}
+    # 従来の正規表現パーサは謄本の「所在」を `所在地` という名前で返すので、
+    # ここで `登記所在` へ移し替える（住居表示と混ざらないようにするため）
+    def take(d):
+        for k, v in d.items():
+            if not v:
+                continue
+            merged["登記所在" if k == "所在地" else k] = v
+
     if land_pdf is not None:
-        for k, v in parser.parse_land(parser.extract_text(land_pdf)).items():
-            if v:
-                merged[k] = v
+        take(parser.parse_land(parser.extract_text(land_pdf)))
     if building_pdf is not None:
-        for k, v in parser.parse_building(parser.extract_text(building_pdf)).items():
-            if v:
-                merged[k] = v
+        take(parser.parse_building(parser.extract_text(building_pdf)))
     return merged
 
 

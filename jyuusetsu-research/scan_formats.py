@@ -67,9 +67,10 @@ def main():
                 "input_count": len(r["inputs"]),
                 "fanout_count": sum(1 for x in r["inputs"] if x["fanout"]),
                 "mapping": mapping,
-                "unmapped": [k for k, _, _ in
-                             [(a, b, c) for a, b, c in field_map.RULES]
-                             if k not in mapping],
+                # RULES は要素数が可変（予備の見出しを持つ規則がある）。
+                # 添字で取らないと、規則を1つ増やしただけでここが落ちる
+                # （2026-08-21 に実際に落ちて、レジストリが200→126本に欠けた）
+                "unmapped": [r[0] for r in field_map.RULES if r[0] not in mapping],
             })
             print("[%3d/%3d] %-52s %s" % (i, len(files), r["name"][:52],
                                           field_map.coverage(mapping)), flush=True)

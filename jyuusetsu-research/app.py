@@ -13,6 +13,8 @@ import streamlit.components.v1 as components
 from models.property_data import create_property_data, merge
 from services import (
     address_service,
+    address_verify_service,
+    maisoku_service,
     comment_service,
     crosscheck_report_service,
     crosscheck_service,
@@ -89,7 +91,12 @@ def run_pipeline(address, land_pdf, building_pdf, web_law=False):
                 st.warning("Web調査に失敗したため、この項目は空欄のまま続けます: {}".format(e))
 
     # ② 登記簿 PDF 解析
-    if land_pdf is not None or building_pdf is not None:
+    #    サイドバーで「📄 謄本を読む」を押していれば、その結果を使い回す。
+    #    解析は claude CLI を通すので数十秒かかる。同じPDFを二度読ませない。
+    cached = st.session_state.get("registry_data")
+    if cached:
+        merge(data, cached)
+    elif land_pdf is not None or building_pdf is not None:
         with st.spinner("登記簿PDFを解析中..."):
             merge(data, registry_service.parse_registry(land_pdf, building_pdf))
 
@@ -296,27 +303,163 @@ def main():
 
         st.divider()
         st.header("② 作る書類を選ぶ")
+        # **複数選べる**（2026-08-21 オーナー指示）。実務では重説と契約書をセットで作るため。
+        # 重説と契約書は**別の分類**にあるので、分類を切り替えても選択が消えないよう
+        # session_state に「選んだ書式のパス」を貯める方式にしている
+        # （multiselect の options が分類ごとに変わると、選択が黙って落ちるため）。
         catalog_error = format_catalog.status_message()
+        entries_selected = []
         if catalog_error:
             st.error(catalog_error)
-            category, entry = None, None
+            category = None
         else:
+            picked = st.session_state.setdefault("picked_formats", [])
             category = st.selectbox("書類の分類", options=format_catalog.categories())
             entries = format_catalog.formats_in(category)
-            entry = st.selectbox(
-                "書式（全宅連 公式）",
+            by_path = {e["path"]: e for e in entries}
+            add = st.multiselect(
+                "書式（全宅連 公式・複数可）",
                 options=entries,
                 format_func=format_catalog.label,
+                key="add_formats_{}".format(category),
+                help="重説と契約書のように分類が違うものは、分類を切り替えて追加できます。",
             )
+            if add and st.button("＋ 選択に追加", use_container_width=True):
+                for e in add:
+                    if e["path"] not in picked:
+                        picked.append(e["path"])
+                st.rerun()
+
+            # よく使う組み合わせを1クリックで足す（中身は普通の追加と同じ）。
+            # 売買は「重説＋契約書（1ファイルに同梱）＋付帯設備表＋物件状況確認書」で3ファイル4書類。
+            kind = st.selectbox("物件の種別（セット用）", options=format_catalog.PROPERTY_KINDS)
+            preset_entries = format_catalog.preset(deal, kind)
+            if preset_entries and st.button(
+                    "＋ よく使う{}点セットを追加".format(len(preset_entries)),
+                    use_container_width=True,
+                    help=" ／ ".join(e["name"] for e in preset_entries)):
+                for e in preset_entries:
+                    if e["path"] not in picked:
+                        picked.append(e["path"])
+                st.rerun()
+
+            # 貯めた選択（分類をまたぐ）を一覧で出す。1本ずつ外せる
+            all_by_path = format_catalog.by_path()
+            entries_selected = [all_by_path[p] for p in picked if p in all_by_path]
+            if entries_selected:
+                st.caption("作る書類 {} 本".format(len(entries_selected)))
+                for e in entries_selected:
+                    c1, c2 = st.columns([6, 1])
+                    c1.markdown("・{}".format(e["name"]))
+                    if c2.button("×", key="rm_{}".format(e["path"])):
+                        picked.remove(e["path"])
+                        st.rerun()
+                if st.button("すべて外す", use_container_width=True):
+                    picked.clear()
+                    st.rerun()
+            else:
+                # 何も貯めていないときは、いま選んでいるものをそのまま対象にする
+                # （1本だけ作りたい人に「追加」を強制しない）
+                entries_selected = list(add)
+                if not entries_selected and entries:
+                    st.caption("※ 上で書式を選ぶか、「＋ 選択に追加」で複数まとめられます。")
             st.caption("{} 分類 / この分類に {} 本".format(
                 len(format_catalog.categories()), len(entries)))
 
         st.divider()
         st.header("③ 物件情報を入力")
-        address = st.text_input("住所（必須）", placeholder="例：東京都千代田区丸の内1-1-1")
+        # 住所の出どころは **マイソク → 謄本 → 手入力** の順。
+        # マイソクには住居表示で書かれていることが多いので最優先にする。
+        # ただし地番表記のこともあるため、必ず編集できる欄に出して📮で確認させる。
+        maisoku_pdf = st.file_uploader(
+            "マイソク・物件概要書（PDF・任意）", type=["pdf"],
+            help="住所・建物名・最寄駅を読み取って下の欄に入れます。"
+                 "マイソクの住所は地番表記のこともあるので、必ず確認してください。")
+        if maisoku_pdf is not None and maisoku_service.available():
+            if st.button("📄 マイソクを読む（住所を取り込む）", use_container_width=True):
+                with st.spinner("マイソクを解析中…（30〜60秒）"):
+                    st.session_state["maisoku_data"] = \
+                        maisoku_service.parse_maisoku(maisoku_pdf)
+                st.session_state.pop("addr_town_v", None)
+                st.session_state.pop("addr_rest_v", None)
+                st.rerun()
+        elif maisoku_pdf is not None:
+            st.caption("※ claude CLI か共有モジュールが見つからないため解析できません。")
+
+        # 謄本。ここを読むと登記の所在・地番が入る
         land_pdf = st.file_uploader("登記事項証明書（土地PDF）", type=["pdf"])
         building_pdf = st.file_uploader("登記事項証明書（建物PDF）", type=["pdf"])
-        st.file_uploader("物件概要書PDF（任意・将来対応）", type=["pdf"], disabled=True)
+        if land_pdf is not None or building_pdf is not None:
+            # 解析は claude CLI を通すので数十秒かかる。**押されたときだけ**走らせ、
+            # 結果を session_state に置いて、以後の再実行で読み直さない
+            if st.button("📄 謄本を読む（住所を取り込む）", use_container_width=True):
+                with st.spinner("登記簿PDFを解析中…（30〜60秒）"):
+                    st.session_state["registry_data"] = \
+                        registry_service.parse_registry(land_pdf, building_pdf)
+                # 取り込んだ住所を欄に反映させるため、前の入力値を捨てる
+                st.session_state.pop("addr_town_v", None)
+                st.session_state.pop("addr_rest_v", None)
+                st.rerun()
+        # ★住所は「住居表示」として使う。**謄本には住居表示が載っていない**ので、
+        #   ここが唯一の出どころ（2026-08-21 オーナー指摘）。書式の「（住居表示）」欄へ入る。
+        #   謄本から取れる「所在（地番区域）」は別項目（登記所在）として「（登記簿）」欄へ入る。
+        # 入力欄を2つに割る理由（2026-08-21 オーナー指示）:
+        #   日本郵便のデータは**町名まで**しか無く、丁目すら持たない
+        #   （実測: 534-0027 は「中野町」。「中野町一丁目」は 404）。
+        #   だから「機械で確かめられる部分」と「人が入れるしかない部分」を分けて、
+        #   前者は 📮 で確定させ、後者は人に入力させる。
+        # ★入力の順番（2026-08-21 オーナー指示）: 先に謄本を読ませ、**分かる部分は自動で出し、
+        #   足りない部分だけ人に入力させる**。謄本の「所在」には町名と丁目まで入っているので、
+        #   人が足すのは実質「街区符号・住居番号」だけになる。
+        reg = st.session_state.get("registry_data") or {}
+        mai = st.session_state.get("maisoku_data") or {}
+        # マイソクの住所があればそれを優先（住居表示で書かれていることが多い）。
+        # 無ければ謄本の所在（＝地番区域。町名と丁目までは同じ）を使う。
+        src_addr = mai.get("所在地") or reg.get("登記所在", "")
+        reg_town, reg_chome = address_verify_service.split_for_input(src_addr)
+        addr_town = st.text_input(
+            "住所（町名まで・必須）",
+            value=st.session_state.get("addr_town_v") or reg_town,
+            key="addr_town_v",
+            placeholder="例：大阪市都島区中野町",
+            help="この欄は日本郵便の公式データで実在を確認します。"
+                 "謄本を読み込むと自動で入ります。丁目・番・号は下の欄へ。")
+        _v = address_verify_service.verify(addr_town) if addr_town else None
+        if _v:
+            if _v["status"] in ("一致", "町域まで一致"):
+                st.success("📮 {}".format(_v["message"]))
+            elif _v["status"] == "見つからない":
+                st.error("📮 {}".format(_v["message"]))
+            else:
+                st.caption("📮 {}".format(_v["message"]))
+
+        # 町名の欄に番地まで打たれていたら、その分をこちらの初期値にして拾い直す。
+        # 謄本が読めていれば、その丁目を初期値に置く（人が足すのは街区・住居番号だけ）。
+        _pref_rest = ((_v or {}).get("banchi", "") if _v else "") or reg_chome
+        addr_rest = st.text_input(
+            "丁目・番・号（必須）",
+            value=st.session_state.get("addr_rest_v") or _pref_rest,
+            key="addr_rest_v",
+            placeholder="例：一丁目4番18号 ／ 1-4-18",
+            help="日本郵便のデータには丁目以降が無いため、ここは機械では確認できません"
+                 "（現地表示・住民票などでご確認ください）。謄本の地番とは別物です。")
+        if mai:
+            st.caption("マイソクから: 所在地 **{}**{}{}".format(
+                mai.get("所在地") or "（取れず）",
+                "／" + mai.get("建物名") if mai.get("建物名") else "",
+                "　※表記は「{}」と読めました".format(mai["表記種別"])
+                if mai.get("表記種別") else ""))
+        if reg:
+            st.caption("謄本から: 所在 **{}** ／ 地番 **{}**　※地番は住居表示とは別物です".format(
+                reg.get("登記所在") or "（取れず）", reg.get("地番") or "（取れず）"))
+
+        # 書式の「（住居表示）」欄へ入るのはこの合成結果。
+        # 町名は公式表記が取れていればそれを使う（表記ゆれをここで吸収する）。
+        address = address_verify_service.compose(
+            (_v or {}).get("official") or addr_town, addr_rest)
+        if address:
+            st.caption("住居表示: **{}**".format(address))
+
 
         st.divider()
         st.header("④ 特約条項（売買・任意）")
@@ -442,41 +585,57 @@ def main():
 
     # ===== 公式書式への流し込み =====
     st.subheader("📥 公式書式へ流し込んで書類を作る")
-    if entry is None:
-        st.error(format_catalog.status_message() or "書式が選ばれていません。")
+    if not entries_selected:
+        st.error(format_catalog.status_message() or
+                 "書式が選ばれていません（サイドバー②で選び、「＋ 選択に追加」を押してください）。")
     else:
-        st.markdown("選択中：**{}**（{}）".format(entry["name"], category))
-        got = format_catalog.filled_fields(entry, data)
-        st.caption(
-            "この書式に自動で入るのは {} 項目：{}".format(len(got), "・".join(got) or "（該当なし）")
-        )
-        docs = format_catalog.document_sheets(entry)
-        if entry.get("fanout_count") and len(docs) > 1:
-            st.info(
-                "この書式は **重要事項説明書に入力すると他の書類へ自動転記される**作りです。"
-                "1ファイルで {} 書類が同時に仕上がります：{}".format(len(docs), " / ".join(docs))
-            )
         st.caption(
             "賃料・売買代金・手付金・引渡日などの取引条件は自動では入りません（どのデータにも無いため）。"
             "選択欄やチェック欄も書式の既定のまま残します。最終確認は宅地建物取引士が行ってください。"
         )
-        try:
-            out = format_catalog.generate(entry, data, os.path.join(REPORTS_DIR, "official"))
-            mime = (
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                if out.lower().endswith(".docx")
-                else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-            with open(out, "rb") as f:
-                st.download_button(
-                    "「{}」をダウンロード".format(entry["name"]),
-                    f.read(),
-                    file_name=os.path.basename(out),
-                    mime=mime,
-                    use_container_width=True,
-                )
-        except Exception as e:
-            st.error("書式への流し込みに失敗しました: {}".format(e))
+        made = []
+        for e in entries_selected:
+            with st.container(border=True):
+                st.markdown("**{}**".format(e["name"]))
+                got = format_catalog.filled_fields(e, data)
+                st.caption("自動で入るのは {} 項目：{}".format(
+                    len(got), "・".join(got) or "（該当なし。白紙のまま出します）"))
+                docs = format_catalog.document_sheets(e)
+                if e.get("fanout_count") and len(docs) > 1:
+                    st.info(
+                        "この書式は **重要事項説明書に入力すると他の書類へ自動転記される**作りです。"
+                        "1ファイルで {} 書類が同時に仕上がります：{}".format(
+                            len(docs), " / ".join(docs)))
+                try:
+                    out = format_catalog.generate(
+                        e, data, os.path.join(REPORTS_DIR, "official"))
+                    made.append(out)
+                    mime = (
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                        if out.lower().endswith(".docx")
+                        else "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
+                    with open(out, "rb") as f:
+                        st.download_button(
+                            "⬇ ダウンロード", f.read(),
+                            file_name=os.path.basename(out), mime=mime,
+                            key="dl_{}".format(e["path"]),
+                            use_container_width=True)
+                except Exception as ex:
+                    st.error("流し込みに失敗しました: {}".format(ex))
+
+        # 2本以上あるときは ZIP でまとめて渡す（1本ずつ押させない）
+        if len(made) > 1:
+            import io
+            import zipfile
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+                for path in made:
+                    z.write(path, os.path.basename(path))
+            st.download_button(
+                "📦 {} 本まとめてダウンロード（ZIP）".format(len(made)),
+                buf.getvalue(), file_name="書類一式.zip", mime="application/zip",
+                type="primary", use_container_width=True)
     st.divider()
 
     # ===== ダウンロード（汎用ドラフト） =====

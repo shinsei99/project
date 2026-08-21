@@ -10,6 +10,14 @@
   - 「種類」は建物の種類のほかに **「権利の種類」**（借地権など）がある
   - 「地積」は物件表示のほかに **「地積の確定」**（実測条項）がある
   - 「建蔽率」は指定建蔽率のほかに **「建蔽率の緩和」**の欄がある
+  - 「所在」は **「水害ハザードマップにおける建物の所在地」**（＝地図上の位置を示す
+    チェック欄）にも出てくる。2026-08-21 に賃貸重説で実際に誤爆し、**物件の所在地が
+    ハザード欄に書かれて、本来の所在地はどこにも入らなかった**
+
+予備の見出し（`alt`）が要る理由:
+  賃貸重説（建物貸借用）の建物の表示欄は見出しが **「（住居表示）」「（登記簿）」**で、
+  「所在」の字が無い。主パターンで当たらなかったときだけ予備を試す
+  （売買の書式は「所在」で当たっているので、そちらの対応を変えないため）。
 
 重説に記載欄が無い項目（最寄駅・駅距離・人口・世帯数・路線価・公示地価）は
 ここでは扱わない。**あれは調査資料であって重要事項説明書の記載事項ではない**
@@ -21,9 +29,16 @@ from __future__ import annotations
 import re
 from typing import Dict, List, Optional
 
-# (PropertyData のキー, 見出しに含まれる語, 除外語, 備考)
+# (PropertyData のキー, 見出しに含まれる語, 除外語, 予備の見出し)
+# 予備は「主パターンで1つも当たらなかったとき」だけ試す。
 RULES = [
-    ("所在地",   r"所在",                 r"事務所|主たる|供託|保証協会|地方本部|免許"),
+    ("所在地",   r"所在",
+     r"事務所|主たる|供託|保証協会|地方本部|免許|ハザード|水害|高潮|浸水|土砂|津波",
+     r"住居表示"),
+    # 謄本の「所在」。書式では「（登記簿）」「登記記録」の欄。住居表示とは別欄なので、
+    # ここを分けないと片方に両方の値が入る（2026-08-21 オーナー指摘で分離）
+    ("登記所在", r"登記簿|登記記録",
+     r"事務所|主たる|供託|保証協会|地方本部|免許|構造|種類|床面積|備考|年月|間取"),
     ("地番",     r"地番",                 r"家屋番号"),
     ("地目",     r"地目",                 None),
     ("地積",     r"地積",                 r"確定|実測|公簿|差異|清算"),
@@ -57,20 +72,32 @@ def resolve(inputs: List[dict]) -> Dict[str, str]:
     **一番上の行のものを採る**。書式の1件目が主たる物件になっているため。
     """
     out: Dict[str, str] = {}
-    for field, inc, exc in [(r[0], r[1], r[2]) for r in RULES]:
-        inc_re = re.compile(inc)
+    used: Dict[str, str] = {}        # セル -> 先に取った項目（衝突を防ぐ）
+    for rule in RULES:
+        field, inc, exc = rule[0], rule[1], rule[2]
+        alt = rule[3] if len(rule) > 3 else None
         exc_re = re.compile(exc) if exc else None
-        best: Optional[dict] = None
-        for item in inputs:
-            label = normalize(item.get("label"))
-            if not inc_re.search(label):
-                continue
-            if exc_re and exc_re.search(label):
-                continue
-            if best is None:
-                best = item
+
+        def pick(pattern: str) -> Optional[dict]:
+            pat = re.compile(pattern)
+            for item in inputs:
+                label = normalize(item.get("label"))
+                if not pat.search(label):
+                    continue
+                if exc_re and exc_re.search(label):
+                    continue
+                # **1つのセルに2項目を割り当てない。**
+                # 割り当てると後の項目が前の値を上書きし、片方が黙って消える
+                # （2026-08-21 に賃貸重説の O91 で実際に起きた）
+                if item["cell"] in used:
+                    continue
+                return item
+            return None
+
+        best = pick(inc) or (pick(alt) if alt else None)
         if best is not None:
             out[field] = best["cell"]
+            used[best["cell"]] = field
     return out
 
 
