@@ -31,14 +31,30 @@ cd ~ && ./secrets-sync.sh check     # 何が無いかを見る
 要るのは **`.env.google-maps`**（ストリートビュー）と **`.env.japanpost`**（郵便番号）。
 **受け取りを確認したら `apps-secrets-handoff/` を置き場ごと消す**（機密を同期フォルダに残さない）。
 
-### 3. `/bin/bash` にフルディスクアクセスを与える（システム設定＞プライバシーとセキュリティ）
+### 3. 日報メールのSMTPを入れる（**このアプリの機密は secrets-sync では運ばれない**）
+
+`chatwork-ai-manager` は `secrets-manifest.txt` の対象外なので、上の import では来ない。
+2行の作業で済む。
+
+```bash
+security add-generic-password -s chatwork-ai-manager-smtp -a shin@daikyocorp.co.jp -w
+# → 続けてパスワードを打つ（画面には出ない）
+```
+
+そのうえで `.streamlit/secrets.toml` に5行を足す（`secrets.toml.example` からコピーでよい）:
+`smtp_host` / `smtp_port` / `smtp_user` / `smtp_password_keychain` / `smtp_from`。
+
+**サブPCで認証・実送信まで確認済み**（2026-08-21・自分宛）。入れるまでは送らず、
+「設定が足りない」を日報の結果に記録して管理者へ通知する。
+
+### 4. `/bin/bash` にフルディスクアクセスを与える（システム設定＞プライバシーとセキュリティ）
 
 launchd の常駐は CloudStorage を読み書きできない。無いと**業務日報が保管も休業日判定もできない**:
 保管先 Dropbox『共有フォルダ/（★必読★）新共有フォルダ/社内・総務/業務日報』／
 休暇スケジュール GoogleDrive『…/ルーティーン/年間休暇スケジュール2026.xlsx』。
 （`shorui-cabinet` 8528 で同じ対処を実施済み）
 
-### 4. 常駐を入れ替える
+### 5. 常駐を入れ替える
 
 ```bash
 launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-worker
@@ -48,7 +64,7 @@ launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-line
 **`services/line_client.py` は worker と line_webhook の両方が読む**ので、片方だけでは不足。
 ngrok（`-ngrok`）は触らなくてよい。
 
-### 5. これで本番に入るもの（8/19以降にサブPCで直したもの）
+### 6. これで本番に入るもの（8/19以降にサブPCで直したもの）
 
 | いつ | 中身 |
 |---|---|
@@ -61,7 +77,7 @@ ngrok（`-ngrok`）は触らなくてよい。
 | 8/21 | **ストリートビューTool**（`streetview_link` / `streetview_available`。要 `.env.google-maps`） |
 | 8/21 | **業務日報を社内メールへも自動送信**（18:30・`info@daikyocorp.co.jp` へ Excel を添付）。**`.streamlit/secrets.toml` に `smtp_password` を入れるまで送られない**（設定不足は日報の結果に記録され管理者へ通知） |
 
-### 6. 動いたか確かめる
+### 7. 動いたか確かめる
 
 ```bash
 cd ~/chatwork-ai-manager
@@ -73,14 +89,8 @@ cd ~/chatwork-ai-manager
 **3つ目はメインPCでしか試せない**（物件マスタDBは gitignore で、サブPCは0件のまま）。
 住所指定（`{"address":"…"}`）ではサブPCで動作を確認済み。
 
-### 7. 人にしかできない残り
+### 8. 人にしかできない残り
 
-- **業務日報のメール送信用に、メインPCでもキーチェーンにパスワードを入れる**（1行で済む）:
-  `security add-generic-password -s chatwork-ai-manager-smtp -a shin@daikyocorp.co.jp -w`
-  そのうえで `.streamlit/secrets.toml` に `smtp_host` / `smtp_port` / `smtp_user` /
-  `smtp_password_keychain` / `smtp_from` の5行を足す（`secrets.toml.example` からコピー）。
-  **サブPCでは送信まで実測済み**なので、メインPCは同じ設定を入れるだけ。
-  入れたら画面の「📝 業務日報」→「⏰ 18:30 の自動処理」→ **✉️ テスト送信** で1通試す
 - **LINE のライトプラン（月5,000通・¥5,000税別）への変更**。無料枠200通は**実測1日約50通で4日で枯れる**。
   未実施ならLINEは無反応のまま（Chatworkは正常）。**Safariでは支払い画面に進めない**ので別ブラウザで
 - **業務日報の初回の自動処理を、人が見ている時間に見届ける**（18:30）。
