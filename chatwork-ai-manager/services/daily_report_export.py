@@ -161,6 +161,15 @@ def build_docx(date_str: str, rows, path: str) -> str:
 
 
 # ---- Excel -------------------------------------------------------------------
+def sheet_name(date_str: str) -> str:
+    """Excelのシート名（例: 2026-08-21 → "業務日報0821"）。
+
+    メール本文にも同じ名前を書くので、**ここ1か所で決める**（別々に組み立てると
+    シート名と案内文がずれる）。
+    """
+    return f"業務日報{date_str[5:].replace('-', '')}"
+
+
 def build_xlsx(date_str: str, rows, path: str) -> str:
     """1シートに全員分を縦に並べた Excel 日報（渡された rows の順に並べる）。"""
     from openpyxl import Workbook
@@ -181,7 +190,7 @@ def build_xlsx(date_str: str, rows, path: str) -> str:
     #   題字「業務日報」などの書式が落ちる（2026-08-21 に実際に起きた）。
     #   列幅の単位ずれは、行の高さを多めに見積もることで吸収する。
     ws = wb.active
-    ws.title = f"業務日報{date_str[5:].replace('-', '')}"
+    ws.title = sheet_name(date_str)
     ws.column_dimensions["A"].width = 22
     ws.column_dimensions["B"].width = 74
 

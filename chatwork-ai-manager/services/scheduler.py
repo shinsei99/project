@@ -512,13 +512,14 @@ def run_daily_report(client, now=None):
                 result["errors"].append(
                     "メール未送信: SMTPの設定が足りない（" + " / ".join(lack) + "）")
             else:
+                # 件名・本文はオーナー指定の形（2026-08-21）。これ以上足さない。
+                #   件名: 業務日報 2026年8月21日（金）
+                #   本文: 業務日報送付 / 対象：… / 添付：<シート名>
                 wd = "月火水木金土日"[now.weekday()]
                 subject = f"業務日報 {now.year}年{now.month}月{now.day}日（{wd}）"
-                body = (f"{now.month}月{now.day}日（{wd}）分の業務日報を添付します。\n"
-                        f"対象: {'・'.join(r['person'] for r in rows)}\n\n"
-                        "この日のChatworkの会話とTODOの動きからAIが作成しました。\n"
-                        "事実と違う点があれば直してください。\n"
-                        "（AI業務マネージャーが自動送信しています）")
+                body = ("業務日報送付\n"
+                        f"対象：{'・'.join(r['person'] for r in rows)}\n"
+                        f"添付：{EX.sheet_name(today)}")
                 try:
                     sent = mailer.send([t.strip() for t in to.split(",") if t.strip()],
                                        subject, body, attachments=[xlsx],
