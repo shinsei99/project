@@ -6,3 +6,4 @@ folium
 pdfplumber
 openpyxl
 reportlab
+python-docx
