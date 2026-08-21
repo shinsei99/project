@@ -249,10 +249,12 @@ Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その
 
 | 媒体 | 原稿 | URL |
 |---|---|---|
-| 本体 | `content/works/excel-row-height.json` | ⬜ https://ai-tools-base.vercel.app/works/excel-row-height （デプロイ待ち） |
-| Zenn | `zenn/openpyxl-row-height-autofit.md` | ⬜ https://zenn.dev/shinsei99/articles/openpyxl-row-height-autofit （push待ち） |
+| 本体 | `content/works/excel-row-height.json` | ✅ https://ai-tools-base.vercel.app/works/excel-row-height （2026-08-21 22:1x・サブPC） |
+| Zenn | `zenn/openpyxl-row-height-autofit.md` | ⬜ **`articles/` へ複製して push 済み（2026-08-21 22:18）だが、9分待って404＝投稿数の上限で弾かれた。**8/21 23:40 以降に空コミットで再push |
 | note | `note/moji-ga-kireteru.md` | ⬜ 未公開（Zennの後に出す） |
 
 - 素材は 2026-08-21 の日報Excel。**実機Excelに autofit させた採寸値は本記事作成時に取り直した**
   （`1=27.0 4=20.0 5=36.0 6=18.0`。1行=18pt・2行=36ptを再確認）
 - 本体→Zenn→note の順で同日に出す（keyline と同じく本人指示による同日進行）
+- **本体のデプロイは `npx vercel --prod --scope brain-dump`。** `--scope` を付けないと
+  `Not authorized` で落ちる（プロジェクトは team `brain-dump` にある。2026-08-21 実測）

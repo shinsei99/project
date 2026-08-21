@@ -8,6 +8,55 @@
 
 ---
 
+## 2026-08-21（サブPC・夜）— 9本目「Excelの行の高さを実機で採寸した」を3媒体ぶん作成
+
+### 完了したこと
+
+- **9本目の3点セットを書いた**（素材は `chatwork-ai-manager` の業務日報Excel）。
+  - 本体 `content/works/excel-row-height.json`（不動産・公開）
+  - Zenn `drafts/zenn/openpyxl-row-height-autofit.md` → `~/articles/` へ複製・push 済み
+  - note `drafts/note/moji-ga-kireteru.md`（技術用語なしの版）
+- **記事に載せた数値は執筆時に取り直した実測**。憶測で書いていない:
+  - 日報Excelを生成 → 実機 Excel に AppleScript で `autofit` → `row height` を読む
+    → `1=27.0 4=20.0 5=36.0 6=18.0`（**1行=18pt / 2行=36pt**。1・4行目は高さ固定行なので対象外）
+  - `openpyxl` で書き出したファイルを読み戻すと `[(1,28.0),(4,22.0),(5,36.0),(6,18.0)]` で一致
+  - 旧式（`len()//37` × `14pt+4`）との差: 全角40文字＝32pt（4pt不足で切れる）／
+    半角混じり55文字（表示幅66）＝32pt（実際は1行18ptで足りる＝余白過多）
+- **本体を本番へ出した** → https://ai-tools-base.vercel.app/works/excel-row-height （200）。
+  ページの見た目も `./va.sh shot` で確認済み（`.see/0821-221345-excel-row-height.png`）
+- 記事化のために読み直して見つけた食い違いを1つ直した:
+  `chatwork-ai-manager/services/daily_report_export.py` のコメントが「余白を見て68単位」の
+  ままで、実装（74単位）とずれていた → コメントを実装に合わせた（動作は変わらない）
+
+### 発生したエラーと解決策
+
+- **症状**: `./publish.sh site`（＝`npx vercel --prod`）が `Not authorized` で失敗。
+  **原因**: `npx vercel whoami` は通る（`daikyocorps-3085`）が、リンク先プロジェクトは
+  team `brain-dump` にあり、既定スコープでは権限が無い。
+  **直し方**: **`npx vercel --prod --scope brain-dump`** で成功（READY・target production）。
+  → `publish.sh` の `npx vercel --prod` に `--scope brain-dump` を足すか、
+  `npx vercel link --yes --project ai-tools-base --scope brain-dump` を1回やるのが恒久策（未実施）。
+- **症状**: push しても Zenn に記事が出ない（**約9分待って404のまま**。`publish.sh status` も ⬜）。
+  **原因**: 既知の「直近24時間の投稿数の上限で、その記事だけ黙ってデプロイされない」状態とみられる
+  （直近の公開は `ai-intake-hearing` の **2026-08-20 23:40**）。**断定はしていない**
+  ——上限のロジックは非開示で、デプロイのお知らせ欄はログインしないと読めないため。
+  **直し方（未実施）**: 8/21 23:40 以降に**空コミットで再push**。
+- `./va.sh shot` を `goto` 無しで叩くと、**前に開いていたページ（8505）を撮る**。
+  必ず `./va.sh goto <url>` → `shot` の順で叩くこと。
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **★明日やること（この順）**:
+  1. **8/21 23:40 以降**に `git commit --allow-empty -m "Zenn再push" && git push` →
+     `./publish.sh status` が `openpyxl-row-height-autofit` ✅ になるまで確認
+  2. Zennが✅になってから **note を手貼り**（`./publish.sh note moji-ga-kireteru` → 本文欄で ⌘V →
+     見出し画像 → 公開）。**このPCからnoteへ自動投稿はできない**（ボット検知。8/21 の節を参照）
+  3. 公開後、`content/works/excel-row-height.json` の `links` に Zenn / note のURLを追記し、
+     `drafts/PUBLISH.md` の9本目の表を埋めて **`npx vercel --prod --scope brain-dump`**
+- `npm run validate` の転載⚠️は現在 `excel-row-height` の1件（上の3が済めば消える）
+
+---
+
 ## 2026-08-21（サブPC）— note の1本を出そうとして、このPCでは自動投稿できないと分かった
 
 ### 完了したこと
