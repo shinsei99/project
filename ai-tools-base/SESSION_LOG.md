@@ -39,9 +39,9 @@
 
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **本体サイトの再デプロイが未実施**。`links` を追記したので
-  `npx vercel --prod --scope brain-dump` を叩くまで、`/works/excel-row-height` に
-  Zenn / note のリンクは出ない（Vercelはgit連携ではない）。
+- ✅ 本体サイトも再デプロイ済み（`npx vercel --prod --scope brain-dump` → Ready/Production・17秒）。
+  本番 `/works/excel-row-height` から Zenn / note の両リンクが引けることを確認した。
+  **次は10本目の題材選び**（`drafts/PUBLISH.md` の順番表）。
 - `drafts/README.md` の一覧表の ✅公開 印が古いままなのは前回から継続。
 
 ---

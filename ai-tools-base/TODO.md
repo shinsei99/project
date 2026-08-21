@@ -11,10 +11,9 @@
 Zenn https://zenn.dev/shinsei99/articles/openpyxl-row-height-autofit ／
 note https://note.com/shinsei99/n/na1ff4ed050f4
 
-1. **残っているのは本体サイトの再デプロイだけ**:
-   `npx vercel --prod --scope brain-dump`（`--scope` 無しは `Not authorized`）。
-   これを叩くまで作品ページに Zenn / note のリンクが出ない
-2. そのあとは `drafts/PUBLISH.md` の順番表どおり、10本目の題材選びへ
+1. ✅ 本体サイトの再デプロイも実施済み（`npx vercel --prod --scope brain-dump`・Ready/Production）。
+   作品ページから Zenn / note の両リンクが引けることを本番URLで確認した
+2. **次は10本目の題材選び**（`drafts/PUBLISH.md` の順番表どおり）
 
 ## （古い）2026-08-17 の「続きから」— 済んだので参考用に残す
 

@@ -188,11 +188,12 @@
 > **④ 法人番号Web-APIを申請完了**（橙＝法人番号のみ。フォーム 2026-08-20 ＋ メール 2026-08-21）。
 > **発行見込みは 2026-09-04〜09-21。** 橙のため**インボイスWeb-APIは含まれない**（★3は別申請のまま）。
 >
-> **⑤ AIツールベースの note 1本が未公開のまま**（`ai-ticket-counter` の `nanka-ugokanai`）。
-> **このサブPCでは自動投稿できない**と判明: MCPは拡張ではなくPlaywrightで `--isolated --headless`
-> ＝ログインが残らず、headedで開くと **note がボット検知でブロック**（回避はしない方針）。
-> Chrome拡張は入っていて有効・claude.aiもログイン済みだが**接続だけ通らない**（未解決）。
-> → **手貼りか、メインPCで出すのが早い。** 詳細は `ai-tools-base/SESSION_LOG.md` の 2026-08-21 の節。
+> **⑤ 解決済（2026-08-22）: サブPCから note へ自動投稿できる。**
+> できなかったのは `~/.mcp.json` の **Playwright（`--isolated --headless`＝ログインが残らない）**の話で、
+> **Claude in Chrome 拡張（普段のChromeのセッション）なら投稿できる**（8/22 に実証・ボット検知にも掛からず）。
+> ただし `computer` の `cmd+v` は**合成キーにOSのクリップボードが載らない**ので貼れない。
+> `javascript_tool` で `text/html` を入れた `ClipboardEvent('paste')` を `.ProseMirror` に投げる。
+> 詳細は `ai-tools-base/SESSION_LOG.md` の 2026-08-22 の節。
 >
 > **人にお願いする残り**: 上記①の反映／★2 Dropbox APIのアプリ作成／★3 Google Drive・
 > Search Console・Analytics（Console操作）／銀行APIは**取引銀行と会計ソフト**を教えてもらえれば再開。
@@ -356,7 +357,7 @@
 | psa-collection | メイン | **PSAカード管理**（旧「PSA保有カード管理」・8527）。**2026-08-19: ポケモンカード図鑑をオプションとして中から開けるようにし、アルバムに「⭐ 欲しいカード」を入れられるようにした**（バインダーは保有カードと欲しいカードを上下2枠に分離）。あわせてグレード絞り込みを削除・セット/年を「さらに絞り込む」へ格納・タイトルの絵文字を削除。次は「欲しいカード」の集計/書き出しが要るかの判断 | 2026-08-19 |
 | flyer-creator | サブ | チラシクリエーター。型10種はagent-platform共通（直すのはagent-platform/core）。下帯ロゴ＋メイン写真の切取位置(上下)スライダー追加。次は物件データの未決3点 | 2026-08-16 |
 | agent-platform | サブ | **完成扱いへ移行（2026-08-17）**: launchd 登録・0.0.0.0・社内LAN共有（8532）。残るのは作り込み（出来た .pptx 11枚の見栄え目視確認／字幕焼き込み／投稿API）で、通し実行はできる | 2026-08-17 |
-| ai-tools-base | サブ | **AIツールベース**（https://ai-tools-base.vercel.app）。**2026-08-21（サブPC）: 9本目「Excelの行の高さを実機で採寸した」を3媒体ぶん作成。本体は公開済み（/works/excel-row-height ・200）／Zenn `openpyxl-row-height-autofit` は push 済みだが24時間の投稿上限で未反映（⬜）／note `moji-ga-kireteru` は Zenn 待ち。★明日: 8/21 23:40 以降に空コミットで再push → `./publish.sh status` が✅になったら note を手貼り → `content/works/excel-row-height.json` の `links` に2本追記して `./publish.sh site`。※Vercelは `npx vercel --prod --scope brain-dump` でないと Not authorized** | 2026-08-21 |
+| ai-tools-base | サブ | **AIツールベース**（https://ai-tools-base.vercel.app）。**2026-08-22（サブPC）: 9本目「Excelの行の高さを実機で採寸した」を3媒体とも公開し完了**（本体 /works/excel-row-height ／ Zenn `openpyxl-row-height-autofit` ／ note https://note.com/shinsei99/n/na1ff4ed050f4 ）。`links` 追記 → `npx vercel --prod --scope brain-dump` まで実施済み・転載⚠️は0件。**次は10本目の題材選び**（`drafts/PUBLISH.md` の順番表）。※note はサブPCからでも Chrome拡張経由で投稿できる（Playwright では不可） | 2026-08-22 |
 | scrapmemo-petapeta | メイン | **2026-08-19: 保存容量の問題を根本解決し、1.0.4/build8 を審査へ提出済み。** 画像だけ IndexedDB へ移した（localStorage 5,100KB は WebKit固定／IndexedDB quota 9,830MB）。旧データは起動時に自動移行。実測で**写真30枚・77.3MB でも保持**（以前は1枚で上限）。`save()` の握りつぶしも解消し、孤児画像の掃除を追加。すべてXcodeシミュレータで実測確認済み。**次は審査結果の確認**（通ったら CLAUDE.md を「配信済み」へ）。リリースノート文案は `RELEASE_NOTES.md` | 2026-08-19 |
 | digital-shosai | メイン | **2026-08-19: App Store へ審査提出済み（1.0.0/build1・`com.shinsei.shosai`・iPhone/iPad）。** Capacitor化→シミュレータで取り込み→本棚→読書→紙面→検索を通し確認→Archive→提出まで実施。**青空文庫の著作権切れ4作品を同梱**し初回起動で自動的に書斎へ入る（4冊352ページ→索引679KB）。読書画面の枠とボタンを固定、safe-area・入力欄16px未満の自動拡大によるズレも解消。スクショは3サイズ（6.9/6.5/12.9インチ）、サポート・プライバシーページは gh-pages `digital-shosai-support/` に公開。**次は ①審査結果の確認 ②実機で1度通す**（著作権欄は `SHINSEI PROPERTY MANAGEMENT.K.K.` が既定で決着）。手順は `digital-shosai/HANDOFF-APPSTORE.md` | 2026-08-19 |
 | keyline | メイン | **KeyLine（NFC鍵・備品貸出管理）＋ KeyTag（iOSアプリ）。** サーバーは 8534・社内LAN限定・テスト99件成功。**2026-08-18: KeyTag を App Store へ提出**（1.0.0/build2・掲載名 KeyTagNFC・サポートページ公開済み）。**次はNFCタグ到着後の実機検証**（アプリのNFC機能は一度も実機で動かしていない）。手順は keyline/keytag/RELEASE.md | 2026-08-18 |
