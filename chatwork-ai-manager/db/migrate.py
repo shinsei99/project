@@ -33,6 +33,9 @@ DEFAULT_SETTINGS = {
     "daily_report_people": "塚本,松本,森",   # 空なら監視ルームのメンバー全員
     "daily_report_room_id": "",              # 空なら manager_room_id → 監視中のgroupルーム
     "daily_report_upload": "1",              # 1でChatworkへ自動アップ（post_modeは見ない）
+    # 社内メールへも同じExcelを添付して送る（2026-08-21 オーナー依頼）。SMTP設定は secrets.toml
+    "daily_report_mail": "1",
+    "daily_report_mail_to": "info@daikyocorp.co.jp",
     "daily_report_save_dir": ("/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/"
                               "共有フォルダ/（★必読★）新共有フォルダ/社内・総務/業務日報"),
     # 会社の休業日（年間休暇スケジュール。オレンジ＝休み）。この日は日報を作らない

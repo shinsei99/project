@@ -1,7 +1,10 @@
 """業務日報（Stage 10）。その日の会話＋TODOから社員1人ずつの日報をAIが作る。
 
-Chatwork へは**この画面からは送らない**。送るときは「承認待ちへ積む」→
+この画面から本文を投稿することはしない。送るときは「承認待ちへ積む」→
 📤 投稿承認（outbox）で人が承認する（kind=daily_report は自動送信されない）。
+
+**18:30 の自動処理は別経路**で、Excel を Chatwork へ**承認を挟まずアップ**し、
+同じExcelを社内メールへも送る（2026-08-21 オーナー指示）。設定はこの画面の下にある。
 """
 import datetime
 import json
@@ -12,7 +15,9 @@ import streamlit as st
 
 from services import daily_report as DR
 from services import daily_report_export as EX
+from services import mailer
 from services import outbox
+from services import settings as ST
 from services.chatwork import mention
 
 
@@ -89,6 +94,7 @@ def render():
     rows.sort(key=lambda r: rank.get(r["person"], 999))
     if not rows:
         st.info("この日の日報はまだありません。上のボタンで作成してください。")
+        _auto_section()
         return
 
     st.divider()
@@ -125,6 +131,8 @@ def render():
                 DR.delete(date_str, r["person"])
                 st.rerun()
 
+    _auto_section()
+
 
 def _enqueue(row, date_str, person, include_opinion=False):
     """outbox に pending で積むだけ。実送信は「投稿承認」画面で人が行う。"""
@@ -141,3 +149,55 @@ def _enqueue(row, date_str, person, include_opinion=False):
                            dedup_key=f"daily_report:{date_str}:{row['person']}")
     st.success(f"承認待ちに積みました（outbox #{ob_id}）。"
                "「📤 投稿承認（outbox）」で内容を確認して送信してください。")
+
+
+def _auto_section():
+    """18:30 の自動処理（Chatworkへアップ＋社内メール）の状態と設定。
+
+    ここは**承認を挟まない経路**なので、いま何が起きる設定になっているかを
+    画面で一目で分かるようにしておく（気づかないまま外に出るのを防ぐ）。
+    """
+    st.divider()
+    st.subheader("⏰ 18:30 の自動処理")
+    on = ST.get_setting("daily_report_enabled", "1") == "1"
+    t = ST.get_setting("daily_report_time", "18:30")
+    st.caption(f"{'有効' if on else '停止中'}／{t} に当日分を作成 → Dropboxへ保管 → "
+               "Chatworkへアップ → 社内メールへ送信。**この経路は人の承認を挟みません。**"
+               "会社の休業日は作成しません。")
+
+    to = ST.get_setting("daily_report_mail_to", "") or ""
+    mail_on = ST.get_setting("daily_report_mail", "0") == "1"
+    lack = mailer.missing()
+
+    c1, c2 = st.columns([3, 2])
+    new_to = c1.text_input("メール送信先（カンマ区切りで複数可）", value=to, key="dr_mail_to")
+    new_on = c2.checkbox("メールで送る", value=mail_on, key="dr_mail_on")
+    if new_to != to or new_on != mail_on:
+        if c2.button("保存", key="dr_mail_save"):
+            ST.set_setting("daily_report_mail_to", new_to.strip())
+            ST.set_setting("daily_report_mail", "1" if new_on else "0")
+            st.success("保存しました。")
+            st.rerun()
+
+    if lack:
+        st.warning("SMTPの設定が足りないため、いまはメールが送られません: "
+                   + " / ".join(lack)
+                   + "。`.streamlit/secrets.toml` に書いてください"
+                     "（実測値: smtp_host=smtp.daikyocorp.co.jp / smtp_port=587 / STARTTLS）。")
+        return
+
+    s = mailer.settings()
+    st.caption(f"送信元 {s['from']} ／ {s['host']}:{s['port']}（STARTTLS）")
+    if st.button("✉️ テスト送信（宛先へ実際に届きます）", key="dr_mail_test"):
+        if not new_to.strip():
+            st.error("送信先が空です。")
+        else:
+            try:
+                got = mailer.send([x.strip() for x in new_to.split(",") if x.strip()],
+                                  "【テスト】業務日報の自動送信",
+                                  "AI業務マネージャーからのテスト送信です。\n"
+                                  "この設定で、毎日18:30に業務日報のExcelを添付して送ります。",
+                                  sender_name="AI業務マネージャー")
+                st.success(f"送信しました → {'、'.join(got['to'])}")
+            except Exception as e:
+                st.error(f"{e}")

@@ -59,6 +59,7 @@ ngrok（`-ngrok`）は触らなくてよい。
 | 8/21 | **法令Tool**（`law_article` / `law_find_articles` / `law_search`。e-Gov・キー不要） |
 | 8/21 | **郵便番号Tool**（`address_to_zip` / `zip_lookup`。要 `.env.japanpost`） |
 | 8/21 | **ストリートビューTool**（`streetview_link` / `streetview_available`。要 `.env.google-maps`） |
+| 8/21 | **業務日報を社内メールへも自動送信**（18:30・`info@daikyocorp.co.jp` へ Excel を添付）。**`.streamlit/secrets.toml` に `smtp_password` を入れるまで送られない**（設定不足は日報の結果に記録され管理者へ通知） |
 
 ### 6. 動いたか確かめる
 
@@ -74,6 +75,9 @@ cd ~/chatwork-ai-manager
 
 ### 7. 人にしかできない残り
 
+- **業務日報のメール送信用に `smtp_password` を入れる**（`shin@daikyocorp.co.jp` のパスワード）。
+  ホスト・ポート・暗号化は実測済みで `secrets.toml.example` に書いてある。入れたら
+  画面の「📝 業務日報」→「⏰ 18:30 の自動処理」→ **✉️ テスト送信** で1通試す
 - **LINE のライトプラン（月5,000通・¥5,000税別）への変更**。無料枠200通は**実測1日約50通で4日で枯れる**。
   未実施ならLINEは無反応のまま（Chatworkは正常）。**Safariでは支払い画面に進めない**ので別ブラウザで
 - **業務日報の初回の自動処理を、人が見ている時間に見届ける**（18:30）。
@@ -341,6 +345,54 @@ Embed URL はキーが剥き出しになるので**社員に配るチャット�
     `outbox.NEVER_AUTO_KINDS = {"daily_report"}` により `post_mode` が `auto` でも送られず、
     必ず「📤 投稿承認（outbox）」で人が承認する。文章の誤りが本人・上長の目に直接触れるため
   - つまり **「ファイルは自動で上がる／本文の投稿は人が承認」**。
+
+### 社内メールへも送る（2026-08-21 オーナー依頼）
+
+18:30 の自動処理で、**Chatworkへのアップと併せて同じExcelをメールに添付して送る**。
+既定の宛先は `info@daikyocorp.co.jp`（設定 `daily_report_mail_to`。カンマ区切りで複数可）。
+止めるときは `daily_report_mail` を `0`。画面（📝 業務日報 の一番下）からも変えられる。
+
+**Apple Mail(AppleScript) ではなく SMTP 直**にした。18:30 は launchd の常駐から無人で走るので、
+Mail.app の起動も「自動化」のTCC許可も要らないほうが確実なため。実装は `services/mailer.py`。
+
+#### サーバー設定（2026-08-21 に実測で確定）
+
+| 項目 | 値 | 確かめ方 |
+|---|---|---|
+| ホスト | `smtp.daikyocorp.co.jp`（122.28.46.202・**Postfix**） | `dig +short smtp.daikyocorp.co.jp` |
+| ポート | **587 のみ**（**465 と 25 は閉じている**＝タイムアウト） | 3ポートへTCP接続して確認 |
+| 暗号化 | **STARTTLS**（EHLOに `STARTTLS` あり） | `smtplib` で EHLO |
+| 認証 | `AUTH PLAIN LOGIN` | 同上 |
+| 上限 | **30MB**（`SIZE 31457280`。添付を含む） | 同上 |
+| MX | `mwbgw1/2.ocn.ad.jp`（OCN） | `dig +short MX daikyocorp.co.jp` |
+
+#### 資格情報の置き方（`.streamlit/secrets.toml`）
+
+```toml
+smtp_host = "smtp.daikyocorp.co.jp"
+smtp_port = "587"
+smtp_user = "shin@daikyocorp.co.jp"
+smtp_password = "..."                      # ← または下のキーチェーン
+smtp_password_keychain = "chatwork-ai-manager-smtp"
+smtp_from  = "shin@daikyocorp.co.jp"
+```
+
+平文を置きたくなければキーチェーンに入れる（`mail-archiver` と同じやり方）:
+
+```bash
+security add-generic-password -s chatwork-ai-manager-smtp -a shin@daikyocorp.co.jp -w
+```
+
+**パスワードが未設定のうちは送らず、「SMTPの設定が足りない」を日報の結果に記録して
+管理者へ通知する**（黙って送らないことがないようにしている）。
+
+#### 確認のしかた
+
+画面の「📝 業務日報」→ 一番下の「⏰ 18:30 の自動処理」に、いまの設定と
+**✉️ テスト送信**ボタンがある（押すと宛先へ実際に届く）。
+
+> **メールは送ったら取り消せない。** 宛先はコードに埋めず設定に持たせている。
+> 本番の宛先で試す前に、まず自分宛で1通試すこと。
 
 ### 使い方
 

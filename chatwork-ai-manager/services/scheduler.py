@@ -435,7 +435,8 @@ def run_daily_report(client, now=None):
         _finish(DAILY_REPORT_JOB, today, res)
         return {"job": DAILY_REPORT_JOB, "claimed": True, **res}
 
-    result = {"date": today, "people": [], "errors": [], "saved": [], "uploaded": None}
+    result = {"date": today, "people": [], "errors": [], "saved": [],
+              "uploaded": None, "mailed": None}
 
     # 1) 直前までの会話を取り込む（18:30 までの発言を漏らさない）
     try:
@@ -496,6 +497,35 @@ def run_daily_report(client, now=None):
                 result["uploaded"] = {"room_id": rid, "file_id": fid}
             except Exception as e:
                 result["errors"].append(f"アップ失敗: {type(e).__name__}: {e}")
+
+    # 5-b) 社内メールへ同じExcelを添付して送る（2026-08-21 オーナー依頼）
+    #      Chatworkへのアップとは独立。片方が失敗しても、もう片方は続ける。
+    #      SMTP設定（secrets.toml）が無いPCでは「未設定」と記録して次へ進む。
+    if settings.get_setting("daily_report_mail", "0") == "1":
+        to = (settings.get_setting("daily_report_mail_to", "") or "").strip()
+        if not to:
+            result["errors"].append("メール送信先が未設定（daily_report_mail_to）")
+        else:
+            from services import mailer
+            lack = mailer.missing()
+            if lack:
+                result["errors"].append(
+                    "メール未送信: SMTPの設定が足りない（" + " / ".join(lack) + "）")
+            else:
+                wd = "月火水木金土日"[now.weekday()]
+                subject = f"業務日報 {now.year}年{now.month}月{now.day}日（{wd}）"
+                body = (f"{now.month}月{now.day}日（{wd}）分の業務日報を添付します。\n"
+                        f"対象: {'・'.join(r['person'] for r in rows)}\n\n"
+                        "この日のChatworkの会話とTODOの動きからAIが作成しました。\n"
+                        "事実と違う点があれば直してください。\n"
+                        "（AI業務マネージャーが自動送信しています）")
+                try:
+                    sent = mailer.send([t.strip() for t in to.split(",") if t.strip()],
+                                       subject, body, attachments=[xlsx],
+                                       sender_name="AI業務マネージャー")
+                    result["mailed"] = {"to": sent["to"], "attached": sent["attached"]}
+                except Exception as e:
+                    result["errors"].append(f"メール送信失敗: {e}")
 
     # 6) 失敗があれば管理者へ知らせる（黙って止まらない）
     if result["errors"]:
