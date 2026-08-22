@@ -11,6 +11,10 @@
   weekly_report_fri (金曜18:00) / weekly_report_mon (月曜10:30)
 
 方針:
+  - **会社の休業日（年間休暇スケジュールのオレンジ）は投稿する定時ジョブを全て止める**（オーナー指示 2026-08-22）。
+    carryover/closing/due_reminder/週次棚卸し/業務日報が対象。claim だけして「休業日」と記録し、その日は再試行しない。
+    ナレッジ増分リフレッシュは投稿しないので休業日も動かす。休み中に期限を過ぎたTODOは翌営業日の
+    carryover_1000（期限超過）で拾われるため、取りこぼしにはならない。
   - scheduled_runs(UNIQUE run_date,job_type) を INSERT OR IGNORE で「claim」し、取れた時だけ実行 → 二重実行防止。
   - 対象TODOは progress_tools で機械抽出 → Claude(run_json)が「誰に何を送るか」を優先度判断（全員機械催促しない）。
     ただし due_reminder は「事前リマインド」なので原則全件送る（プロンプトで指示）。
@@ -69,6 +73,19 @@ def due_jobs(now: datetime.datetime):
         out.append((target, job_type))
     out.sort()  # 時刻順
     return [j for _, j in out]
+
+
+def _is_company_holiday(day: str) -> bool:
+    """会社の休業日（年間休暇スケジュールのオレンジ）か。判定できない時は False（＝通常運転）。
+
+    休業日に催促・進捗確認を送らないため（オーナー指示 2026-08-22）。
+    休暇表が読めない／テーブルが無い環境で定時処理ごと落とさないよう、例外は握って False。
+    """
+    try:
+        from services import holidays
+        return holidays.is_holiday(day)
+    except Exception:
+        return False
 
 
 def _claim(job_type, today):
@@ -152,6 +169,13 @@ def run_job(client, job_type, now=None):
     _kt, _def, kind, stage, label = JOBS[job_type]
     if not _claim(job_type, today):
         return {"job": job_type, "claimed": False}  # 既に他が実行済み（二重防止）
+
+    # 会社の休業日は催促・進捗確認を送らない（claim 済みなのでこの日はもう走らない）。
+    # 休み中に期限を過ぎたTODOは、翌営業日の carryover_1000（期限超過）で拾われる。
+    if _is_company_holiday(today):
+        res = {"skipped": "休業日", "candidates": 0, "contacted": 0}
+        _finish(job_type, today, res)
+        return {"job": job_type, "claimed": True, **res}
 
     tasks = _candidates(kind, today)
     if not tasks:
@@ -273,6 +297,12 @@ def run_weekly_report(client, job_type, now=None):
     _weekday, _time_key, _default, label = WEEKLY_JOBS[job_type]
     if not _claim(job_type, today):
         return {"job": job_type, "claimed": False}
+
+    # 休業日は棚卸しも送らない（日次の定時確認と同じ扱い）。
+    if _is_company_holiday(today):
+        res = {"skipped": "休業日", "tasks": 0, "rooms": 0}
+        _finish(job_type, today, res)
+        return {"job": job_type, "claimed": True, **res}
 
     all_tasks = T.open_tasks_all()
     if not all_tasks:

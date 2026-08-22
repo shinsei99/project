@@ -75,6 +75,7 @@ ngrok（`-ngrok`）は触らなくてよい。
 | 8/21 | **法令Tool**（`law_article` / `law_find_articles` / `law_search`。e-Gov・キー不要） |
 | 8/21 | **郵便番号Tool**（`address_to_zip` / `zip_lookup`。要 `.env.japanpost`） |
 | 8/21 | **ストリートビューTool**（`streetview_link` / `streetview_available`。要 `.env.google-maps`） |
+| 8/22 | **休業日は定時確認を送らない**（年間休暇スケジュールのオレンジ＝`holidays`）。carryover_1000 / closing_1800 / due_reminder / 週次棚卸し が対象（業務日報は8/21から対応済み）。claim だけして定時ログに「休業日」と残す。休み中に期限を過ぎたTODOは翌営業日の carryover_1000（期限超過）で拾う |
 | 8/21 | **業務日報を社内メールへも自動送信**（18:30・`info@daikyocorp.co.jp` へ Excel を添付）。**`.streamlit/secrets.toml` に `smtp_password` を入れるまで送られない**（設定不足は日報の結果に記録され管理者へ通知） |
 
 ### 7. 動いたか確かめる
@@ -553,11 +554,16 @@ Chatwork 投稿用は `chatwork_body()` が別に整形する。**Chatwork は�
 `[To:claude] 大京西ビルの検診完了` → 松本さんの「本日の対応」と「完了したこと」に
 **「大京西ビルの検診」**として入った。`グレイス102の鍵をキーボックスへ返却しました` も同様。
 
-### 会社の休業日は日報を作らない（2026-08-21 オーナー指示）
+### 会社の休業日は定時確認も日報も出さない（2026-08-21 日報／2026-08-22 定時確認）
 
 オーナー管理の Excel **「年間休暇スケジュール2026.xlsx」のオレンジ塗りが休み**。
-`services/holidays.py` が読み、`holidays` テーブルへ写す。18:30 のジョブは休業日なら
-`scheduled_runs` を claim だけして何もしない（夕方じゅう再試行しない）。
+`services/holidays.py` が読み、`holidays` テーブルへ写す。**休業日は「投稿する定時ジョブ」を
+すべて止める**（2026-08-22 オーナー指示）: carryover_1000(10:30) / closing_1800(18:00) /
+due_reminder(09:00) / 週次棚卸し(月・金) / 業務日報(18:30)。いずれも `scheduled_runs` を
+claim だけして「休業日」と記録し、その日は再試行しない。**ナレッジ増分リフレッシュ(07:00)は
+投稿しないので休業日も動かす。** 休み中に期限を過ぎたTODOは翌営業日の carryover_1000
+（期限超過）で拾われるので、取りこぼしにはならない。
+休暇表が読めない・`holidays` が空の環境では False（＝通常運転）に倒す（定時処理ごと落とさない）。
 
     設定 holiday_schedule_path（既定）:
     GoogleDrive-daikyocorp.s@gmail.com/その他のパソコン/マイ Mac mini/
