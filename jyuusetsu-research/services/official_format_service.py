@@ -31,7 +31,7 @@ from typing import Dict, List, Optional
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 
-from services import checkbox_fill, xlsx_patcher
+from services import agent_fields, checkbox_fill, xlsx_patcher
 
 # 入力欄の色（注意事項シートの凡例と実測が一致）
 COLOR_SHARED = "FFFFFF99"   # 共通入力欄（他書式へ反映）
@@ -205,6 +205,10 @@ def scan(path: str) -> dict:
         # 「□」のチェック欄（災害欄と権利部(乙区)の抵当権）。
         # テキストではなく■を入れる欄なので mapping と分けて持つ（checkbox_fill 参照）
         "checkboxes": _checkboxes(row_strings, [d["cell"] for d in inputs], drv),
+        # 1枚目の「宅地建物取引業者・宅地建物取引士」欄（自社情報を毎回入れる）。
+        # 自社が媒介のときと売主（宅建業者）のときで**入れる欄が違う**ので両方持つ
+        "agent_cells_by_role": agent_fields.detect_all(
+            row_strings, [(d["cell"], d["label"]) for d in inputs]),
     }
 
 
@@ -212,6 +216,7 @@ def _checkboxes(row_strings, input_cells, sheet_name: str = "") -> Dict[str, str
     """チェック欄（災害＋権利部）をまとめて検出する。"""
     out = checkbox_fill.detect_hazard(row_strings)
     out.update(checkbox_fill.detect_rights(row_strings, input_cells, sheet_name))
+    out.update(checkbox_fill.detect_laws(row_strings))
     return out
 
 

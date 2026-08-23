@@ -46,10 +46,12 @@ HAZARD_PORTAL = "https://disaportal.gsi.go.jp/maps/index.html?ll={lat},{lon}&z=1
 LAYER_FLOOD = "XKT026"      # 洪水浸水想定区域（想定最大規模）
 LAYER_TSUNAMI = "XKT028"    # 津波浸水想定
 LAYER_SEDIMENT = "XKT029"   # 土砂災害警戒区域
+LAYER_SURGE = "XKT027"      # 高潮浸水想定区域（重説の水害欄は洪水・雨水出水・高潮の3つを聞く）
 
 ZOOM_FLOOD = 14
 ZOOM_TSUNAMI = 14
 ZOOM_SEDIMENT = 13
+ZOOM_SURGE = 14
 
 # 浸水深ランクコード（国土数値情報 water_depth_code）
 DEPTH_RANK = {
@@ -83,6 +85,7 @@ PREF_NOTICE = {
 SOURCE_FLOOD = "国土数値情報 A31a 洪水浸水想定区域（想定最大規模）／不動産情報ライブラリ XKT026"
 SOURCE_TSUNAMI = "国土数値情報 A40 津波浸水想定／不動産情報ライブラリ XKT028"
 SOURCE_SEDIMENT = "国土数値情報 A33 土砂災害警戒区域／不動産情報ライブラリ XKT029"
+SOURCE_SURGE = "国土数値情報 A49 高潮浸水想定区域／不動産情報ライブラリ XKT027"
 
 
 def _flood(lat: float, lon: float, key: str) -> Tuple[str, str]:
@@ -172,6 +175,25 @@ def _sediment(lat: float, lon: float, key: str) -> Tuple[str, str]:
     return "／".join(labels), notice
 
 
+def _surge(lat: float, lon: float, key: str) -> Tuple[str, str]:
+    """高潮浸水想定。戻り値は (値, 注意文)。
+
+    重説の水害欄は洪水・雨水出水（内水）・高潮の3つを聞く。高潮だけ全国データがある。
+    """
+    feats = rc.fetch_features(LAYER_SURGE, lat, lon, ZOOM_SURGE, key)
+    if feats is None or not feats:
+        return "", ""
+    hits = rc.features_containing(feats, lon, lat)
+    if not hits:
+        return "高潮浸水想定区域外", ""
+    depths = [str(f.get("properties", {}).get("A49_003") or "").strip() for f in hits]
+    depths = [d for d in depths if d]
+    text = "高潮浸水想定区域内"
+    if depths:
+        text += "／想定浸水深 {}".format("・".join(sorted(set(depths))))
+    return text, ""
+
+
 def get_hazard_detail(lat: float, lon: float) -> Dict[str, Dict[str, str]]:
     """災害リスクを項目ごとに {値, 出典, 注意} で返す（画面表示用）。"""
     key = rc.get_api_key()
@@ -181,15 +203,18 @@ def get_hazard_detail(lat: float, lon: float) -> Dict[str, Dict[str, str]]:
             "洪水浸水想定": dict(blank),
             "土砂災害": dict(blank),
             "津波": dict(blank),
+            "高潮浸水想定": dict(blank),
         }
 
     flood, flood_note = _flood(lat, lon, key)
     sediment, sediment_note = _sediment(lat, lon, key)
     tsunami, tsunami_note = _tsunami(lat, lon, key)
+    surge, surge_note = _surge(lat, lon, key)
     return {
         "洪水浸水想定": {"値": flood, "出典": SOURCE_FLOOD, "注意": flood_note},
         "土砂災害": {"値": sediment, "出典": SOURCE_SEDIMENT, "注意": sediment_note},
         "津波": {"値": tsunami, "出典": SOURCE_TSUNAMI, "注意": tsunami_note},
+        "高潮浸水想定": {"値": surge, "出典": SOURCE_SURGE, "注意": surge_note},
     }
 
 

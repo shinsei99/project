@@ -32,11 +32,24 @@ def section_city_planning(data: Dict[str, str]) -> Dict[str, str]:
     }
 
 
+def section_areas(data: Dict[str, str]) -> Dict[str, str]:
+    """区域指定（2026-08-23 追加）。重説の法令制限欄の下調べに使う。"""
+    return {
+        "地区計画": data.get("地区計画", ""),
+        "都市計画道路": data.get("都市計画道路", ""),
+        "急傾斜地崩壊危険区域": data.get("急傾斜地崩壊危険区域", ""),
+        "地すべり防止区域": data.get("地すべり防止区域", ""),
+        "自然公園": data.get("自然公園", ""),
+        "立地適正化計画区域": data.get("立地適正化計画区域", ""),
+    }
+
+
 def section_hazard(data: Dict[str, str]) -> Dict[str, str]:
     return {
         "洪水浸水想定": data.get("洪水浸水想定", ""),
         "土砂災害": data.get("土砂災害", ""),
         "津波": data.get("津波", ""),
+        "高潮浸水想定": data.get("高潮浸水想定", ""),
     }
 
 

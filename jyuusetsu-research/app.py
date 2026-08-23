@@ -10,7 +10,7 @@ import sys
 import streamlit as st
 import streamlit.components.v1 as components
 
-from models.property_data import create_property_data, merge
+from models.property_data import create_property_data, extend_fields, merge
 from services import (
     address_service,
     address_verify_service,
@@ -22,7 +22,10 @@ from services import (
     excel_export_service,
     format_catalog,
     facility_service,
+    document_intake,
     hazard_service,
+    landprice_service,
+    legal_area_service,
     pdf_export_service,
     population_service,
     registry_service,
@@ -48,6 +51,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATE_PATH = os.path.join(BASE_DIR, "templates", "jyuusetsu_template.xlsx")
 REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 
+# 追加資料から入る項目を PropertyData の受け入れ対象に足しておく
+extend_fields(document_intake.EXTRA_FIELDS)
+
 st.set_page_config(page_title="AI重説調査システム", page_icon="🏠", layout="wide")
 
 
@@ -57,6 +63,7 @@ def run_pipeline(address, land_pdf, building_pdf, web_law=False):
     facilities = {}
     hazard_url = hazard_service.hazard_link(None, None)
     hazard_detail = {}
+    landprice = {}
     coords = None
     coords_source = ""
 
@@ -77,6 +84,11 @@ def run_pipeline(address, land_pdf, building_pdf, web_law=False):
                 hazard_detail = hazard_service.get_hazard_detail(lat, lon)
                 merge(data, {k: v["値"] for k, v in hazard_detail.items()})
                 facilities = facility_service.nearby_facilities(lat, lon)
+                # 区域指定（地区計画・都市計画道路・急傾斜地・地すべり・自然公園・立地適正化）
+                merge(data, legal_area_service.get_areas(lat, lon))
+                # 近傍の標準地から公示地価。ライフラインと前面道路は**参考**（書式には入れない）
+                landprice = landprice_service.get_landprice(lat, lon)
+                merge(data, {"公示地価": landprice.get("公示地価", "")})
             merge(data, population_service.get_population(address, coords))
         else:
             st.warning("住所から位置を特定できませんでした。住所表記をご確認ください。")
@@ -97,6 +109,11 @@ def run_pipeline(address, land_pdf, building_pdf, web_law=False):
     # ② 登記簿 PDF 解析
     #    サイドバーで「📄 謄本を読む」を押していれば、その結果を使い回す。
     #    解析は claude CLI を通すので数十秒かかる。同じPDFを二度読ませない。
+    # ④ 追加資料（任意）。サイドバーで「追加資料を読む」を押していれば、その結果を使う
+    extra = st.session_state.get("extra_docs")
+    if extra:
+        merge(data, document_intake.flatten(extra))
+
     cached = st.session_state.get("registry_data")
     if cached:
         merge(data, cached)
@@ -104,7 +121,7 @@ def run_pipeline(address, land_pdf, building_pdf, web_law=False):
         with st.spinner("登記簿PDFを解析中..."):
             merge(data, registry_service.parse_registry(land_pdf, building_pdf))
 
-    return data, facilities, hazard_url, coords, coords_source, hazard_detail
+    return data, facilities, hazard_url, coords, coords_source, hazard_detail, landprice
 
 
 def render_streetview(coords, address):
@@ -280,12 +297,145 @@ def render_crosscheck(data, exp_pdf, con_pdf, seller_pro, address):
 
 
 def render_section(title, fields):
-    st.subheader(title)
+    if title:
+        st.subheader(title)
     cols = st.columns(2)
     items = list(fields.items())
     for i, (key, value) in enumerate(items):
         with cols[i % 2]:
             st.markdown("**{}**：{}".format(key, formatter.safe(value)))
+
+
+def render_company_editor():
+    """自社（宅建業者・宅建士）情報の編集。サイドバーの中で呼ぶ。
+
+    書式の1枚目には毎回同じことを書く欄が **A欄だけで13箇所**ある。
+    ここに1回入れておけば、以後すべての書式に自動で入る（`agent_fields`）。
+    値は直下の共有モジュール `company_profile` に保存する（個人情報なので gitignore）。
+    """
+    try:
+        import company_profile
+    except Exception:
+        st.caption("自社情報モジュールが見つかりません（書式の業者欄は空のまま出ます）。")
+        return
+
+    profile = company_profile.load()
+    lack = company_profile.missing(profile)
+
+    # **自社が媒介か売主かで、書式の入れる欄が変わる。**
+    # 宅建業者売主版は A＝売主 / B・C＝媒介 になっていて、媒介なのに A へ入れると
+    # 「媒介なのに売主として署名した書面」になる（2026-08-23 実測で構造を確認）
+    st.radio(
+        "自社の立場",
+        options=["媒介", "売主"],
+        horizontal=True,
+        key="self_role",
+        help="媒介＝仲介として入る（既定）。売主＝自社が宅建業者として売る"
+             "（このときは書式も「宅建業者売主」版を選ぶ）。"
+             "他社の宅建業者が売主で自社が仲介に入るときは「媒介」です。",
+    )
+
+    title = "🏢 自社情報（書式の1枚目に毎回入る）"
+    if lack:
+        title += "　⚠ 要入力 {}".format(len(lack))
+    with st.expander(title, expanded=False):
+        st.caption(
+            "商号・免許番号・宅建士名など、**物件ごとに変わらない欄**をここで1回だけ決めます。"
+            "保証協会と供託所は書式に印刷済みなので入れません。"
+        )
+        if lack:
+            st.warning("空のままだと書面が不完全になります: {}".format("・".join(lack)))
+
+        edited = {}
+        with st.form("company_profile_form"):
+            for key, label, note in company_profile.FIELDS:
+                edited[key] = st.text_input(
+                    label, value=profile.get(key, ""), key="cp_" + key,
+                    help=note or None,
+                )
+            paste = st.text_input(
+                "（補助）免許番号を1行で貼る", value="",
+                help="例: 大阪府知事(10)27334号 → 知事名・更新回数・番号に自動で分けます",
+            )
+            if st.form_submit_button("保存", type="primary"):
+                if paste.strip():
+                    parsed = company_profile.parse_license(paste)
+                    if parsed:
+                        edited.update(parsed)
+                    else:
+                        st.warning("免許番号を読み取れませんでした。3つの欄に直接入れてください。")
+                company_profile.save(edited)
+                st.success("保存しました。次に作る書式から反映されます。")
+                st.rerun()
+
+
+def render_extra_document_results():
+    """追加資料から読み取った項目を、資料ごとに並べて出す。"""
+    results = st.session_state.get("extra_docs") or {}
+    shown = {k: v for k, v in results.items()
+             if v and any(x and not key.startswith("_") for key, x in v.items())}
+    if not shown:
+        return
+    st.subheader("📑 追加資料から読み取った項目")
+    for kind, values in shown.items():
+        doc = document_intake.DOC_BY_KEY[kind]
+        items = {k: v for k, v in values.items() if v and not k.startswith("_")}
+        if not items:
+            continue
+        st.markdown("**{}**".format(doc["label"]))
+        render_section("", items)
+    st.caption(
+        "読み取った値は調査結果に取り込んでいますが、**書式のどのセルに入れるかは"
+        "項目ごとの割り当てが残っています**（現状は画面表示まで）。"
+    )
+    st.divider()
+
+
+def render_extra_documents():
+    """追加資料（任意）のアップロード欄。上げた分だけ埋まる欄が増える。
+
+    謄本だけでは埋まらない欄が重説には大量にある（区分所有の管理まわりだけで61欄）。
+    **上げなければ今までどおり動く**ので、既定は畳んでおく。
+    """
+    uploads = {}
+    with st.expander("➕ 追加資料（任意・上げた分だけ欄が埋まります）", expanded=False):
+        st.caption(
+            "手元にある資料を上げると、謄本では埋まらない項目を読み取ります。"
+            "**読めなかった項目は空のまま**にします（推測で埋めません）。"
+        )
+        for doc in document_intake.DOCS:
+            uploads[doc["key"]] = st.file_uploader(
+                doc["label"], type=["pdf"], key="doc_" + doc["key"], help=doc["help"])
+        if any(v is not None for v in uploads.values()):
+            if st.button("📑 追加資料を読む", use_container_width=True):
+                with st.spinner("追加資料を解析中…（1件あたり30〜60秒）"):
+                    st.session_state["extra_docs"] = document_intake.parse_all(uploads)
+        results = st.session_state.get("extra_docs") or {}
+        for kind, values in results.items():
+            label = document_intake.DOC_BY_KEY[kind]["label"]
+            if values.get("_error"):
+                st.warning("{}：{}".format(label, values["_error"]))
+            else:
+                got = len([v for k, v in values.items() if v and not k.startswith("_")])
+                st.success("{}：{} 項目を読み取りました".format(label, got))
+    return uploads
+
+
+def render_landprice(landprice):
+    """近傍の標準地（地価公示・地価調査）の情報。
+
+    **前面道路とライフラインは「その標準地」の状況**であって当該物件のものではない。
+    重説の道路欄・ライフライン欄にそのまま書くと誤りになるので、
+    参考であることを明示し、書式には入れない（`公示地価` だけ PropertyData に入る）。
+    """
+    if not landprice or not landprice.get("公示地価"):
+        return
+    st.markdown("**近傍の標準地（{}）** — 公示地価 {}".format(
+        landprice.get("_距離", ""), landprice.get("公示地価", "")))
+    bits = [x for x in (landprice.get("_区域区分"), landprice.get("_用途地域"),
+                        landprice.get("_前面道路"), landprice.get("_ライフライン")) if x]
+    if bits:
+        st.caption("参考（標準地の状況。**当該物件のものではない**）: " + " ／ ".join(bits))
 
 
 def render_hazard_notes(hazard_detail):
@@ -445,6 +595,8 @@ def main():
         # 謄本。ここを読むと登記の所在・地番が入る
         land_pdf = st.file_uploader("登記事項証明書（土地PDF）", type=["pdf"])
         building_pdf = st.file_uploader("登記事項証明書（建物PDF）", type=["pdf"])
+
+        render_extra_documents()
         if land_pdf is not None or building_pdf is not None:
             # 解析は claude CLI を通すので数十秒かかる。**押されたときだけ**走らせ、
             # 結果を session_state に置いて、以後の再実行で読み直さない
@@ -569,6 +721,9 @@ def main():
         run = st.button("調査を実行", type="primary", use_container_width=True)
 
         st.divider()
+        render_company_editor()
+
+        st.divider()
         st.caption("外部データのキー（未設定の項目は空欄で継続します）")
         st.code(
             "REINFOLIB_API_KEY  # 用途地域（.streamlit/secrets.toml でも可）\n"
@@ -585,7 +740,7 @@ def main():
         st.error("住所、または登記簿PDFのいずれかを入力してください。")
         return
 
-    data, facilities, hazard_url, coords, coords_source, hazard_detail = run_pipeline(
+    data, facilities, hazard_url, coords, coords_source, hazard_detail, landprice = run_pipeline(
         address, land_pdf, building_pdf, web_law=web_law
     )
     comment = comment_service.generate_comment(data)
@@ -605,11 +760,22 @@ def main():
         st.caption("※ 用途地域はREINFOLIB_API_KEY未設定のため未取得。自治体都市計画図でご確認ください。")
     st.divider()
 
+    render_section("📐 区域指定（法令制限の下調べ）", formatter.section_areas(data))
+    st.caption(
+        "**自動でチェックが入るのは 急傾斜地法・地すべり等防止法・自然公園法 の3つだけ**"
+        "（区域内＝その法律の制限、と言い切れるもの）。"
+        "地区計画・都市計画道路・立地適正化計画は**表示のみ**で、書式のチェックは宅建士が押します"
+        "（立地適正化は区域内であること自体は制限を意味しないため）。"
+    )
+    st.divider()
+
     render_section("🌊 災害情報", formatter.section_hazard(data))
     render_hazard_notes(hazard_detail)
     st.markdown("[🔗 重ねるハザードマップで該当地点を確認]({})".format(hazard_url))
     st.divider()
 
+    render_extra_document_results()
+    render_landprice(landprice)
     render_section("🚉 周辺環境", formatter.section_environment(data))
     if facilities:
         fcols = st.columns(4)
@@ -701,7 +867,8 @@ def main():
                             len(docs), " / ".join(docs)))
                 try:
                     out = format_catalog.generate(
-                        e, data, os.path.join(REPORTS_DIR, "official"))
+                        e, data, os.path.join(REPORTS_DIR, "official"),
+                        role=st.session_state.get("self_role", "媒介"))
                     made.append(out)
                     mime = (
                         "application/vnd.openxmlformats-officedocument.wordprocessingml.document"

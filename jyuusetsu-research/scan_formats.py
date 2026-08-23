@@ -67,8 +67,12 @@ def main():
                 "input_count": len(r["inputs"]),
                 "fanout_count": sum(1 for x in r["inputs"] if x["fanout"]),
                 "mapping": mapping,
-                # 災害欄の「□外・□内」。テキストではなく■を入れる欄なので mapping と分ける
+                # 「□」のチェック欄（災害・権利部・法令）。テキストではなく■を入れる欄なので
+                # mapping と分けて持つ
                 "checkboxes": r.get("checkboxes") or {},
+                # 1枚目の宅建業者・宅建士欄（自社マスタから毎回入れる）。
+                # {"媒介": {...}, "売主": {...}}。自社の立場で使い分ける
+                "agent_cells_by_role": r.get("agent_cells_by_role") or {},
                 # RULES は要素数が可変（予備の見出しを持つ規則がある）。
                 # 添字で取らないと、規則を1つ増やしただけでここが落ちる
                 # （2026-08-21 に実際に落ちて、レジストリが200→126本に欠けた）
@@ -76,7 +80,11 @@ def main():
             })
             print("[%3d/%3d] %-52s %s%s" % (
                 i, len(files), r["name"][:52], field_map.coverage(mapping),
-                "  ☑{}".format(len(r.get("checkboxes") or {})) if r.get("checkboxes") else ""), flush=True)
+                "  ☑{} 業者 媒介{}/売主{}".format(
+                    len(r.get("checkboxes") or {}),
+                    len((r.get("agent_cells_by_role") or {}).get("媒介") or {}),
+                    len((r.get("agent_cells_by_role") or {}).get("売主") or {}))
+                if (r.get("checkboxes") or r.get("agent_cells_by_role")) else ""), flush=True)
         except Exception:
             print("[%3d/%3d] !! %s" % (i, len(files), rel), flush=True)
             traceback.print_exc()

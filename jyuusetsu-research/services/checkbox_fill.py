@@ -208,7 +208,61 @@ def _rights_marks(data: Dict[str, str], boxes: Dict[str, str]) -> Dict[str, str]
 
 
 def marks(data: Dict[str, str], checkboxes: Dict[str, str]) -> Dict[str, str]:
-    """書式へ書き込む {セル: 値} をまとめて作る（災害＋権利部）。"""
+    """書式へ書き込む {セル: 値} をまとめて作る（災害＋権利部＋法令）。"""
     out = _hazard_marks(data, checkboxes)
     out.update(_rights_marks(data, checkboxes))
+    out.update(_law_marks(data, checkboxes))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# 「都市計画法・建築基準法以外の法令に基づく制限」の法令チェック（2026-08-23）
+#
+# 書式には64の法律が「□ 法令名」の形で並んでいて、宅建士が1つずつ見ている。
+# 全国データで区域が公開されていて、かつ **「区域内＝その法律の制限を受ける」と
+# 言い切れるものだけ**を自動でチェックする。
+#
+# 立地適正化計画（都市再生特別措置法）は入れない。**区域内であることが制限を
+# 意味しない**（届出義務は居住誘導区域"外"の行為で生じる）ため、解釈が要る。
+# 都市計画道路・地区計画は 64法令ではなく「都市計画法」の欄の話なので触らない。
+
+# PropertyData のキー → 書式の法令名
+LAW_BY_FIELD = {
+    "急傾斜地崩壊危険区域": "急傾斜地法",
+    "地すべり防止区域": "地すべり等防止法",
+    "自然公園": "自然公園法",
+}
+_LAW_NAMES = set(LAW_BY_FIELD.values())
+
+
+def detect_laws(row_strings: Dict[int, List[Tuple[int, str]]]) -> Dict[str, str]:
+    """「□ 法令名」の並びから、対象の法令の□セルを見つける。
+
+    64件すべてを持つとレジストリが太るので、**自動で入れる3件だけ**を拾う。
+    """
+    out: Dict[str, str] = {}
+    for row in sorted(row_strings):
+        items = sorted(row_strings[row])
+        for i, (col, t) in enumerate(items):
+            if t != "□":
+                continue
+            for _, t2 in items[i + 1:i + 3]:
+                name = t2.replace(" ", "").replace("　", "")
+                if name in _LAW_NAMES:
+                    out.setdefault("法令_" + name,
+                                   "{}{}".format(get_column_letter(col), row))
+                    break
+    return out
+
+
+def _law_marks(data: Dict[str, str], boxes: Dict[str, str]) -> Dict[str, str]:
+    """区域内と判定できた法律にだけ■を入れる。区域外・判定不可は触らない。"""
+    out: Dict[str, str] = {}
+    for field, law in LAW_BY_FIELD.items():
+        value = str(data.get(field, "") or "").strip()
+        if not value or "区域外" in value:
+            continue
+        cell = boxes.get("法令_" + law)
+        if cell:
+            out[cell] = MARK
     return out

@@ -13,11 +13,18 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import re
 from typing import Dict, List, Optional
 
+# 直下（リポジトリのルート）を import パスに入れる。`company_profile` を読むため。
+# services/format_catalog.py → services → jyuusetsu-research → ルート の3段上がる
+_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
+from services import agent_fields, checkbox_fill
 from services import docx_format_service as dfs
-from services import checkbox_fill
 from services import official_format_service as ofs
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -280,8 +287,25 @@ def source_path(entry: dict) -> str:
     return os.path.join(load()["root"], entry["path"])
 
 
-def generate(entry: dict, data: Dict[str, str], out_dir: str) -> str:
-    """PropertyData を書式へ流し込み、出力パスを返す。"""
+def _company_profile() -> Dict[str, str]:
+    """自社（宅建業者・宅建士）情報。直下の共有モジュールから読む。
+
+    無い環境でも出力そのものは止めない（その欄が空のまま出るだけ）。
+    """
+    try:
+        import company_profile
+
+        return company_profile.load()
+    except Exception:
+        return {}
+
+
+def generate(entry: dict, data: Dict[str, str], out_dir: str,
+             role: str = agent_fields.ROLE_BROKER) -> str:
+    """PropertyData を書式へ流し込み、出力パスを返す。
+
+    `role` は自社の立場（"媒介" / "売主"）。1枚目の業者欄をどちらに入れるかが変わる。
+    """
     src = source_path(entry)
     if not os.path.exists(src):
         raise FileNotFoundError("書式が見つかりません: {}".format(src))
@@ -294,6 +318,11 @@ def generate(entry: dict, data: Dict[str, str], out_dir: str) -> str:
     cells = {cell: data.get(field, "") for field, cell in (entry.get("mapping") or {}).items()}
     # 災害欄はテキストではなくチェック（□→■）。該当したときだけ「内」に入る
     cells.update(checkbox_fill.marks(data, entry.get("checkboxes") or {}))
+    # 1枚目の宅建業者・宅建士欄（毎回同じ内容なので自社マスタから入れる）。
+    # **自社が媒介か売主かで入れる欄が違う**ので、立場で使い分ける
+    by_role = entry.get("agent_cells_by_role") or {}
+    cells.update(agent_fields.values(_company_profile(),
+                                     by_role.get(role) or {}))
     return ofs.fill(src, dst, entry["driver"], cells)
 
 

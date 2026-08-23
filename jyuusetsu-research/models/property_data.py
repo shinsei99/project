@@ -43,6 +43,15 @@ PROPERTY_FIELDS = [
     "洪水浸水想定",
     "土砂災害",
     "津波",
+    "高潮浸水想定",
+    # --- 区域指定（2026-08-23 追加）。重説の「その他の法令に基づく制限」64項目のうち、
+    #     全国データがあるものだけを機械で判定する ---
+    "地区計画",
+    "都市計画道路",
+    "急傾斜地崩壊危険区域",
+    "地すべり防止区域",
+    "自然公園",
+    "立地適正化計画区域",
     # --- 周辺環境 ---
     "最寄駅",
     "駅距離",
@@ -52,6 +61,15 @@ PROPERTY_FIELDS = [
     "路線価",
     "公示地価",
 ]
+
+# 追加資料（任意アップロード）から入る項目。**謄本だけでは埋まらない欄**を埋める。
+# 本体の PROPERTY_FIELDS と分けてあるのは、こちらが「資料を上げたときだけ増える」
+# 性質のもので、上げなければ存在しなくてよいため（`document_intake` 参照）。
+def extend_fields(keys):
+    """追加資料の項目を PropertyData の受け入れ対象に足す（重複は無視）。"""
+    for key in keys or []:
+        if key and key not in PROPERTY_FIELDS:
+            PROPERTY_FIELDS.append(key)
 
 
 def create_property_data() -> Dict[str, str]:

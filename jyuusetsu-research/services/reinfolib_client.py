@@ -49,7 +49,8 @@ def deg2tile(lat: float, lon: float, zoom: int) -> Tuple[int, int]:
 
 
 def fetch_features(
-    layer: str, lat: float, lon: float, zoom: int, api_key: str = ""
+    layer: str, lat: float, lon: float, zoom: int, api_key: str = "",
+    extra: Optional[Dict] = None,
 ) -> Optional[List[Dict]]:
     """レイヤの GeoJSON を取得して features を返す。
 
@@ -58,15 +59,19 @@ def fetch_features(
     - `None` … 取得できなかった（キー無し・通信失敗・APIエラー）＝**判定不可**
     - `[]`   … 取得できたが、そのタイルに地物が1つも無い＝**データ未整備の可能性**
     - `[...]`… 取得できた
+
+    `extra` はレイヤ固有の必須パラメータ（例: 地価公示 XPT002 の `year`）。
     """
     key = api_key or get_api_key()
     if not key or lat is None or lon is None:
         return None
     x, y = deg2tile(lat, lon, zoom)
+    params = {"response_format": "geojson", "z": zoom, "x": x, "y": y}
+    params.update(extra or {})
     try:
         resp = requests.get(
             "{}/{}".format(API_BASE, layer),
-            params={"response_format": "geojson", "z": zoom, "x": x, "y": y},
+            params=params,
             headers={"Ocp-Apim-Subscription-Key": key},
             timeout=TIMEOUT,
         )
