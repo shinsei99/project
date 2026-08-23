@@ -465,16 +465,32 @@ claude CLI の WebSearch で自治体の都市計画情報を見にいく。た�
 
 ## セットアップ / 起動
 
+**`./run.sh` 1本でよい**（venv作成 → 書式レジストリ作成 → 127.0.0.1:8536 で起動まで面倒を見る）。
+
 ```bash
 cd jyuusetsu-research
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+./run.sh          # → http://127.0.0.1:8536
+```
 
-# （任意）取得項目を増やす場合
-export REINFOLIB_API_KEY=...   # 用途地域
-export ESTAT_APP_ID=...        # 人口・世帯数
+**port は 8536。`--server.address 127.0.0.1` を必ず明示する**（省略時の Streamlit の既定は
+`0.0.0.0`＝社内LANに公開。開発中かつ案件の個人情報を扱うので出さない）。
+※以前ここに `--server.port 8512` と書いてあったのは誤り。**8512 は THETAパノラマの常駐ポート**で、
+メインPCで叩くと衝突する。
 
-streamlit run app.py --server.port 8512
+### 別PCで初めて動かすときに要るもの（git に入らない3つ）
+
+| もの | 置き場 | 用意の仕方 |
+|---|---|---|
+| 公式書式200本のレジストリ | `data/format_registry.json` | `.venv/bin/python scan_formats.py`（Dropbox『契約・書類/書類雛形』を走査。`run.sh` が無ければ自動で作る） |
+| 自社情報（宅建業者・宅建士12欄） | `config/company_profile.json` | リポジトリ直下で `./secrets-sync.sh import`（Dropbox-個人 経由）。無いと1枚目が空欄で出る |
+| APIキー | `.streamlit/secrets.toml` ／ 環境変数 | `REINFOLIB_API_KEY`（用途地域・災害）／`ESTAT_APP_ID`（人口・世帯数） |
+
+手で立てる場合:
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python scan_formats.py
+.venv/bin/streamlit run app.py --server.port 8536 --server.address 127.0.0.1
 ```
 
 ## 出力

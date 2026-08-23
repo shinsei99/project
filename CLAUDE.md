@@ -280,6 +280,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | note（非技術・読み物） | https://note.com/shinsei99 | `ai-tools-base/drafts/note/`／`./publish.sh note <名前>` |
 | 緑と暮らすスローライフ（物件サイト） | https://daikyocorp.co.jp/slowlife/ | `flyer-creator` が生成→FTP（接続情報は `theta-viewer/server/ftp-config.json`） |
 | 小説「不動産屋、はじめました。」 | https://kakuyomu.jp/works/2912051604243797830 | カクヨム連載・著者名 SHINSEI。**全31話・予約投稿済みで順次自動公開＝放置でよい**。原稿は GoogleDrive/新誠不動産/`カクヨム用/` |
+| 続編「不動産屋、つくってます。」 | **未投稿**（作品ページも未作成） | **全32話・95,119字を 2026-08-22 に脱稿**。前作の続き（久美が独立し、自作アプリで管理業を作る話）。原稿は GoogleDrive/新誠不動産/`続編_カクヨム用/`（設計は `続編_構成案.md` / `続編_全話構成.md`）。**次は通し推敲 →作品ページ作成→投稿**（投稿は直近24時間の本数制限に注意） |
 
 - 上の3つ（サイト・Zenn・note）は**1本の制作記録を3媒体に出す**運用。手順は `ai-tools-base/CLAUDE.md`
 - **THETAパノラマ（daikyocorp.co.jp/vr/）やGitHub Pages公開のゲームはここに載せない。**
