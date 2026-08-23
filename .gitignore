@@ -73,6 +73,13 @@
 
 # ポケモンカード図鑑。**data/ は4.3GBあり個人情報も含むので絶対に追跡しない**
 # （カード画像31,520枚・DB 38MB。引き継ぎは Dropbox 経由。HANDOFF.md 参照）
+# ワンピースカード図鑑（onepiece-dex・port 8537）。公式サイトのカードリストが唯一の情報源。
+# data/ はカード画像 約1.1GB＋DB。著作権物なのでコミットしない（作り直しは crawl→fetch で足りる）
+!onepiece-dex/
+!onepiece-dex/**
+onepiece-dex/data/
+onepiece-dex/.venv/
+onepiece-dex/__pycache__/
 !pokecard-dex/
 !pokecard-dex/**
 pokecard-dex/data/

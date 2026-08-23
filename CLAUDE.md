@@ -197,7 +197,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全52本）※不動産31・ツール15・ゲーム6  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全53本）※不動産31・ツール16・ゲーム6  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
 ### 不動産（31本）
@@ -236,14 +236,14 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | 事業計画案ジェネレーター（投資収支→Excel） | business-plan-generator | 8533 | ✅ | — |
 | KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | — |
 
-### ツール（15本）※社内LAN共有なし
+### ツール（16本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
 | 送付書ジェネレーター | soufu-generator | 8518 | — |
-| デジタル書斎 | digital-shosai | 3001 | App Store **審査提出済み**（1.0.0/build1・2026-08-19） |
+| デジタル書斎 | digital-shosai | 3001 | App Store **審査待ち**（1.0/build1・2026-08-19提出。2026-08-23 に API で確認＝まだ審査に入っていない） |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
-| スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（1.0.2 build6 配信済み・**1.0.4 build8 を審査へ提出済み 2026-08-19**。build7は提出せず） |
+| スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（**1.0.4 build8 が配信中**。2026-08-23 に API で確認して更新。build7は提出せず） |
 | 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅ |
 | ママカウンター | mom-counter | — | GitHub Pages / App Store ✅ v1.0.1 |
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
@@ -252,6 +252,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | PSAカード管理 | psa-collection | 8527 | — |
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
 | ポケモンカード図鑑（全31,520枚・画像100%収録／**PSAカード管理の中からも開ける**） | pokecard-dex | 8531 | — |
+| ワンピースカード図鑑（全4,962枚・画像100%収録／公式サイト1本で完結） | onepiece-dex | 8537 | — |
 | チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
 | AIツールベース（Claude Code主軸の比較メディア＋制作記録） | ai-tools-base | 3004 | Vercel（**ai-tools-base.vercel.app**・手動 `npx vercel --prod`） |
 | メールアーカイバ（IMAP容量対策・ローカル保管＋全文検索） | mail-archiver | 8535 | — |
@@ -264,7 +265,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | カラー重力ゲーム | color-gravity | GitHub Pages |
 | サイボーグ防衛軍 | cyborg-defense | GitHub Pages |
 | にゃんこ大脱出 | neko-escape | GitHub Pages |
-| にゃんこのアイス屋さん | nyanko-ice | iOS App Store申請中 |
+| にゃんこのアイス屋さん | nyanko-ice | **未提出**（App Store Connect 上は 1.0 が「提出準備中」・登録ビルド0件。2026-08-23 に API で確認。「申請中」は誤記だった） |
 | ネオンブロック | neon-blocks | iOS App Store配信済み ✅ |
 
 ## ★ 公開サイト（5つ）
@@ -299,6 +300,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 - **AI業務マネージャー**（`chatwork-ai-manager`） … `chatwork-ai-manager/README.md`
 - **チラシクリエーター**（`flyer-creator`・port 8529） … `flyer-creator/README.md`
 - **書類キャビネット**（`shorui-cabinet`・port 8528） … `shorui-cabinet/README.md`
+- **ワンピースカード図鑑**（`onepiece-dex`・port 8537） … `onepiece-dex/README.md`
 - **不動産写真AI**（`photo-inpainter`・port 8506） … `photo-inpainter/README.md`
 - **THETAパノラマ3D空間化**（`theta-viewer`） … `theta-viewer/README.md`
 - **KeyLine（NFC鍵・備品貸出管理）**（`keyline`・port 8534） … `keyline/README.md`
@@ -351,6 +353,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8528 | 書類キャビネット（※不動産・社内LAN共有あり・0.0.0.0／要フルディスクアクセス for /bin/bash＝Dropbox取込読取） | com.shinsei.shorui-cabinet |
 | 8529 | チラシクリエーター（※ツール・127.0.0.1・launchd未登録） | （未登録） |
 | 8531 | ポケモンカード図鑑（※ツール・127.0.0.1・**PSAカード管理(8527)の中からも開ける**／カード画像は著作物のためLANに出さない） | com.shinsei.pokecard-dex |
+| 8537 | ワンピースカード図鑑（※ツール・127.0.0.1・launchd未登録／カード画像は著作物のためLANに出さない） | （未登録） |
 | 8532 | マルチプロダクション | com.shinsei.agent-platform |
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
 | 8534 | KeyLine（NFC鍵・備品貸出管理／※画像自動削除は -purge が毎日3:30） | com.shinsei.keyline ＋ -purge |
@@ -368,7 +371,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 |---|---|---|
 | 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8534 keyline＋8540 chatwork-ai-manager |
 | 不動産だが**開発中** | `--server.address 127.0.0.1` | （現在なし。8532 agent-platform は2026-08-17に完成扱いへ移行） |
-| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 8535 mail-archiver / 3004 ai-tools-base（Next.js） |
+| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 8535 mail-archiver / 8537 onepiece-dex / 3004 ai-tools-base（Next.js） |
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
 
@@ -403,6 +406,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
    - Capacitor: `ios/App/App.xcodeproj/project.pbxproj`（※`ios/`はgitignore。`cap sync`しても番号は保持されるが、`cap add ios`でやり直すと1に戻る）
 2. 必要なら `MARKETING_VERSION`（表示バージョン）も上げる（例 1.0.0 → 1.0.1）
 3. **衝突チェック**: `./ios-build-guard.sh <app-folder>` を実行し「衝突なし」を確認（`--bump`で自動+1も可）
+   - **審査の状態は `python3 appstore_api.py --review`** で確認できる（App Store Connect の画面を見に行かなくてよい。2026-08-23 追加）
 4. Capacitorは `npx cap sync` を実行してからArchive（`.xcworkspace`を開く）
 5. Archive → Upload → App Store Connectで **今上げたbuild番号** が選択肢に出ることを確認してから提出
 6. 配信物のソースは必ずコミット＆push（修正が手元だけに残ると同じ事故が再発する）
