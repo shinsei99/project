@@ -26,4 +26,8 @@ from registry_parser import (  # noqa: F401,E402  明示再輸出（* は _ 始�
     EMPTY,
     extract_text,
     parse_registry,
+    # `_` 始まりは `import *` で運ばれない。**呼んでいる側があるものは必ずここに書く**。
+    # 2026-08-23: `_combine_shubetsu` の書き漏らしで 8517 の smoke_test が
+    # AttributeError で落ちていた（アプリ本体は使っていないので画面は動いていた）。
+    _combine_shubetsu,
 )

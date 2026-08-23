@@ -52,7 +52,16 @@ def section_environment(data: Dict[str, str]) -> Dict[str, str]:
 
 
 def section_registry(data: Dict[str, str]) -> Dict[str, str]:
-    return {
+    """登記の要点。抵当権は**土地と建物を分けて出す**（重説の欄が分かれているため）。
+
+    どちらの不動産のものか分からないときだけ、旧来の `抵当権` を「（土地・建物の別が
+    不明）」として出す。書式には入らないので、画面で人に気づかせる必要がある。
+    """
+    out = {
         "所有者": data.get("所有者", ""),
-        "抵当権": data.get("抵当権", ""),
+        "抵当権（土地）": data.get("土地抵当権", ""),
+        "抵当権（建物）": data.get("建物抵当権", ""),
     }
+    if data.get("抵当権") and not (data.get("土地抵当権") or data.get("建物抵当権")):
+        out["抵当権（土地・建物の別が不明）"] = data.get("抵当権", "")
+    return out

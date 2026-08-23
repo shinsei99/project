@@ -17,6 +17,7 @@ import re
 from typing import Dict, List, Optional
 
 from services import docx_format_service as dfs
+from services import checkbox_fill
 from services import official_format_service as ofs
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -291,10 +292,19 @@ def generate(entry: dict, data: Dict[str, str], out_dir: str) -> str:
         return dfs.fill(src, dst, data, targets=entry.get("targets"))
 
     cells = {cell: data.get(field, "") for field, cell in (entry.get("mapping") or {}).items()}
+    # 災害欄はテキストではなくチェック（□→■）。該当したときだけ「内」に入る
+    cells.update(checkbox_fill.marks(data, entry.get("checkboxes") or {}))
     return ofs.fill(src, dst, entry["driver"], cells)
 
 
 def filled_fields(entry: dict, data: Dict[str, str]) -> List[str]:
-    """実際に値が入る項目（空の項目は書式の既定を残すので数えない）。"""
+    """実際に値が入る項目（空の項目は書式の既定を残すので数えない）。
+
+    土砂災害はテキストではなくチェック（□→■）で入るので、mapping には無い。
+    実際に■が入るときだけ数に入れる（画面の「入る項目数」を実態と合わせる）。
+    """
     keys = list((entry.get("mapping") or {}).keys()) or list(entry.get("fields") or [])
-    return [k for k in keys if str(data.get(k, "") or "").strip()]
+    out = [k for k in keys if str(data.get(k, "") or "").strip()]
+    if checkbox_fill.marks(data, entry.get("checkboxes") or {}):
+        out.append("土砂災害（チェック）")
+    return out

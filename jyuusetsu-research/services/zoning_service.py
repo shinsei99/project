@@ -11,9 +11,11 @@
   （2026-08-19 まで XKT001 を叩いていたため、キーがあるのに常に空だった）
 - 返るプロパティ名は `use_area_ja` / `u_building_coverage_ratio_ja` / `u_floor_area_ratio_ja`。
   **建ぺい率・容積率は `"80%"` `"400%"` のように単位付きの文字列**で返るので `%` を足さない
-- **防火地域・高度地区はこのAPIでは取れない**（XKT001〜XKT007 を実測して確認。
-  XKT003〜005 は当該地点で0件、XKT006/007 は保育園・学校。防火地域のレイヤ自体が無い）。
-  自治体の都市計画図での手動確認が必要なため、空欄のまま返す
+- **防火地域は XKT014 で取れる**（2026-08-23 実測で判明。プロパティ `fire_prevention_ja` に
+  「防火地域」「準防火地域」が入る。対応ズームは 11〜15 で、**z13 を使う**。
+  2026-08-20 に XKT001〜XKT007 だけを見て「レイヤが無い」と結論していたのは調べ足らずだった）
+- **高度地区は依然として取れない**。XKT024 は名前が似ているが **「高度利用地区」**
+  （容積率の最低限度等を定める別制度）なので流用しない。空欄のまま返す
 
 ポリゴン内外判定は pure-Python のレイキャスティングで行う（追加依存なし）。
 """
@@ -24,8 +26,12 @@ from typing import Dict, List, Optional, Tuple
 
 import requests
 
+from . import reinfolib_client
+
 API_BASE = "https://www.reinfolib.mlit.go.jp/ex-api/external"
 LAYER_USE_AREA = "XKT002"  # 用途地域（XKT001 は都市計画区域なので誤り）
+LAYER_FIRE = "XKT014"     # 防火地域・準防火地域
+ZOOM_FIRE = 13            # 対応は 11〜15。高ズームだと地物が間引かれる
 REINFOLIB_URL = "{}/{}".format(API_BASE, LAYER_USE_AREA)
 TIMEOUT = 15
 ZOOM = 13  # 用途地域 API が対応するズーム（11〜15）
@@ -179,8 +185,8 @@ def _with_percent(value) -> str:
 def get_zoning(lat: float, lon: float) -> Dict[str, str]:
     """用途地域等を取得する。取得できなければ空文字。
 
-    防火地域・高度地区は不動産情報ライブラリに存在しないため常に空欄
-    （空欄のときは comment_service が「都市計画図での確認が必要」と書く）。
+    防火地域は XKT014 から取る（2026-08-23 追加）。高度地区は該当レイヤが無いため
+    常に空欄（空欄のときは comment_service が「都市計画図での確認が必要」と書く）。
     """
     result = {
         "用途地域": "",
@@ -206,6 +212,8 @@ def get_zoning(lat: float, lon: float) -> Dict[str, str]:
     except Exception:
         return result
 
+    result["防火地域"] = _get_fire_zone(lat, lon, api_key)
+
     feat = _pick_feature(features, lon, lat)
     if not feat:
         return result
@@ -215,3 +223,22 @@ def get_zoning(lat: float, lon: float) -> Dict[str, str]:
     result["建ぺい率"] = _with_percent(props.get("u_building_coverage_ratio_ja"))
     result["容積率"] = _with_percent(props.get("u_floor_area_ratio_ja"))
     return result
+
+
+def _get_fire_zone(lat: float, lon: float, api_key: str) -> str:
+    """防火地域・準防火地域（XKT014）。
+
+    用途地域と違い **最寄りでの代用はしない**。防火地域は隣の街区で切り替わるので、
+    100m 先の指定を借りてくると誤りになる。地点を含むポリゴンだけを見る。
+
+    - 地点を含む → 「防火地域」「準防火地域」
+    - タイルに地物はあるが地点は外 → **「指定なし」**（言い切ってよい）
+    - タイルに地物が1つも無い → 空文字（＝判定不可。都市計画区域外の可能性もある）
+    """
+    features = reinfolib_client.fetch_features(LAYER_FIRE, lat, lon, ZOOM_FIRE, api_key)
+    if features is None or not features:
+        return ""
+    hits = reinfolib_client.features_containing(features, lon, lat)
+    if not hits:
+        return "指定なし"
+    return str(hits[0].get("properties", {}).get("fire_prevention_ja") or "").strip()

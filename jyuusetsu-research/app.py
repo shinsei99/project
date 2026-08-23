@@ -56,6 +56,7 @@ def run_pipeline(address, land_pdf, building_pdf, web_law=False):
     data = create_property_data()
     facilities = {}
     hazard_url = hazard_service.hazard_link(None, None)
+    hazard_detail = {}
     coords = None
     coords_source = ""
 
@@ -72,7 +73,9 @@ def run_pipeline(address, land_pdf, building_pdf, web_law=False):
             hazard_url = hazard_service.hazard_link(lat, lon)
             with st.spinner("都市計画・災害・周辺施設を調査中..."):
                 merge(data, zoning_service.get_zoning(lat, lon))
-                merge(data, hazard_service.get_hazard(lat, lon))
+                # 災害は出典と利用制限（兵庫県など）も画面に出すので detail で受ける
+                hazard_detail = hazard_service.get_hazard_detail(lat, lon)
+                merge(data, {k: v["値"] for k, v in hazard_detail.items()})
                 facilities = facility_service.nearby_facilities(lat, lon)
             merge(data, population_service.get_population(address, coords))
         else:
@@ -101,7 +104,7 @@ def run_pipeline(address, land_pdf, building_pdf, web_law=False):
         with st.spinner("登記簿PDFを解析中..."):
             merge(data, registry_service.parse_registry(land_pdf, building_pdf))
 
-    return data, facilities, hazard_url, coords, coords_source
+    return data, facilities, hazard_url, coords, coords_source, hazard_detail
 
 
 def render_streetview(coords, address):
@@ -283,6 +286,29 @@ def render_section(title, fields):
     for i, (key, value) in enumerate(items):
         with cols[i % 2]:
             st.markdown("**{}**：{}".format(key, formatter.safe(value)))
+
+
+def render_hazard_notes(hazard_detail):
+    """災害情報の出典と、出典側が課している利用制限を必ず画面に出す。
+
+    土砂災害警戒区域データは**兵庫県が「重要事項の説明等の根拠としないで下さい」と
+    明記している**（当社の営業エリアが該当する）。取れた値をそのまま重説の根拠に
+    できると思われては困るので、値のすぐ下に出す。
+    """
+    if not hazard_detail:
+        return
+    for key, info in hazard_detail.items():
+        if info.get("注意"):
+            st.warning("**{}**：{}".format(key, info["注意"]))
+    if any(info.get("値") for info in hazard_detail.values()):
+        sources = sorted({info["出典"] for info in hazard_detail.values() if info.get("値")})
+        st.caption("出典: {}".format(" ／ ".join(sources)))
+    st.caption(
+        "「区域外」は**その地点のタイルに区域データがある上で外**と判定したもの。"
+        "データが1件も無いときは空欄（＝判定不可）にしてある。"
+        "書式へは**土砂災害の「内」だけ**自動でチェックが入る"
+        "（津波は浸水想定と災害警戒区域が別制度、洪水欄は地図添付のチェックのため自動化しない）。"
+    )
 
 
 def main():
@@ -559,7 +585,7 @@ def main():
         st.error("住所、または登記簿PDFのいずれかを入力してください。")
         return
 
-    data, facilities, hazard_url, coords, coords_source = run_pipeline(
+    data, facilities, hazard_url, coords, coords_source, hazard_detail = run_pipeline(
         address, land_pdf, building_pdf, web_law=web_law
     )
     comment = comment_service.generate_comment(data)
@@ -580,6 +606,7 @@ def main():
     st.divider()
 
     render_section("🌊 災害情報", formatter.section_hazard(data))
+    render_hazard_notes(hazard_detail)
     st.markdown("[🔗 重ねるハザードマップで該当地点を確認]({})".format(hazard_url))
     st.divider()
 

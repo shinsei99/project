@@ -31,7 +31,7 @@ from typing import Dict, List, Optional
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 
-from services import xlsx_patcher
+from services import checkbox_fill, xlsx_patcher
 
 # 入力欄の色（注意事項シートの凡例と実測が一致）
 COLOR_SHARED = "FFFFFF99"   # 共通入力欄（他書式へ反映）
@@ -153,7 +153,8 @@ def scan(path: str) -> dict:
     戻り値:
       {
         "file": ..., "driver": "(1)重要事項説明書...", "sheets": [...],
-        "inputs": [{"cell","color","label","fanout"}...]   # fanout=他書式への反映数
+        "inputs": [{"cell","color","label","fanout"}...],  # fanout=他書式への反映数
+        "checkboxes": {"土砂災害警戒区域_内": "AK276", ...}
       }
     """
     wb = load_workbook(path)
@@ -164,6 +165,9 @@ def scan(path: str) -> dict:
 
     inputs: List[dict] = []
     seen = set()
+    # 行ごとの文字列（チェックボックス欄の検出に使う）。
+    # 起点シートは一度しか走査しないので、ここで一緒に集めておく
+    row_strings: Dict[int, List[tuple]] = {}
     # まず「他書式へ効くセル」を優先して拾う
     for cell, n in refs.items():
         inputs.append({
@@ -176,6 +180,11 @@ def scan(path: str) -> dict:
     # 起点シート内だけで完結する入力欄も拾う（重説そのものを出すときに要る）
     for row in ws.iter_rows():
         for c in row:
+            v = c.value
+            if isinstance(v, str):
+                t = v.strip().replace("\n", "")
+                if t and not t.startswith("="):
+                    row_strings.setdefault(c.row, []).append((c.column, t))
             if c.coordinate in seen:
                 continue
             rgb = _fill_rgb(c)
@@ -193,7 +202,17 @@ def scan(path: str) -> dict:
         "driver": drv,
         "sheets": list(wb.sheetnames),
         "inputs": inputs,
+        # 「□」のチェック欄（災害欄と権利部(乙区)の抵当権）。
+        # テキストではなく■を入れる欄なので mapping と分けて持つ（checkbox_fill 参照）
+        "checkboxes": _checkboxes(row_strings, [d["cell"] for d in inputs], drv),
     }
+
+
+def _checkboxes(row_strings, input_cells, sheet_name: str = "") -> Dict[str, str]:
+    """チェック欄（災害＋権利部）をまとめて検出する。"""
+    out = checkbox_fill.detect_hazard(row_strings)
+    out.update(checkbox_fill.detect_rights(row_strings, input_cells, sheet_name))
+    return out
 
 
 def fill(src_path: str, dst_path: str, driver: str, cells: Dict[str, str]) -> str:
