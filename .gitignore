@@ -51,6 +51,11 @@
 # App Store Connect API の共通クライアント（登録済みビルド番号の照会）
 # 資格情報は .env.appstore と .appstore/AuthKey_*.p8 側（gitignoreのまま）
 !appstore_api.py
+
+# e-Stat（政府統計）の共通クライアント（人口・世帯・空き家・借家の商圏データ）
+# appId は .env.estat 側（gitignoreのまま・secrets-manifest.txt で運ぶ）
+# 表のメタ情報のキャッシュ .estat-cache/ は入れない（1行目の * で既に除外）
+!estat_api.py
 !va.sh
 !visual_agent.py
 !handwriting-ocr/

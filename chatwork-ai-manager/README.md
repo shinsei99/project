@@ -29,7 +29,7 @@ cd ~ && ./secrets-sync.sh check     # 何が無いかを見る
 ./secrets-sync.sh import            # Dropbox-個人/apps-secrets-handoff から取り込む
 ```
 
-要るのは **`.env.google-maps`**（ストリートビュー）と **`.env.japanpost`**（郵便番号）。
+要るのは **`.env.google-maps`**（ストリートビュー）・**`.env.japanpost`**（郵便番号）・**`.env.estat`**（商圏統計）の3つ。
 **受け取りを確認したら `apps-secrets-handoff/` を置き場ごと消す**（機密を同期フォルダに残さない）。
 
 ### 3. 日報メールのSMTPを入れる（**このアプリの機密は secrets-sync では運ばれない**）
@@ -78,7 +78,8 @@ ngrok（`-ngrok`）は触らなくてよい。
 | 8/21 | **ストリートビューTool**（`streetview_link` / `streetview_available`。要 `.env.google-maps`） |
 | 8/22 | **休業日は定時確認を送らない**（年間休暇スケジュールのオレンジ＝`holidays`）。carryover_1000 / closing_1800 / due_reminder / 週次棚卸し が対象（業務日報は8/21から対応済み）。claim だけして定時ログに「休業日」と残す。休み中に期限を過ぎたTODOは翌営業日の carryover_1000（期限超過）で拾う |
 | 8/21 | **業務日報を社内メールへも自動送信**（18:30・`info@daikyocorp.co.jp` へ Excel を添付）。**`.streamlit/secrets.toml` に `smtp_password` を入れるまで送られない**（設定不足は日報の結果に記録され管理者へ通知） |
-
+| 8/23 | **商圏統計Tool**（`estat_area_profile` / `estat_housing_profile` / `estat_indicator_search` / `estat_indicator_value`。e-Stat 政府統計。要 `.env.estat`）。人口・世帯数・高齢化率・転入超過・将来推計／総住宅数・空き家率・借家率・共同住宅率・着工新設貸家を市区町村単位で引ける。`compare` で区どうしの比較も可 |
+| 8/23 | **法令Toolが requests 無しでも動くようにした**（`egov_law_api.py` が urllib へ自動切替）。本番の `/usr/bin/python3` に requests が入っていないと 8/21 の法令Toolは ImportError で落ちる |
 ### 7. 動いたか確かめる
 
 ```bash
@@ -86,10 +87,13 @@ cd ~/chatwork-ai-manager
 /usr/bin/python3 agent_tool.py law_article '{"law":"宅建業法","number":"35"}'       # キー不要
 /usr/bin/python3 agent_tool.py zip_lookup  '{"code":"5340024"}'                     # .env.japanpost
 /usr/bin/python3 agent_tool.py streetview_link '{"property":"メゾンドール都島"}'   # .env.google-maps
+/usr/bin/python3 agent_tool.py estat_area_profile '{"city":"大阪市都島区"}'         # .env.estat
+/usr/bin/python3 agent_tool.py estat_housing_profile '{"city":"大阪市都島区","compare":["大阪市旭区"]}'
 ```
 
-**3つ目はメインPCでしか試せない**（物件マスタDBは gitignore で、サブPCは0件のまま）。
-住所指定（`{"address":"…"}`）ではサブPCで動作を確認済み。
+**`{"property":"…"}` の形はメインPCでしか試せない**（物件マスタDBは gitignore で、サブPCは0件のまま）。
+住所・地名指定（`{"address":"…"}` / `{"city":"…"}`）ではサブPCで動作を確認済み。
+**メインPCで一度 `{"property":"メゾンドール都島"}` を通しておくこと**（物件→座標→市区町村コードの経路）。
 
 ### 8. 人にしかできない残り
 

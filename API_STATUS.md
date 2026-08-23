@@ -12,6 +12,18 @@
 > - **App Store Connect API を取得**し、`ios-build-guard.sh` を実データ判定へ改修
 > - **保有APIの一覧説明書（Excel）を作成** … 直下 `API一覧説明書.xlsx`（3シート）
 
+> **2026-08-23 に進んだこと（サブPC）**
+> - **e-Stat を共通クライアント `estat_api.py`（直下・urllib のみ）にした**。
+>   `jyuusetsu-research/services/population_service.py` はそこへ付け替え（叩き方の二重持ちをやめた）
+> - **AI業務マネージャー（chatwork-ai-manager）に商圏統計Toolを4つ追加**。
+>   人口・世帯・高齢化率・転入超過・将来推計／総住宅数・空き家率・借家率・共同住宅率・着工新設貸家。
+>   `compare` で区どうしの比較も可（Ａ人口・世帯／Ｈ居住 以外の表も同じ関数で引ける）
+> - **`egov_law_api.py` を requests 無しでも動くようにした**。本番 worker は launchd の
+>   `/usr/bin/python3` で動いており、requests が入っていなければ 8/21 の法令Toolは ImportError で落ちる
+> - **棚卸しでの気づき**: 取ったAPIのうち AI業務マネージャーから呼べていたのは reinfolib と
+>   国土地理院・ハザードマップだけだった。e-Gov／日本郵便／Google Maps は実装済みだが
+>   **メインPCの worker が 8/19 起動のままで1度も動いていない**（再起動が要る）
+
 > **App Store Connect で分かったこと（2026-08-20 実測）**
 >
 > | アプリ | 登録済み最大build | 備考 |
@@ -112,7 +124,7 @@
 | API | 保管先 | 変数名 | 状態 |
 |---|---|---|---|
 | **Google Maps / Street View** | `.env.google-maps` | `GOOGLE_MAPS_WEB_KEY` / `GOOGLE_MAPS_SERVER_KEY` | ✅ **本番・動作確認済み** |
-| **e-Stat（政府統計）** | `.env.estat` | `ESTAT_APP_ID` | ✅ **動作確認済み**（2026-08-20 登録・実装） |
+| **e-Stat（政府統計）** | `.env.estat` | `ESTAT_APP_ID` | ✅ **動作確認済み**（2026-08-20 登録・実装／**2026-08-23 に共通クライアント `estat_api.py` 化し、AI業務マネージャーのToolにも追加**） |
 | **e-Gov 法令API（v2）** | （キー不要） | — | ✅ **動作確認済み**（2026-08-20。共通クライアント `egov_law_api.py`） |
 | **App Store Connect API** | `.env.appstore` ＋ `.appstore/AuthKey_35U53KWY5J.p8` | `ASC_KEY_ID` / `ASC_ISSUER_ID` / `ASC_PRIVATE_KEY_PATH` | ✅ **動作確認済み**（2026-08-20。iOS 9本の登録済みビルドを照会できた） |
 | **日本郵便 デジタルアドレス** | `.env.japanpost` | `JAPANPOST_CLIENT_ID` / `_SECRET_KEY` | ✅ **本番・動作確認済み**（2026-08-20 差し替え）。`JAPANPOST_HOST` の行は消した＝本番に向く。テスト用stubは `.env.japanpost.bak-stub` に退避 |

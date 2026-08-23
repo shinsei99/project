@@ -18,6 +18,7 @@ from services.agent_tools import (
     progress_tools,
     project_tools,
     reinfolib_tools,
+    stats_tools,
     streetview_tools,
     task_tools,
     web_image_tools,
@@ -272,6 +273,38 @@ REGISTRY = {
         "desc": "国交省: 不動産取引価格情報を都道府県/市区町村・年で集計（相場の客観データ）。"
                 "⚠️ city_code は必ず reinfolib_cities で確認してから使う（27102=都島区 / 27122=西成区）",
         "usage": 'reinfolib_transactions {"prefecture":"大阪府","city_code":"27102","year":2024}',
+    },
+    # ---- 商圏の公的統計（e-Stat・政府統計） ----
+    "estat_area_profile": {
+        "func": stats_tools.estat_area_profile,
+        "desc": "e-Stat: その市区町村の人口・世帯数・1世帯あたり人員・高齢化率・転入転出（社会増減）・"
+                "昼夜間人口比率・2040年の将来推計人口。物件名でも住所でも地名でも指定できる。"
+                "compare に他の区・市を並べると横並びで比べられる。"
+                "「このあたり賃貸需要ある？」「若い世帯は多い？」の客観的な裏付けに使う。"
+                "**必ず調査年を添えて答えること**（人口は5年おきの国勢調査）",
+        "usage": 'estat_area_profile {"property":"メゾンドール都島"} または '
+                 '{"city":"大阪市都島区","compare":["大阪市旭区","大阪市中央区"]}',
+    },
+    "estat_housing_profile": {
+        "func": stats_tools.estat_housing_profile,
+        "desc": "e-Stat: その市区町村の総住宅数・空き家数と空き家率・借家率・民営借家の割合・"
+                "共同住宅率・着工新設貸家数（新規供給の勢い）・借家1戸あたり延べ面積。"
+                "買取や新規管理の判断、オーナーへの提案の根拠に使う。"
+                "⚠️ 統計の空き家には募集中の空室も含まれるので、自社の空室率とは別物として説明すること",
+        "usage": 'estat_housing_profile {"city":"大阪市都島区","compare":["大阪市旭区"]}',
+    },
+    "estat_indicator_search": {
+        "func": stats_tools.estat_indicator_search,
+        "desc": "e-Stat: 上の2つに入っていない指標を項目名から探す（例「外国人」「保育所」「着工」）。"
+                "見つけたコードは estat_indicator_value に渡す",
+        "usage": 'estat_indicator_search {"keyword":"空き家"}',
+    },
+    "estat_indicator_value": {
+        "func": stats_tools.estat_indicator_value,
+        "desc": "e-Stat: estat_indicator_search で見つけた任意の項目の値を取る（複数市区町村の比較・"
+                "history=true で年次推移も）。table は population（人口・世帯）/ housing（居住）/ "
+                "economy / labor / safety など",
+        "usage": 'estat_indicator_value {"codes":["H110202"],"table":"housing","city":"大阪市都島区","history":true}',
     },
     # ---- 住所・郵便番号（日本郵便API） ----
     "zip_lookup": {
