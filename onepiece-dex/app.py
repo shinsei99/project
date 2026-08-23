@@ -82,9 +82,19 @@ def stats(_stamp: float = 0.0):
 
 
 @st.cache_data(show_spinner=False)
-def series_list(_stamp: float = 0.0):
-    return [dict(r) for r in conn().execute(
-        "SELECT * FROM dex_series ORDER BY (sort IS NULL), sort")]
+def series_list(ptype: str | None = None, _stamp: float = 0.0):
+    """シリーズ一覧。並びは**発売日の新しい順**（公式の商品ラインナップ由来）。
+
+    発売日が判らないシリーズ（ST-02〜04・ST-16〜20 は現行の商品ラインナップから
+    外れていて載っていない）は末尾に寄せ、公式サイトの並び順で続ける。
+    """
+    sql = "SELECT * FROM dex_series"
+    args: tuple = ()
+    if ptype:
+        sql += " WHERE ptype = ?"
+        args = (ptype,)
+    sql += " ORDER BY (release IS NULL), release DESC, (sort IS NULL), sort"
+    return [dict(r) for r in conn().execute(sql, args)]
 
 
 @st.cache_data(show_spinner=False)
@@ -306,11 +316,11 @@ def fetch_card(key):
 
 # ── 画面 ─────────────────────────────────────────────────────────────────────
 
-def show_series_cards(series_id):
+def show_series_cards(series_id, back_key: str = "series"):
     s = conn().execute("SELECT * FROM dex_series WHERE series_id=?",
                        (series_id,)).fetchone()
-    st.button("← シリーズ一覧にもどる", key="back_series",
-              on_click=_pick, args=("series", None))
+    st.button("← 一覧にもどる", key=f"back_{back_key}",
+              on_click=_pick, args=(back_key, None))
     if not s:
         st.warning("このシリーズが見つかりません")
         return
@@ -318,42 +328,58 @@ def show_series_cards(series_id):
     cover = _p(s["cover"])
     if cover and os.path.exists(cover):
         c1.image(cover, width="stretch")
+        if s["cover_src"] == "card":
+            c1.caption("※パッケージ画像が無いためリーダーの絵")
     c2.markdown(f"### {s['name']}")
-    c2.caption(f"{s['kind'] or ''}　｜　{s['cards']}枚"
-               f"（画像 {s['images']}枚）　｜　`{s['code'] or s['series_id']}`")
+    bits = [s["ptype"] or "分類なし",
+            (s["release"] or "発売日不明").replace("-", "."),
+            f"{s['cards']}枚（画像 {s['images']}枚）"]
+    if s["price"]:
+        bits.append(s["price"])
+    bits.append(f"`{s['code'] or s['series_id']}`")
+    c2.caption("　｜　".join(bits))
     with c2:
-        where, args = filter_bar("sr", series_id)
+        where, args = filter_bar(f"sr{back_key}", series_id)
 
     where = ["d.key IN (SELECT key FROM card_series WHERE series_id=?)"] + where
     args = [series_id] + args
     cond = " AND ".join(where)
     n = conn().execute("SELECT COUNT(*) FROM dex d WHERE " + cond, args).fetchone()[0]
-    page = paginate(n, f"pg_s_{series_id}")
+    page = paginate(n, f"pg_s_{back_key}_{series_id}")
     _, rows = query(cond, args,
                     "(d.card_no IS NULL), d.card_no, d.variant", page)
-    show_cards(rows, key_prefix=f"s{series_id}")
+    show_cards(rows, key_prefix=f"{back_key}{series_id}")
 
 
-def show_series_grid():
-    items = series_list(db_stamp())
-    kinds = ["すべて"] + list(dict.fromkeys(i["kind"] or "その他" for i in items))
-    kind = st.radio("種類", kinds, horizontal=True, key="series_kind",
-                    label_visibility="collapsed")
-    if kind != "すべて":
-        items = [i for i in items if (i["kind"] or "その他") == kind]
-    st.caption(f"{len(items)}件　公式サイトの並び順（新しい順）　｜　"
-               "表紙はそのシリーズのリーダーの絵を借りている"
-               "（公式のカードリストに商品パッケージ画像が無いため）")
+def cover_of(row):
+    """表紙。**商品パッケージ画像**があればそれ、無ければリーダーの絵。"""
+    p = _p(row.get("cover"))
+    return p if p and os.path.exists(p) else None
+
+
+def show_product_grid(ptype: str, key_prefix: str, on_pick_key: str):
+    """商品の表紙をタイル状に並べる。押すと収録カードへ。
+
+    ポケカ図鑑と同じ入口の作り。分類は**公式の商品ラインナップ**（products）の
+    カテゴリに従う（ブースター＝拡張パック / デッキ＝構築デッキ / その他）。
+    """
+    items = series_list(ptype, db_stamp())
+    n_pkg = sum(1 for i in items if i["cover_src"] == "product")
+    note = f"{len(items)}件　発売日の新しい順"
+    if n_pkg < len(items):
+        note += (f"　｜　うち{len(items) - n_pkg}件はパッケージ画像が無く"
+                 "リーダーの絵で代用（現行の商品ラインナップから外れているため）")
+    st.caption(note)
     cols = 6
     for i in range(0, len(items), cols):
-        for j, (c, s) in enumerate(zip(st.columns(cols), items[i:i + cols])):
+        for j, (c, it) in enumerate(zip(st.columns(cols), items[i:i + cols])):
             with c:
-                cover = _p(s["cover"])
-                if cover and os.path.exists(cover):
+                cover = cover_of(it)
+                if cover:
                     st.image(cover, width="stretch")
                 else:
                     st.markdown(
-                        "<div style='aspect-ratio:5/7;background:#eceff1;"
+                        "<div style='aspect-ratio:1/1;background:#eceff1;"
                         "border-radius:6px;display:flex;align-items:center;"
                         "justify-content:center;color:#90a4ae;font-size:11px'>"
                         "表紙なし</div>", unsafe_allow_html=True)
@@ -361,10 +387,13 @@ def show_series_grid():
                 # 「ONE PIECE CARD T」になって見分けがつかなかった
                 st.markdown(
                     f"<div style='font-size:11px;line-height:1.4;color:#555'>"
-                    f"<b>{s['short'][:30]}</b><br>{s['code'] or ''}　"
-                    f"{s['cards']}枚</div>", unsafe_allow_html=True)
-                st.button("収録カード", key=f"sg_{i}_{j}", width="stretch",
-                          on_click=_pick, args=("series", s["series_id"]))
+                    f"<b>{it['short'][:30]}</b><br>"
+                    f"{(it['release'] or '発売日不明').replace('-', '.')}　"
+                    f"{it['cards']}枚<br>"
+                    f"<span style='color:#90a4ae'>{it['code'] or ''}</span></div>",
+                    unsafe_allow_html=True)
+                st.button("収録カード", key=f"{key_prefix}_{i}_{j}", width="stretch",
+                          on_click=_pick, args=(on_pick_key, it["series_id"]))
 
 
 def show_leaders():
@@ -419,7 +448,7 @@ def render(title: str = "🏴‍☠️ ワンピースカード図鑑"):
     # st.tabs は使わない。要素が増減すると選択が先頭に戻る仕様で、
     # 「シリーズの収録カードを押したのに、さがすタブが開く」という動きになる
     # （ポケカ図鑑で実際に踏んだ）。ラジオなら選択が session_state に残る
-    TABS = ["🔎 さがす", "📦 シリーズ", "👑 リーダー"]
+    TABS = ["🔎 さがす", "📦 拡張パック", "🗃 構築デッキ・その他", "👑 リーダー"]
     tab = st.radio("表示", TABS, horizontal=True, label_visibility="collapsed",
                    key="tab")
 
@@ -468,11 +497,21 @@ def render(title: str = "🏴‍☠️ ワンピースカード図鑑"):
                             "d.card_no, d.variant", page)
             show_cards(rows, key_prefix="find")
 
+    # ── 拡張パック（表紙の一覧から入る）──────────────────────────────────
     elif tab == TABS[1]:
-        if st.session_state.get("series"):
-            show_series_cards(st.session_state.series)
+        if st.session_state.get("pack"):
+            show_series_cards(st.session_state.pack, back_key="pack")
         else:
-            show_series_grid()
+            show_product_grid("拡張パック", "pk", "pack")
+
+    # ── 構築デッキ・その他 ────────────────────────────────────────────────
+    elif tab == TABS[2]:
+        if st.session_state.get("other"):
+            show_series_cards(st.session_state.other, back_key="other")
+        else:
+            kind = st.radio("商品の種類", ["構築デッキ", "その他の商品"],
+                            horizontal=True, key="other_kind")
+            show_product_grid(kind, "ot", "other")
 
     else:
         show_leaders()

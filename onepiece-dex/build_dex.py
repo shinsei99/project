@@ -30,6 +30,26 @@ RARITY_NOTE = {
     "TR": "トレジャーレア", "DON": "ドン!!カード",
 }
 
+# 公式の商品ラインナップの data-cat → 図鑑での分類（ポケカ図鑑と同じ言い方に揃える）
+PTYPE_BY_CAT = {"boosters": "拡張パック", "decks": "構築デッキ",
+                "others": "その他の商品"}
+
+# 商品ラインナップに載っていないシリーズ用。名前の頭で判断する
+PTYPE_BY_NAME = [
+    ("ブースターパック", "拡張パック"), ("プレミアムブースター", "拡張パック"),
+    ("エクストラブースター", "拡張パック"),
+    ("スタートデッキ", "構築デッキ"), ("アルティメットデッキ", "構築デッキ"),
+    ("ファミリーデッキ", "構築デッキ"),
+]
+
+
+def ptype_from_name(name: str | None) -> str:
+    for head, t in PTYPE_BY_NAME:
+        if (name or "").startswith(head):
+            return t
+    return "その他の商品"
+
+
 CATEGORY_JA = {
     "LEADER": "リーダー", "CHARACTER": "キャラクター",
     "EVENT": "イベント", "STAGE": "ステージ", "DON!!": "ドン!!",
@@ -71,7 +91,13 @@ def build(cx: sqlite3.Connection) -> None:
 
     CREATE TABLE dex_series (
       series_id TEXT PRIMARY KEY, name TEXT, short TEXT, code TEXT, kind TEXT,
-      sort INTEGER, cards INTEGER, images INTEGER, cover TEXT
+      sort INTEGER, cards INTEGER, images INTEGER,
+      cover TEXT,        -- 商品パッケージ画像。無ければリーダーの絵で代用
+      cover_src TEXT,    -- 'product'（パッケージ）か 'card'（リーダーの絵）
+      ptype TEXT,        -- 拡張パック / 構築デッキ / その他
+      release TEXT,      -- 2026-08-22（公式の商品ラインナップ由来）
+      price TEXT,
+      product_url TEXT
     );
     CREATE TABLE dex_features (key TEXT, feature TEXT);
     CREATE INDEX idx_df ON dex_features(feature);
@@ -117,6 +143,13 @@ def build(cx: sqlite3.Connection) -> None:
                 cx.execute("INSERT INTO dex_colors VALUES (?,?)", (g("key"), c))
 
     # ── シリーズ。収録は card_series（1枚が複数シリーズに載ることがある）で数える
+    #
+    # 公式の**商品ラインナップ**（products）と記号【OP-17】で突き合わせて、
+    # パッケージ画像・発売日・価格・商品分類を持たせる。カードリスト側には
+    # どれも入っていないので、これが無いと「拡張パックを表紙で選ぶ」画面が作れない。
+    prod = {r[0]: r for r in cx.execute(
+        "SELECT code, cat, img, release, price, url FROM products "
+        "WHERE code IS NOT NULL")}
     for sid, name, code, kind, sort in cx.execute(
             "SELECT series_id, name, code, kind, sort FROM series").fetchall():
         n = cx.execute("SELECT COUNT(*) FROM card_series WHERE series_id=?",
@@ -124,13 +157,23 @@ def build(cx: sqlite3.Connection) -> None:
         im = cx.execute(
             "SELECT COUNT(*) FROM card_series cs JOIN dex d ON d.key=cs.key "
             "WHERE cs.series_id=? AND d.img IS NOT NULL", (sid,)).fetchone()[0]
-        # 表紙は商品パッケージ画像ではなく**そのシリーズのリーダーの絵**を借りる。
-        # 公式のカードリストに商品画像が無いため（正直に README に書いてある）
-        cover = cx.execute(
-            "SELECT d.thumb FROM card_series cs JOIN dex d ON d.key=cs.key "
-            "WHERE cs.series_id=? AND d.thumb IS NOT NULL "
-            "ORDER BY (d.category!='LEADER'), d.card_no, d.variant LIMIT 1",
-            (sid,)).fetchone()
+        p = prod.get(code)
+        ptype = PTYPE_BY_CAT.get(p[1]) if p else None
+        if not ptype:
+            # 商品ラインナップに無いシリーズ（ST-02〜04・ST-16〜20 は現行の
+            # ラインナップから外れていて載っていない）は名前から判断する
+            ptype = ptype_from_name(name)
+        cover = have(p[2]) if p and p[2] else None
+        cover_src = "product" if cover else None
+        if not cover:
+            # パッケージ画像が無いシリーズは、そのシリーズのリーダーの絵を借りる
+            row = cx.execute(
+                "SELECT d.thumb FROM card_series cs JOIN dex d ON d.key=cs.key "
+                "WHERE cs.series_id=? AND d.thumb IS NOT NULL "
+                "ORDER BY (d.category!='LEADER'), d.card_no, d.variant LIMIT 1",
+                (sid,)).fetchone()
+            cover = row[0] if row else None
+            cover_src = "card" if cover else None
         short = (name or "").split("【")[0].strip()
         # 「ブースターパック 世界最強の戦士」→ 種別を落として作品名だけにする
         for k in ("ブースターパック", "プレミアムブースター", "エクストラブースター",
@@ -138,9 +181,10 @@ def build(cx: sqlite3.Connection) -> None:
             if short.startswith(k):
                 short = short[len(k):].strip() or k
                 break
-        cx.execute("INSERT INTO dex_series VALUES (?,?,?,?,?,?,?,?,?)",
-                   (sid, name, short, code, kind, sort, n, im,
-                    cover[0] if cover else None))
+        cx.execute("INSERT INTO dex_series VALUES (%s)" % ",".join("?" * 14),
+                   (sid, name, short, code, kind, sort, n, im, cover, cover_src,
+                    ptype, p[3] if p else None, p[4] if p else None,
+                    p[5] if p else None))
     cx.commit()
 
 
@@ -155,6 +199,13 @@ def main() -> None:
     print(f"サムネイル {q('SELECT COUNT(*) FROM dex WHERE thumb IS NOT NULL'):,}枚")
     print(f"シリーズ   {q('SELECT COUNT(*) FROM dex_series')}件")
     print(f"特徴       {q('SELECT COUNT(DISTINCT feature) FROM dex_features')}種")
+    print("\n分類ごとのシリーズ")
+    for t, n, c in cx.execute("SELECT ptype, COUNT(*), SUM(cards) FROM dex_series "
+                              "GROUP BY 1 ORDER BY 2 DESC"):
+        print(f"  {t or '（なし）':10s} {n:3d}件  {c:,}枚")
+    npkg = q("SELECT COUNT(*) FROM dex_series WHERE cover_src='product'")
+    print(f"\nパッケージ画像を持つシリーズ {npkg}/{q('SELECT COUNT(*) FROM dex_series')}件"
+          "（残りはリーダーの絵で代用）")
 
 
 if __name__ == "__main__":
