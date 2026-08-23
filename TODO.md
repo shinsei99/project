@@ -1,82 +1,96 @@
-> ## 🖥 メインPCでやること — 引き継ぎまとめ（2026-08-21 サブPCより／最終作業日 8/19 以降の分）
+> ## 🖥 メインPCでやること — 引き継ぎまとめ（2026-08-23 サブPCより／8/19以降の3日ぶん）
 >
-> **メインPCは 2026-08-19 から触っていない。以降サブPCで 8/20・8/21 の2日ぶんが進み、すべて push 済み。**
-> **まず `cd ~ && git pull`。** 下は「メインPCでしかできないこと」だけを優先順に並べたもの。
-> 各項目の詳細は、下に積んである日別ブロックと各アプリの README にある。
+> **メインPCの最終作業は 2026-08-19。以降サブPCで 8/20・8/21・8/22 の3日ぶんが進み、すべて push 済み**
+> （HEAD `314782e` 2026-08-22。サブPC側は未コミット・未pushとも 0 件を `./dev-doctor.py --sync --fetch` で確認）。
 >
-> ### A. 本番に効かせるための再起動（最優先・これをしないと直したものが動いていない）
+> **上から順にやる。A だけで本番は正しくなる（30〜40分）。**
+> 各項目の詳細は下の日別ブロックと各アプリの README にある。
 >
-> ```bash
-> cd ~/chatwork-ai-manager && git pull
-> launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-worker
-> launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-line
-> ```
+> ---
 >
-> **worker は 8/19 09:00 起動のまま＝3日ぶんの修正が1つも本番に入っていない。** 溜まっているのは:
-> 1. TASK-20260819-002（QAが未実行のTODO更新を「反映しました」と嘘をつく不具合）
-> 2. TASK-20260819-003（QAのTODO一覧回答を定時確認と同じ担当者グループ化に統一）
-> 3. **LINE無反応の再発防止**（失敗の握りつぶし修正・Chatworkへフォールバック通知・残通数の日次見張り）
-> 4. **業務日報**（毎日18:30の自動処理。**サブPCに worker は常駐していないのでメインPCでしか動かない**）
-> 5. **AIのToolを3系統ぶん追加**（法令の現行条文＝e-Gov／郵便番号と住所の照合＝日本郵便／
->    ストリートビューのリンク＝Google Maps）。法令はキー不要で動くが、**郵便番号と
->    ストリートビューは資格情報が要る** → 上の **A-2** で受け取ってから再起動する。
->    ストリートビューは**リンクを返すだけ**（SV画像をAIに読ませない・印刷しないという規約の線引きは
->    `chatwork-ai-manager/README.md` に書いた）。`{"property":"○○"}` の形は物件マスタDBが
->    サブPCに無くて試せていないので、**メインPCで一度確認すること**
-> 6. **休業日の定時確認の停止**（2026-08-22。休業日の8/22（土）に18:00の定時確認が飛んだ件。
->    worker を再起動するまで、日曜・休業日にも催促が飛び続ける。8/23（日）も休業日）
+> ### A. 本番に効かせる（最優先・これをしないと直したものが1つも動いていない）
 >
-> `services/line_client.py` は worker と line_webhook の**両方**が読むので、片方だけの再起動では不足。
->
-> **上から順の手順・確認コマンド・本番に入る中身の一覧は `chatwork-ai-manager/README.md` の先頭「★ メインPCで最初にやること」にまとめた**
-> （SESSION_LOG/TODO は gitignore で届かないため、READMEに置いている）。
->
-> **あわせて マイソクコンバーター(8505) の常駐も入れ替える**（社内LAN共有あり＝直さないと
-> 修正前のコードが社員に出続ける。貼った画像が横に1.2倍伸びる不具合が残ったまま）:
+> **A-0. コードを取る**
 >
 > ```bash
-> launchctl kickstart -k gui/$(id -u)/com.shinsei.maisoku-converter
-> lsof -nP -iTCP:8505 -sTCP:LISTEN   # *:8505 で待ち受けていること
+> cd ~ && git pull
 > ```
 >
-> ### A-2. APIの資格情報を受け取る（**Dropboxに置いた。受け取ったら消す**）
+> **A-1. APIの資格情報を受け取る（先にやる。これが無いと新しいToolが動かない）**
 >
-> **2026-08-19以降に取った API キーがメインPCに1つも渡っていない。** 24件を書き出した:
+> 8/19以降に取ったキーがメインPCに1件も渡っていない。**個人Dropboxに置いてある**:
 >
 > ```
-> Dropbox-個人/apps-secrets-handoff/apps-secrets-MacBookAir.tar   （992K・33項目・2026-08-21 21:18）
+> Dropbox-個人/apps-secrets-handoff/apps-secrets-MacBookAir.tar （992K・33項目・2026-08-21 21:18・存在確認済み）
 > ```
 >
 > ```bash
 > cd ~ && ./secrets-sync.sh check     # 何が無いかを見る
 > ./secrets-sync.sh import            # 取り込む（既にある物は上書きしない）
+> ./secrets-sync.sh check             # 「不足 0 件」を確認
 > ```
 >
-> **この tar で新しく渡るもの**: `.env.google-maps`（Web/Server/**Embed** の3キー）／
-> `.env.japanpost`（本番）／`.env.estat`／`.env.appstore` ＋ `.appstore/AuthKey_*.p8`（**再発行不可**）／
-> `mail-archiver/.env.mail-archiver`。ほかに既存の19件も入っている（上書きされない）。
+> 新しく渡るもの: `.env.google-maps`（Web/Server/**Embed** の3キー）／`.env.japanpost`（本番）／
+> `.env.estat`／`.env.appstore` ＋ `.appstore/AuthKey_*.p8`（**再発行不可**）／`mail-archiver/.env.mail-archiver`。
+> ほかに既存19件も入っているが上書きされない。
 >
-> **★受け取りを確認したら、`apps-secrets-handoff/` を置き場ごと消すこと**（機密を同期フォルダに
-> 置きっぱなしにしない決まり）。消す前に `./secrets-sync.sh check` で「無い 0件」を確かめる。
-> なお 8/19 に書き出したまま残っていた古い tar は、**今回のものが完全な上位互換だったので削除した**。
+> **★不足0件を確認したら `apps-secrets-handoff/` を置き場ごと消す**（機密を同期フォルダに残さない決まり）。
 >
-> ### B. 人の手が要る設定（コードでは解決しない）
+> **A-2. 人の手が要る設定を2つ入れる（コードでは解決しない。A-3の再起動より前に）**
 >
-> - **業務日報のメール送信の設定をメインPCにも入れる**（`chatwork-ai-manager/.streamlit/secrets.toml` ＋ キーチェーン）。
->   18:30 に Chatwork へのアップと併せて **`info@daikyocorp.co.jp` へExcelを添付して送る**機能を
->   2026-08-21 に追加した。**ホスト・ポート・暗号化は実測で確定済み**（`smtp.daikyocorp.co.jp` /
->   **587のみ** / STARTTLS / 上限30MB）。**サブPCで認証・実送信まで確認済み**（2026-08-21・自分宛）。
->   メインPCは同じ設定を入れるだけ: キーチェーン1行
->   （`security add-generic-password -s chatwork-ai-manager-smtp -a shin@daikyocorp.co.jp -w`）＋
->   `secrets.toml` に5行（`secrets.toml.example` からコピー）。入れるまでは送らず、
->   「設定が足りない」を日報の結果に記録して管理者へ通知する（黙って止まらない）
-> - **`/bin/bash` にフルディスクアクセス**（システム設定＞プライバシーとセキュリティ）。
->   launchd 常駐は CloudStorage を読み書きできず、日報の保管先 Dropbox『社内・総務/業務日報』と
->   休暇スケジュール GoogleDrive『ルーティーン/年間休暇スケジュール2026.xlsx』が失敗する
->   （`shorui-cabinet` 8528 で同じ対処を実施済み）
-> - **LINE のライトプラン（月5,000通・¥5,000税別）への変更**。無料枠200通は4日で枯れる
+> 1. **日報メールのSMTP**（`chatwork-ai-manager` の機密は `secrets-sync` では運ばれない）
+>    ```bash
+>    security add-generic-password -s chatwork-ai-manager-smtp -a shin@daikyocorp.co.jp -w
+>    ```
+>    ＋ `chatwork-ai-manager/.streamlit/secrets.toml` に5行（`secrets.toml.example` からコピー）。
+>    ホスト・ポート・暗号化は実測確定済み（`smtp.daikyocorp.co.jp` / **587のみ** / STARTTLS / 上限30MB）。
+>    **サブPCで認証・実送信まで確認済み**（2026-08-21・自分宛）。入れるまでは送らず「設定が足りない」を
+>    日報の結果に記録して管理者へ通知する（黙って止まらない）。
+> 2. **`/bin/bash` にフルディスクアクセス**（システム設定＞プライバシーとセキュリティ）。
+>    launchd 常駐は CloudStorage を読み書きできない。無いと**業務日報の保管も休業日判定も失敗する**:
+>    保管先 Dropbox『社内・総務/業務日報』／休暇表 GoogleDrive『ルーティーン/年間休暇スケジュール2026.xlsx』。
+>    （`shorui-cabinet` 8528 で同じ対処を実施済み [[reference_launchd_cloudstorage_fda]]）
+>
+> **A-3. 常駐を入れ替える**
+>
+> ```bash
+> launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-worker
+> launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-line
+> launchctl kickstart -k gui/$(id -u)/com.shinsei.maisoku-converter
+> lsof -nP -iTCP:8505 -sTCP:LISTEN   # *:8505 で待ち受けていること
+> ```
+>
+> `services/line_client.py` は worker と line_webhook の**両方**が読むので、片方だけでは不足。
+> ngrok（`-ngrok`）は触らなくてよい。
+>
+> **worker は 8/19 09:00 起動のまま＝3日ぶんの修正が1つも本番に入っていない。** 溜まっているもの:
+>
+> 1. TASK-20260819-002（QAが未実行のTODO更新を「反映しました」と嘘をつく不具合）
+> 2. TASK-20260819-003（QAのTODO一覧回答を定時確認と同じ担当者グループ化に統一）
+> 3. **LINE無反応の再発防止**（失敗の握りつぶし修正・Chatworkへフォールバック通知・残通数の日次見張り）
+> 4. **業務日報**（毎日18:30の自動処理。**サブPCに worker は常駐していないのでメインPCでしか動かない**）
+> 5. **AIのToolを3系統追加**（法令の現行条文＝e-Gov／郵便番号と住所の照合＝日本郵便／
+>    ストリートビューのリンク＝Google Maps）。法令はキー不要、**郵便番号とストリートビューは A-1 が前提**。
+>    ストリートビューは**リンクを返すだけ**（SV画像をAIに読ませない・印刷しないの線引きは README に記載）。
+>    `{"property":"○○"}` の形は物件マスタDBがサブPCに無く試せていない → **メインPCで一度確認すること**
+> 6. **休業日は定時確認を送らない**（8/22 の `314782e`。年間休暇スケジュール上の休業日 8/22（土）に
+>    18:00の定時確認が飛んだ件。休業日判定が業務日報にしか入っていなかった）。
+>    **★8/23（日）も休業日。再起動するまで日曜・休業日にも催促が飛び続ける**
+>
+> マイソクコンバーター(8505)は**社内LAN共有あり**＝入れ替えないと、貼った画像が横1.2倍に伸びる
+> 修正前のコードが社員に出続ける。
+>
+> 手順・確認コマンド・本番に入る中身の一覧は `chatwork-ai-manager/README.md` 先頭
+> 「★ メインPCで最初にやること」に一本化してある（SESSION_LOG/TODO は gitignore で届かないため）。
+>
+> ---
+>
+> ### B. 人にしかできない外部手続き
+>
+> - **LINE のライトプラン（月5,000通・¥5,000税別）への変更。** 無料枠200通は4日で枯れる
 >   （実測 1日約50通）。**未実施なら枠は0のまま＝LINEは無反応のまま。Safari では支払い画面に
 >   進めない**ので別ブラウザで（README に記録済み）
+> - 法人番号Web-API は申請完了済み（**発行見込み 2026-09-04〜09-21**）。届いたら `API_STATUS.md` を更新
 >
 > ### C. メインPC限定の作業（配布証明書・実機・常駐がこちらにしかない）
 >
@@ -85,31 +99,29 @@
 >   通ったら CLAUDE.md の該当行を「配信済み」へ
 > - **デジタル書斎を実機で1度通す**（手順 `digital-shosai/HANDOFF-APPSTORE.md`）
 > - **KeyTag は NFCタグ到着後に実機検証**（NFC機能は一度も実機で動かしていない）
-> - **業務日報の初日を見届ける**（18:30）。**テストはサブPCで 2026-08-21 に完了・来週から本番運用**。
->   18:30 は**承認を挟まず Excel が Chatwork へ上がる**（オーナーの明示指示。止めるなら
->   設定 `daily_report_upload=0`）。メインPCで残るのは、サブPCのDBに tasks が3件しか無く
->   **「本日動いたTODO／未完了TODO」欄だけ実データで動かせていない**という1点
+> - **業務日報の初日を見届ける**（**次の営業日 8/24（月）18:30**。8/23（日）は休業日で動かない）。
+>   テストはサブPCで 8/21 に完了。18:30 は**承認を挟まず Excel が Chatwork へ上がる**
+>   （オーナーの明示指示。止めるなら設定 `daily_report_upload=0`）。残る未確認は、サブPCのDBに
+>   tasks が3件しか無く**「本日動いたTODO／未完了TODO」欄だけ実データで動かせていない**という1点
+> - `mail-archiver`(8535) をメインPCで常駐させるなら A-2 の `/bin/bash` FDA が前提
 >
 > ### D. 余力があれば
 >
-> - **note `nanka-ugokanai`（ai-ticket-counter）が未公開。** サブPCでは自動投稿できないと判明
->   （Playwright が `--isolated` でログインが残らず、headed だと note のボット検知でブロック）。
->   **メインPCなら出せる可能性がある。手貼りでもよい**
-> - `mail-archiver` をメインPCで常駐させるなら `/bin/bash` の FDA が要る（B と同じ）
+> - **ポケモンカード図鑑の相場は週1回**更新するとよい（`.venv/bin/python ingest_tcgdex_price.py`）
+> - ~~note `nanka-ugokanai` はメインPCから~~ → **メインPCの出番は無くなった。**
+>   8/22 に**サブPCから note へ投稿できることを実証**（Playwright ではなく Claude in Chrome 拡張＝
+>   普段のChromeのセッションを使う）。この1本は Zenn `ai-intake-hearing` の再push待ちで、順番の問題だけ
 >
 > ### E. アプリの増減（`git pull` で手元の構成が変わる）
 >
-> **総数は 52本のまま変わらない**（メインPCが最後に触った 8/19 も 52本）。**中身が1本入れ替わった**だけ:
+> **総数は 52本のまま**（メインPCが最後に触った 8/19 も 52本）。**中身が1本入れ替わった**だけ:
 > ツールが1本増え（メールアーカイバ）、不動産が1本減った（legal-crosscheck を吸収）。
-> 内訳は 不動産32→**31** / ツール14→**15** / ゲーム6。CLAUDE.md の一覧は更新済み。
-> （アプリ側のログにある「53本→52本」は、メールアーカイバ追加後の53本を基準にした書き方）
+> 内訳は 不動産**31** / ツール**15** / ゲーム6。CLAUDE.md の一覧は更新済み。
 >
 > - **新規: メールアーカイバ `mail-archiver`（8535・ツール）**。IMAP容量対策で `.eml` を
 >   ローカル保管＋FTS5全文検索、取込から14日たったぶんだけサーバーから削除する。
 >   **launchd 未登録・`127.0.0.1` 固定**（メール本文＝個人情報なので社内LANには出さない）。
->   メインPCで常駐させたい場合だけ登録すること。そのときは **B の `/bin/bash` FDA が前提**
->   （原本の置き場が個人Dropbox＝CloudStorage のため）。残作業は
->   ①iCloudのApp用パスワード発行→IMAP取込 ②Tailscale導入（人の作業）③`restore.py`
+>   残作業は ①iCloudのApp用パスワード発行→IMAP取込 ②Tailscale導入（人の作業）③`restore.py`
 > - **削除: `legal-crosscheck`**。`jyuusetsu-research` の④タブへ完全に吸収した。
 >   **`git pull` するとメインPCからもフォルダごと消える**（launchd 登録・`.url` は元から無し）。
 >   `tokuyaku-generator`（8513）は**畳んでいない。恒久的に残す**
@@ -119,16 +131,20 @@
 >   `japanpost_api.py`）と `API_STATUS.md` `GOOGLE_MAPS_API.md`
 > - **`jyuusetsu-research` は port 8536 を予約したが、まだ開発中で launchd 未割当**（配布もしない）
 >
-> ### この2日でサブPCが終わらせたこと（メインPC側の作業は不要）
+> ### F. この3日でサブPCが終わらせたこと（メインPC側の作業は不要）
 >
-> - **重説アプリの大改修**: `legal-crosscheck` を吸収してアプリ削除（**53本→52本／不動産32→31**）。
->   全宅連の公式書式200本を取得・分類。共有モジュール3本（`registry_parser.py` /
->   `tokuyaku_clauses.py` / `tokuyaku_core.py`）を直下に新設＝**コピーを作らないこと**
-> - **Intel Mac で AI解析が黙って無効になるバグを修正**（`CLAUDE_BIN` が
->   `/opt/homebrew/bin/claude` 固定だった。`baikai-generator` と `tokuyaku-generator` の両方）
-> - **マイソクコンバーター**: A4縦対応＋貼った画像が横1.2倍伸びていた重大バグを修正（Excel実測確認済み）
-> - **ポケモンカード図鑑に相場**（8,346件・25.9%で表示）。**週1回 `ingest_tcgdex_price.py`** を回すとよい
-> - **APIの棚卸しで「未確認」6件を解消**＋**法人番号Web-API を申請完了**（発行見込み 9/04〜09/21）
+> - **重説アプリの大改修**（8/21）: `legal-crosscheck` を吸収してアプリ削除。全宅連の公式書式200本を
+>   取得・分類。共有モジュール3本を直下に新設＝**コピーを作らないこと**。
+>   残りは「4書式を出力して Excel を目で見る」の1つ（サブPCで続ける）
+> - **Intel Mac で AI解析が黙って無効になるバグを修正**（`CLAUDE_BIN` が `/opt/homebrew/bin/claude`
+>   固定だった。`baikai-generator` と `tokuyaku-generator` の両方）
+> - **マイソクコンバーター**: A4縦対応＋貼った画像の横1.2倍伸びを修正（Excel実測確認済み）→ A-3で反映
+> - **ポケモンカード図鑑に相場**（8,346件・25.9%で表示・円換算つき）
+> - **APIの棚卸しで「未確認」6件を解消**＋**法人番号Web-API を申請完了**
+> - **AIツールベース 9本目を3媒体とも公開し本番反映まで完了**（8/22）:
+>   Zenn `openpyxl-row-height-autofit` ／ note `moji-ga-kireteru` ／ 本体 `/works/excel-row-height`
+>   （`npx vercel --prod` 済み・リンク確認済み）。**次は10本目の題材選び**
+> - **休業日は定時確認を送らないようにした**（8/22）→ A-3 の再起動で本番に入る
 
 # TODO — 全アプリの索引
 
