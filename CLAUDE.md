@@ -228,7 +228,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | 業務マニュアル（Web） | gyomu-manual | 8521 | ✅ | — |
 | 駐車場配置図ビューア | parking-map | 8522 | ✅ | — |
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
-| 送付書メーカー | soufu-maker | 8525 | ✅ | — |
+| 送付書メーカー（**社員用**・大京商事固定＋担当者切替） | soufu-maker | 8525 | ✅ | — |
 | 書類キャビネット（紙書類の所在管理・ファイル単位） | shorui-cabinet | 8528 | ✅ | — |
 | 書類キャビネット スマホ用（撮影→Dropbox取込） | shorui-mobile | — | ー（Vercel・pass保護） | Vercel（shorui-mobile.vercel.app） |
 | マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | ✅ | — |
@@ -240,7 +240,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
-| 送付書ジェネレーター | soufu-generator | 8518 | — |
+| 送付書ジェネレーター（**オーナー個人専用**・差出人4プロファイル／社内には配らない） | soufu-generator | 8518 | — |
 | デジタル書斎 | digital-shosai | 3001 | App Store **審査待ち**（1.0/build1・2026-08-19提出。2026-08-23 に API で確認＝まだ審査に入っていない） |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
 | スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（**1.0.4 build8 が配信中**。2026-08-23 に API で確認して更新。build7は提出せず） |
@@ -371,7 +371,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 |---|---|---|
 | 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8534 keyline＋8540 chatwork-ai-manager |
 | 不動産だが**開発中** | `--server.address 127.0.0.1` | （現在なし。8532 agent-platform は2026-08-17に完成扱いへ移行） |
-| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 8535 mail-archiver / 8537 onepiece-dex / 3004 ai-tools-base（Next.js） |
+| ツール（社内共有なし） | `--server.address 127.0.0.1` | 8518 soufu-generator（個人専用） / 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 8535 mail-archiver / 8537 onepiece-dex / 3004 ai-tools-base（Next.js） |
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
 

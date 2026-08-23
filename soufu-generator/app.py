@@ -2,6 +2,7 @@ import streamlit as st
 import subprocess
 import json
 import os
+import shutil
 import io
 import html as html_mod
 from datetime import date
@@ -11,9 +12,33 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-CLAUDE_BIN = "/opt/homebrew/bin/claude"
+def _find_claude() -> str:
+    """環境に依らず claude 実行ファイルを探す（PATH → よくある場所の順）。
+
+    2026-08-23: `/opt/homebrew/bin/claude` の直書きだった。Homebrew版がある
+    メインPCでは動くが、`~/.local/bin/claude` のサブPCでは本文生成が失敗する。
+    送付書メーカー（8525）と同じ探し方に揃えた。
+    """
+    found = shutil.which("claude")
+    if found:
+        return found
+    for p in (os.path.expanduser("~/.local/bin/claude"),
+              "/opt/homebrew/bin/claude",
+              "/usr/local/bin/claude"):
+        if os.path.exists(p):
+            return p
+    return "claude"
+
+
+CLAUDE_BIN = _find_claude()
 CLAUDE_TIMEOUT = 120
-SENDERS_FILE  = os.path.join(os.path.dirname(os.path.abspath(__file__)), "senders.json")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+# 差出人マスタは2段構え（2026-08-23）:
+#   senders.local.json … **gitignore**。自宅住所・携帯を含む実データはこちらだけに置く
+#   senders.json       … 公開リポジトリに載る雛形（会社3件。個人の住所・電話は空）
+# 読むときはローカル優先、書くときは必ずローカル側。これで pull しても実データが消えない。
+SENDERS_LOCAL = os.path.join(_HERE, "senders.local.json")
+SENDERS_FILE  = os.path.join(_HERE, "senders.json")
 
 DEFAULT_SENDERS = [
     {
@@ -44,13 +69,16 @@ DEFAULT_SENDERS = [
         "fax": "０６－７６３５－７８１１",
     },
     {
+        # ★ 自宅住所・携帯番号は**公開リポジトリに書かない**（2026-08-23）。
+        #    実際の値は gitignore された senders.local.json 側に持つ。
+        #    画面の「差出人を編集」で入力すれば、そちらへ保存される。
         "label": "個人",
         "company": "",
         "title": "",
         "name": "鷲見　慎一",
-        "address": "大阪市城東区中央1-10-22-901",
-        "tel": "090-8530-0184",
-        "fax": "０６－７６３５－７８１１",
+        "address": "",
+        "tel": "",
+        "fax": "",
     },
 ]
 
@@ -75,17 +103,20 @@ def to_halfwidth(s: str) -> str:
 
 # ── Persistence ───────────────────────────────────────────────────────────────
 def load_senders() -> list:
-    if os.path.exists(SENDERS_FILE):
-        try:
-            with open(SENDERS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            pass
+    """差出人マスタを読む。ローカル（実データ）→ 追跡される雛形 → 既定値 の順。"""
+    for path in (SENDERS_LOCAL, SENDERS_FILE):
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                continue
     return DEFAULT_SENDERS[:]
 
 
 def save_senders(senders: list):
-    with open(SENDERS_FILE, "w", encoding="utf-8") as f:
+    """**必ずローカル側に書く**（自宅住所・携帯を公開リポジトリへ戻さないため）。"""
+    with open(SENDERS_LOCAL, "w", encoding="utf-8") as f:
         json.dump(senders, f, ensure_ascii=False, indent=2)
 
 

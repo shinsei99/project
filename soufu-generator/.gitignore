@@ -3,3 +3,7 @@ template.xlsx
 
 # 破損していた旧テンプレートのローカルバックアップ
 template.docx.orig-corrupt.bak
+
+# 差出人マスタの実データ（自宅住所・携帯番号を含む）。**公開リポジトリに載せない**
+# 追跡されるのは雛形の senders.json（会社3件・個人の住所と電話は空）だけ
+senders.local.json
