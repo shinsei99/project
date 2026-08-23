@@ -1,7 +1,8 @@
-> ## 🖥 メインPCでやること — 引き継ぎまとめ（2026-08-23 サブPCより／8/19以降の3日ぶん）
+> ## 🖥 メインPCでやること — 引き継ぎまとめ（2026-08-23 サブPCより／8/19以降の4日ぶん）
 >
-> **メインPCの最終作業は 2026-08-19。以降サブPCで 8/20・8/21・8/22 の3日ぶんが進み、すべて push 済み**
-> （HEAD `314782e` 2026-08-22。サブPC側は未コミット・未pushとも 0 件を `./dev-doctor.py --sync --fetch` で確認）。
+> **メインPCの最終作業は 2026-08-19。以降サブPCで 8/20・8/21・8/22・8/23 の4日ぶんが進み、すべて push 済み**
+> （HEAD `c00c3a9` 2026-08-23・8/20以降 **41コミット**。サブPC側は未コミット・未push・stash とも 0 件を
+> `./dev-doctor.py --sync --fetch` で確認済み。**コードは `git pull` だけで全部そろう**）。
 >
 > **上から順にやる。A だけで本番は正しくなる（30〜40分）。**
 > 各項目の詳細は下の日別ブロックと各アプリの README にある。
@@ -28,7 +29,7 @@
 > 8/19以降に取ったキーがメインPCに1件も渡っていない。**個人Dropboxに置いてある**:
 >
 > ```
-> Dropbox-個人/apps-secrets-handoff/apps-secrets-MacBookAir.tar （992K・33項目・2026-08-21 21:18・存在確認済み）
+> Dropbox-個人/apps-secrets-handoff/apps-secrets-appurunoMacBook-Air.tar （996K・34項目・2026-08-23 22:37）
 > ```
 >
 > ```bash
@@ -38,8 +39,12 @@
 > ```
 >
 > 新しく渡るもの: `.env.google-maps`（Web/Server/**Embed** の3キー）／`.env.japanpost`（本番）／
-> `.env.estat`（**8/23からAI業務マネージャーの商圏統計Toolでも使う**）／`.env.appstore` ＋ `.appstore/AuthKey_*.p8`（**再発行不可**）／`mail-archiver/.env.mail-archiver`。
+> `.env.estat`（**8/23からAI業務マネージャーの商圏統計Toolでも使う**）／`.env.appstore` ＋ `.appstore/AuthKey_*.p8`（**再発行不可**）／`mail-archiver/.env.mail-archiver`／
+> **`config/company_profile.json`（8/23新規。自社の宅建業者・宅建士12欄。public リポジトリに値を置かない決まりなので、これが無いとAI重説の自社欄が空になる）**。
 > ほかに既存19件も入っているが上書きされない。
+>
+> ※ 8/21 に置いた古い tar（`apps-secrets-MacBookAir.tar`・33項目）は、**中身が新しい tar に全部含まれることを
+> 突き合わせて確認したうえで削除済み**。置き場に残っているのは上の1本だけ。
 >
 > **★不足0件を確認したら `apps-secrets-handoff/` を置き場ごと消す**（機密を同期フォルダに残さない決まり）。
 >
@@ -61,14 +66,31 @@
 > **A-3. 常駐を入れ替える**
 >
 > ```bash
+> # ① AI業務マネージャー（LINE無反応の修正・業務日報・Tool追加・休業日判定）
 > launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-worker
 > launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-line
+>
+> # ② マイソクコンバーター（貼った画像が横1.2倍に伸びる不具合。社内LAN共有あり＝最優先）
 > launchctl kickstart -k gui/$(id -u)/com.shinsei.maisoku-converter
 > lsof -nP -iTCP:8505 -sTCP:LISTEN   # *:8505 で待ち受けていること
+>
+> # ③ 8/23の横断改修（http_compat・pdf_orient一本化・API追加）が入った常駐アプリ
+> for l in realestate-valuation business-plan-generator tokuyaku-generator baikai-generator \
+>          kaitori-dm-maker restoration-calculator settlement-creator memorandum-generator \
+>          shorui-cabinet agent-platform; do
+>   launchctl kickstart -k gui/$(id -u)/com.shinsei.$l
+> done
 > ```
 >
 > `services/line_client.py` は worker と line_webhook の**両方**が読むので、片方だけでは不足。
 > ngrok（`-ngrok`）は触らなくてよい。
+>
+> **③ を忘れると、直下の共有モジュール（`http_compat.py` / `pdf_orient.py` / `japanpost_api.py` /
+> `area_stats.py` / `law_citations.py`）を差し替えたのに、常駐プロセスは起動時に読み込んだ古いモジュールを
+> 抱えたまま動き続ける**（Streamlit はスクリプトを再実行しても import 済みモジュールは入れ替えない）。
+> 8/23 に追加した機能（住所⇄〒の照合・根拠条文の照合・商圏データ）は、再起動して初めて画面に出る。
+> `business-plan-generator` と `agent-platform` は上の installer に無いラベルなので、
+> `launchctl list | grep shinsei` で実際のラベルを確かめてから叩く。
 >
 > **worker は 8/19 09:00 起動のまま＝3日ぶんの修正が1つも本番に入っていない。** 溜まっているもの:
 >
@@ -144,9 +166,12 @@
 >
 > ### E. アプリの増減（`git pull` で手元の構成が変わる）
 >
-> **総数は 52本のまま**（メインPCが最後に触った 8/19 も 52本）。**中身が1本入れ替わった**だけ:
-> ツールが1本増え（メールアーカイバ）、不動産が1本減った（legal-crosscheck を吸収）。
-> 内訳は 不動産**31** / ツール**15** / ゲーム6。CLAUDE.md の一覧は更新済み。
+> **52本 → 53本**（メインPCが最後に触った 8/19 は 52本）。増減は3件:
+> ツールが2本増え（**メールアーカイバ**・**ワンピースカード図鑑**）、不動産が1本減った
+> （legal-crosscheck を吸収）。内訳は 不動産**31** / ツール**16** / ゲーム6。CLAUDE.md の一覧は更新済み。
+>
+> - **新規: ワンピースカード図鑑 `onepiece-dex`（8537・ツール）** → セットアップは **C-2** を見る。
+>   `data/`（約1.2GB）は git 管理外なので `./setup.sh` で作り直す
 >
 > - **新規: メールアーカイバ `mail-archiver`（8535・ツール）**。IMAP容量対策で `.eml` を
 >   ローカル保管＋FTS5全文検索、取込から14日たったぶんだけサーバーから削除する。
@@ -161,7 +186,7 @@
 >   `japanpost_api.py`）と `API_STATUS.md` `GOOGLE_MAPS_API.md`
 > - **`jyuusetsu-research` は port 8536 を予約したが、まだ開発中で launchd 未割当**（配布もしない）
 >
-> ### F. この3日でサブPCが終わらせたこと（メインPC側の作業は不要）
+> ### F. この4日でサブPCが終わらせたこと（メインPC側の作業は不要）
 >
 > - **重説アプリの大改修**（8/21）: `legal-crosscheck` を吸収してアプリ削除。全宅連の公式書式200本を
 >   取得・分類。共有モジュール3本を直下に新設＝**コピーを作らないこと**。
@@ -175,6 +200,23 @@
 >   Zenn `openpyxl-row-height-autofit` ／ note `moji-ga-kireteru` ／ 本体 `/works/excel-row-height`
 >   （`npx vercel --prod` 済み・リンク確認済み）。**次は10本目の題材選び**
 > - **休業日は定時確認を送らないようにした**（8/22）→ A-3 の再起動で本番に入る
+>
+> **8/23（この日だけで17コミット）**
+>
+> - **AI重説アシスタント（8536・開発中）を大きく進めた**: 災害3項目（洪水・土砂・津波＋高潮）を実装／
+>   書式のチェック欄が□なのにテキストを流し込んで壊す不具合を2件修正／抵当権を土地・建物に分離／
+>   **自社の宅建業者・宅建士12欄の自動入力**（実物の重説と一字一句一致を確認・宅建士は一覧から選ぶ）／
+>   区域指定7種・公示地価・追加資料5種。**他社の実案件が残っていた同梱テンプレ4本を削除**。
+>   **メインPC側の作業は「4書式の印刷イメージを目で見る」だけ**（C を見る）
+> - **取ったAPIを既存アプリへ広げた**（日本郵便＝買取DM8526・媒介8517の住所⇄〒照合／e-Gov＝特約8513の
+>   根拠条文照合／e-Stat＝査定8509・事業計画8533の商圏データ）→ **A-3 の再起動で本番に入る**
+> - **全53本を機械点検して3件直した**: ①requests依存の地雷（`http_compat.py` で解消。本番の
+>   `/usr/bin/python3` で ImportError になりうる状態だった）②`pdf_orient.py` の8アプリ重複を直下1本へ
+>   ③smoke_test を3本追加（原状回復24項目・決済25項目・覚書12書式）
+> - **送付書ジェネレーター(8518)から個人情報を外した**（自宅住所・携帯番号が public リポジトリに
+>   入っていた。差出人マスタを `senders.local.json`＝gitignore に分離）→ **A-0 の退避を必ず先にやる**
+> - **ワンピースカード図鑑を新規に作って完成**（4,962枚・画像100%）→ C-2
+> - **App Store の審査状況を API で照会できるようにした**（`python3 appstore_api.py --review`）
 
 # TODO — 全アプリの索引
 
