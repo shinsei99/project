@@ -37,9 +37,18 @@
     2022.10.17_K1ビル…/重説事業用賃貸借　K1ビル　20221003.xlsx
 
 同じ書式（建物貸借用・事業用）の白紙に自社情報を流し込み、**この実物と
-12欄すべてが一字一句一致する**ことを確認済み。表記は実物に合わせて
-**全角**（`大阪市都島区東野田町２丁目３番１４号` / `０６－６３５３－０４１８`）。
-既存の書面と見た目を揃えるため、半角に直さないこと。
+12欄すべてが一字一句一致する**ことを確認済み。**表記は書面によって揺れている**（2022年版は全角
+`大阪市都島区東野田町２丁目３番１４号` / `０６－６３５３－０４１８`、
+2024年版は `大阪市都島区東野田町２－３－１４` / `06-6353-0418`）。
+**新しいほう（2024年）に合わせてある**。揃えたい表記があれば画面で直せる。
+
+## 宅建士は複数いて、案件ごとに変わる
+
+「説明をする宅地建物取引士」は**誰が説明したか**を書面に残す欄なので、担当で変わる。
+`宅建士一覧`（氏名・登録先・登録番号）を持ち、`宅建士_選択` で選んだ1人を
+`宅建士_氏名` / `宅建士_登録先` / `宅建士_登録番号` に写す。書式へ流し込む側は
+1人分だけ見ればよい。**登録番号は人ごとに違うので、空のままなら書き込まない**
+（他人の番号を書いてしまう事故を防ぐ）。
 
 **推測で埋めない。** 分からない項目は空文字にして、画面で「要入力」と出す。
 重説の1枚目を間違えると、書面そのものの信頼が落ちるため。
@@ -70,7 +79,9 @@ FIELDS = [
     ("免許_知事名", "免許 知事・大臣名", "例: ○○県知事 / 国土交通大臣"),
     ("免許_更新回数", "免許 更新回数", "括弧の中の数字。例: 10"),
     ("免許_番号", "免許 番号", "括弧の後ろの番号"),
-    ("宅建士_氏名", "説明をする宅建士の氏名", "重説に記名する人。担当が変われば変える"),
+    # 宅建士は複数いて案件ごとに変わるので、**一覧から選ぶ**（takken_list / save_takken）。
+    # この3項目は「いま選ばれている人」を写したもの。画面で直接は編集させない
+    ("宅建士_氏名", "説明をする宅建士の氏名", "一覧から選ぶ（案件ごとに変わる）"),
     ("宅建士_登録先", "宅建士 登録先", "括弧の中。登録した都道府県"),
     ("宅建士_登録番号", "宅建士 登録番号", "括弧の後ろの番号"),
     ("事務所名", "業務に従事する事務所名", ""),
@@ -87,29 +98,97 @@ DEFAULTS = {key: "" for key, _label, _note in FIELDS}
 # 入力が要るのに空のままだと書面が不完全になる項目
 REQUIRED = ("商号", "代表者", "所在地", "免許_知事名", "免許_番号", "宅建士_氏名", "宅建士_登録番号")
 
+# 宅建士は複数いて、案件ごとに「説明をする宅建士」が変わる。
+# 一覧を持っておき、選んだ1人を 宅建士_氏名 / 宅建士_登録先 / 宅建士_登録番号 に写す。
+TAKKEN_LIST_KEY = "宅建士一覧"
+TAKKEN_SELECTED_KEY = "宅建士_選択"
+TAKKEN_FIELDS = ("氏名", "登録先", "登録番号")
 
-def load() -> dict:
-    """保存済みプロファイル。未保存の項目は既定値で補う。"""
-    profile = dict(DEFAULTS)
+
+def takken_list() -> list:
+    """登録してある宅建士の一覧（[{氏名, 登録先, 登録番号}, ...]）。"""
+    raw = _raw()
+    items = raw.get(TAKKEN_LIST_KEY)
+    if not isinstance(items, list):
+        return []
+    out = []
+    for item in items:
+        if isinstance(item, dict) and str(item.get("氏名", "")).strip():
+            out.append({k: str(item.get(k, "") or "").strip() for k in TAKKEN_FIELDS})
+    return out
+
+
+def takken_selected() -> str:
+    """いま「説明をする宅建士」に選ばれている人の氏名。"""
+    raw = _raw()
+    name = str(raw.get(TAKKEN_SELECTED_KEY, "") or "").strip()
+    names = [t["氏名"] for t in takken_list()]
+    if name in names:
+        return name
+    return names[0] if names else ""
+
+
+def save_takken(items: list, selected: str = "") -> str:
+    """宅建士の一覧と、選んでいる人を保存する。"""
+    raw = _raw()
+    cleaned = []
+    for item in items or []:
+        name = str((item or {}).get("氏名", "") or "").strip()
+        if not name:
+            continue
+        cleaned.append({k: str((item or {}).get(k, "") or "").strip() for k in TAKKEN_FIELDS})
+    raw[TAKKEN_LIST_KEY] = cleaned
+    if selected:
+        raw[TAKKEN_SELECTED_KEY] = selected
+    return _write(raw)
+
+
+def _raw() -> dict:
+    """保存ファイルの中身をそのまま読む（宅建士一覧など FIELDS 以外も含む）。"""
     try:
         with open(_PATH, encoding="utf-8") as fh:
-            saved = json.load(fh)
-        if isinstance(saved, dict):
-            for key, value in saved.items():
-                if key in profile:
-                    profile[key] = str(value or "")
+            data = json.load(fh)
+        return data if isinstance(data, dict) else {}
     except (FileNotFoundError, ValueError, OSError):
-        pass
-    return profile
+        return {}
 
 
-def save(profile: dict) -> str:
-    """プロファイルを保存して保存先パスを返す。"""
-    data = {key: str(profile.get(key, "") or "").strip() for key, _, _ in FIELDS}
+def _write(data: dict) -> str:
     os.makedirs(os.path.dirname(_PATH), exist_ok=True)
     with open(_PATH, "w", encoding="utf-8") as fh:
         json.dump(data, fh, ensure_ascii=False, indent=2)
     return _PATH
+
+
+def load() -> dict:
+    """保存済みプロファイル。未保存の項目は既定値で補う。
+
+    宅建士は一覧から**選ばれている1人**を 宅建士_氏名 / 登録先 / 登録番号 に写す。
+    こうしておくと、書式へ流し込む側（`agent_fields`）は1人分だけ見ればよい。
+    """
+    profile = dict(DEFAULTS)
+    saved = _raw()
+    for key, value in saved.items():
+        if key in profile:
+            profile[key] = str(value or "")
+
+    name = takken_selected()
+    if name:
+        for t in takken_list():
+            if t["氏名"] == name:
+                profile["宅建士_氏名"] = t["氏名"]
+                profile["宅建士_登録先"] = t["登録先"]
+                profile["宅建士_登録番号"] = t["登録番号"]
+                break
+    return profile
+
+
+def save(profile: dict) -> str:
+    """プロファイルを保存して保存先パスを返す（宅建士一覧は消さない）。"""
+    data = _raw()
+    for key, _label, _note in FIELDS:
+        data[key] = str(profile.get(key, "") or "").strip()
+    return _write(data)
 
 
 def missing(profile: dict = None) -> list:

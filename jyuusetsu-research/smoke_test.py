@@ -319,7 +319,29 @@ assert _both["媒介"]["商号"] == "M28", _both["媒介"]
 assert _both["媒介"]["所在地"] == "M26", _both["媒介"]
 # 一般売主版（売主が業者ではない）には売主ブロックが無い
 assert _af.detect_all(_rows_agent, _inputs_agent)["売主"] == {}
-print("[ok] 自社情報: 12欄を自動、立場（媒介／売主）で入れる欄を分ける、空は書かない")
+# 宅建士は複数登録して案件ごとに選ぶ。選んだ1人が 宅建士_* に写ること、
+# **登録番号が空なら書式に書き込まない**こと（他人の番号を使わない）を見る
+_saved_list, _saved_sel = _cp.takken_list(), _cp.takken_selected()
+try:
+    _cp.save_takken([
+        {"氏名": "テスト　一郎", "登録先": "大阪", "登録番号": "111111"},
+        {"氏名": "テスト　二郎", "登録先": "大阪", "登録番号": ""},
+    ], selected="テスト　二郎")
+    _p2 = _cp.load()
+    assert _p2["宅建士_氏名"] == "テスト　二郎", _p2
+    assert _p2["宅建士_登録番号"] == "", _p2
+    assert "宅建士_登録番号" in _cp.missing(_p2)
+    # 登録番号が空の人を選んでいるときは、その欄に何も書かない
+    _v2 = _af.values(_p2, _cells)
+    assert _v2.get(_cells["宅建士_氏名"]) == "テスト　二郎"
+    assert _cells["宅建士_登録番号"] not in _v2, "空の登録番号を書き込もうとしている"
+    # 選び直すとその人の番号が入る
+    _cp.save_takken(_cp.takken_list(), selected="テスト　一郎")
+    assert _cp.load()["宅建士_登録番号"] == "111111"
+finally:
+    if _saved_list:
+        _cp.save_takken(_saved_list, selected=_saved_sel)
+print("[ok] 自社情報: 12欄を自動、立場（媒介／売主）で分ける、宅建士は選択制、空は書かない")
 
 # ---------------------------------------------------------------------------
 # 区域指定と法令チェック（2026-08-23）

@@ -306,6 +306,53 @@ def render_section(title, fields):
             st.markdown("**{}**：{}".format(key, formatter.safe(value)))
 
 
+def render_takken_picker(company_profile):
+    """説明をする宅建士を選ぶ／登録する。
+
+    **宅建士は案件ごとに変わる**（誰が説明したかを書面に残すため）。
+    一覧を持っておき、選んだ1人が書式の「説明をする宅地建物取引士」欄に入る。
+    登録番号は人ごとに違うので、**空のままなら書き込まない**（他人の番号を使わない）。
+    """
+    items = company_profile.takken_list()
+    names = [t["氏名"] for t in items]
+    if names:
+        current = company_profile.takken_selected()
+        picked = st.selectbox(
+            "説明をする宅地建物取引士",
+            options=names,
+            index=names.index(current) if current in names else 0,
+            key="takken_pick",
+            help="この案件で重説を説明する人。書面に氏名と登録番号が入ります。",
+        )
+        if picked != current:
+            company_profile.save_takken(items, selected=picked)
+            st.rerun()
+        chosen = next((t for t in items if t["氏名"] == picked), None)
+        if chosen and not chosen["登録番号"]:
+            st.warning("{} の登録番号が未入力です。下の表に入れてください"
+                       "（空のままだと書面の登録番号欄が空で出ます）。".format(picked))
+
+    with st.expander("宅建士の登録（氏名・登録先・登録番号）", expanded=not names):
+        st.caption("行を足せば人を増やせます。**登録番号は人ごとに違う**ので、"
+                   "確認できていない人は空のままにしてください。")
+        edited = st.data_editor(
+            items or [{k: "" for k in company_profile.TAKKEN_FIELDS}],
+            num_rows="dynamic",
+            use_container_width=True,
+            key="takken_editor",
+            column_config={
+                "氏名": st.column_config.TextColumn("氏名", help="書面に出る表記のまま"),
+                "登録先": st.column_config.TextColumn("登録先", help="括弧の中。例: 大阪"),
+                "登録番号": st.column_config.TextColumn("登録番号", help="括弧の後ろの番号"),
+            },
+        )
+        if st.button("宅建士の一覧を保存", use_container_width=True):
+            rows = edited.to_dict("records") if hasattr(edited, "to_dict") else list(edited)
+            company_profile.save_takken(rows, selected=st.session_state.get("takken_pick", ""))
+            st.success("保存しました。")
+            st.rerun()
+
+
 def render_company_editor():
     """自社（宅建業者・宅建士）情報の編集。サイドバーの中で呼ぶ。
 
@@ -346,9 +393,14 @@ def render_company_editor():
         if lack:
             st.warning("空のままだと書面が不完全になります: {}".format("・".join(lack)))
 
+        render_takken_picker(company_profile)
+
         edited = {}
         with st.form("company_profile_form"):
             for key, label, note in company_profile.FIELDS:
+                # 宅建士は上の一覧で選ぶので、ここでは編集させない（二重管理を作らない）
+                if key.startswith("宅建士_"):
+                    continue
                 edited[key] = st.text_input(
                     label, value=profile.get(key, ""), key="cp_" + key,
                     help=note or None,
@@ -358,6 +410,9 @@ def render_company_editor():
                 help="例: 大阪府知事(10)27334号 → 知事名・更新回数・番号に自動で分けます",
             )
             if st.form_submit_button("保存", type="primary"):
+                # 宅建士の3項目は一覧側が持っているので、上書きしないよう戻す
+                for key in ("宅建士_氏名", "宅建士_登録先", "宅建士_登録番号"):
+                    edited[key] = profile.get(key, "")
                 if paste.strip():
                     parsed = company_profile.parse_license(paste)
                     if parsed:
