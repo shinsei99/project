@@ -189,8 +189,13 @@ def show_detail(card):
         st.markdown(f"### {card['name']}")
         head = [f"`{card['key']}`"]
         if card["rarity"]:
-            head.append(card["rarity"] + (f"（{card['rarity_note']}）"
-                                          if card["rarity_note"] else ""))
+            r = card["rarity"]
+            # スーパーパラレルは公式の区分ではないので、元のレアリティも併記する
+            if card["rarity_base"] and card["rarity_base"] != r:
+                r += f"（{card['rarity_base']}）"
+            if card["rarity_note"]:
+                r += f"　{card['rarity_note']}"
+            head.append(r)
         if card["category_ja"]:
             head.append(card["category_ja"])
         st.caption("　/　".join(head))
@@ -217,6 +222,11 @@ def show_detail(card):
             st.info(card["text"])
         if card["get_info"]:
             st.caption(f"入手情報: {card['get_info']}")
+        if card["rarity_short"]:
+            # 公式が持っていない区分なので、どこから採った情報かを書いておく
+            st.caption("※スーパーパラレル系のレアリティは公式サイトが区分を"
+                       "公開していないため、外部の一覧（tier-one-onepiece.jp）を"
+                       "典拠に画像照合で補ったもの")
 
         # 同じカード番号の別イラスト（パラレル）へ飛べるようにする。
         # ワンピはパラレルが多く、同じカードを絵違いで何枚も持つのが普通なため
@@ -254,7 +264,7 @@ def show_cards(rows, cols=6, key_prefix=""):
                     f"{color_chip(row['color'])}{row['code']}"
                     f"{'  ' + row['variant'] if row['variant'] else ''}<br>"
                     f"{row['name'][:11]}"
-                    f"{'  <b>' + row['rarity'] + '</b>' if row['rarity'] else ''}"
+                    f"{'  <b>' + (row['rarity_short'] or row['rarity']) + '</b>' if row['rarity'] else ''}"
                     f"</div>", unsafe_allow_html=True)
                 st.button("詳細", key=f"d_{key_prefix}_{row['key']}",
                           width="stretch", on_click=_pick,

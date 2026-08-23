@@ -20,15 +20,51 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(HERE, "data", "cards.db")
 
 # 弱い順。絞り込みの並びと、一覧の既定の並び順に使う。
-# L（リーダー）は強弱の軸ではないので最後に寄せる
-RARITY_ORDER = ["C", "UC", "R", "SR", "SEC", "SPカード", "SP P", "P", "TR", "DON", "L"]
+# DON・L は強弱の軸ではないので先頭に寄せ、スーパーパラレル系を最上位に置く
+# （各弾の最上位レアリティ。fill_super_parallel.py が付ける）
+RARITY_ORDER = ["DON", "L", "C", "UC", "R", "SR", "SEC", "P", "SP P", "SPカード",
+                "TR",
+                "スーパーパラレル", "ゴールドスーパーパラレル", "レッドスーパーパラレル",
+                "リーダースーパーパラレル", "海賊団スーパーパラレル",
+                "神の騎士団スーパーパラレル"]
 
 RARITY_NOTE = {
     "C": "コモン", "UC": "アンコモン", "R": "レア", "SR": "スーパーレア",
     "SEC": "シークレットレア", "L": "リーダー", "P": "プロモ",
     "SPカード": "スペシャルカード", "SP P": "スペシャル（プロモ）",
     "TR": "トレジャーレア", "DON": "ドン!!カード",
+    "スーパーパラレル": "コミパラ。各弾の最上位",
+    "ゴールドスーパーパラレル": "2周年・OP-09のみ",
+    "レッドスーパーパラレル": "3周年・OP-13のみ",
+    "リーダースーパーパラレル": "4周年・OP-17のみ。初のリーダー",
+    "海賊団スーパーパラレル": "4周年・OP-17のみ",
+    "神の騎士団スーパーパラレル": "OP-18のみ",
 }
+
+# 一覧のタイルに出す短い表記。「スーパーパラレル」は9文字あって折り返す
+RARITY_SHORT = {
+    "スーパーパラレル": "SP", "ゴールドスーパーパラレル": "金SP",
+    "レッドスーパーパラレル": "赤SP", "リーダースーパーパラレル": "LSP",
+    "海賊団スーパーパラレル": "海賊団SP", "神の騎士団スーパーパラレル": "騎士団SP",
+}
+
+
+def super_parallel() -> dict:
+    """`fill_super_parallel.py` が作った一覧を読む。
+
+    **公式サイトはスーパーパラレル（コミパラ）の区分を持っていない**（OP17-005 は
+    通常も `_p1` も `_p2` も一律 `SR`）。無いと各弾の最上位レアリティが通常のSRに
+    埋もれて引けないので、外部の一覧を典拠に補ったものをここで混ぜる。
+    無ければ何もしない（図鑑は動く）。
+    """
+    path = os.path.join(HERE, "data", "super_parallel.json")
+    if not os.path.exists(path):
+        print("※ data/super_parallel.json が無いので"
+              "スーパーパラレルは通常のレアリティのまま"
+              "（`python fill_super_parallel.py` で作れる）")
+        return {}
+    import json
+    return json.load(open(path, encoding="utf-8"))
 
 # 公式の商品ラインナップの data-cat → 図鑑での分類（ポケカ図鑑と同じ言い方に揃える）
 PTYPE_BY_CAT = {"boosters": "拡張パック", "decks": "構築デッキ",
@@ -76,6 +112,8 @@ def build(cx: sqlite3.Connection) -> None:
     CREATE TABLE dex (
       key TEXT PRIMARY KEY, code TEXT, variant TEXT, set_code TEXT, card_no INTEGER,
       name TEXT, rarity TEXT, rarity_i INTEGER, rarity_note TEXT,
+      rarity_base TEXT,   -- 公式のレアリティ（スーパーパラレルを差し替える前）
+      rarity_short TEXT,  -- 一覧のタイル用の短い表記（SP / 金SP …）
       category TEXT, category_ja TEXT,
       cost INTEGER, cost_label TEXT, attribute TEXT,
       power INTEGER, counter INTEGER, color TEXT, block TEXT,
@@ -106,6 +144,7 @@ def build(cx: sqlite3.Connection) -> None:
     """.split(";"))):
         cx.execute(stmt)
 
+    sp = super_parallel()
     rows = cx.execute("SELECT * FROM cards").fetchall()
     cols = [d[0] for d in cx.execute("SELECT * FROM cards LIMIT 1").description]
     idx = {c: i for i, c in enumerate(cols)}
@@ -113,17 +152,19 @@ def build(cx: sqlite3.Connection) -> None:
 
     for r in rows:
         g = lambda c: r[idx[c]]
-        rar = g("rarity")
+        rar = base_rar = g("rarity")
+        if g("key") in sp:
+            rar = sp[g("key")]["rarity"]
         # 画像は**ファイルがあるかどうか**で決める。DBのフラグを信じない
         # （取得は途中で止められるし、消したファイルも拾ってしまう）
         img = have(os.path.join("data", "img", g("key") + ".png"))
         thumb = have(os.path.join("data", "thumb", g("key") + ".jpg"))
         cx.execute(
-            "INSERT INTO dex VALUES (%s)" % ",".join("?" * 26),
+            "INSERT INTO dex VALUES (%s)" % ",".join("?" * 28),
             (g("key"), g("code"), g("variant"), g("set_code"), g("card_no"),
              g("name"), rar,
              RARITY_ORDER.index(rar) if rar in RARITY_ORDER else 99,
-             RARITY_NOTE.get(rar),
+             RARITY_NOTE.get(rar), base_rar, RARITY_SHORT.get(rar),
              g("category"), CATEGORY_JA.get(g("category"), g("category")),
              g("cost"), g("cost_label"), g("attribute"),
              g("power"), g("counter"), g("color"), g("block"),
@@ -199,6 +240,8 @@ def main() -> None:
     print(f"サムネイル {q('SELECT COUNT(*) FROM dex WHERE thumb IS NOT NULL'):,}枚")
     print(f"シリーズ   {q('SELECT COUNT(*) FROM dex_series')}件")
     print(f"特徴       {q('SELECT COUNT(DISTINCT feature) FROM dex_features')}種")
+    n_sp = q("SELECT COUNT(*) FROM dex WHERE rarity_short IS NOT NULL")
+    print(f"スーパーパラレル系 {n_sp}枚")
     print("\n分類ごとのシリーズ")
     for t, n, c in cx.execute("SELECT ptype, COUNT(*), SUM(cards) FROM dex_series "
                               "GROUP BY 1 ORDER BY 2 DESC"):
