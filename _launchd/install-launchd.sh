@@ -41,6 +41,7 @@ APPS=(
   "com.shinsei.psa-collection|psa-collection"                   # 8527 ※ツール・localhost・社内共有なし（常時起動のみ）
   "com.shinsei.shorui-cabinet|shorui-cabinet"                   # 8528 ※不動産・自分専用・localhost（常時起動のみ）
   "com.shinsei.pokecard-dex|pokecard-dex"                       # 8531 ※ツール・localhost・カード画像は著作物のためLANにも出さない
+  "com.shinsei.onepiece-dex|onepiece-dex"                       # 8537 ※ツール・localhost・カード画像は著作物のためLANにも出さない。**先に onepiece-dex/setup.sh を流す**（data/ はgit管理外・約1.2GB）
 )
 
 for entry in "${APPS[@]}"; do

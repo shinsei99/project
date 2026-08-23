@@ -56,6 +56,9 @@ ONE PIECEカードゲームの日本語版カードを、名前・カード番�
 
 ## 実行の順番
 
+**別PCで一から作るなら `./setup.sh` 1本でよい**（下の7つを順に流す。40〜70分。
+途中で止めても叩き直せば続きから走る）。図鑑テーブルだけ作り直すなら `./setup.sh --rebuild`。
+
     python crawl_official.py     # 全62シリーズ巡回（約1分）
     python crawl_products.py     # 商品156件＋パッケージ画像（約1分）
     python fill_super_parallel.py  # スーパーパラレル系のレアリティ51枚（画像照合）
