@@ -146,6 +146,19 @@ def _build_assumptions(wb, inp: Inputs):
         c.font = _f(10)
         refs[name] = f"前提条件!$B${r}"
         r += 1
+
+    # 商圏データ（政府統計 e-Stat）。画面で取得したときだけ載せる。
+    # 金融機関に出す計画で「この賃料で埋まるのか」を公的な数字で裏づけるため。
+    if getattr(inp, "商圏データ", ""):
+        r += 1
+        ws.cell(r, 1, "■ 商圏データ（出典: 政府統計 e-Stat）").font = _f(12, True, "1F3864")
+        r += 1
+        for line in str(inp.商圏データ).splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            ws.cell(r, 1, line).font = _f(9)
+            r += 1
     return refs
 
 

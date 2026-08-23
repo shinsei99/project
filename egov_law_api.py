@@ -30,36 +30,18 @@ from __future__ import annotations
 
 import json
 import pathlib
+import sys
 import time
 import urllib.parse
 from typing import Any, Dict, List, Optional
 
-try:  # requests があれば使う。無い環境（launchd の /usr/bin/python3 等）では urllib で代替する
-    import requests
-except ImportError:  # pragma: no cover - 環境依存
-    requests = None
-    import urllib.request
+_HERE = pathlib.Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
 
-    class _Response:
-        """requests.get の戻りのうち、このモジュールが使う分だけを真似る。"""
+import http_compat  # requests が無い環境（launchd の /usr/bin/python3）でも動かすための互換層
 
-        def __init__(self, body: bytes):
-            self._body = body
-
-        def raise_for_status(self):
-            return None  # urlopen は 4xx/5xx を例外にするので、ここに来た時点で成功
-
-        def json(self):
-            return json.loads(self._body.decode("utf-8"))
-
-    class _UrllibShim:
-        @staticmethod
-        def get(url, timeout=30):
-            req = urllib.request.Request(url, headers={"User-Agent": "egov-law-api-client/1.0"})
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return _Response(resp.read())
-
-    requests = _UrllibShim()
+requests = http_compat.get_requests()
 
 BASE = "https://laws.e-gov.go.jp/api/2"
 CACHE_DIR = pathlib.Path(__file__).resolve().parent / ".egov-cache"

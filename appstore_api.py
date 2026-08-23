@@ -31,10 +31,17 @@ from __future__ import annotations
 import base64
 import json
 import pathlib
+import sys
 import time
 from typing import Any, Dict, List, Optional
 
-import requests
+_HERE = pathlib.Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
+
+import http_compat  # requests が無い環境（launchd の /usr/bin/python3）でも動かすための互換層
+
+requests = http_compat.get_requests()
 
 BASE = "https://api.appstoreconnect.apple.com/v1"
 ENV_PATH = pathlib.Path(__file__).resolve().parent / ".env.appstore"

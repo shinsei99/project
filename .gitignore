@@ -65,6 +65,13 @@
 
 # 生成文の法令引用が実在するかを e-Gov で確かめる層（特約8513などが読む）
 !law_citations.py
+
+# requests が無い環境（launchd の /usr/bin/python3）でも動かすためのHTTP互換層
+# 直下のAPIクライアント4本がこれを読む
+!http_compat.py
+
+# PDFの向き補正。2026-08-23 に8アプリのコピーを1本化（各アプリ側は委譲だけ）
+!pdf_orient.py
 !va.sh
 !visual_agent.py
 !handwriting-ocr/

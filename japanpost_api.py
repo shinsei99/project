@@ -34,57 +34,19 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import sys
 import re
 import time
 import urllib.parse
 from typing import Any
 
-try:  # requests があれば使う。無い環境（launchd の /usr/bin/python3 等）では urllib で代替する
-    import requests
-except ImportError:  # pragma: no cover - 環境依存
-    import urllib.error
-    import urllib.request
+_HERE = pathlib.Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
 
-    class _Response:
-        """requests の戻りのうち、このモジュールが使う分（status_code / text / json）だけ真似る。"""
+import http_compat  # requests が無い環境（launchd の /usr/bin/python3）でも動かすための互換層
 
-        def __init__(self, status: int, body: bytes):
-            self.status_code = status
-            self._body = body
-
-        @property
-        def text(self) -> str:
-            return self._body.decode("utf-8", "replace")
-
-        def json(self):
-            return json.loads(self._body.decode("utf-8"))
-
-    class _UrllibShim:
-        @staticmethod
-        def _send(url, headers=None, data=None, method="GET", timeout=30):
-            req = urllib.request.Request(url, data=data, method=method,
-                                         headers=headers or {})
-            try:
-                with urllib.request.urlopen(req, timeout=timeout) as resp:
-                    return _Response(resp.status, resp.read())
-            except urllib.error.HTTPError as e:  # 4xx/5xx も requests と同じく戻り値で返す
-                return _Response(e.code, e.read())
-
-        @classmethod
-        def get(cls, url, headers=None, timeout=30):
-            return cls._send(url, headers=headers, timeout=timeout)
-
-        @classmethod
-        def post(cls, url, headers=None, json=None, timeout=30):
-            body = None
-            headers = dict(headers or {})
-            if json is not None:
-                import json as _json
-                body = _json.dumps(json).encode("utf-8")
-                headers.setdefault("Content-Type", "application/json")
-            return cls._send(url, headers=headers, data=body, method="POST", timeout=timeout)
-
-    requests = _UrllibShim()
+requests = http_compat.get_requests()
 
 # 本番ホスト。テスト用（stub）に切り替えるときは .env.japanpost に JAPANPOST_HOST を書く。
 # 例: JAPANPOST_HOST=stub-qz73x.da.pf.japanpost.jp

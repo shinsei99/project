@@ -719,7 +719,8 @@ else:
         property_type=ptype, subject=subj, trades=ss.trades, sales=ss.sales,
         plus=ss.plus, minus=ss.minus, units={}, calc=calc, company=company,
         customer=customer, satei_date=wareki(satei_d), expiry=wareki(expiry_d),
-        explanation=ss.explanation)
+        explanation=ss.explanation,
+        area_stats_text=(st.session_state.get("area_stats") or {}).get("summary", ""))
     label = "戸建" if not is_mansion else "マンション"
     st.download_button(
         f"📊 査定書3枚セット（{label}）をExcelでダウンロード",

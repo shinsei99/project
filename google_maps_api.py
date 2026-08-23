@@ -53,9 +53,16 @@ from __future__ import annotations
 
 import os
 import pathlib
+import sys
 from typing import Any, Dict, Optional
 
-import requests
+_HERE = pathlib.Path(__file__).resolve().parent
+if str(_HERE) not in sys.path:
+    sys.path.insert(0, str(_HERE))
+
+import http_compat  # requests が無い環境（launchd の /usr/bin/python3）でも動かすための互換層
+
+requests = http_compat.get_requests()
 
 ENV_PATH = pathlib.Path(__file__).resolve().parent / ".env.google-maps"
 GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json"

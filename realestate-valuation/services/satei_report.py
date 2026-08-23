@@ -388,7 +388,8 @@ def _two(ws, r, k1, v1, k2, v2):
 
 
 # ── シート3：査定価格の説明書 ─────────────────────────────────────────────────
-def _sheet_explanation(wb, subject, calc, info, customer, satei_date, expiry, explanation):
+def _sheet_explanation(wb, subject, calc, info, customer, satei_date, expiry, explanation,
+                       area_stats_text=""):
     ws = wb.create_sheet("査定価格の説明書")
     for i, w in enumerate([4, 14, 14, 14, 14, 14, 14, 14], 1):
         ws.column_dimensions[get_column_letter(i)].width = w
@@ -426,6 +427,15 @@ def _sheet_explanation(wb, subject, calc, info, customer, satei_date, expiry, ex
     _merge(ws, f"A{r}:{last}{r+6}")
     ws.row_dimensions[r].height = 150; r += 8
 
+    # 商圏データ（政府統計 e-Stat）。画面で取得したときだけ載せる。
+    # 取引事例が「いくらで売れたか」なのに対し、こちらは「買う人・借りる人がいるか」の裏づけ。
+    if area_stats_text:
+        _c(ws, f"A{r}", "商圏データ（出典: 政府統計 e-Stat）", font=GOTHIC, size=12,
+           bold=True, align=LEFT); _merge(ws, f"A{r}:{last}{r}"); r += 1
+        _c(ws, f"A{r}", area_stats_text, size=9.5, align=LEFT)
+        _merge(ws, f"A{r}:{last}{r+4}")
+        ws.row_dimensions[r].height = 110; r += 6
+
     _c(ws, f"A{r}", "以上", size=10.5, align=RIGHT); _merge(ws, f"A{r}:{last}{r}")
     _setup_print(ws, landscape=False)
     return ws
@@ -434,7 +444,7 @@ def _sheet_explanation(wb, subject, calc, info, customer, satei_date, expiry, ex
 # ── エントリポイント ──────────────────────────────────────────────────────────
 def build_report(
     *, property_type, subject, trades, sales, plus, minus, units, calc,
-    company, customer, satei_date, expiry, explanation,
+    company, customer, satei_date, expiry, explanation, area_stats_text="",
 ) -> bytes:
     wb = Workbook()
     wb.remove(wb.active)
@@ -443,7 +453,8 @@ def build_report(
         _sheet_satei_mansion(wb, subject, trades, plus, minus, units, calc, company, customer, satei_date)
     else:
         _sheet_satei_kodate(wb, subject, trades, plus, minus, units, calc, company, customer, satei_date)
-    _sheet_explanation(wb, subject, calc, company, customer, satei_date, expiry, explanation)
+    _sheet_explanation(wb, subject, calc, company, customer, satei_date, expiry, explanation,
+                       area_stats_text=area_stats_text)
     buf = BytesIO()
     wb.save(buf)
     return buf.getvalue()

@@ -14,7 +14,10 @@ LABEL = "PDFの向き補正・画像化"
 DESCRIPTION = "スキャンPDFの向き（横倒し・逆さ）を直してから読む。謄本・重説・マイソク向け"
 
 HOME = Path(__file__).resolve().parent.parent.parent
-CANDIDATES = [HOME / "restoration-calculator" / "pdf_orient.py",
+# 2026-08-23: 実体は**リポジトリ直下の pdf_orient.py** に集約した。
+# 各アプリ配下のものは委譲だけになったので、直下を最優先で見る（残りは古い環境向けの保険）。
+CANDIDATES = [HOME / "pdf_orient.py",
+              HOME / "restoration-calculator" / "pdf_orient.py",
               HOME / "maisoku-converter" / "pdf_orient.py",
               HOME / "building-manager" / "pdf_orient.py"]
 
