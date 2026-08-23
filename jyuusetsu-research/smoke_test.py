@@ -252,13 +252,15 @@ _sys.path.insert(0, _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)
 import company_profile as _cp
 from services import agent_fields as _af
 
+# **コード側に会社情報の値を書かない**（このリポジトリは public）。
+# 実データは config/company_profile.json（gitignore・Dropboxで運ぶ）にあるので、
+# 中身そのものはテストしない（PCによって在る／無いが変わるため）。
+assert all(v == "" for v in _cp.DEFAULTS.values()), \
+    "コードに会社情報の既定値が書かれている（public リポジトリなので置かない）"
 _prof = _cp.load()
-assert _prof["商号"] == "大京商事株式会社", _prof
-assert (_prof["免許_知事名"], _prof["免許_更新回数"], _prof["免許_番号"]) == ("大阪府知事", "10", "27334")
-# 未確認のものは空のまま（推測で埋めない）
-for _k in ("代表者", "宅建士_氏名", "宅建士_登録番号"):
-    assert _prof[_k] == "", "確認していない項目が埋まっている: %s" % _k
-assert set(_cp.missing(_prof)) >= {"代表者", "宅建士_氏名", "宅建士_登録番号"}
+assert set(_prof) == {k for k, _l, _n in _cp.FIELDS}, _prof
+# 未設定の環境では必須項目がすべて「要入力」に出る
+assert set(_cp.missing({k: "" for k in _prof})) == set(_cp.REQUIRED)
 assert _cp.parse_license("大阪府知事(10)27334号") == {
     "免許_知事名": "大阪府知事", "免許_更新回数": "10", "免許_番号": "27334"}
 assert _cp.parse_license("よくわからない文字列") == {}
@@ -288,8 +290,8 @@ assert _cells["宅建士_氏名"] == "M19", _cells
 assert _cells["宅建士_登録先"] == "N20" and _cells["宅建士_登録番号"] == "W20", _cells
 # B欄（AP13）は自社では埋めない
 assert "AP13" not in _cells.values()
-_vals = _af.values(_prof, _cells)
-assert _vals["M15"] == "大京商事株式会社" and _vals["AA18"] == "27334"
+_vals = _af.values({"商号": "テスト商事", "免許_番号": "12345", "代表者": ""}, _cells)
+assert _vals["M15"] == "テスト商事" and _vals["AA18"] == "12345"
 assert "M16" not in _vals, "空の代表者を書き込もうとしている"
 # 宅建業者売主版は **A＝売主 / B・C＝媒介**。媒介なのにA欄へ入れると
 # 「媒介なのに売主として署名した書面」になるので、立場ごとに欄を分ける
