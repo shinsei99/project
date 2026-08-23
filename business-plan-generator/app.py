@@ -21,6 +21,11 @@ from services.proforma import Inputs, compute
 HERE = os.path.dirname(os.path.abspath(__file__))
 BAIKAI_SERVICES = os.path.join(os.path.dirname(HERE), "baikai-generator", "services")
 
+# 直下の共有モジュール（area_stats / estat_api）を読めるようにする
+_ROOT = os.path.dirname(HERE)
+if _ROOT not in sys.path:
+    sys.path.insert(0, _ROOT)
+
 st.set_page_config(page_title="事業計画案ジェネレーター", page_icon="🏢", layout="wide")
 
 
@@ -118,6 +123,35 @@ with tab1:
         交通 = st.text_input("交通", value="", placeholder="例: 京阪野江駅 徒歩6分")
         基準日 = st.text_input("作成日", value="", placeholder="例: 2026/07/28")
     スキーム文 = st.text_area("取得スキーム文", value="上記物件を取得し、自社で運営・管理し家賃収入で借入金の返済にあたる。", height=68)
+
+    # ── 商圏データ（政府統計 e-Stat）──────────────────────────────
+    # 「この賃料で埋まるのか」を裏づける公的な数字。金融機関へ出す計画の前提に使う。
+    # 計算は直下の共有モジュール area_stats.py（査定アプリ8509と同じ実体）。
+    with st.expander("📊 商圏データ（政府統計 e-Stat）— 賃貸需要の裏づけ"):
+        st.caption("所在地の市区町村の世帯数・単身率・転入超過・空き家率・借家率を取ります。"
+                   "**調査年つきの公的データ**なので、そのまま計画書の前提に書けます。")
+        if st.button("📊 所在地から取得", key="area_stats_fetch", disabled=not 所在地.strip()):
+            try:
+                import area_stats  # 直下の共有モジュール（査定アプリ8509と同じ実体）
+
+                with st.spinner("e-Stat に照会中..."):
+                    st.session_state["bp_area_stats"] = area_stats.fetch_by_address(所在地)
+            except Exception as e:
+                st.session_state["bp_area_stats"] = {"ok": False, "error": str(e)}
+        stats = st.session_state.get("bp_area_stats")
+        if stats:
+            if not stats.get("ok"):
+                st.caption("取得できませんでした: {}".format(stats.get("error", "")))
+            else:
+                hl = stats["highlights"]
+                m = st.columns(4)
+                m[0].metric("世帯数", "{:,}".format(stats["values"].get("世帯数", 0)))
+                m[1].metric("借家率", "{}%".format(hl["借家率"]) if hl["借家率"] else "—")
+                m[2].metric("空き家率", "{}%".format(hl["空き家率"]) if hl["空き家率"] else "—")
+                m[3].metric("社会増減",
+                            "{:+,}人".format(hl["社会増減"]) if hl["社会増減"] is not None else "—")
+                st.caption("計画書の前提にそのまま貼れる形（コピーして使ってください）")
+                st.code(stats["summary"], language=None)
 
 with tab2:
     st.subheader("資金計画（万円）")

@@ -23,6 +23,19 @@
 > - **棚卸しでの気づき**: 取ったAPIのうち AI業務マネージャーから呼べていたのは reinfolib と
 >   国土地理院・ハザードマップだけだった。e-Gov／日本郵便／Google Maps は実装済みだが
 >   **メインPCの worker が 8/19 起動のままで1度も動いていない**（再起動が要る）
+>
+> **2026-08-23 の後半（サブPC）— 他のアプリにも API を効かせた**
+> - **日本郵便**: 宛先住所の照合を `japanpost_api.verify()` に集約し、`kaitori-dm-maker`(8526)＋
+>   `baikai-generator`(8517) に組み込んだ（不達・返送を出す前に弾く）
+> - **e-Gov**: 生成文の法令引用が実在するかを確かめる `law_citations.py` を直下に作り、
+>   `tokuyaku-generator`(8513) に組み込んだ（AIの条番号ずれを契約書に載せる前に見つける）
+> - **e-Stat**: 商圏データのまとめ方を `area_stats.py` に集約し、`realestate-valuation`(8509)＋
+>   `business-plan-generator`(8533) から使えるようにした
+> - **App Store Connect**: `appstore_api.py --review` で**審査状況を照会**できるようにした。
+>   実測 → スクラップメモ 1.0.4 は配信中／デジタル書斎・KeyTag は審査待ち／
+>   **にゃんこのアイス屋さんは未提出**（CLAUDE.md の「申請中」を訂正）
+> - **`japanpost_api.py` / `egov_law_api.py` を requests 無しでも動くようにした**（urllib へ自動切替）。
+>   本番 worker は launchd の `/usr/bin/python3` で動くため、requests 前提だと ImportError で落ちる
 
 > **App Store Connect で分かったこと（2026-08-20 実測）**
 >

@@ -21,6 +21,9 @@
 
 ※ チームキー前提（`iss` に Issuer ID を入れる）。個人キー（Individual Key）は
   `iss` ではなく `sub` を使う仕様なので、そのときは払い出し方を変えること（**未確認**）。
+
+**審査状況の照会もできる**（2026-08-23 追加）: `python3 appstore_api.py --review`。
+審査は App Store Connect の画面を見に行かなくても、ここから状態が取れる。
 """
 
 from __future__ import annotations
@@ -180,6 +183,74 @@ def builds(bundle_id: str, limit: int = 200, aid: Optional[str] = None) -> List[
     return out
 
 
+# 審査・配信の状態（appStoreVersions の state）。値は Apple の定義そのまま。
+# よく出るものだけ日本語を添える（未知の値はそのまま英語で出す）。
+REVIEW_STATE_JA = {
+    "PREPARE_FOR_SUBMISSION": "提出準備中（まだ出していない）",
+    "WAITING_FOR_REVIEW": "審査待ち",
+    "IN_REVIEW": "審査中",
+    "PENDING_DEVELOPER_RELEASE": "審査通過・こちらのリリース操作待ち",
+    "PENDING_APPLE_RELEASE": "審査通過・Apple のリリース待ち",
+    "PROCESSING_FOR_APP_STORE": "配信処理中",
+    "READY_FOR_SALE": "配信中",
+    "READY_FOR_DISTRIBUTION": "配信中",
+    "REJECTED": "リジェクト（要対応）",
+    "METADATA_REJECTED": "メタデータのリジェクト（要対応）",
+    "DEVELOPER_REJECTED": "こちらが取り下げた",
+    "DEVELOPER_REMOVED_FROM_SALE": "販売停止中",
+    "INVALID_BINARY": "バイナリが無効（要再アップ）",
+    "REPLACED_WITH_NEW_VERSION": "新しいバージョンに置き換わった",
+}
+
+
+def versions(bundle_id: str, limit: int = 10, aid: Optional[str] = None) -> List[Dict[str, str]]:
+    """App Store 上のバージョンと**審査の状態**。新しい順。
+
+    各要素: {"version"(表示バージョン), "state", "state_ja", "platform",
+             "created"(作成日), "released"(配信日・無ければ空)}。
+    ビルド番号ではなく `MARKETING_VERSION` の話なので `builds()` とは別物。
+    """
+    aid = aid or app_id(bundle_id)
+    if not aid:
+        return []
+    # ★ `/appStoreVersions?filter[app]=…` は **403**（GET_COLLECTION が許されていない）。
+    #   アプリ配下の関係エンドポイントなら通る（2026-08-23 実測）
+    data = _get("/apps/{}/appStoreVersions".format(aid), {"limit": limit})
+    out = []
+    for v in data.get("data", []):
+        attr = v.get("attributes", {})
+        # 州によってキー名が違う時期があったので両方見る（appStoreState は旧・state は新）
+        state = str(attr.get("appStoreState") or attr.get("state") or "")
+        out.append({
+            "version": str(attr.get("versionString", "")),
+            "state": state,
+            "state_ja": REVIEW_STATE_JA.get(state, state),
+            "platform": str(attr.get("platform", "")),
+            "created": str(attr.get("createdDate", ""))[:10],
+            "released": str(attr.get("earliestReleaseDate") or "")[:10],
+        })
+    return out
+
+
+def review_status(bundle_id: str, aid: Optional[str] = None) -> Dict[str, str]:
+    """**いま審査に出ているもの／最後に配信されたもの**を1件ずつに畳んで返す。
+
+    戻り値: {"bundle_id", "in_flight"(審査中・待ち・要対応。無ければ None),
+             "live"(配信中。無ければ None), "latest"(いちばん新しいバージョン)}
+    """
+    IN_FLIGHT = ("WAITING_FOR_REVIEW", "IN_REVIEW", "PENDING_DEVELOPER_RELEASE",
+                 "PENDING_APPLE_RELEASE", "PROCESSING_FOR_APP_STORE",
+                 "REJECTED", "METADATA_REJECTED", "INVALID_BINARY")
+    LIVE = ("READY_FOR_SALE", "READY_FOR_DISTRIBUTION")
+    rows = versions(bundle_id, aid=aid)
+    return {
+        "bundle_id": bundle_id,
+        "in_flight": next((r for r in rows if r["state"] in IN_FLIGHT), None),
+        "live": next((r for r in rows if r["state"] in LIVE), None),
+        "latest": rows[0] if rows else None,
+    }
+
+
 def max_build(bundle_id: str, aid: Optional[str] = None) -> int:
     """登録済みビルド番号の最大値。1件も無ければ 0。
 
@@ -199,6 +270,18 @@ if __name__ == "__main__":
     if not is_configured():
         print("未設定です。.env.appstore に ASC_KEY_ID / ASC_ISSUER_ID / ASC_PRIVATE_KEY_PATH を書いてください。")
         sys.exit(2)
+    if len(sys.argv) > 1 and sys.argv[1] == "--review":
+        # 全アプリの審査状況を一覧する（引数で bundle を絞ってもよい）
+        targets = sys.argv[2:] or [a["bundleId"] for a in list_apps()]
+        for bundle in targets:
+            st = review_status(bundle)
+            live = st["live"]
+            flight = st["in_flight"]
+            print("{:<40} 配信中 {:<8} 審査中のもの {}".format(
+                bundle,
+                (live or {}).get("version", "—"),
+                "{} … {}".format(flight["version"], flight["state_ja"]) if flight else "なし"))
+        sys.exit(0)
     if len(sys.argv) > 1 and sys.argv[1] != "--apps":
         bundle = sys.argv[1]
         print("{} の登録済み最大build番号: {}".format(bundle, max_build(bundle)))

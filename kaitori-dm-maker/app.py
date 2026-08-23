@@ -26,6 +26,9 @@ from docx.oxml import OxmlElement
 HERE = os.path.dirname(os.path.abspath(__file__))
 SENDERS_FILE = os.path.join(HERE, "senders.json")
 
+# 宛先住所の照合は日本郵便API（直下の共有クライアント）。実装は address_check.py
+import address_check
+
 # 謄本読み取りは既存アプリ（baikai-generator）のパーサを再利用する
 BAIKAI_SERVICES = os.path.join(os.path.dirname(HERE), "baikai-generator", "services")
 
@@ -644,6 +647,48 @@ recs = dedupe(recs) if dedup else [dict(r, extra=0) for r in recs]
 
 st.success(f"送付対象：**{len(recs)} 通**（台帳 {len(df)} 行）")
 
+# ─── 住所の照合（日本郵便の公式データと突き合わせる） ───
+zip_cache = st.session_state.setdefault("zipcheck", {})
+if recs and address_check.is_configured():
+    st.subheader("住所の照合")
+    st.caption("DMは1通ずつ郵送費がかかります。出す前に郵便番号・住所を日本郵便の公式データと"
+               "突き合わせて、直すべき宛先を先に出します（照合結果は画面を閉じるまでの一時保存）。")
+    zc1, zc2, zc3 = st.columns([1.2, 1, 1.6])
+    with zc1:
+        do_check = st.button("📮 宛先を照合する", use_container_width=True)
+    with zc2:
+        fill_zip = st.checkbox("空欄の〒を補完", value=True,
+                               help="郵便番号が空欄の宛先に、住所から特定できた郵便番号を入れます")
+    with zc3:
+        drop_bad = st.checkbox("不一致・不明を送付対象から外す", value=False)
+
+    if do_check:
+        bar = st.progress(0.0, text="照合中…")
+        address_check.verify_records(
+            recs, zip_cache,
+            progress=lambda p, i, n: bar.progress(p, text=f"照合中… {i}/{n} 件"))
+        bar.empty()
+
+    if zip_cache:
+        if fill_zip:
+            filled = address_check.apply_suggestions(recs, zip_cache)
+            if filled:
+                st.info(f"郵便番号が空欄だった **{filled} 件** に、住所から特定した郵便番号を入れました。")
+        counts = address_check.summarize(recs, zip_cache)
+        st.write("　".join(f"{address_check.ICONS.get(k, k)} **{v}**" for k, v in counts.items())
+                 or "（まだ照合していません）")
+        bad = address_check.problems(recs, zip_cache)
+        if bad:
+            with st.expander(f"⚠️ 人が確かめる宛先 {len(bad)} 件", expanded=True):
+                st.dataframe(pd.DataFrame(bad), use_container_width=True, hide_index=True)
+                st.caption("台帳（Excel）側を直してから読み込み直すと、次回以降は照合を通ります。")
+        if drop_bad:
+            before = len(recs)
+            recs = [r for r in recs
+                    if address_check.status_of(r, zip_cache) not in ("不一致", "不明", "住所なし")]
+            if before != len(recs):
+                st.warning(f"照合で問題のあった **{before - len(recs)} 件** を送付対象から外しました。")
+
 if recs:
     master = st.checkbox("すべて選択（外すと全解除から選べます）", value=True, key="master_sel")
     prev = pd.DataFrame([{
@@ -653,6 +698,7 @@ if recs:
         "物件": f"{r['city']}{r['basho']}{r['chiban']}",
         "地目": r["chimoku"], "地積㎡": r["area"],
         "送付先": f"〒{r['postal']} {r['addr']}".strip(),
+        "照合": address_check.ICONS.get(address_check.status_of(r, zip_cache), "— 未照合"),
         "他筆": r["extra"] or "",
     } for r in recs])
     edited = st.data_editor(

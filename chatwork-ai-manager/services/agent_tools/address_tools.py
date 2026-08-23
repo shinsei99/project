@@ -15,7 +15,6 @@
   - 郵便番号は3桁以上で引ける（7桁未満は前方一致）
 """
 import pathlib
-import re
 import sys
 
 _ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -63,20 +62,6 @@ def zip_lookup(code, limit=10):
     }
 
 
-def _candidates(address: str):
-    """番地つきの住所から、APIに通る形へ段階的に短くした候補を作る。"""
-    a = str(address).strip()
-    yield a
-    # 「2-3-1」「2丁目3番1号」などの番地部分を落とす
-    cut = re.split(r"[0-9０-９]+[-－ー‐]|[0-9０-９]+丁目|[0-9０-９]+番", a)[0]
-    if cut and cut != a:
-        yield cut.rstrip("　 ")
-    # それでも駄目なら末尾の数字だけ落とす
-    tail = re.sub(r"[0-9０-９\-－ー‐番地号丁目\s]+$", "", a)
-    if tail and tail not in (a, cut):
-        yield tail
-
-
 def address_to_zip(address=None, pref_name=None, city_name=None, town_name=None, limit=10):
     """住所（の一部）から郵便番号を引く。
 
@@ -101,7 +86,7 @@ def address_to_zip(address=None, pref_name=None, city_name=None, town_name=None,
         return {"ok": False, "error": "address か pref_name/city_name/town_name のどれかが要ります"}
 
     tried, last = [], None
-    for cand in _candidates(address):
+    for cand in jp._address_candidates(address):  # 番地落としは共有クライアント側に1本だけ置く
         if cand in tried:
             continue
         tried.append(cand)

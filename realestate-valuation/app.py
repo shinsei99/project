@@ -15,7 +15,8 @@ import streamlit as st
 
 from services import satei_core as sc
 from services import case_extractor, satei_report, explanation_service, ryutsu_service
-from services import geo_service, market_research_service, registry_parser, satei_store
+from services import (area_stats_service, geo_service, market_research_service,
+                      registry_parser, satei_store)
 
 st.set_page_config(page_title="不動産査定書 作成システム", page_icon="🏠", layout="wide")
 
@@ -525,6 +526,32 @@ with st.expander("参考：周辺相場を取得（不動産情報ライブラ�
                 st.caption("参考データを取得できませんでした（住所精度・APIキーをご確認ください）。")
         except Exception as e:
             st.warning(f"参考相場の取得に失敗しました: {e}")
+
+with st.expander("参考：商圏データを取得（政府統計 e-Stat）"):
+    st.caption("世帯数・単身世帯の多さ・転入超過・空き家率など、**その値段で買う人がいるか**を"
+               "裏づける公的な数字です。市区町村単位で、調査年つきで取ります。")
+    area_addr = st.text_input("住所", value=subj["address"], key="area_addr")
+    if st.button("📊 商圏データを取得"):
+        try:
+            with st.spinner("e-Stat に照会中..."):
+                geo = geo_service.resolve(area_addr)
+                st.session_state["area_stats"] = area_stats_service.fetch(geo.get("muni_code", ""))
+        except Exception as e:
+            st.session_state["area_stats"] = {"ok": False, "error": str(e)}
+    stats = st.session_state.get("area_stats")
+    if stats:
+        if not stats.get("ok"):
+            st.caption(f"取得できませんでした: {stats.get('error', '')}")
+        else:
+            hl = stats["highlights"]
+            m = st.columns(4)
+            m[0].metric("世帯数", f"{stats['values'].get('世帯数', 0):,}")
+            m[1].metric("空き家率", f"{hl['空き家率']}%" if hl["空き家率"] else "—")
+            m[2].metric("借家率", f"{hl['借家率']}%" if hl["借家率"] else "—")
+            m[3].metric("社会増減", f"{hl['社会増減']:+,}人" if hl["社会増減"] is not None else "—")
+            st.dataframe(pd.DataFrame(stats["rows"]), use_container_width=True, hide_index=True)
+            st.caption("査定書の所見にそのまま貼れる形（コピーして使ってください）")
+            st.code(stats["summary"], language=None)
 
 st.divider()
 

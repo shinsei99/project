@@ -31,6 +31,7 @@ if _ROOT not in _sys.path:
     _sys.path.insert(0, _ROOT)
 
 from tokuyaku_clauses import CATEGORIES, find_item  # noqa: F401
+import law_citations  # 引用した法令が実在するかを e-Gov で確かめる（直下の共有モジュール）
 from tokuyaku_core import (  # noqa: F401
     CLAUDE_BIN,
     CLAUDE_TIMEOUT,
@@ -234,9 +235,38 @@ def main():
                     else:
                         st.caption("⚠️ 本文未生成 — 左の一覧の「本文」欄で編集／AI生成してください。")
 
+            # ── 根拠条文の照合 ──
+            st.divider()
+            st.subheader("③ 根拠条文の照合（e-Gov）")
+            st.caption("生成した本文に出てくる法令の引用を、**現行条文と突き合わせます**。"
+                       "AIは条番号を記憶で書くので、改正で条がずれていることがあります。"
+                       "直すのは人で、このボタンは本文を書き換えません。")
+            all_text = "\n".join(get_text(n) for n in st.session_state.order)
+            if st.button("⚖️ 引用した条文を確かめる", use_container_width=False,
+                         disabled=not all_text.strip()):
+                with st.spinner("e-Gov で条文を照合中…"):
+                    st.session_state["law_check"] = law_citations.verify_citations(all_text)
+            checked = st.session_state.get("law_check")
+            if checked is not None:
+                if not checked:
+                    st.info("本文に法令の引用はありませんでした。")
+                else:
+                    counts = law_citations.summarize(checked)
+                    st.write("　".join(f"{m} **{counts.get(k, 0)}**" for k, m in
+                                       (("実在", "✅ 実在"), ("無い", "⚠️ 見つからない"),
+                                        ("不明", "❔ 引けない"))))
+                    st.dataframe(
+                        [{"引用": r["raw"], "判定": {"実在": "✅", "無い": "⚠️", "不明": "❔"}[r["status"]],
+                          "現行条文": r["message"], "原文（冒頭）": r["snippet"],
+                          "施行日": r["enforced"]} for r in checked],
+                        use_container_width=True, hide_index=True)
+                    if counts.get("無い") or counts.get("不明"):
+                        st.warning("⚠️ の行は条番号が現行法と合っていない可能性があります。"
+                                   "契約書に載せる前に確かめてください。")
+
             # ── 出力 ──
             st.divider()
-            st.subheader("③ 書き出し")
+            st.subheader("④ 書き出し")
             clauses = [
                 {"no": n, "title": find_item(n)["title"], "text": get_text(n)}
                 for n in st.session_state.order

@@ -9,10 +9,18 @@
 - 出力は国土交通省の標準媒介契約約款に基づくフォーマット（別表＋約款付き）。
 """
 
+import pathlib
+import sys
+
 import streamlit as st
 
 from services import company_store, registry_parser
 from services.excel_builder import build_contract
+
+# 住所と郵便番号の照合は日本郵便API（直下の共有クライアント。コピーを作らない）
+_ROOT = pathlib.Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
 
 st.set_page_config(page_title="媒介契約書ジェネレーター", page_icon="📄", layout="wide")
 
@@ -235,16 +243,71 @@ def _edit_property_form(data: dict) -> dict:
     return out
 
 
+
+def _zip_check_ui(kou: dict) -> None:
+    """甲の住所と郵便番号を日本郵便の公式データと突き合わせる（2026-08-23 追加）。
+
+    契約書に載る住所なので、**打ち間違いをその場で見つける**。
+    郵便番号が空欄なら住所から引いて入れる。判定は共有クライアント `japanpost_api.verify()`。
+    資格情報（直下 `.env.japanpost`）が無いPCでは、何も出さずに黙って通す。
+    """
+    addr = (kou.get("住所") or "").strip()
+    zipc = (kou.get("郵便") or "").strip()
+    if not (addr or zipc):
+        return
+    if not st.button("📮 住所と〒を照合", key="kou_zip_check",
+                     help="日本郵便の公式データと突き合わせます"):
+        result = st.session_state.get("kou_zip_result")
+        if result:
+            _zip_check_message(result)
+        return
+
+    try:
+        import japanpost_api
+        result = japanpost_api.verify(zipc, addr)
+    except Exception as e:
+        st.caption("照合できませんでした（{}）。資格情報が無いPCでは使えません。".format(e))
+        return
+
+    st.session_state["kou_zip_result"] = result
+    # 郵便番号が空欄で、住所から町域まで特定できたときだけ自動で入れる
+    # （入れるのは次の実行の頭。ウィジェット生成後は session_state を触れないため）
+    if not zipc and result.get("status") == "補完" and result.get("zip_code"):
+        st.session_state["kou_zip_pending"] = result["zip_code"]
+        st.rerun()
+    _zip_check_message(result)
+
+
+def _zip_check_message(result: dict) -> None:
+    status = result.get("status", "")
+    message = result.get("message", "")
+    if status == "一致":
+        st.success("✅ " + message)
+    elif status == "補完":
+        st.info("🟡 " + message)
+    elif status in ("不一致", "候補"):
+        st.warning("⚠️ {}（契約書に載る住所です。台帳・謄本と見比べてください）".format(message))
+    else:
+        st.caption("— " + message)
+
+
 def _contract_terms_form(otsu: dict, ryutsu_name: str) -> dict:
     """契約条件（甲・日付・有効期間・媒介価格・特約 等）の入力フォーム。"""
+    # 照合で特定した郵便番号は**ウィジェットを作る前**に入れる
+    # （作った後に st.session_state を書き換えると StreamlitAPIException になる。2026-08-23 実測）
+    pending_zip = st.session_state.pop("kou_zip_pending", "")
+    if pending_zip:
+        st.session_state["kou_zip"] = pending_zip
+
     st.markdown("**依頼者（甲）**")
     kc = st.columns(4)
     kou = {
-        "氏名": kc[0].text_input("甲 氏名", ""),
-        "住所": kc[1].text_input("甲 住所", ""),
-        "郵便": kc[2].text_input("甲 〒", ""),
-        "TEL": kc[3].text_input("甲 TEL", ""),
+        "氏名": kc[0].text_input("甲 氏名", "", key="kou_name"),
+        "住所": kc[1].text_input("甲 住所", "", key="kou_addr"),
+        "郵便": kc[2].text_input("甲 〒", "", key="kou_zip"),
+        "TEL": kc[3].text_input("甲 TEL", "", key="kou_tel"),
     }
+    _zip_check_ui(kou)
 
     st.markdown("**契約・期間・報酬**")
     cc = st.columns(4)

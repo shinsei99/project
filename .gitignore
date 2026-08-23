@@ -41,6 +41,9 @@
 # キーは .env.google-maps 側（gitignoreのまま・secrets-manifest.txt で運ぶ）
 !google_maps_api.py
 !registry_parser.py
+# 自社（宅建業者・宅建士）情報。**コードだけ** git に入れる。
+# 実データ config/company_profile.json は個人情報なので入れない（許可行を作らない）
+!company_profile.py
 !tokuyaku_clauses.py
 !tokuyaku_core.py
 
@@ -56,6 +59,12 @@
 # appId は .env.estat 側（gitignoreのまま・secrets-manifest.txt で運ぶ）
 # 表のメタ情報のキャッシュ .estat-cache/ は入れない（1行目の * で既に除外）
 !estat_api.py
+
+# 商圏データのまとめ方（査定8509・事業計画8533が同じこれを読む。estat_api.py の上の層）
+!area_stats.py
+
+# 生成文の法令引用が実在するかを e-Gov で確かめる層（特約8513などが読む）
+!law_citations.py
 !va.sh
 !visual_agent.py
 !handwriting-ocr/

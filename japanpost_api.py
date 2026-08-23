@@ -34,11 +34,57 @@ from __future__ import annotations
 import json
 import os
 import pathlib
+import re
 import time
 import urllib.parse
 from typing import Any
 
-import requests
+try:  # requests があれば使う。無い環境（launchd の /usr/bin/python3 等）では urllib で代替する
+    import requests
+except ImportError:  # pragma: no cover - 環境依存
+    import urllib.error
+    import urllib.request
+
+    class _Response:
+        """requests の戻りのうち、このモジュールが使う分（status_code / text / json）だけ真似る。"""
+
+        def __init__(self, status: int, body: bytes):
+            self.status_code = status
+            self._body = body
+
+        @property
+        def text(self) -> str:
+            return self._body.decode("utf-8", "replace")
+
+        def json(self):
+            return json.loads(self._body.decode("utf-8"))
+
+    class _UrllibShim:
+        @staticmethod
+        def _send(url, headers=None, data=None, method="GET", timeout=30):
+            req = urllib.request.Request(url, data=data, method=method,
+                                         headers=headers or {})
+            try:
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    return _Response(resp.status, resp.read())
+            except urllib.error.HTTPError as e:  # 4xx/5xx も requests と同じく戻り値で返す
+                return _Response(e.code, e.read())
+
+        @classmethod
+        def get(cls, url, headers=None, timeout=30):
+            return cls._send(url, headers=headers, timeout=timeout)
+
+        @classmethod
+        def post(cls, url, headers=None, json=None, timeout=30):
+            body = None
+            headers = dict(headers or {})
+            if json is not None:
+                import json as _json
+                body = _json.dumps(json).encode("utf-8")
+                headers.setdefault("Content-Type", "application/json")
+            return cls._send(url, headers=headers, data=body, method="POST", timeout=timeout)
+
+    requests = _UrllibShim()
 
 # 本番ホスト。テスト用（stub）に切り替えるときは .env.japanpost に JAPANPOST_HOST を書く。
 # 例: JAPANPOST_HOST=stub-qz73x.da.pf.japanpost.jp
@@ -197,6 +243,152 @@ def address_zip(**params: Any) -> dict[str, Any]:
     if resp.status_code != 200:
         raise JapanPostError(f"住所検索に失敗しました (HTTP {resp.status_code}): {resp.text[:200]}")
     return resp.json()
+
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# 住所の照合（2026-08-23 追加）
+#
+# 台帳・謄本の住所は**人が入力したもの**で、郵便番号の抜けや旧町名・誤字が混ざる。
+# DM や送付書はそのまま印字すると**不達・返送**になり、1通ずつ郵送費が無駄になる。
+# 「公式データと突き合わせる」だけの薄い関数をここに置き、各アプリから同じものを呼ぶ。
+# （chatwork-ai-manager の zip_lookup / address_to_zip もここへ寄せている）
+# ─────────────────────────────────────────────────────────────────────────
+
+_ZEN2HAN = str.maketrans("０１２３４５６７８９－―ー‐　", "0123456789---- ")
+
+
+def normalize_jp(text: Any) -> str:
+    """比較用に住所を正規化する（全角→半角・記号とスペースの揺れを吸収）。"""
+    t = str(text or "").translate(_ZEN2HAN)
+    t = t.replace("ヶ", "ケ").replace("之", "ノ")
+    return re.sub(r"[\s\-]", "", t)
+
+
+def zip_digits(code: Any) -> str:
+    """郵便番号を数字だけにする（"〒534-0024" → "5340024"）。"""
+    return re.sub(r"\D", "", str(code or ""))
+
+
+def _address_candidates(address: str):
+    """番地つきの住所から、APIに通る形へ段階的に短くした候補を作る。
+
+    `addresszip` は**番地まで入れると 404**（2026-08-21 実測）。町域までなら引ける。
+    """
+    a = str(address or "").strip()
+    if not a:
+        return
+    yield a
+    cut = re.split(r"[0-9０-９]+[-－ー‐]|[0-9０-９]+丁目|[0-9０-９]+番", a)[0]
+    if cut and cut != a:
+        yield cut.rstrip("　 ")
+    tail = re.sub(r"[0-9０-９\-－ー‐番地号丁目\s]+$", "", a)
+    if tail and tail not in (a, cut):
+        yield tail
+
+
+def _join_address(a: dict[str, Any], with_pref: bool = True) -> str:
+    keys = ("pref_name", "city_name", "town_name") if with_pref else ("city_name", "town_name")
+    return "".join(str(a.get(k) or "") for k in keys)
+
+
+def address_for_zip(code: Any, limit: int = 10) -> dict[str, Any]:
+    """郵便番号（3桁以上）・デジタルアドレス → 住所。失敗しても例外にしない。"""
+    code = zip_digits(code) or str(code or "").strip()
+    if not code:
+        return {"ok": False, "error": "郵便番号がありません"}
+    try:
+        data = search_code(code, limit=int(limit))
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    addrs = data.get("addresses") or []
+    return {
+        "ok": bool(addrs), "code": code, "count": data.get("count"),
+        "addresses": addrs,
+        "address": _join_address(addrs[0]) if addrs else "",
+        "error": "" if addrs else "この郵便番号は見つかりませんでした",
+    }
+
+
+def zip_for_address(address: str, limit: int = 10) -> dict[str, Any]:
+    """住所 → 郵便番号。番地は自動で落として引き直す。
+
+    戻り値の `level` は 1=都道府県まで / 2=市区町村まで / **3=町域まで一致**。
+    3 以外は「候補どまり」で、そのまま宛名には使わないこと。
+    """
+    tried, last_error = [], ""
+    for cand in _address_candidates(address):
+        if cand in tried:
+            continue
+        tried.append(cand)
+        try:
+            data = address_zip(freeword=cand, limit=int(limit))
+        except Exception as e:
+            last_error = f"{type(e).__name__}: {e}"
+            continue
+        addrs = data.get("addresses") or []
+        if addrs:
+            return {
+                "ok": True, "query": cand, "tried": tried,
+                "level": data.get("level"), "count": data.get("count"),
+                "zip_code": str(addrs[0].get("zip_code") or ""),
+                "address": _join_address(addrs[0]),
+                "addresses": addrs[: int(limit)],
+            }
+    return {"ok": False, "tried": tried,
+            "error": last_error or "住所から郵便番号を特定できませんでした"}
+
+
+def verify(postal: Any = None, address: str = "") -> dict[str, Any]:
+    """郵便番号と住所の突き合わせ。**判定と、そのまま画面に出せる一言**を返す。
+
+    status は次のどれか:
+      "一致"        … 郵便番号の公式住所が、入力住所の頭と一致した
+      "不一致"      … 郵便番号は実在するが、住所が別の地域を指している（要確認）
+      "補完"        … 郵便番号が空欄で、住所から町域まで特定できた（`zip_code` を使える）
+      "候補"        … 住所から市区町村までしか絞れなかった（人が確かめる）
+      "不明"        … 郵便番号が存在しない・住所も特定できない
+      "住所なし"    … 住所が空（郵便番号だけ検証した）
+    """
+    postal = zip_digits(postal)
+    address = str(address or "").strip()
+
+    if postal:
+        found = address_for_zip(postal)
+        if not found.get("ok"):
+            return {"status": "不明", "zip_code": postal, "official": "",
+                    "message": f"郵便番号 {postal} は見つかりませんでした",
+                    "detail": found.get("error", "")}
+        if not address:
+            return {"status": "住所なし", "zip_code": postal,
+                    "official": found["address"],
+                    "message": f"住所が空欄です（{postal} は {found['address']}）"}
+        target = normalize_jp(address)
+        for a in found["addresses"]:
+            for with_pref in (True, False):
+                official = normalize_jp(_join_address(a, with_pref))
+                if official and target.startswith(official):
+                    return {"status": "一致", "zip_code": postal,
+                            "official": _join_address(a),
+                            "message": "郵便番号と住所が一致"}
+        return {"status": "不一致", "zip_code": postal, "official": found["address"],
+                "message": f"〒{postal} は「{found['address']}」です（入力: {address}）"}
+
+    if not address:
+        return {"status": "不明", "zip_code": "", "official": "",
+                "message": "郵便番号も住所もありません"}
+
+    guess = zip_for_address(address)
+    if not guess.get("ok"):
+        return {"status": "不明", "zip_code": "", "official": "",
+                "message": "住所から郵便番号を特定できませんでした",
+                "detail": guess.get("error", "")}
+    if str(guess.get("level")) == "3":
+        return {"status": "補完", "zip_code": guess["zip_code"],
+                "official": guess["address"],
+                "message": f"郵便番号を補完しました（{guess['zip_code']} {guess['address']}）"}
+    return {"status": "候補", "zip_code": guess["zip_code"], "official": guess["address"],
+            "message": f"市区町村までしか絞れません（候補 {guess['zip_code']} {guess['address']}）"}
 
 
 if __name__ == "__main__":
