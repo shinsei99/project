@@ -108,9 +108,11 @@
 > ### D. 余力があれば
 >
 > - **ポケモンカード図鑑の相場は週1回**更新するとよい（`.venv/bin/python ingest_tcgdex_price.py`）
-> - ~~note `nanka-ugokanai` はメインPCから~~ → **メインPCの出番は無くなった。**
->   8/22 に**サブPCから note へ投稿できることを実証**（Playwright ではなく Claude in Chrome 拡張＝
->   普段のChromeのセッションを使う）。この1本は Zenn `ai-intake-hearing` の再push待ちで、順番の問題だけ
+> - ~~note `nanka-ugokanai` はメインPCから~~ → **完了済み。メインPCの出番は無い**
+>   （Zenn `ai-intake-hearing` は 8/20 23:40 に反映、note は 8/21 07:53 に公開）。
+>   **2026-08-23 に実データで数え直した結果、AIツールベースの3点セットは
+>   本体9 / Zenn9 / note9 で揃っており、公開待ちは0本**（本体の制作記録15本のうち
+>   転載対象は不動産カテゴリの9本。ツール5＋メディア1は方針どおり本体のみ）
 >
 > ### E. アプリの増減（`git pull` で手元の構成が変わる）
 >

@@ -5,8 +5,14 @@
 
 1. 本体を公開（✅ 済み）
 2. Google にインデックスされるのを待つ（数日〜1週間）
-3. **Zenn** に出す（✅ 原稿8本中7本が公開済み。残りは `ai-intake-hearing` 1本）
-4. **note** に出す（Zenn の記事URLを本文から参照するため、Zennが先。✅ 3本公開／残り5本は原稿済み）
+3. **Zenn** に出す（✅ **原稿9本すべて公開済み**）
+4. **note** に出す（Zenn の記事URLを本文から参照するため、Zennが先。✅ **原稿9本すべて公開済み**）
+
+> **2026-08-23 に実データで数えた結果 → 本体9 / Zenn9 / note9 で揃っている。**
+> 本体の制作記録は15本あるが、**3媒体セットの対象は「不動産」カテゴリの9本だけ**
+> （ツール5本＋メディア1本は方針どおり本体のみ）。数え方は
+> `./publish.sh status`（Zenn）／`curl -s 'https://note.com/api/v2/creators/shinsei99/contents?kind=note'`（note）／
+> `content/works/*.json` の `category=realestate`（本体）。
 
 **転載の対象は本体の「不動産」カテゴリの公開記録だけ**（在庫を揃える）。
 ツール・ゲーム分類は本体のみ。psa-collection は本体からも外した（`drafts/README.md` 参照）。
@@ -102,8 +108,8 @@
 | 媒体 | 原稿 | URL |
 |---|---|---|
 | 本体 | （公開済み） | https://ai-tools-base.vercel.app/works/ai-ticket-counter |
-| Zenn | `articles/ai-intake-hearing.md` | ⬜ **`articles/` へ複製して push 済み（2026-08-19 22:35）だが、投稿数の上限で弾かれた。**空コミットで再push する |
-| note | `note/nanka-ugokanai.md` | ⬜ **Zenn 待ち。**本文から上の Zenn 記事にリンクしているので、先に Zenn を通すこと |
+| Zenn | `articles/ai-intake-hearing.md` | ✅ https://zenn.dev/shinsei99/articles/ai-intake-hearing （8/19 22:35 の push は投稿上限で弾かれ、**2026-08-20 23:40 に遅れて反映**） |
+| note | `note/nanka-ugokanai.md` | ✅ https://note.com/shinsei99/n/n4111730fb93f （2026-08-21 07:53・普段のChromeで手貼り） |
 
 ---
 
@@ -173,14 +179,17 @@ Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その
 
 | 日 | Zenn | note |
 |---|---|---|
-| 8/17 19:56以降 | ✅ ai-agent-always-on / ✅ launchd-restart-loop | ⬜ ai-always-on / ⬜ silent-failure |
-| 8/18 | ✅ llm-pdf-split-gaps（20:47） / ✅ scanned-pdf-orientation（21:32・サブPC） | ⬜ scanned-pile / ⬜ upside-down |
+| 8/17 19:56以降 | ✅ ai-agent-always-on / ✅ launchd-restart-loop | ai-always-on / silent-failure（→ ✅ 8/19 に公開） |
+| 8/18 | ✅ llm-pdf-split-gaps（20:47） / ✅ scanned-pdf-orientation（21:32・サブPC） | scanned-pile / upside-down（→ ✅ 8/19 に公開） |
 | 8/19 | ✅ ios-nfc-safari-entitlement（22:09） | ✅ who-has-the-key（22:18）／✅ ai-always-on（22:28）／✅ silent-failure（22:30）／✅ scanned-pile（22:33）／✅ upside-down（22:36） |
-| 8/20以降 | ⬜ ai-intake-hearing（**Zennで残る最後の1本。上限で弾かれたので再push**） | ⬜ nanka-ugokanai |
+| 8/20 | ✅ ai-intake-hearing（23:40・上限で弾かれた分が遅れて反映） | — |
+| 8/21 | — | ✅ nanka-ugokanai（07:53） |
+| 8/22 | ✅ openpyxl-row-height-autofit（08:2x・再push） | ✅ moji-ga-kireteru（08:29） |
 
-> **2026-08-18 時点: Zenn は原稿7本中6本が公開済み。残りは `ai-intake-hearing` 1本だけ。**
-> 1日2本の上限に当たるため 8/19 以降に出す。note は**5本すべて未公開**（ブラウザ操作が要るため
-> メインPC担当）。note の原稿には Zenn のURLが入っているので、順序は守れている。
+> **2026-08-23 時点: Zenn・note とも原稿9本すべて公開済み＝公開待ちは無い。**
+> 下の「2026-08-18 時点」の記述は当時の状況（Zenn 7本中6本／note 5本未公開）で、
+> 経緯として残してある。**メインPC担当と書いていた note の投稿は、8/22 に
+> サブPCの普段のChrome（Claude in Chrome 拡張）からできることを実証した。**
 
 ---
 

@@ -38,7 +38,7 @@ Google はそちらを本命と判断し、本体が自分の記事に負ける�
 | baikai-generator | `zenn/scanned-pdf-orientation.md` ✅公開 | `note/upside-down.md` ✅公開 | `/works/baikai-generator` |
 | ai-ticket-counter | `zenn/ai-intake-hearing.md` ✅公開 | `note/nanka-ugokanai.md` ✅公開 | `/works/ai-ticket-counter` |
 | keyline | `zenn/ios-nfc-safari-entitlement.md` ✅公開 | `note/who-has-the-key.md` ✅公開 | `/works/keyline` |
-| excel-row-height（AI業務マネージャーの日報Excel） | `zenn/openpyxl-row-height-autofit.md` ⬜push済・上限で未反映 | `note/moji-ga-kireteru.md` ⬜Zenn待ち | `/works/excel-row-height` ✅公開 |
+| excel-row-height（AI業務マネージャーの日報Excel） | `zenn/openpyxl-row-height-autofit.md` ✅公開 | `note/moji-ga-kireteru.md` ✅公開 | `/works/excel-row-height` ✅公開 |
 
 **2026-08-21: 一覧の ✅公開 印を実態に合わせた**（Zenn 8本・note 8本とも公開済み。本体の `links` にURLを記録するまでが1本で、`npm run validate` が漏れを警告する）。
 

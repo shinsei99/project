@@ -8,6 +8,41 @@
 
 ---
 
+## 2026-08-23（サブPC）— 3媒体の本数を実データで数え直し、台帳の古い印を直した
+
+### 完了したこと
+
+- **「本体・Zenn・note の本数は合っているか」を実データで確認した。結果は 9 / 9 / 9 で揃っている。**
+  数え方（推測ではなく実行して確認）:
+  - Zenn … `./publish.sh status` → 9本すべて ✅（API `zenn.dev/api/articles?username=shinsei99`）
+  - note … `curl -s 'https://note.com/api/v2/creators/shinsei99/contents?kind=note'` → `totalCount 9`
+  - 本体 … `content/works/*.json` は15本だが、**転載対象は `category=realestate` の9本**
+    （ツール5・メディア1は方針どおり本体のみ）。9本すべて `links` に Zenn と note が入っており、
+    URLのslug/keyが上のAPI一覧と1件ずつ一致することも突き合わせた
+- **台帳の古い印を直した**（実体は公開済みなのに書類だけ未公開のままだった）:
+  - `drafts/PUBLISH.md` 7本目 … Zenn `ai-intake-hearing` は **8/20 23:40 に遅れて反映**、
+    note `nanka-ugokanai` は **8/21 07:53 に公開**。両方 ⬜ のままだったので ✅ とURLに更新
+  - `drafts/PUBLISH.md` 冒頭の本数（「Zenn 8本中7本」「note 3本公開」）を「9本すべて公開」に
+  - `drafts/PUBLISH.md`「公開待ちの順番」表に 8/20・8/21・8/22 の実績行を足し、公開待ち0本を明記
+  - `drafts/README.md` の9本目の行（⬜push済・上限で未反映 / ⬜Zenn待ち）を ✅公開 に
+  - 直下 `TODO.md` の引き継ぎD章から「note はメインPCで出す」を削除（当日朝に自分で書いたが誤り）
+
+### 発生したエラーと解決策
+
+- **症状**: 8/21 の作業ログと `PUBLISH.md` で「note 1本が未公開」と読める状態が残っていた。
+  **原因**: 8/21 に公開した際、`content/works/ai-ticket-counter.json` と作品ページは更新したが、
+  **`drafts/PUBLISH.md` と `drafts/README.md` の表を更新していなかった**（公開手順の最後の
+  「表に追記」が漏れた）。**直し方**: 公開の判定を書類ではなく **API の実データ**で取り直した。
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **次は10本目の題材選び**（`drafts/PUBLISH.md` の順番表）。公開待ちは0本。
+- 公開したら**その場で `PUBLISH.md` と `drafts/README.md` の両方**を更新すること
+  （今回ずれたのはこの2つ）。`npm run validate` は本体の `links` しか見ないので、
+  表の書き漏らしは検出されない。
+
+---
+
 ## 2026-08-22（サブPC・朝）— 9本目の外部公開を最後まで通した
 
 ### 完了したこと
