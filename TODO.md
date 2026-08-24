@@ -1,4 +1,39 @@
-> ## 🖥 メインPCでやること — 追記（2026-08-24 サブPCより／AI重説の謄本まわり）
+> ## 🖥 メインPCで受領・実施した（2026-08-24 メインPC）— サブPCへの返信
+>
+> **サブPCの5日ぶん（111コミット）を受領。A-0〜A-3 のうち、機械でできるものはすべて完了。**
+> 残っているのは**人にしかできない3件**（下の「★人の手が要る」）。
+>
+> | 依頼 | 結果 |
+> |---|---|
+> | `git pull` | ✅ 111コミットを fast-forward（未コミット0・stash0で開始） |
+> | A-1 `secrets-sync.sh import` | ✅ **7件取り込み → 不足0件**（google-maps / japanpost / estat / appstore＋`.p8` / config/company_profile.json / mail-archiver）。実体のバイト数まで確認 |
+> | A-1 置き場の削除 | ✅ **`apps-secrets-handoff/`(1.0M) を削除済み**。tar内27ファイルすべてが手元に実体としてあることを**1件ずつ確認してから**消した |
+> | A-2 secrets.toml のSMTP5行 | ✅ 追記済み（`smtp_host/port/user/password_keychain/from`）。**パスワードはキーチェーン参照**にして平文を置いていない |
+> | A-3 常駐の入れ替え | ✅ **14本を kickstart**（worker / line / 管理画面8540 / maisoku-converter / realestate-valuation / business-plan-generator / tokuyaku-generator / baikai-generator / kaitori-dm-maker / restoration-calculator / settlement-creator / memorandum-generator / shorui-cabinet / agent-platform）。全PIDが入れ替わり、**12本とも HTTP 200**・待ち受けも規定どおり（8526のみ127.0.0.1、他は0.0.0.0） |
+> | 8/24追記の 8517 再起動 | ✅ 上に含めて実施。`*:8517` で待ち受け確認 |
+>
+> **★A-0 の順序を1つ間違えた（復旧済み）**: `soufu-generator/senders.json` の退避より先に pull し、
+> 雛形（会社3件）で上書きした。**旧版は git 履歴（`13a3ab39`）に残っていたので
+> `senders.local.json` へ復元済み**（4件・大京/新誠/京橋/個人）。アプリはこちらを優先して読むので
+> 画面の見え方は元どおり。**サブPC側の対応は不要。**
+>
+> **★人の手が要る（メインPCに残っている3件・私からは実行できない）**
+>
+> 1. **SMTPパスワードをキーチェーンへ**（未登録を確認済み）
+>    `security add-generic-password -s chatwork-ai-manager-smtp -a shin@daikyocorp.co.jp -w`
+> 2. **`/bin/bash` にフルディスクアクセス**（システム設定＞プライバシーとセキュリティ）。
+>    無いと業務日報の保管も休業日判定も失敗する
+> 3. **LINE ライトプランへの変更 — まだ枠は0のまま。** 再起動直後の worker ログが実測を出した:
+>    `[worker] line quota: 残り0通 / 200通（消費200）` → 管理者通知の push も 429 で失敗。
+>    **プラン変更まで LINE は無反応のまま**（Chatworkは正常）
+>
+> **新コードが効いていることの確認**: 再起動した worker が起動直後に**残通数の日次見張り**を実行し、
+> 上の quota ログを出した＝8/20 の LINE 改修が本番に入っている（8/19 09:00 起動の旧 worker には無い機能）。
+>
+> **まだ手を付けていないもの**: C-2 `onepiece-dex/setup.sh`（画像1.2GB・40〜70分）／
+> C の目視4件（AI重説の印刷イメージ・デジタル書斎の実機・KeyTagのNFC実機・業務日報の初日18:30）。
+
+> ## 🖥 メインPCでやること — 追記（2026-08-24 サブPCより／AI重説の謄本まわり）※上のとおり実施済み
 >
 > **`git pull` のあと、下の1コマンドだけ実行してください。** 下の 8/23 ぶん（A〜F）はそのまま有効です。
 >
