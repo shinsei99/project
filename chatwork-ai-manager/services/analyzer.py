@@ -239,9 +239,11 @@ def _apply_events(room_id, events, members, msg_by_id):
             if etype == "completion":
                 new_status = ev.get("new_status") or T.STATUS_WAITING  # 完了候補は既定で確認待ち
                 T.update_status(target, new_status, note=reason, evidence_message_id=mid)
+                T.mark_progress_reported(target)
             elif etype == "progress_update":
                 new_status = ev.get("new_status") or T.STATUS_DOING
                 T.update_status(target, new_status, note=reason, evidence_message_id=mid)
+                T.mark_progress_reported(target)
             elif etype == "due_change":
                 task = ev.get("task") or {}
                 T.update_fields(target, {"due_date": task.get("due_date"), "due_raw": task.get("due_raw")},

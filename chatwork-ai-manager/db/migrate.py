@@ -86,6 +86,8 @@ def migrate() -> None:
         # Stage 0: 進捗確認・エスカレーション用
         _ensure_column(conn, "tasks", "last_check_at", "TEXT")
         _ensure_column(conn, "tasks", "last_progress_reply", "TEXT")
+        # 進捗報告があった日時（last_check_atとは別。定時確認の重複催促防止に使う。TASK-20260824-002）
+        _ensure_column(conn, "tasks", "last_progress_at", "TEXT")
         _ensure_column(conn, "tasks", "check_count", "INTEGER NOT NULL DEFAULT 0")
         _ensure_column(conn, "tasks", "escalation_stage", "INTEGER NOT NULL DEFAULT 0")
         # 定時進捗確認から個別に除外するフラグ（例: 社外待ちで確認しても意味がない場合。TASK-20260817-013）

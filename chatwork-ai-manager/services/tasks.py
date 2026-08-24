@@ -92,6 +92,17 @@ def update_fields(task_id: int, updates: dict, note: str = None,
         )
 
 
+def mark_progress_reported(task_id: int) -> None:
+    """担当者からの進捗報告（progress_update/completion）を記録する。
+
+    last_check_at（AIが確認した日時）とは別軸。定時確認(closing_1800/carryover_1000等)が
+    同一TODOに対し、本日中かつ直近のAI確認より後に届いた進捗報告を無視して重ねて
+    「進捗はいかがですか」と催促しないための判定に使う（TASK-20260824-002）。
+    """
+    with get_conn() as conn:
+        conn.execute("UPDATE tasks SET last_progress_at=datetime('now') WHERE id=?", (task_id,))
+
+
 def touch_activity(task_id: int, note: str = None, evidence_message_id: str = None) -> None:
     """状態は変えず「動きがあった」ことだけ記録（放置タイマーのリセット）。"""
     with get_conn() as conn:

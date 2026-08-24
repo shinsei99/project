@@ -31,6 +31,7 @@ def _fmt(rows):
         "requester": t["requester"], "due_date": t["due_date"], "status": t["status"],
         "room_id": t["room_id"], "check_count": t["check_count"],
         "escalation_stage": t["escalation_stage"], "last_check_at": t["last_check_at"],
+        "last_progress_at": t["last_progress_at"],
         "last_activity_at": t["last_activity_at"], "source_message_id": t["source_message_id"],
         "skip_check": t["skip_check"], "skip_check_reason": t["skip_check_reason"],
     } for t in rows]

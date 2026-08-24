@@ -107,4 +107,5 @@ def task_progress_update(task_id, status=None, note=None, progress=None, evidenc
         from db.connection import get_conn
         with get_conn() as c:
             c.execute("UPDATE tasks SET last_progress_reply=? WHERE id=?", (note[:500], task_id))
+        T.mark_progress_reported(task_id)
     return {"ok": True, "task_id": task_id, "status": new_status, "task": _row(T.get_task(task_id))}

@@ -111,7 +111,14 @@ def _finish(job_type, today, result: dict):
 
 
 def _candidates(kind, today):
-    """対象TODO。本日すでにAI確認済みのものは除外（催促連打防止）。"""
+    """対象TODO。本日すでにAI確認済み、または直近のAI確認より後に本日中の進捗報告が
+    届いているものは除外する（催促連打防止・TASK-20260824-002）。
+
+    実例: パールハイム101電気検診(id=24)で、松本さんが17:37に進捗報告したのに、
+    同じ18:00の定時確認でその報告を無視して「進捗はいかがですか」と重ねて聞いてしまった。
+    last_progress_at（進捗報告のタイムスタンプ）が本日かつ last_check_at より後なら、
+    その報告自体が進捗確認済みとみなし、今回のcheck対象から外す。
+    """
     res = progress_tools.tasks_needing_attention(kind=kind, limit=40)
     tasks = res.get("tasks", [])
     out = []
@@ -119,6 +126,9 @@ def _candidates(kind, today):
         lc = t.get("last_check_at")
         if lc and str(lc)[:10] == today:
             continue  # 本日確認済みはスキップ
+        lp = t.get("last_progress_at")
+        if lp and str(lp)[:10] == today and (not lc or lp > lc):
+            continue  # 直近の確認より後に本日中の進捗報告あり＝重ねて聞かない
         out.append(t)
     return out
 
