@@ -125,7 +125,12 @@ def has_dex() -> bool:
 def db_stamp() -> float:
     """DBの更新時刻。キャッシュの鍵にして、build_dex.py を回したあと
     自動で読み直されるようにする。この鍵があるので手動の再読み込みボタンは
-    要らない（キャッシュ関数は全てこれを受け取ること）。"""
+    要らない（キャッシュ関数は全てこれを受け取ること）。
+
+    **受け取る側の引数名を `_stamp` にしてはいけない。** `st.cache_data` は
+    **アンダースコアで始まる引数をハッシュから外す**ので、`_stamp` だと鍵に入らず、
+    DBを作り直してもプロセスを再起動するまで古い結果が返り続ける
+    （2026-08-24 にワンピ図鑑で実際に踏んだ。こちらも同じ書き方だったので直した）。"""
     try:
         return os.path.getmtime(DB)
     except OSError:
@@ -133,7 +138,7 @@ def db_stamp() -> float:
 
 
 @st.cache_data(show_spinner=False)
-def stats(_stamp: float = 0.0):
+def stats(stamp: float = 0.0):
     q = lambda s: conn().execute(s).fetchone()[0]
     return {
         "cards": q("SELECT COUNT(*) FROM dex"),
@@ -145,7 +150,7 @@ def stats(_stamp: float = 0.0):
 
 
 @st.cache_data(show_spinner=False)
-def product_list(ptype: str | None, _stamp: float = 0.0):
+def product_list(ptype: str | None, stamp: float = 0.0):
     """図鑑の入口。公式の商品（拡張パック187件など）を軸に並べる。
 
     セット記号で並べると公式の商品と1対1にならない（プロモが細かく割れる、
@@ -160,7 +165,7 @@ def product_list(ptype: str | None, _stamp: float = 0.0):
 
 @st.cache_data(show_spinner=False)
 def rarities_in(set_code: str | None = None, pack_name: str | None = None,
-                _stamp: float = 0.0):
+                stamp: float = 0.0):
     """存在するレアリティを、弱い順に（枚数つきで）返す。
 
     レアリティが無いカードも NO_RARITY として最後に混ぜる。これはデータの
@@ -183,7 +188,7 @@ def rarities_in(set_code: str | None = None, pack_name: str | None = None,
 
 @st.cache_data(show_spinner=False)
 def types_in(set_code: str | None = None, pack_name: str | None = None,
-             _stamp: float = 0.0):
+             stamp: float = 0.0):
     """そのパックに実際にあるタイプを、図鑑の並び順で返す。
 
     タイプは TCGdex 由来なので、ワザ等が紐づいていないカードには入っていない。

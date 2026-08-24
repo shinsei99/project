@@ -366,7 +366,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8527 | PSAカード管理（※ツール・localhost・社内共有なし／常時起動のみ。Desktop/社内ツールに.appショートカット有） | com.shinsei.psa-collection |
 | 8528 | 書類キャビネット（※不動産・社内LAN共有あり・0.0.0.0／要フルディスクアクセス for /bin/bash＝Dropbox取込読取） | com.shinsei.shorui-cabinet |
 | 8529 | チラシクリエーター（※ツール・127.0.0.1・launchd未登録） | （未登録） |
-| 8531 | ポケモンカード図鑑（※ツール・127.0.0.1・**PSAカード管理(8527)の中からも開ける**／カード画像は著作物のためLANに出さない） | com.shinsei.pokecard-dex |
+| 8531 | ポケモンカード図鑑（※ツール・127.0.0.1・**launchd未登録＝常駐させない**／**PSAカード管理(8527)の中から使う**／カード画像は著作物のためLANに出さない） | （未登録・2026-08-24に外した） |
 | 8537 | ワンピースカード図鑑（※ツール・127.0.0.1・launchd未登録／**PSAカード管理(8527)の中からも開ける**／カード画像は著作物のためLANに出さない） | （未登録） |
 | 8532 | マルチプロダクション | com.shinsei.agent-platform |
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
@@ -376,6 +376,13 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
+
+**カード図鑑2本（8531 ポケカ・8537 ワンピ）は常駐させない**（2026-08-24 オーナー判断）。
+常設するのは **PSAカード管理（8527）だけ**で、図鑑はその中から開いて使う。
+PSA管理は図鑑の `app.py` を**モジュールとして直接読み込む**ので、**8531/8537 が
+起動していなくても中から使える**。単独の画面が要るときだけ各 `run.sh` を都度叩く。
+`com.shinsei.pokecard-dex` は `bootout` ＋ **`launchctl disable`** 済み
+（plist は残してある。戻すなら `launchctl enable` → `bootstrap`）。
 
 ### バインド先のルール（2026-08-07整合・必読）
 

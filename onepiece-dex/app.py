@@ -97,7 +97,15 @@ def available() -> bool:
 
 
 def db_stamp() -> float:
-    """DBの更新時刻。キャッシュの鍵にして、build_dex.py のあと自動で読み直す。"""
+    """DBの更新時刻。キャッシュの鍵にして、build_dex.py のあと自動で読み直す。
+
+    **受け取る側の引数名を `_stamp` にしてはいけない。** `st.cache_data` は
+    **アンダースコアで始まる引数をハッシュから外す**（ハッシュできない値を渡すための
+    逃げ道）ので、`_stamp` だと鍵に入らず、いくらDBを作り直しても**プロセスを
+    再起動するまで古い結果が返り続ける**。2026-08-24 に実際に踏んだ:
+    `fill_super_parallel.py` → `build_dex.py` でスーパーパラレル51枚を入れ直したのに、
+    画面のレアリティ一覧に出てこなかった（DBには入っていた）。
+    """
     try:
         return os.path.getmtime(DB)
     except OSError:
@@ -105,7 +113,7 @@ def db_stamp() -> float:
 
 
 @st.cache_data(show_spinner=False)
-def stats(_stamp: float = 0.0):
+def stats(stamp: float = 0.0):
     q = lambda s: conn().execute(s).fetchone()[0]
     return {"cards": q("SELECT COUNT(*) FROM dex"),
             "series": q("SELECT COUNT(*) FROM dex_series"),
@@ -114,7 +122,7 @@ def stats(_stamp: float = 0.0):
 
 
 @st.cache_data(show_spinner=False)
-def series_list(ptype: str | None = None, _stamp: float = 0.0):
+def series_list(ptype: str | None = None, stamp: float = 0.0):
     """シリーズ一覧。並びは**発売日の新しい順**（公式の商品ラインナップ由来）。
 
     発売日が判らないシリーズ（ST-02〜04・ST-16〜20 は現行の商品ラインナップから
@@ -130,7 +138,7 @@ def series_list(ptype: str | None = None, _stamp: float = 0.0):
 
 
 @st.cache_data(show_spinner=False)
-def rarities_in(series_id: str | None = None, _stamp: float = 0.0):
+def rarities_in(series_id: str | None = None, stamp: float = 0.0):
     """存在するレアリティを弱い順に、枚数つきで返す。"""
     if series_id:
         sql = ("SELECT d.rarity, MIN(d.rarity_i), MAX(d.rarity_note), COUNT(*) "
@@ -145,7 +153,7 @@ def rarities_in(series_id: str | None = None, _stamp: float = 0.0):
 
 
 @st.cache_data(show_spinner=False)
-def features_all(_stamp: float = 0.0):
+def features_all(stamp: float = 0.0):
     """特徴（麦わらの一味・四皇…）を、付いているカードの多い順に。"""
     return [(r[0], r[1]) for r in conn().execute(
         "SELECT feature, COUNT(*) n FROM dex_features GROUP BY feature "

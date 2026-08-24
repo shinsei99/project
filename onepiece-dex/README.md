@@ -71,12 +71,18 @@ ONE PIECEカードゲームの日本語版カードを、名前・カード番�
 
     python crawl_official.py     # 全62シリーズ巡回（約1分）
     python crawl_products.py     # 商品156件＋パッケージ画像（約1分）
-    python fill_super_parallel.py  # スーパーパラレル系のレアリティ51枚（画像照合）
     python fetch_images.py       # 画像4,962枚（約1.2GB）
     python make_thumbs.py        # 一覧用サムネイル180px
+    python fill_super_parallel.py  # スーパーパラレル系のレアリティ51枚（画像照合）
     python build_dex.py          # 図鑑テーブルを組み立て（ネットワーク不要）
     python check_dex.py          # 整合性の検査
     ./run.sh                     # http://127.0.0.1:8537
+
+**`fill_super_parallel.py` は画像取得より後**（この順番は動かさない）。手元の
+`data/img` と典拠サイトの画像を見比べて決める工程なので、画像が無い状態で走らせると
+**照合が全部外れて0件のまま正常終了する**。2026-08-24 にメインPCで実際に起き、
+スーパーパラレル51枚がレアリティから丸ごと抜けていた（`setup.sh` は最後に件数を
+数えて、40件未満なら警告を出すようにした）。
 
 **`fetch_images.py` はDBに書かない。** どの画像を持っているかは「ファイルがあるか」が
 正で、図鑑へ移すのは `build_dex.py` の仕事。以前は1枚ごとに UPDATE していたが、
@@ -154,7 +160,14 @@ EB01-006 は EB-01 の `_r1` と PRB-01 の `_p2` がどちらもコミパラで
     ゴールドスーパーパラレル 1 / リーダースーパーパラレル 1
 
 OP-18（神の支配）の2枚は**まだ公式カードリストに出ていない**ので付かない。新弾が出たら
-`crawl_official.py` のあとに `fill_super_parallel.py` を流し直せば入る。
+`crawl_official.py` → `fetch_images.py`（**画像まで取ってから**）→
+`fill_super_parallel.py` → `build_dex.py` の順に流し直せば入る。
+
+**直したのに画面が変わらないときは、図鑑のプロセスを再起動する。** レアリティ一覧などは
+`@st.cache_data` に載っており、鍵は `db_stamp()`（DBの更新時刻）。**引数名を
+`_stamp` にすると Streamlit がハッシュから外す**ので鍵が効かない（2026-08-24 に
+これで「DBには入っているのに画面に出ない」を踏んだ。引数名は `stamp` にしてある）。
+PSAカード管理の中から見ている場合は **8527 のほう**を再起動する。
 
 結果は `data/super_parallel.json`。**人が見て直せる形**にしてあり、ポケカ図鑑の
 `pack_truth.json`（手で確かめた事実を書き留めるファイル）と同じ扱い。

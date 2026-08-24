@@ -40,9 +40,13 @@ APPS=(
   "com.shinsei.kaitori-dm-maker|kaitori-dm-maker"               # 8526 ※ツール・localhost・社内共有なし（常時起動のみ）
   "com.shinsei.psa-collection|psa-collection"                   # 8527 ※ツール・localhost・社内共有なし（常時起動のみ）
   "com.shinsei.shorui-cabinet|shorui-cabinet"                   # 8528 ※不動産・自分専用・localhost（常時起動のみ）
-  "com.shinsei.pokecard-dex|pokecard-dex"                       # 8531 ※ツール・localhost・カード画像は著作物のためLANにも出さない
-  "com.shinsei.onepiece-dex|onepiece-dex"                       # 8537 ※ツール・localhost・カード画像は著作物のためLANにも出さない。**先に onepiece-dex/setup.sh を流す**（data/ はgit管理外・約1.2GB）
 )
+
+# **カード図鑑2本（pokecard-dex 8531 / onepiece-dex 8537）は常駐させない**
+# （2026-08-24 オーナー判断）。常設するのは PSAカード管理（8527）だけで、図鑑は
+# その中から開いて使う。PSA管理は図鑑の app.py を**モジュールとして直接読み込む**ので、
+# 8531 / 8537 が起動していなくても中から使える（実機で確認済み）。
+# 単独の画面が要るときだけ各アプリの ./run.sh を都度叩く。
 
 for entry in "${APPS[@]}"; do
   LABEL="${entry%%|*}"

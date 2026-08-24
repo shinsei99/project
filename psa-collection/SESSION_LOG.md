@@ -37,9 +37,21 @@
   「⭐ 欲しいカードの入れ先」を掴む → **`button:has-text("⭐ 欲しい")` と要素を指定する**。
   バインダーのマスは `.st-key-pbtn_<slug>` / 削除は `.st-key-pdelbtn_<slug>` で狙える
 
+### 同日その2 — 常設は PSA管理だけにした（オーナー判断）
+
+- **常設するのは PSAカード管理（8527）だけ**。**図鑑2本は常駐させない**
+  （ワンピ 8537 は元から未登録、**ポケカ 8531 は登録を外した**）
+- 外し方: `launchctl bootout gui/$(id -u)/com.shinsei.pokecard-dex` ＋
+  **`launchctl disable`**（plist が `~/Library/LaunchAgents` に残っていても
+  次回ログインで復活しないようにするため。plist の削除は保留＝戻すのが簡単）。
+  `_launchd/install-launchd.sh` の APPS からも図鑑2本を外した
+- **図鑑は 8531 / 8537 が止まっていても PSA管理の中から使える**ことを実機で確認
+  （モジュールとして読み込むので、図鑑の Streamlit プロセスは要らない）
+
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **8537（ワンピ図鑑）は launchd 未登録のまま**。常駐させるかは人の判断
+- `~/Library/LaunchAgents/com.shinsei.pokecard-dex.plist` は**残したまま**（disable 済み）。
+  完全に消すなら人が `rm` する
 - 「欲しいカード」の集計・書き出しが要るかは未判断（ポケカのときからの持ち越し）
 
 ## 2026-08-19（メインPC）
