@@ -57,8 +57,18 @@
 > （`daily_report_enabled=1` / `time=18:30` / `upload=1`、今日は営業日、保管先へ
 > **launchd の /bin/bash から書き込めることを実測済み**）。アップ先は `daily_report_room_id` も
 > `manager_room_id` も空のため**監視中のgroupルーム＝「大京商事」(349546270)** にフォールバックする。
-> **メール送信だけは通らない**: `mailer.missing()` が `smtp_password（または smtp_password_keychain）`
-> を返す＝**キーチェーン未登録**。登録するまでは送らず「設定が足りない」を結果に記録して管理者へ通知する。
+> **メールも通るようになった（2026-08-24 12:5x）**: `mailer.missing()` が **0件**・`is_configured()=True`。
+> **SMTP認証を実測で確認**（`smtp.daikyocorp.co.jp:587` → EHLO 250 → STARTTLS → login 成功。**送信はしていない**）。
+> **launchd 常駐からキーチェーンを読めることも probe で確認済み**（ここが読めないと18:30に静かに失敗する）。
+> 設定は送信時に読むので worker の再起動は不要。
+>
+> **★キーチェーン登録の注意（はまった点）**: Claude Code の `!` から
+> `security add-generic-password … -w` を叩くと、**対話的な入力待ちが効かず空パスワードで登録される**
+> （`retype` まで素通りする。実際に文字数0で登録された）。**ターミナル.app を別に開いて叩くこと**。
+> `osascript -e 'tell application "Terminal" to do script "…"'` で入力待ちのウインドウを出せる。
+> なお macOS 26 では「キーチェーンアクセス」は Launchpad に出ず
+> `/System/Library/CoreServices/Applications/Keychain Access.app` にある（新しい「パスワード」アプリには
+> 今回のような generic 項目は表示されない）。
 >
 > **まだ手を付けていないもの**: C の目視4件
 > （AI重説の印刷イメージ・デジタル書斎の実機・KeyTagのNFC実機・業務日報の初日18:30）。
