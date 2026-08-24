@@ -53,7 +53,10 @@ case "${1:-status}" in
     # 出力を捨てないこと。最後に Aliased … が出るのを目で見る（過去に握りつぶして
     # デプロイできていないのに成功と誤認した）
     npm run validate || { echo "validate で止まった。直してから再実行"; exit 1; }
-    npx vercel --prod
+    # ★--scope を付けないと "Not authorized" で落ちる（2026-08-24 サブPCで実測）。
+    #   whoami は通る（個人アカウント daikyocorps-3085）が、プロジェクトは team:brain-dump の
+    #   持ち物なので、チームを明示しないとデプロイの権限が無いと判定される。
+    npx vercel --prod --scope brain-dump
     echo "--- 反映確認 ---"
     sleep 5
     curl -s -o /dev/null -w "$SITE_URL → HTTP %{http_code}\n" --max-time 15 "$SITE_URL/"
