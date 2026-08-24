@@ -265,7 +265,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | PSAカード管理 | psa-collection | 8527 | — |
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
 | ポケモンカード図鑑（全31,520枚・画像100%収録／**PSAカード管理の中からも開ける**） | pokecard-dex | 8531 | — |
-| ワンピースカード図鑑（全4,962枚・画像100%収録／公式サイト1本で完結） | onepiece-dex | 8537 | — |
+| ワンピースカード図鑑（全4,962枚・画像100%収録／公式サイト1本で完結／**PSAカード管理の中からも開ける**） | onepiece-dex | 8537 | — |
 | チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
 | AIツールベース（Claude Code主軸の比較メディア＋制作記録） | ai-tools-base | 3004 | Vercel（**ai-tools-base.vercel.app**・手動 `npx vercel --prod`） |
 | メールアーカイバ（IMAP容量対策・ローカル保管＋全文検索） | mail-archiver | 8535 | — |
@@ -367,7 +367,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8528 | 書類キャビネット（※不動産・社内LAN共有あり・0.0.0.0／要フルディスクアクセス for /bin/bash＝Dropbox取込読取） | com.shinsei.shorui-cabinet |
 | 8529 | チラシクリエーター（※ツール・127.0.0.1・launchd未登録） | （未登録） |
 | 8531 | ポケモンカード図鑑（※ツール・127.0.0.1・**PSAカード管理(8527)の中からも開ける**／カード画像は著作物のためLANに出さない） | com.shinsei.pokecard-dex |
-| 8537 | ワンピースカード図鑑（※ツール・127.0.0.1・launchd未登録／カード画像は著作物のためLANに出さない） | （未登録） |
+| 8537 | ワンピースカード図鑑（※ツール・127.0.0.1・launchd未登録／**PSAカード管理(8527)の中からも開ける**／カード画像は著作物のためLANに出さない） | （未登録） |
 | 8532 | マルチプロダクション | com.shinsei.agent-platform |
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
 | 8534 | KeyLine（NFC鍵・備品貸出管理／※画像自動削除は -purge が毎日3:30） | com.shinsei.keyline ＋ -purge |

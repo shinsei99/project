@@ -32,14 +32,32 @@ ORDERS_PATH = DATA_DIR / "orders.json"
 ALBUMS_PATH = DATA_DIR / "albums.json"
 FETCH_SCRIPT = BASE_DIR / "fetch_new_images.sh"
 
-# ポケモンカード図鑑（別アプリ・別フォルダ）。**このアプリのオプション**で、
-# 無いPCでは「📖 ポケモン図鑑」の選択肢自体を出さない。
-# 実体は移していない（単独起動 pokecard-dex/run.sh → 8531 も従来どおり使える）。
-DEX_DIR = Path(os.environ.get("POKECARD_DEX", BASE_DIR.parent / "pokecard-dex"))
-# アルバムに入れた図鑑のカード（＝欲しいカード）の目印。
-# 保有カードは PSA の証明書番号＝数字だけなので、この接頭辞で見分けられる
-# （既存の albums.json はそのまま読める）
-DEX_PREFIX = "dex:"
+# カード図鑑（別アプリ・別フォルダ）。**どれもこのアプリのオプション**で、
+# 入っていないPCでは選択肢自体を出さない（PSA管理は図鑑が1本も無くても成立する）。
+# 実体は移していない（単独起動 pokecard-dex/run.sh → 8531 ／
+# onepiece-dex/run.sh → 8537 も従来どおり使える）。
+#
+# `prefix` … アルバムに入れた図鑑のカード（＝欲しいカード）の目印。
+#            保有カードは PSA の証明書番号＝数字だけなので接頭辞で見分けられる。
+#            **ポケカの `dex:` は変えない**（既存の albums.json がそのまま読める）。
+# `module` … 図鑑はどれもファイル名が app.py なので、import 文では取り違える。
+#            パスから読み込んで、この名前で sys.modules に登録して区別する。
+DEXES = [
+    {
+        "id": "poke",
+        "label": "📖 ポケモンカード図鑑",
+        "prefix": "dex:",
+        "module": "pokecard_dex_app",
+        "dir": Path(os.environ.get("POKECARD_DEX", BASE_DIR.parent / "pokecard-dex")),
+    },
+    {
+        "id": "op",
+        "label": "🏴‍☠️ ワンピースカード図鑑",
+        "prefix": "opdex:",
+        "module": "onepiece_dex_app",
+        "dir": Path(os.environ.get("ONEPIECE_DEX", BASE_DIR.parent / "onepiece-dex")),
+    },
+]
 
 
 def missing_image_certs(frame: pd.DataFrame, store: "ImageStore") -> list:
@@ -77,19 +95,19 @@ def album_location(vault_status: str) -> str:
 
 
 @st.cache_resource(show_spinner=False)
-def _import_dex(path_str: str, _mtime: float):
+def _import_dex(path_str: str, module_name: str, _mtime: float):
     """図鑑の app.py を読み込む。cache_resource で1度だけ。
 
     毎回読み直すと、図鑑側の @st.cache_data が実行のたびに作り直されて
     キャッシュが効かなくなる。図鑑を書き換えたら mtime が変わって読み直す。
 
-    ファイル名がこちらと同じ app.py なので、import 文では取り違える。
-    パスで指定して `pokecard_dex_app` という別名で登録する。
+    ファイル名がどの図鑑もこちらと同じ app.py なので、import 文では取り違える。
+    パスで指定して `module_name`（図鑑ごとに別）で登録する。
     """
     try:
-        spec = importlib.util.spec_from_file_location("pokecard_dex_app", path_str)
+        spec = importlib.util.spec_from_file_location(module_name, path_str)
         mod = importlib.util.module_from_spec(spec)
-        sys.modules["pokecard_dex_app"] = mod
+        sys.modules[module_name] = mod
         spec.loader.exec_module(mod)
         return mod
     except Exception:
@@ -99,27 +117,49 @@ def _import_dex(path_str: str, _mtime: float):
         return None
 
 
-def load_dex():
-    """ポケモンカード図鑑（~/pokecard-dex/app.py）を返す。無ければ None。
+def load_dexes() -> list:
+    """このPCで使える図鑑を DEXES の順で返す（`mod` にモジュールを入れた辞書）。
 
     画面のコードは図鑑側の1本を共有する（こちらに写すと二重メンテになる）。
     **「有るか無いか」の判定はキャッシュに入れない**。入れると、あとから
     図鑑を入れてもこのアプリを再起動するまで選択肢が出ない。
     """
-    path = DEX_DIR / "app.py"
-    if not path.exists():
-        return None
-    mod = _import_dex(str(path), path.stat().st_mtime)
-    return mod if mod is not None and mod.available() else None
+    out = []
+    for entry in DEXES:
+        path = entry["dir"] / "app.py"
+        if not path.exists():
+            continue
+        mod = _import_dex(str(path), entry["module"], path.stat().st_mtime)
+        if mod is not None and mod.available():
+            out.append({**entry, "mod": mod})
+    return out
 
 
 def is_dex(item) -> bool:
-    """アルバムの1件が図鑑のカード（＝欲しいカード）か。"""
-    return str(item).startswith(DEX_PREFIX)
+    """アルバムの1件が図鑑のカード（＝欲しいカード）か。
+
+    **図鑑がこのPCに入っているかとは無関係に判定する。** 入っていないPCでも
+    アルバムの中身は「保有カードではない」と分かる必要がある
+    （そうしないと cert 番号として扱われて保有カードの枠に紛れ込む）。
+    """
+    return any(str(item).startswith(e["prefix"]) for e in DEXES)
+
+
+def dex_of(item, dexes):
+    """アルバムの1件がどの図鑑のカードか。読み込めていなければ None。"""
+    for e in dexes or []:
+        if str(item).startswith(e["prefix"]):
+            return e
+    return None
 
 
 def dex_key_of(item) -> str:
-    return str(item)[len(DEX_PREFIX):]
+    """`dex:` `opdex:` などの接頭辞を外して図鑑の中のキーを返す。"""
+    s = str(item)
+    for e in DEXES:
+        if s.startswith(e["prefix"]):
+            return s[len(e["prefix"]):]
+    return s
 
 
 def slug(item) -> str:
@@ -401,30 +441,33 @@ def _data_uri(path):
         return None
 
 
-def dex_card(dex, item):
-    """アルバムの `dex:` 付き1件から、図鑑のカード行を引く。無ければ None。"""
-    if dex is None:
+def dex_card(entry, item):
+    """アルバムの図鑑カード1件から、その図鑑のカード行を引く。無ければ None。"""
+    if entry is None:
         return None
     try:
-        return dex.fetch_card(dex_key_of(item))
+        return entry["mod"].fetch_card(dex_key_of(item))
     except Exception:
         return None
 
 
-def album_cell(df, store, dex, item) -> dict:
+def album_cell(df, store, dexes, item) -> dict:
     """アルバムの1マスに要る材料をまとめて返す。
 
     アルバムには2種類が混ざる。
       ・PSA の保有カード … 証明書番号（数字）。画像は data/thumbs/
-      ・図鑑のカード     … `dex:<図鑑キー>`＝**欲しいカード**。画像は図鑑側から借りる
+      ・図鑑のカード     … `dex:` `opdex:` 付き＝**欲しいカード**。画像は図鑑側から借りる
     """
     if is_dex(item):
-        row = dex_card(dex, item)
+        entry = dex_of(item, dexes)
+        row = dex_card(entry, item)
         if row is None:
+            # 図鑑をこのPCに入れていないだけのこともあるので、消さずに枠だけ出す
             return {"uri": None, "badge": "WANT", "color": "#f59e0b",
                     "caption": "（図鑑に見つかりません）"}
-        no = dex.card_no_label(row)
-        return {"uri": _data_uri(dex.thumb_of(row)), "badge": "WANT", "color": "#f59e0b",
+        mod = entry["mod"]
+        no = mod.card_no_label(row)
+        return {"uri": _data_uri(mod.thumb_of(row)), "badge": "WANT", "color": "#f59e0b",
                 "caption": f"⭐ {no} {(row['name'] or '')[:14]}"}
     row = df[df["Cert Number"].astype(str) == str(item)]
     rr = row.iloc[0] if len(row) else None
@@ -438,13 +481,15 @@ def album_cell(df, store, dex, item) -> dict:
     }
 
 
-def album_label(df, item, dex=None) -> str:
+def album_label(df, item, dexes=None) -> str:
     """外す／追加するカードの確認ダイアログ用のラベル。"""
     if is_dex(item):
-        row = dex_card(dex, item)
+        entry = dex_of(item, dexes)
+        row = dex_card(entry, item)
         if row is None:
             return f"欲しいカード（{dex_key_of(item)}）"
-        return f"⭐ 欲しいカード：{row['name']}（図鑑 {dex.card_no_label(row)}）"
+        return (f"⭐ 欲しいカード：{row['name']}"
+                f"（{entry['label']} {entry['mod'].card_no_label(row)}）")
     row = df[df["Cert Number"].astype(str) == str(item)]
     if len(row):
         rr = row.iloc[0]
@@ -474,13 +519,14 @@ def apply_sort(frame: pd.DataFrame, key: str) -> pd.DataFrame:
     return frame.sort_values(by, ascending=asc, na_position="last")
 
 
-def render_album(df, store, dex=None):
+def render_album(df, store, dexes=None):
     """「アルバム」ビュー：4列バインダーをボタンで並べ替える。
 
     入るカードは2種類。
       ・保有中(Home/Vault)のカード … この画面の「➕ カードを追加」から
-      ・**欲しいカード** … 「📖 ポケモン図鑑」画面の「⭐ 欲しい」から（`dex:` 付き）
+      ・**欲しいカード** … 各図鑑の画面の「⭐ 欲しい」から（`dex:` `opdex:` 付き）
     """
+    dexes = dexes or []
     st.subheader("📔 コレクションアルバム")
     albums = load_albums()
     active = df[df["Item Status"] == "Active"].copy()
@@ -537,7 +583,7 @@ def render_album(df, store, dex=None):
 
             @st.dialog("カードを外す")
             def _confirm_delete(cert):
-                st.write(f"**{album_label(df, cert, dex)}**\n\nをこのアルバムから外しますか？（カード自体は削除されません）")
+                st.write(f"**{album_label(df, cert, dexes)}**\n\nをこのアルバムから外しますか？（カード自体は削除されません）")
                 dc1, dc2 = st.columns(2)
                 if dc1.button("外す", type="primary", width="stretch", key="album_del_yes"):
                     a = load_albums()
@@ -589,7 +635,7 @@ def render_album(df, store, dex=None):
 
                 # マスの材料（画像・バッジ・キャプション）は保有カードと図鑑カードで
                 # 作り方が違う。album_cell() に寄せて、ここは同じ扱いで並べる
-                cells = {c: album_cell(df, store, dex, c) for c in shown}
+                cells = {c: album_cell(df, store, dexes, c) for c in shown}
                 css = ["<style>"]
                 for cert in shown:
                     cell = cells[cert]
@@ -650,13 +696,14 @@ def render_album(df, store, dex=None):
                 binder(wants, "want")
             else:
                 st.caption("欲しいカードはまだありません"
-                           + ("（サイドバーの「📖 ポケモンカード図鑑」から ⭐ で入れられます）。"
-                              if dex is not None else "。"))
+                           + (f"（サイドバーの「{'」「'.join(e['label'] for e in dexes)}」"
+                              "から ⭐ で入れられます）。" if dexes else "。"))
 
     with add_tab:
-        if dex is not None:
+        if dexes:
             st.caption("**まだ持っていない「欲しいカード」**は、サイドバーの"
-                       "「📖 ポケモンカード図鑑」から ⭐ で入れられます。ここは保有中のカード用です。")
+                       f"「{'」「'.join(e['label'] for e in dexes)}」から ⭐ で"
+                       "入れられます。ここは保有中のカード用です。")
         loc = st.radio("場所", ["両方", "Home", "Vault"], horizontal=True, key="album_loc")
         cand = active[~active["Cert Number"].astype(str).isin(current)].copy()
         if loc == "Home":
@@ -743,16 +790,19 @@ def render_album(df, store, dex=None):
                     st.caption(f"PSA {gr2} {nm2}")
 
 
-def render_dex(dex):
-    """「📖 ポケモンカード図鑑」ビュー：別アプリ（~/pokecard-dex）の画面をここに出す。
+def render_dex(entry):
+    """図鑑ビュー：別アプリ（~/pokecard-dex ／ ~/onepiece-dex）の画面をここに出す。
 
     **画面のコードは図鑑側の app.py の1本を共有する**（こちらに写すと二重メンテになる）。
-    図鑑は単独でも動く（./run.sh → 8531）が、このアプリからも開けるようにしたもの。
-    ここで足すのは「⭐ 欲しい」＝図鑑のカードをアルバムに入れるボタンだけ。
+    図鑑は単独でも動く（それぞれ ./run.sh → 8531 / 8537）が、このアプリからも
+    開けるようにしたもの。ここで足すのは「⭐ 欲しい」＝図鑑のカードを
+    アルバムに入れるボタンだけ。
 
-    保有カードとの自動突き合わせはしない。PSA側にはポケモン以外のカード
-    （ONE PIECE等）もあり、CSVは英語表記（YAMATO）・図鑑は日本語（ヤマト）で
-    名前が繋がらないため（2026-08-19 オーナー判断）。
+    保有カードとの自動突き合わせはしない。PSA側は1枚のCSVにポケモンもワンピも
+    混ざっており、CSVは英語表記（YAMATO）・図鑑は日本語（ヤマト）で名前が
+    繋がらないため（2026-08-19 オーナー判断）。
+
+    図鑑が増えても**ここは1本のまま**で、違うのは接頭辞と表示名だけ。
     """
     if st.session_state.pop("dex_added", None):
         st.success(st.session_state.pop("dex_added_msg", "アルバムに追加しました"))
@@ -768,17 +818,21 @@ def render_dex(dex):
         st.sidebar.caption("アルバムがありません。「アルバム」画面で作ってください。")
     in_album = {str(c) for c in albums.get(target, [])} if target else set()
     if target:
-        st.sidebar.caption(f"「{target}」に {sum(1 for c in in_album if is_dex(c))}枚")
+        # 枚数は**いま開いている図鑑のぶんだけ**数える。全図鑑の合計を出すと
+        # 「ワンピを見ているのにポケカの枚数が混ざる」ことになる
+        n_here = sum(1 for c in in_album if str(c).startswith(entry["prefix"]))
+        st.sidebar.caption(f"「{target}」に {n_here}枚")
 
     def album_ui(row, uid):
         """図鑑のカード1枚に付くボタン（図鑑側の app.py から呼ばれる）。"""
         if target is None:
             return
-        item = DEX_PREFIX + row["key"]
+        item = entry["prefix"] + row["key"]
         if item in in_album:
             st.caption("⭐ 追加済み")
             return
-        if st.button("⭐ 欲しい", key=f"want_{slug(uid)}", width="stretch"):
+        # キーに図鑑のidを入れる。図鑑をまたぐと同じカードキーが有り得るため
+        if st.button("⭐ 欲しい", key=f"want_{entry['id']}_{slug(uid)}", width="stretch"):
             a = load_albums()
             cur = [str(c) for c in a.get(target, [])]
             if item not in cur:
@@ -789,7 +843,7 @@ def render_dex(dex):
             st.session_state["dex_added_msg"] = f"「{target}」に追加しました：{row['name']}"
             st.rerun()
 
-    dex.render(album_ui=album_ui, title="📖 ポケモンカード図鑑")
+    entry["mod"].render(album_ui=album_ui, title=entry["label"])
 
 
 if not CSV_PATH.exists():
@@ -820,22 +874,22 @@ df["メモ"] = df["Cert Number"].map(lambda c: notes.get(str(c), {}).get("memo",
 # タイトルの左の絵文字は外した（2026-08-19 オーナー指示）
 st.sidebar.title("PSAカード管理")
 
-# ポケモンカード図鑑（~/pokecard-dex）は**オプション**。入っているPCでだけ
-# 選択肢に出す（無ければこのアプリは今までどおり動く）
-dex = load_dex()
+# カード図鑑（~/pokecard-dex ／ ~/onepiece-dex）は**オプション**。入っているPCで
+# だけ選択肢に出す（1本も無ければこのアプリは今までどおり動く）
+dexes = load_dexes()
 VIEWS = ["保有中（Vault）", "保有中（Home）", "アルバム", "鑑定中", "売却済", "すべて"]
-if dex is not None:
-    VIEWS.append("📖 ポケモンカード図鑑")
+VIEWS += [e["label"] for e in dexes]
 
 status = st.sidebar.radio("表示対象", VIEWS)
 
 # 「アルバム」は保有中(Home/Vault)と図鑑の「欲しいカード」を並べる4列バインダーの別ビュー
 if status == "アルバム":
-    render_album(df, store, dex)
+    render_album(df, store, dexes)
     st.stop()
-# 「📖 ポケモンカード図鑑」は別アプリの画面をそのまま出す別ビュー（カードの実データは向こう）
-if status == "📖 ポケモンカード図鑑":
-    render_dex(dex)
+# 図鑑は別アプリの画面をそのまま出す別ビュー（カードの実データは向こう）
+_picked_dex = next((e for e in dexes if e["label"] == status), None)
+if _picked_dex is not None:
+    render_dex(_picked_dex)
     st.stop()
 # 「鑑定中」はコレクションCSVではなく PSA申請データ（orders.json）を表示する別ビュー
 if status == "鑑定中":

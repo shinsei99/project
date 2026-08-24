@@ -41,11 +41,43 @@ CATEGORY_JA = {"LEADER": "リーダー", "CHARACTER": "キャラクター",
 ATTRIBUTES = ["打", "斬", "特", "知", "射"]
 
 
+
+# ── 名前空間 ─────────────────────────────────────────────────────────────────
+# session_state とウィジェットキーは**必ずこの接頭辞を通す**。
+# PSAカード管理（8527）はポケカ図鑑とワンピ図鑑の**両方**を同じ Streamlit
+# セッションの中に読み込むので、素の `tab` `detail` `pack` `other` を使うと
+# 2本が同じ入れ物を取り合う。実害は2つあった:
+#   ・タブ構成が違う（ポケカ3つ／ワンピ4つ）ので、「👑 リーダー」を選んだまま
+#     ポケカ図鑑へ移ると、選択肢に無い値が残って st.radio が例外になる
+#   ・詳細を開いたまま行き来すると、相手のカードキーで自分のDBを引くことになる
+NS = "op_"
+
+
+def _sk(name: str) -> str:
+    """session_state / ウィジェットのキー名にこの図鑑の名前空間を付ける。"""
+    return NS + name
+
+
 def _p(path):
-    """DBの画像パスは `data/img/…` の相対。cwd に依らずこのフォルダ基準で開く。"""
+    """DBの画像パスは `data/img/…` の相対。cwd に依らずこのフォルダ基準で開く。
+
+    単独起動（run.sh が cd してから起動する）では気づかないが、PSAカード管理
+    から呼ぶと cwd が向こうになり、そのままでは画像が1枚も出ない。
+    """
     if not path:
         return None
     return path if os.path.isabs(path) else os.path.join(HERE, path)
+
+
+# 図鑑のカードを「欲しいカード」としてアルバムへ入れるための差し込み口。
+# PSAカード管理が render(album_ui=…) で渡す。単独起動では None＝何も出ない。
+# 図鑑側からアルバムの実装（albums.json・cert番号）を知らずに済ませるための境界。
+_ALBUM_UI = None
+
+
+def _album_ui(row, uid: str) -> None:
+    if _ALBUM_UI is not None:
+        _ALBUM_UI(row, uid)
 
 
 @st.cache_resource
@@ -129,10 +161,26 @@ def _pick(key, value):
 
     st.rerun() でやると表示中のタブが先頭に戻る（ポケカ図鑑で踏んだ）。
     カード詳細は他より優先して全画面に出すので、別の画面へ移るときは詳細を閉じる。
+
+    key は `detail` `pack` `other` のような素の名前で渡してよい（ここで `_sk()` を通す）。
     """
-    st.session_state[key] = value
+    st.session_state[_sk(key)] = value
     if key != "detail" and value is not None:
-        st.session_state["detail"] = None
+        st.session_state[_sk("detail")] = None
+
+
+def _picked(key, default=None):
+    """`_pick()` で置いた値を読む。"""
+    return st.session_state.get(_sk(key), default)
+
+
+def card_no_label(row) -> str:
+    """カード1枚の短い見出し（`OP01-001` / パラレルは `OP01-001 P1`）。
+
+    PSAカード管理がアルバムのキャプションに使う。ポケカ図鑑と同名・同じ役割。
+    """
+    code = row["code"] or row["key"]
+    return f"{code} {row['variant']}" if row["variant"] else code
 
 
 def thumb_of(row):
@@ -184,6 +232,7 @@ def show_detail(card):
                        "**「SAMPLE」の透かしは公式の画像に元から入っている**")
         else:
             st.info("このカードの画像は未収録です")
+        _album_ui(card, f"detail_{card['key']}")
 
     with col_txt:
         st.markdown(f"### {card['name']}")
@@ -237,7 +286,7 @@ def show_detail(card):
             st.markdown("**同じカードの別イラスト**")
             for c, o in zip(st.columns(min(len(same), 6)), same):
                 c.button(f"{o['variant'] or '通常'}　{o['rarity'] or ''}",
-                         key=f"var_{o['key']}", width="stretch",
+                         key=_sk(f"var_{o['key']}"), width="stretch",
                          on_click=_pick, args=("detail", o["key"]))
 
 
@@ -266,9 +315,10 @@ def show_cards(rows, cols=6, key_prefix=""):
                     f"{row['name'][:11]}"
                     f"{'  <b>' + (row['rarity_short'] or row['rarity']) + '</b>' if row['rarity'] else ''}"
                     f"</div>", unsafe_allow_html=True)
-                st.button("詳細", key=f"d_{key_prefix}_{row['key']}",
+                st.button("詳細", key=_sk(f"d_{key_prefix}_{row['key']}"),
                           width="stretch", on_click=_pick,
                           args=("detail", row["key"]))
+                _album_ui(row, f"{key_prefix}_{row['key']}")
 
 
 def paginate(n_hit: int, key: str):
@@ -279,7 +329,7 @@ def paginate(n_hit: int, key: str):
         return 1
     c1, c2 = st.columns([2, 3])
     c1.write(f"**{n_hit:,}枚**")
-    page = c2.slider("ページ", 1, total, 1, key=key, label_visibility="collapsed")
+    page = c2.slider("ページ", 1, total, 1, key=_sk(key), label_visibility="collapsed")
     st.caption(f"{page} / {total} ページ（{(page-1)*PER_PAGE+1:,}〜"
                f"{min(page*PER_PAGE, n_hit):,}枚目）")
     return page
@@ -296,13 +346,13 @@ def query(where, args, order, page):
 def filter_bar(prefix: str, series_id: str | None = None):
     """色・種類・レアリティの絞り込み。さがすとシリーズで同じものを使う。"""
     c1, c2, c3 = st.columns([1.2, 1.2, 1.6])
-    colors = c1.multiselect("色", COLORS, key=f"{prefix}_col", placeholder="色")
-    cats = c2.multiselect("種類", CATEGORIES, key=f"{prefix}_cat",
+    colors = c1.multiselect("色", COLORS, key=_sk(f"{prefix}_col"), placeholder="色")
+    cats = c2.multiselect("種類", CATEGORIES, key=_sk(f"{prefix}_cat"),
                           format_func=lambda c: CATEGORY_JA.get(c, c),
                           placeholder="種類")
     rar = rarities_in(series_id, db_stamp())
     note = {r: (n, c) for r, n, c in rar}
-    rsel = c3.multiselect("レアリティ", [r for r, _, _ in rar], key=f"{prefix}_rar",
+    rsel = c3.multiselect("レアリティ", [r for r, _, _ in rar], key=_sk(f"{prefix}_rar"),
                           format_func=lambda r: rarity_option(r, *note[r]),
                           placeholder="レアリティ")
     where, args = [], []
@@ -329,7 +379,7 @@ def fetch_card(key):
 def show_series_cards(series_id, back_key: str = "series"):
     s = conn().execute("SELECT * FROM dex_series WHERE series_id=?",
                        (series_id,)).fetchone()
-    st.button("← 一覧にもどる", key=f"back_{back_key}",
+    st.button("← 一覧にもどる", key=_sk(f"back_{back_key}"),
               on_click=_pick, args=(back_key, None))
     if not s:
         st.warning("このシリーズが見つかりません")
@@ -402,7 +452,7 @@ def show_product_grid(ptype: str, key_prefix: str, on_pick_key: str):
                     f"{it['cards']}枚<br>"
                     f"<span style='color:#90a4ae'>{it['code'] or ''}</span></div>",
                     unsafe_allow_html=True)
-                st.button("収録カード", key=f"{key_prefix}_{i}_{j}", width="stretch",
+                st.button("収録カード", key=_sk(f"{key_prefix}_{i}_{j}"), width="stretch",
                           on_click=_pick, args=(on_pick_key, it["series_id"]))
 
 
@@ -410,8 +460,8 @@ def show_leaders():
     """リーダーだけを色別に。ワンピはリーダーを決めてからデッキを組むので、
     「その色のリーダーを見渡す」が独立した入口として要る。"""
     c1, c2 = st.columns([1.2, 3])
-    color = c1.selectbox("色", ["すべて"] + COLORS, key="ld_color")
-    kw = c2.text_input("リーダー名で絞る", key="ld_kw", placeholder="例: ルフィ")
+    color = c1.selectbox("色", ["すべて"] + COLORS, key=_sk("ld_color"))
+    kw = c2.text_input("リーダー名で絞る", key=_sk("ld_kw"), placeholder="例: ルフィ")
     where = ["d.category = 'LEADER'"]
     args: list = []
     if color != "すべて":
@@ -433,7 +483,18 @@ def main():
     render()
 
 
-def render(title: str = "🏴‍☠️ ワンピースカード図鑑"):
+def render(album_ui=None, title: str = "🏴‍☠️ ワンピースカード図鑑"):
+    """図鑑の画面。単独起動と PSAカード管理の両方から呼ばれる。
+
+    set_page_config はここでは呼ばない（呼び出し側が既に済ませているため。
+    2回呼ぶと StreamlitAPIException になる）。
+
+    album_ui: カード1枚ぶんの「欲しいカード」ボタンを描く関数 (row, uid) -> None。
+              PSAカード管理から渡される。単独起動では None＝何も足さない。
+    """
+    global _ALBUM_UI
+    _ALBUM_UI = album_ui
+
     if not available():
         st.error("データがありません。`python crawl_official.py` → "
                  "`python fetch_images.py` → `python make_thumbs.py` → "
@@ -448,10 +509,11 @@ def render(title: str = "🏴‍☠️ ワンピースカード図鑑"):
                f"　｜　リーダー {s['leaders']}枚"
                f"　｜　カード情報の出典: ONE PIECEカードゲーム公式サイト")
 
-    if st.session_state.get("detail"):
-        card = fetch_card(st.session_state.detail)
+    if _picked("detail"):
+        card = fetch_card(_picked("detail"))
         if card:
-            st.button("← 一覧にもどる", on_click=_pick, args=("detail", None))
+            st.button("← 一覧にもどる", key=_sk("back_detail"),
+                      on_click=_pick, args=("detail", None))
             show_detail(card)
             return
 
@@ -460,15 +522,15 @@ def render(title: str = "🏴‍☠️ ワンピースカード図鑑"):
     # （ポケカ図鑑で実際に踏んだ）。ラジオなら選択が session_state に残る
     TABS = ["🔎 さがす", "📦 拡張パック", "🗃 構築デッキ・その他", "👑 リーダー"]
     tab = st.radio("表示", TABS, horizontal=True, label_visibility="collapsed",
-                   key="tab")
+                   key=_sk("tab"))
 
     if tab == TABS[0]:
         c1, c2 = st.columns([3, 2])
-        kw = c1.text_input("カード名・カード番号で検索",
+        kw = c1.text_input("カード名・カード番号で検索", key=_sk("find_kw"),
                            placeholder="例: ルフィ / OP01-001 / 001")
         feats = features_all(db_stamp())
         fmap = dict(feats)
-        fsel = c2.multiselect("特徴", [f for f, _ in feats], key="find_feat",
+        fsel = c2.multiselect("特徴", [f for f, _ in feats], key=_sk("find_feat"),
                               format_func=lambda f: f"{f}（{fmap[f]}枚）",
                               placeholder="特徴（麦わらの一味・四皇…）")
         where, args = filter_bar("find")
@@ -509,18 +571,18 @@ def render(title: str = "🏴‍☠️ ワンピースカード図鑑"):
 
     # ── 拡張パック（表紙の一覧から入る）──────────────────────────────────
     elif tab == TABS[1]:
-        if st.session_state.get("pack"):
-            show_series_cards(st.session_state.pack, back_key="pack")
+        if _picked("pack"):
+            show_series_cards(_picked("pack"), back_key="pack")
         else:
             show_product_grid("拡張パック", "pk", "pack")
 
     # ── 構築デッキ・その他 ────────────────────────────────────────────────
     elif tab == TABS[2]:
-        if st.session_state.get("other"):
-            show_series_cards(st.session_state.other, back_key="other")
+        if _picked("other"):
+            show_series_cards(_picked("other"), back_key="other")
         else:
             kind = st.radio("商品の種類", ["構築デッキ", "その他の商品"],
-                            horizontal=True, key="other_kind")
+                            horizontal=True, key=_sk("other_kind"))
             show_product_grid(kind, "ot", "other")
 
     else:
