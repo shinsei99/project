@@ -12,8 +12,12 @@ Zenn `registry-pdf-merge-overwrite` ／ note `n62a9eda5388c`）。`links` 追記
 
 **次は11本目。明日やる予定（本人から予告あり）。段取りは次のとおり。**
 
-1. **題材を決める** … `drafts/PUBLISH.md` 末尾の「11本目：題材の候補」から選ぶ
-   （本命は **launchd の常駐が Dropbox を読めない／`/bin/bash` にフルディスクアクセス**）
+1. **題材を決める** … **`drafts/NETA.md`（ネタ帳・20本の在庫）から選ぶ**。
+   2026-08-24 に全アプリの git 履歴とコードを棚卸しして作った。裏取り済み（✅）が14本ある。
+   明日の本命は **1番「スマホから写真を送ると3枚目で必ず失敗する（iOS Safari × Vercel）」**
+   （`shorui-mobile`。症状・原因・直し方が4つのコミットに全部残っていて、そのまま書ける）。
+   対抗は 2番（Excelに貼った写真が縦に潰れる）と 3番（pykakasi 無しで一致率が黙って下がる）。
+   `drafts/PUBLISH.md` 末尾の「11本目：題材の候補」は、ネタ帳の 5番・17番・10番に相当する
 2. **裏を取る** … 該当アプリの `README.md` と `SESSION_LOG.md`、実際のコードを読む。
    **数値と挙動は憶測で書かない**（測った値だけ書く）
 3. **3点セットを書く** … 本体 `content/works/<slug>.json`（`category: "realestate"` / `visibility: "public"`）／
