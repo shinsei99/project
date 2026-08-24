@@ -173,8 +173,21 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 
 **run.sh を直しても常駐には効かない。** plistが `run.sh` を呼ばず
 `/usr/bin/python3 -m streamlit run app.py …` を直接叩いている例がある（quote-generator）。
-バインド先やPythonを変えたら、**`launchctl kickstart -k gui/$(id -u)/<label>` で入れ替えて
-`lsof` で見る**まででワンセット（2026-08-17に 8526/8527 がこれでLAN公開のままだった）。
+バインド先やPythonを変えたら、**plist を直してから入れ替えて `lsof` で見る**まででワンセット
+（2026-08-17に 8526/8527 がこれでLAN公開のままだった）。
+
+**ただし引数を変えたときは `launchctl kickstart -k` では反映されない。** kickstart は
+**ロード済みの定義で再起動するだけ**で、ディスクの plist を読み直さない。PIDだけ変わって
+中身が古いままになるので一番気づきにくい（2026-08-24に 8518 で実際に踏んだ）。
+
+```bash
+launchctl bootout   gui/$(id -u)/<label>                          # 外す
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/<label>.plist   # 入れ直す
+launchctl print gui/$(id -u)/<label> | grep -A2 server.address    # 反映を確認
+lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受けを確認
+```
+
+`kickstart -k` で足りるのは「コードだけ直した（引数は同じ）」ときだけ。
 
 ## ★ 共通 Visual Agent — Claude Code がブラウザを見て操作する（2026-08-18 統合）
 
