@@ -66,5 +66,16 @@
     }
   ],
   "featured": false,
-  "links": []
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/registry-pdf-merge-overwrite",
+      "note": "後勝ちマージの直し方と、罫線を値として拾っていた正規表現の話"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/n62a9eda5388c",
+      "note": "「登記簿は一件につき一枚とは限らない」という、紙のほうの事情の話"
+    }
+  ]
 }

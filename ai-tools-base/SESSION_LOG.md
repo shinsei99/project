@@ -1,3 +1,35 @@
+## 2026-08-24（サブPC・夜）— 10本目の3点セットを、このPCから3媒体とも公開した
+
+### 完了したこと
+
+- **10本目「謄本は二枚で届く。一枚に潰したら、部屋の広さが車庫の広さになった」を3媒体とも公開**
+  （素材は当日 `registry_parser.py` で直した実バグ。commit `8b0aad6`）
+  - 本体 https://ai-tools-base.vercel.app/works/registry-annex-building
+  - Zenn https://zenn.dev/shinsei99/articles/registry-pdf-merge-overwrite
+  - note https://note.com/shinsei99/n/n62a9eda5388c （見出し画像＝みんなのフォトギャラリー
+    「雨に濡れた駐車場」Photo by 稲垣純也。区画線＝面積の話に合わせた）
+- `links` を追記して再デプロイ。**`npm run validate` の転載⚠️は 0 件**（残る4件は tools の review 空欄で別件）
+- **note は当PCの Claude in Chrome 拡張から自動投稿**（8/22 の手順どおり。h2×6・p×31・a×3・1,579文字）
+
+### 発生したエラーと解決策
+
+- **症状**: `npx vercel --prod` が `{"status":"error","message":"Not authorized"}` で落ちる。
+  **原因**: `whoami` は通る（個人 `daikyocorps-3085`）が、プロジェクトは **team: brain-dump** の持ち物。
+  **直し方**: `--scope brain-dump` を明示。`publish.sh site` にも入れた（8/22 の節に既出だったが
+  スクリプト側に入っておらず、同じ所で二度止まった）。
+- **症状**: Claude in Chrome 拡張が `not connected` のまま繋がらない。
+  **原因**: 起動していた Chrome が Visual Agent の自動操作用（`--headless
+  --user-data-dir=~/.see/profile-chrome`）で、拡張の入っている Default プロファイルではなかった。
+  **直し方**: `open -a "Google Chrome" https://claude.ai/chrome` で通常プロファイルを前に出したら繋がった。
+- **note.com ドメインは拡張の権限外**（`editor.note.com` は可）。公開後のURL確認は `curl` で行った。
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **次は11本目の題材選び**（`drafts/PUBLISH.md` の順番表）。
+- `drafts/README.md` の一覧は 10本目まで実態に合わせた。
+
+---
+
 # SESSION_LOG.md — AIツールベース 作業ログ
 
 > **2026-08-17 に「AIツールラボ」から改名した。** これより下の過去ログには旧名
