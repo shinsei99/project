@@ -221,11 +221,14 @@
 >
 > ### C. メインPC限定の作業（配布証明書・実機・常駐がこちらにしかない）
 >
-> - ~~**App Store の審査結果を3本確認**~~ → **2026-08-23 にサブPCから API で確認済み**
->   （`python3 appstore_api.py --review` を追加した。**メインPCでなくても分かる**）。
->   結果: **スクラップメモ 1.0.4/build8 は配信中**（CLAUDE.md を更新済み）／
->   **デジタル書斎 1.0 と KeyTag 1.0 はまだ審査待ち**（提出から4〜6日・審査に入っていない）／
->   **にゃんこのアイス屋さんは「申請中」ではなく未提出**（1.0が提出準備中・ビルド0件。CLAUDE.md を訂正）。
+> - ~~**App Store の審査結果を3本確認**~~ → **2026-08-24 に API で再確認済み（前回8/23から変化なし）**
+>   （`python3 appstore_api.py --review`。**メインPCでなくても分かる**）。
+>   結果: **デジタル書斎 1.0/build1（8/19提出・5日経過）と KeyTag 1.0/build2（8/17提出・7日経過）は
+>   どちらも WAITING_FOR_REVIEW＝まだ審査に入っていない**（ビルドは両方 VALID で受理済み）／
+>   **にゃんこのアイス屋さんは「申請中」ではなく未提出**（1.0が提出準備中・ビルド0件）。
+>   配信中は スクラップメモ1.0.4 / ネオンブロック1.0.3 / フォトリメイク1.0.2 /
+>   水泳記録1.0 / 電卓1.0 / ママカウンター1.0 の6本（**ママカウンターを「v1.0.1」と書いていたのは
+>   誤りで、実際の配信は 1.0/build4**。CLAUDE.md を訂正した）。
 >   デジタル書斎・KeyTag は結果が出るまで待ち。もう一度見るときは上のコマンドを叩く
 > - **AI重説(8536)で4書式の印刷イメージを目で見る**（サブPCではセル一致まで確認済み・紙面は未了）。
 >   起動は **`cd ~/jyuusetsu-research && ./run.sh`**（8/23新設。venv・書式レジストリ作成・
@@ -590,9 +593,9 @@
 | flyer-creator | サブ | チラシクリエーター。型10種はagent-platform共通（直すのはagent-platform/core）。下帯ロゴ＋メイン写真の切取位置(上下)スライダー追加。次は物件データの未決3点 | 2026-08-16 |
 | agent-platform | サブ | **完成扱いへ移行（2026-08-17）**: launchd 登録・0.0.0.0・社内LAN共有（8532）。残るのは作り込み（出来た .pptx 11枚の見栄え目視確認／字幕焼き込み／投稿API）で、通し実行はできる | 2026-08-17 |
 | ai-tools-base | サブ | **AIツールベース**（https://ai-tools-base.vercel.app）。**2026-08-22（サブPC）: 9本目「Excelの行の高さを実機で採寸した」を3媒体とも公開し完了**（本体 /works/excel-row-height ／ Zenn `openpyxl-row-height-autofit` ／ note https://note.com/shinsei99/n/na1ff4ed050f4 ）。`links` 追記 → `npx vercel --prod --scope brain-dump` まで実施済み・転載⚠️は0件。**次は10本目の題材選び**（`drafts/PUBLISH.md` の順番表）。※note はサブPCからでも Chrome拡張経由で投稿できる（Playwright では不可） | 2026-08-22 |
-| scrapmemo-petapeta | メイン | **2026-08-19: 保存容量の問題を根本解決し、1.0.4/build8 を審査へ提出済み。** 画像だけ IndexedDB へ移した（localStorage 5,100KB は WebKit固定／IndexedDB quota 9,830MB）。旧データは起動時に自動移行。実測で**写真30枚・77.3MB でも保持**（以前は1枚で上限）。`save()` の握りつぶしも解消し、孤児画像の掃除を追加。すべてXcodeシミュレータで実測確認済み。**次は審査結果の確認**（通ったら CLAUDE.md を「配信済み」へ）。リリースノート文案は `RELEASE_NOTES.md` | 2026-08-19 |
-| digital-shosai | メイン | **2026-08-19: App Store へ審査提出済み（1.0.0/build1・`com.shinsei.shosai`・iPhone/iPad）。** Capacitor化→シミュレータで取り込み→本棚→読書→紙面→検索を通し確認→Archive→提出まで実施。**青空文庫の著作権切れ4作品を同梱**し初回起動で自動的に書斎へ入る（4冊352ページ→索引679KB）。読書画面の枠とボタンを固定、safe-area・入力欄16px未満の自動拡大によるズレも解消。スクショは3サイズ（6.9/6.5/12.9インチ）、サポート・プライバシーページは gh-pages `digital-shosai-support/` に公開。**次は ①審査結果の確認 ②実機で1度通す**（著作権欄は `SHINSEI PROPERTY MANAGEMENT.K.K.` が既定で決着）。手順は `digital-shosai/HANDOFF-APPSTORE.md` | 2026-08-19 |
-| keyline | メイン | **KeyLine（NFC鍵・備品貸出管理）＋ KeyTag（iOSアプリ）。** サーバーは 8534・社内LAN限定・テスト99件成功。**2026-08-18: KeyTag を App Store へ提出**（1.0.0/build2・掲載名 KeyTagNFC・サポートページ公開済み）。**次はNFCタグ到着後の実機検証**（アプリのNFC機能は一度も実機で動かしていない）。手順は keyline/keytag/RELEASE.md | 2026-08-18 |
+| scrapmemo-petapeta | メイン | **2026-08-19: 保存容量の問題を根本解決し、1.0.4/build8 を審査へ提出済み。** 画像だけ IndexedDB へ移した（localStorage 5,100KB は WebKit固定／IndexedDB quota 9,830MB）。旧データは起動時に自動移行。実測で**写真30枚・77.3MB でも保持**（以前は1枚で上限）。`save()` の握りつぶしも解消し、孤児画像の掃除を追加。すべてXcodeシミュレータで実測確認済み。**審査は通過し 1.0.4/build8 が配信中**（2026-08-23 に API で確認、2026-08-24 に再確認。CLAUDE.md 反映済み）。**このアプリの残タスクは無し。** リリースノート文案は `RELEASE_NOTES.md` | 2026-08-24 |
+| digital-shosai | メイン | **2026-08-19: App Store へ審査提出済み（1.0.0/build1・`com.shinsei.shosai`・iPhone/iPad）。** Capacitor化→シミュレータで取り込み→本棚→読書→紙面→検索を通し確認→Archive→提出まで実施。**青空文庫の著作権切れ4作品を同梱**し初回起動で自動的に書斎へ入る（4冊352ページ→索引679KB）。読書画面の枠とボタンを固定、safe-area・入力欄16px未満の自動拡大によるズレも解消。スクショは3サイズ（6.9/6.5/12.9インチ）、サポート・プライバシーページは gh-pages `digital-shosai-support/` に公開。**2026-08-24 に API で審査状況を確認 → まだ `WAITING_FOR_REVIEW`（審査待ち・提出から5日）。ビルドは VALID で受理済み・こちらの作業は無く待つだけ。** **次は ①審査結果を待つ（`python3 appstore_api.py --review com.shinsei.shosai`） ②実機で1度通す**（著作権欄は `SHINSEI PROPERTY MANAGEMENT.K.K.` が既定で決着）。手順は `digital-shosai/HANDOFF-APPSTORE.md` | 2026-08-24 |
+| keyline | メイン | **KeyLine（NFC鍵・備品貸出管理）＋ KeyTag（iOSアプリ）。** サーバーは 8534・社内LAN限定・テスト99件成功。**2026-08-18: KeyTag を App Store へ提出**（1.0.0/build2・掲載名 KeyTagNFC・サポートページ公開済み。**API上の提出日は 2026-08-17**）。**2026-08-24 に API で審査状況を確認 → まだ `WAITING_FOR_REVIEW`（審査待ち・提出から7日）。ビルド2は VALID で受理済み・こちらの作業は無く待つだけ。** **次は ①審査結果を待つ（`python3 appstore_api.py --review com.shinsei99.keytag`） ②NFCタグ到着後の実機検証**（アプリのNFC機能は一度も実機で動かしていない）。手順は keyline/keytag/RELEASE.md | 2026-08-24 |
 | chatwork-ai-manager | メイン | Chatwork/LINE常駐AIエージェント（社内RAG・TODO/案件・Web/国交省API）。**常駐4サービスはメインPCで稼働中**（サブPCは常駐0本。worker・ngrokは1台のみ・同時起動禁止）。**2026-08-18: 定時TODO確認(13時/18時/翌10時等)を担当者ごとにグループ化＋TO付与する形式に修正（TASK-20260818-002・worker再起動済みで本番反映済み）。同一担当者でも一部TODOのaccount_id未解決だと別グループ・TO欠落になる不具合を修正＋名前解決の全ルーム横断フォールバックを追加（TASK-20260818-003・コミット済み・オーナー承認を得てworker再起動済み＝本番反映済み。ただし本日18時分は再起動前に実行済みのため旧仕様のまま。次回13時/18時/翌10時から新仕様）。添付Excel等の読込＋LINEからの常駐再起動も追加（TASK-20260818系）**。**2026-08-19: LINEに「処理中にエラーが発生しました: ClaudeError」が3回返った障害を調査し、原因を確定（claude CLIのOAuthトークン更新が約50分ハング＝アプリのバグではない。Keychainのmdat 09:43:03と復旧時刻が一致・実作業は18秒で残り159秒はセッション開始前に消えていた）。自然復旧済み・コードは未変更。切り分け手順は README「処理中にエラーが発生しました…」節に記載。障害中の依頼は黙って消えるので取りこぼし確認が要る。同日 TASK-20260819-001（定時TODO/週次を10:00→10:30。DB設定を実行時に読むので再起動不要・反映済み）と TASK-20260819-002（QAが未実行のTODO更新を「反映しました」と嘘をつく不具合の修正）が完了・コミット済み** | 2026-08-19 |
 | ↑ chatwork-ai-manager LINE障害 | **メイン** | **2026-08-20（サブPCで対応）: 「LINEに送っても反応がない」の原因は LINEプッシュの無料枠切れ**（コミュニケーションプラン200通/月を200/200消費。LINE自身が `You have reached your monthly limit.` を返すことを実測確認）。**Chatwork側・webhook・ngrok・各トークンはすべて正常**。実測ペースは1日約50通・月約1,000通で無料枠では構造的に不足（4日で枯渇）。オーナー判断で**ライトプラン（¥5,000税別/月・5,000通）へ有料化する方針**（プラン変更は人が実行・**未実施**）。再発防止として、`line_client._post()` の失敗握りつぶしを修正・`services/line_alert.py` でChatworkへフォールバック通知・残通数の日次見張り・push呼び出し元のlabel記録 を実装しコミット済み。**★メインPCで `git pull` → worker と line_webhook の両方を再起動しないと本番に効かない（未実施）**。**メインPCでの反映手順**: `cd ~/chatwork-ai-manager && git pull` → `launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-worker` → `launchctl kickstart -k gui/$(id -u)/com.shinsei.chatwork-ai-manager-line`（`services/line_client.py` は worker と line_webhook の**両方**が読むので片方だけでは不足）。調べた事実・確認コマンドは **`chatwork-ai-manager/README.md` の「LINEに送っても回答が返らない」節**にある（SESSION_LOG.md と TODO.md は識別子を含むため gitignore＝**メインPCには届かない**） | 2026-08-20 |
 | ↑ chatwork-ai-manager 要承認 | メイン | **worker再起動の承認待ち。** TASK-20260819-002（analyzer.py/qa.py/tasks.py）に加え、TASK-20260819-003（QAのTODO一覧回答を定時確認と同じ担当者グループ化＋アイコン整形に統一。scheduler.py/qa.py/services/agent_tools/*）も稼働中workerがまだ旧コードを保持している（PID 96042・09:00:11起動 < 両タスクのコミットより前）ため未反映 | 2026-08-19 |
@@ -623,7 +626,8 @@
   **App Store Connect API を取得**（`.env.appstore` ＋ `.appstore/AuthKey_35U53KWY5J.p8`）。
   `ios-build-guard.sh` が **App Store の登録済みビルド番号**で判定するようになった。
   ★**サブPCはアーカイブ0件のため従来は誤判定していた**（scrapmemo build8 を「衝突なし」と表示）。
-  ★**にゃんこのアイス屋さんは登録ビルドが0件**（「申請中」の記載と食い違う。要確認）。
+  ★**にゃんこのアイス屋さんは登録ビルドが0件**（「申請中」の記載と食い違っていた
+  → **2026-08-24 に決着。未提出が正**でCLAUDE.mdを訂正済み）。
   **保有APIの一覧説明書を作成** … 直下 `API一覧説明書.xlsx`（保有30件／取りに行くリスト17件／決まり9件）。
   **残りの人の作業**: 国税庁 法人番号（発行2週〜1か月・最優先）／
   App Store Connect の .p8／Maps の予算アラートとサーバーキーのIP制限。

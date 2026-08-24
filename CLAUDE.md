@@ -224,7 +224,7 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | マンション・ビル管理 | building-manager | — | 開発中 | — |
 | オーナー送金・月次締めマネージャー | owner-payout-tracker | 8519 | ✅ | — |
 | 横断ファイル検索ブラウザ | file-finder | 8520 | ✅ | — |
-| 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅ |
+| 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅（**1.0 build7 が配信中**・2026-08-24 に API で確認） |
 | 業務マニュアル（Web） | gyomu-manual | 8521 | ✅ | — |
 | 駐車場配置図ビューア | parking-map | 8522 | ✅ | — |
 | 覚書・合意書ジェネレーター | memorandum-generator | 8524 | ✅ | — |
@@ -234,20 +234,20 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | ✅ | — |
 | AI業務マネージャー（Chatwork/LINE常駐AIエージェント） | chatwork-ai-manager | 8540(画面)/8530(LINE) | ✅（画面0.0.0.0） | LINE(ngrok) |
 | 事業計画案ジェネレーター（投資収支→Excel） | business-plan-generator | 8533 | ✅ | — |
-| KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | — |
+| KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | iOSアプリ **KeyTag** が App Store **審査待ち**（1.0/build2・2026-08-17提出。2026-08-24 に API で確認＝まだ審査に入っていない） |
 
 ### ツール（16本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
 | 送付書ジェネレーター（**オーナー個人専用**・差出人4プロファイル／社内には配らない） | soufu-generator | 8518 | — |
-| デジタル書斎 | digital-shosai | 3001 | App Store **審査待ち**（1.0/build1・2026-08-19提出。2026-08-23 に API で確認＝まだ審査に入っていない） |
+| デジタル書斎 | digital-shosai | 3001 | App Store **審査待ち**（1.0/build1・2026-08-19提出。2026-08-24 に API で確認＝まだ審査に入っていない） |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
-| スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（**1.0.4 build8 が配信中**。2026-08-23 に API で確認して更新。build7は提出せず） |
-| 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅ |
-| ママカウンター | mom-counter | — | GitHub Pages / App Store ✅ v1.0.1 |
+| スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（**1.0.4 build8 が配信中**。2026-08-24 に API で確認。build7は提出せず） |
+| 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅（**1.0 build1 が配信中**・2026-08-24 に API で確認） |
+| ママカウンター | mom-counter | — | GitHub Pages / App Store ✅（**1.0 build4 が配信中**・2026-08-24 に API で確認。「v1.0.1」は誤記だった） |
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
-| フォトリメイク | photo-remake | — | iOS App Store配信済み ✅ |
+| フォトリメイク | photo-remake | — | iOS App Store ✅（**1.0.2 build3 が配信中**・2026-08-24 に API で確認） |
 | 買取DMジェネレーター | kaitori-dm-maker | 8526 | — |
 | PSAカード管理 | psa-collection | 8527 | — |
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
@@ -265,8 +265,8 @@ remoteに未取得のコミットがあるか、こちらに未コミットの�
 | カラー重力ゲーム | color-gravity | GitHub Pages |
 | サイボーグ防衛軍 | cyborg-defense | GitHub Pages |
 | にゃんこ大脱出 | neko-escape | GitHub Pages |
-| にゃんこのアイス屋さん | nyanko-ice | **未提出**（App Store Connect 上は 1.0 が「提出準備中」・登録ビルド0件。2026-08-23 に API で確認。「申請中」は誤記だった） |
-| ネオンブロック | neon-blocks | iOS App Store配信済み ✅ |
+| にゃんこのアイス屋さん | nyanko-ice | **未提出**（App Store Connect 上は 1.0 が「提出準備中」・登録ビルド0件。2026-08-24 に API で再確認。「申請中」は誤記だった） |
+| ネオンブロック | neon-blocks | iOS App Store ✅（**1.0.3 build4 が配信中**・2026-08-24 に API で確認） |
 
 ## ★ 公開サイト（5つ）
 
