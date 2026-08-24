@@ -300,6 +300,15 @@ def pc_role() -> str:
     return "main" if f.exists() and f.read_text().strip().startswith("main") else "sub"
 
 
+# メインPCでも**わざと常駐させていない**もの。plist は「戻すのが簡単なように」
+# 残してあるだけなので、disabled でも警告にしない（理由を並べて表示する）。
+INTENTIONALLY_DISABLED = {
+    "com.shinsei.pokecard-dex":
+        "図鑑は常駐させない（2026-08-24 オーナー判断）。常設は PSAカード管理(8527)だけで、"
+        "図鑑はその中から使う。単独で見たいときは pokecard-dex/run.sh を都度起動",
+}
+
+
 def check_autostart() -> None:
     """常駐の状態を見る。**期待値はPCの役割で逆になる**（メイン=あって正しい／サブ=ゼロが正しい）。"""
     main = pc_role() == "main"
@@ -322,6 +331,9 @@ def check_autostart() -> None:
                             f"（`launchctl unload` ＋ `launchctl disable` する）")
     for a in agents:
         if main:
+            if a in INTENTIONALLY_DISABLED and a in disabled:
+                print(f"  plist      : {a} … 意図的に無効（{INTENTIONALLY_DISABLED[a]}）")
+                continue
             print(f"  plist      : {a} … {'⚠️ disabled になっている（メインPCでは enable が正しい）' if a in disabled else '有効（正常）'}")
             if a in disabled:
                 WARNINGS.append(f"{a} が disabled のまま（メインPCなら `launchctl enable gui/$(id -u)/{a}`）")
