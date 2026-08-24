@@ -6,7 +6,7 @@ kind:
   stale       … 一定日数(既定3日)動きがない未完了              … 汎用
   carryover   … 前日以前が期限/前日から未完了のまま繰り越し    … 翌10:00向け
   today_open  … 本日期限＋未着手＋期限未設定全件（終業前確認）  … 18:00向け
-  due_reminder… 期限のN日前(既定2日)で未完了                   … 期限リマインド向け
+  due_reminder… 期限日の前日で未完了（前日が休業日なら当日）      … 期限リマインド向け(TASK-20260824-001)
 """
 import datetime
 
@@ -66,10 +66,24 @@ def tasks_needing_attention(kind="overdue", limit=50):
                      f"{skip}AND COALESCE(last_activity_at, created_at) < ? ORDER BY last_activity_at LIMIT ?",
                      (*params, cutoff, limit))
     elif kind == "due_reminder":
-        reminder_days = settings.get_int("due_reminder_days", 2)
-        target = (datetime.date.today() + datetime.timedelta(days=reminder_days)).isoformat()
-        rows = query(f"SELECT * FROM tasks WHERE due_date = ? "
-                     f"AND status IN ({ph}) {skip}ORDER BY due_date LIMIT ?", (target, *params, limit))
+        # 期限日の前日に送るのが原則（carryover_1000と同時刻）。
+        # 前日が休業日（年間休暇スケジュールのオレンジ）だった場合は前倒しせず、
+        # 休業日をまたいで当日を対象に含める（closing_1800/carryover_1000と同じ休業日判定を流用）。
+        from services import holidays as H
+        tomorrow = (datetime.date.today() + datetime.timedelta(days=1)).isoformat()
+        yesterday = (datetime.date.today() - datetime.timedelta(days=1)).isoformat()
+        try:
+            yesterday_was_holiday = H.is_holiday(yesterday)
+        except Exception:
+            yesterday_was_holiday = False
+        if yesterday_was_holiday:
+            rows = query(f"SELECT * FROM tasks WHERE due_date IN (?, ?) "
+                         f"AND status IN ({ph}) {skip}ORDER BY due_date LIMIT ?",
+                         (tomorrow, today, *params, limit))
+        else:
+            rows = query(f"SELECT * FROM tasks WHERE due_date = ? "
+                         f"AND status IN ({ph}) {skip}ORDER BY due_date LIMIT ?",
+                         (tomorrow, *params, limit))
     else:
         return {"ok": False, "error": f"unknown kind: {kind}"}
     tasks = _fmt(rows)

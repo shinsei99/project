@@ -37,18 +37,16 @@ def render():
         st.success("保存しました（次回サイクルから反映）")
 
     st.divider()
-    st.subheader("期限リマインド・週次棚卸し（2026-08-17追加）")
-    st.caption("期限リマインドは、期限のN日前になった未完了TODOへ事前に一声かける機能。"
+    st.subheader("期限リマインド・週次棚卸し（2026-08-17追加・2026-08-24タイミング変更）")
+    st.caption("期限リマインドは、期限日の前日にこの時刻で送る事前リマインド（既定はcarryover_1000と同じ10:30）。"
+               "前日が休業日（年間休暇スケジュールのオレンジ）の場合は前倒しせず当日この時刻に送る。"
                "週次棚卸しは、金曜18時・月曜10時30分に絞り込みなしで未完了TODOを全件まとめて報告する機能。")
-    cr = st.columns(2)
-    tr = cr[0].text_input("期限リマインドの時刻", S.get_setting("due_reminder_check_time", "09:00"))
-    dr = cr[1].text_input("何日前にリマインドするか", S.get_setting("due_reminder_days", "2"))
+    tr = st.text_input("期限リマインドの時刻", S.get_setting("due_reminder_check_time", "10:30"))
     cw = st.columns(2)
     tw_mon = cw[0].text_input("週次棚卸し（月曜）の時刻", S.get_setting("weekly_report_mon_time", "10:30"))
     tw_fri = cw[1].text_input("週次棚卸し（金曜）の時刻", S.get_setting("weekly_report_fri_time", "18:00"))
     if st.button("リマインド・週次棚卸し設定を保存"):
         S.set_setting("due_reminder_check_time", tr)
-        S.set_setting("due_reminder_days", dr)
         S.set_setting("weekly_report_mon_time", tw_mon)
         S.set_setting("weekly_report_fri_time", tw_fri)
         st.success("保存しました（次回サイクルから反映）")

@@ -23,8 +23,9 @@ DEFAULT_SETTINGS = {
     "carryover_check_time": "10:30", # 翌日の前日未完了・期限超過確認
     "scheduled_jobs_enabled": "1",   # 0で定時処理を停止
     "manager_room_id": "",           # 期限超過エスカレーションの管理者報告先（空なら発生元ルーム）
-    "due_reminder_check_time": "09:00",  # 期限リマインドの時刻
-    "due_reminder_days": "2",            # 期限の何日前にリマインドするか
+    # 期限リマインドの時刻。期限日の前日にこの時刻で送る（carryover_1000と同じ10:30が既定）。
+    # 前日が休業日の場合は前倒しせず当日この時刻に送る（services/scheduler.py 参照）。
+    "due_reminder_check_time": "10:30",
     "weekly_report_mon_time": "10:30",   # 週次棚卸し（月曜・やり残し確認）の時刻
     "weekly_report_fri_time": "18:00",   # 週次棚卸し（金曜）の時刻
     # 業務日報（Stage 10・2026-08-21 オーナー指示で 18:30 自動）
@@ -98,6 +99,11 @@ def migrate() -> None:
                 "INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)",
                 (key, value),
             )
+        # due_reminderの実行時刻を旧既定09:00→新既定10:30へ（TASK-20260824-001）。
+        # 手動でカスタマイズ済み（09:00以外）の値は上書きしない。
+        conn.execute(
+            "UPDATE settings SET value='10:30' WHERE key='due_reminder_check_time' AND value='09:00'"
+        )
 
 
 if __name__ == "__main__":

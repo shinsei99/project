@@ -5,7 +5,8 @@
                                          期限未設定のTODO全件も対象に進捗を確認
   carryover_1000(翌10:30) 前日未完了   … 前日以前が期限のまま未完了＝期限超過に加え、
                                          期限未設定かつ未確認（AI確認待ち）も対象に確認・エスカレーション
-  due_reminder  (既定09:00) 期限リマインド … 期限のN日前(既定2日)の未完了に事前リマインド
+  due_reminder  (既定10:30・carryover_1000と同時刻) 期限リマインド … 期限日の前日に事前リマインド。
+                                         前日が休業日の場合は前倒しせず当日この時刻に送る（TASK-20260824-001）
 
 週次棚卸し（絞り込みなしで未完了TODO全件を報告。上記の日次催促とは別物）:
   weekly_report_fri (金曜18:00) / weekly_report_mon (月曜10:30)
@@ -15,6 +16,10 @@
     carryover/closing/due_reminder/週次棚卸し/業務日報が対象。claim だけして「休業日」と記録し、その日は再試行しない。
     ナレッジ増分リフレッシュは投稿しないので休業日も動かす。休み中に期限を過ぎたTODOは翌営業日の
     carryover_1000（期限超過）で拾われるため、取りこぼしにはならない。
+  - due_reminder の対象抽出（progress_tools.tasks_needing_attention(kind="due_reminder")）自体にも
+    休業日ロジックがある: 通常は「期限日の前日」を対象にするが、前日が休業日だったTODOは
+    「当日」を対象に含める（前倒しで遡らず、休業日をまたいで当日に送る）。今日自体が休業日なら
+    上記の全ジョブ停止により、その判定より前に丸ごとスキップされる。
   - scheduled_runs(UNIQUE run_date,job_type) を INSERT OR IGNORE で「claim」し、取れた時だけ実行 → 二重実行防止。
   - 対象TODOは progress_tools で機械抽出 → Claude(run_json)が「誰に何を送るか」を優先度判断（全員機械催促しない）。
     ただし due_reminder は「事前リマインド」なので原則全件送る（プロンプトで指示）。
@@ -36,7 +41,7 @@ from services.chatwork import mention
 JOBS = {
     "carryover_1000": ("carryover_check_time", "10:30", "carryover", 3, "前日未完了・期限超過の確認"),
     "closing_1800": ("closing_check_time", "18:00", "today_open", 2, "終業前の未完了確認"),
-    "due_reminder": ("due_reminder_check_time", "09:00", "due_reminder", 0, "期限リマインド（期限の数日前）"),
+    "due_reminder": ("due_reminder_check_time", "10:30", "due_reminder", 0, "期限リマインド（期限前日・前日休業日なら当日）"),
 }
 
 # 週次の全件棚卸し（日次の絞り込み催促とは別物）。job_type -> (weekday 0=月〜4=金, 時刻キー, 既定時刻, 見出し)
