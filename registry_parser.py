@@ -69,6 +69,10 @@ EMPTY = {
     "マンション": {"名称": "", "構造": "", "階建": "", "階部分": "",
                  "専有面積": "", "室番号": "", "新築年月日": "", "敷地権割合": ""},
     "抵当権": "",
+    # 謄本1枚ごとの要約。区分所有の**本体＋車庫**のように複数枚あるとき、
+    # 従来キー（土地/建物/マンション）に入りきらない分をここに残す。
+    "建物一覧": [],
+    "附属建物一覧": [],
 }
 
 
@@ -341,6 +345,24 @@ def _parse_pdf_direct(raw: bytes, diag: dict, note) -> dict:
 
 
 # ── 正規表現フォールバック ─────────────────────────────────────────────────────
+# 謄本は罫線アート（┏━━┯┃）で組まれた表なので、正規表現の `[^\n]+` は
+# **隣のセルや見出し行までまとめて拾ってしまう**。実測（2026-08-24・車庫の謄本）で
+# 種類に `│ ② 構 造 │ ③ 床 面 積 ㎡ │ 原因及びその日付…` が入り、
+# それが本体の値を上書きしていた。拾った値は必ず下の2つで洗う。
+_BOX = re.compile(r"[┃│┏┓┗┛┠┨┯┷┳┻━─┼｜]")
+_HEADING = re.compile(r"種\s*類|構\s*造|床\s*面\s*積|地\s*積|原因及び|その日付|登記の日付|"
+                      r"表\s*題\s*部|権\s*利\s*部|順位番号|受付年月日")
+
+
+def _cell(value: str) -> str:
+    """罫線で区切られた最初のセルだけを取り出し、見出し語なら捨てる。"""
+    v = _BOX.split(str(value or ""))[0].strip()
+    v = v.strip("　 ・:：")
+    if not v or _HEADING.search(v):
+        return ""
+    return v
+
+
 def _parse_with_regex(text: str) -> dict:
     """CLI が使えない場合の最低限の抽出。土地・建物の主要項目のみ。"""
     data = json.loads(json.dumps(EMPTY))  # deep copy
@@ -348,8 +370,16 @@ def _parse_with_regex(text: str) -> dict:
         return data
 
     def grab(pattern):
-        m = re.search(pattern, text)
-        return m.group(1).strip() if m else ""
+        """見つかった順に洗って、**最初の中身のある値**を返す。
+
+        見出し行が先に当たることがあるので、1件目で打ち切らない
+        （`re.search` だけだと見出しを拾って終わってしまう）。
+        """
+        for m in re.finditer(pattern, text):
+            v = _cell(m.group(1))
+            if v:
+                return v
+        return ""
 
     # 所在（建物/土地の表題部）
     data["物件所在地"] = grab(r"所\s*在\s*([^\n地番家屋]+)")
@@ -364,6 +394,9 @@ def _parse_with_regex(text: str) -> dict:
     data["建物"]["床面積"] = grab(r"床\s*面\s*積[^\n]*?([0-9０-９,，\.．]+)\s*㎡")
     if data["建物"]["床面積"]:
         data["建物"]["床面積"] += "㎡"
+    # 区分建物の「建物の名称」（例: 東館３０７号 / 車庫３４１－３４２）。
+    # AI が失敗したときでも**本体か車庫かを見分けられる**ようにここで拾っておく。
+    data["マンション"]["室番号"] = grab(r"建物の名称\s*([^\n]+)")
     # 所有者
     owner = grab(r"所\s*有\s*者\s*([^\n]+)")
     data["所有者氏名"] = owner
@@ -377,6 +410,61 @@ def _parse_with_regex(text: str) -> dict:
 
 
 MAX_PDFS = 5
+
+
+# 車庫・駐車場などの「附属で買う区分建物」を見分ける語。
+# 区分所有では**本体（居宅）と車庫の謄本が別々に発行される**ため、
+# 1件にまとめるときにどちらが主たる建物かを決める必要がある。
+_ANNEX_WORDS = re.compile(r"車庫|駐車|駐輪|物置|倉庫|バイク|トランクルーム")
+
+
+def _is_annex(result: dict) -> bool:
+    """この謄本が附属（車庫・駐車場など）かどうか。
+
+    判定は**種類**（表題部①種類。例「車庫」）を第一に見る。種類が空のときだけ
+    建物の名称（例「車庫３４１－３４２」）で補う。所在や家屋番号では判定しない
+    （建物名にたまたま「駐車場」が入る物件で本体を附属と誤判定しないため）。
+
+    マンション（敷地権付き区分建物）型で拾われたときは注意が要る。この型の
+    JSONスキーマには「種類」の置き場が無く、マンション.名称にはたいてい
+    **一棟の建物名**（例「ＯＡＰレジデンスタワー」＝本体・車庫どちらも同じ）が
+    入るため、種類・名称だけでは車庫を見分けられない（実例: OAPレジデンス
+    タワー307号の車庫でこれを見落とし、本体側に誤って混ぜていた）。この場合
+    AIは「車庫」の情報を室番号に押し込む（例「61（車庫341－342／…）」）ので、
+    最後に室番号もフォールバックで見る。
+    """
+    bld = result.get("建物") or {}
+    mans = result.get("マンション") or {}
+    kind = str(bld.get("種類") or "").strip()
+    if kind:
+        return bool(_ANNEX_WORDS.search(kind))
+    name = str(mans.get("名称") or "").strip()
+    if _ANNEX_WORDS.search(name):
+        return True
+    room = str(mans.get("室番号") or "").strip()
+    return bool(_ANNEX_WORDS.search(room))
+
+
+def _summarize(result: dict, fname: str, annex: bool) -> dict:
+    """謄本1枚ぶんの要約（画面表示・書式への連記に使う）。"""
+    bld = result.get("建物") or {}
+    mans = result.get("マンション") or {}
+    land = result.get("土地") or {}
+    return {
+        "区分": "附属" if annex else "本体",
+        "ファイル名": fname,
+        "物件種別": str(result.get("物件種別") or ""),
+        "家屋番号": str(bld.get("家屋番号") or ""),
+        "建物の名称": str(mans.get("名称") or ""),
+        "室番号": str(mans.get("室番号") or ""),
+        "種類": str(bld.get("種類") or ""),
+        "構造": str(bld.get("構造") or mans.get("構造") or ""),
+        "床面積": str(mans.get("専有面積") or bld.get("延床面積") or bld.get("床面積") or ""),
+        "階部分": str(mans.get("階部分") or ""),
+        "敷地権割合": str(mans.get("敷地権割合") or ""),
+        "地番": str(land.get("地番") or ""),
+        "地積": str(land.get("地積") or ""),
+    }
 
 
 def _combine_shubetsu(types) -> str:
@@ -404,6 +492,11 @@ def parse_registry(pdf_files) -> dict:
 
     土地謄本・建物謄本・区分建物（マンション）謄本を混在させて渡してよい。
     各 PDF を個別に解析し、物件種別を自動判別したうえで 1 件にマージする。
+
+    **区分所有では本体（居宅）と車庫で謄本が別々に発行される**（実例: OAPレジデンス
+    タワー307号＝本体 1-20-1-307 ／ 車庫 1-20-1-61）。このとき従来キー
+    `建物` / `マンション` には**必ず主たる建物（車庫等でない方）**が入る。
+    附属の分は `建物一覧` / `附属建物一覧` に残るので、どちらも失われない。
     """
     if pdf_files is None:
         return json.loads(json.dumps(EMPTY))
@@ -414,6 +507,7 @@ def parse_registry(pdf_files) -> dict:
     merged = json.loads(json.dumps(EMPTY))
     used_ai = False
     detected_types = []
+    records = []            # (解析結果, ファイル名) を潰さずに持つ
     diag = {"reasons": [], "files": []}
     for i, pf in enumerate(pdf_files):
         text = extract_text(pf)
@@ -442,11 +536,28 @@ def parse_registry(pdf_files) -> dict:
         if result is None:
             continue
         detected_types.append(result.get("物件種別", ""))
+        records.append((result, fname))
+
+    # ★マージの順番（2026-08-24）
+    #   区分所有では**本体（居宅）と車庫の謄本が別々**に出る。両方を素直に
+    #   `_deep_merge`（後勝ち）へ流すと、**あとに読んだ車庫が本体の専有面積・家屋番号を
+    #   上書きする**（＝ファイルを渡す順で結果が変わる。気付きにくい事故）。
+    #   そこで **附属（車庫等）を先に、主たる建物を後に**マージして、
+    #   従来キー（`建物` / `マンション`）には必ず本体が残るようにする。
+    #   附属側の値は下の `建物一覧` / `附属建物一覧` に落ちるので消えない。
+    annexed = [(r, f) for r, f in records if _is_annex(r)]
+    mains = [(r, f) for r, f in records if not _is_annex(r)]
+    if not mains:            # 車庫の謄本しか渡されなかったとき
+        mains, annexed = annexed, []
+    for result, _fname in annexed + mains:
         # 物件種別は個別に統合するのでマージ対象から外す
-        result_no_type = {k: v for k, v in result.items() if k != "物件種別"}
-        _deep_merge(merged, result_no_type)
+        _deep_merge(merged, {k: v for k, v in result.items() if k != "物件種別"})
 
     merged["物件種別"] = _combine_shubetsu(detected_types)
+    # 謄本1枚＝1件の要約。**潰さずに全部残す**（本体と車庫、数筆の土地を書き分けるため）
+    merged["建物一覧"] = ([_summarize(r, f, False) for r, f in mains]
+                        + [_summarize(r, f, True) for r, f in annexed])
+    merged["附属建物一覧"] = [x for x in merged["建物一覧"] if x["区分"] == "附属"]
 
     # 登記名義人が空なら所有者で補完
     if not merged["登記名義人氏名"] and merged["所有者氏名"]:

@@ -647,12 +647,23 @@ def main():
         elif maisoku_pdf is not None:
             st.caption("※ claude CLI か共有モジュールが見つからないため解析できません。")
 
-        # 謄本。ここを読むと登記の所在・地番が入る
-        land_pdf = st.file_uploader("登記事項証明書（土地PDF）", type=["pdf"])
-        building_pdf = st.file_uploader("登記事項証明書（建物PDF）", type=["pdf"])
+        # 謄本。ここを読むと登記の所在・地番が入る。
+        # ★複数枚を受け取る（2026-08-24）。土地は数筆に分かれることがあり、
+        #   区分所有は**本体（居宅）と車庫で謄本が別々**に出る
+        #   （実例: OAPレジデンスタワー307号＝本体 1-20-1-307 ／ 車庫 1-20-1-61）。
+        #   1枚しか受け取れないと、車庫を入れた人が本体を差し替えてしまう。
+        land_pdf = st.file_uploader(
+            "登記事項証明書（土地PDF・複数可）", type=["pdf"],
+            accept_multiple_files=True,
+            help="土地が数筆に分かれているときは、まとめて入れてください。")
+        building_pdf = st.file_uploader(
+            "登記事項証明書（建物PDF・複数可）", type=["pdf"],
+            accept_multiple_files=True,
+            help="区分所有で**本体（居宅）と車庫の謄本が分かれている**ときは両方入れてください。"
+                 "主たる建物と車庫は自動で見分けて、別々に表示します。")
 
         render_extra_documents()
-        if land_pdf is not None or building_pdf is not None:
+        if land_pdf or building_pdf:
             # 解析は claude CLI を通すので数十秒かかる。**押されたときだけ**走らせ、
             # 結果を session_state に置いて、以後の再実行で読み直さない
             if st.button("📄 謄本を読む（住所を取り込む）", use_container_width=True):
@@ -715,6 +726,12 @@ def main():
         if reg:
             st.caption("謄本から: 所在 **{}** ／ 地番 **{}**　※地番は住居表示とは別物です".format(
                 reg.get("登記所在") or "（取れず）", reg.get("地番") or "（取れず）"))
+            # 車庫などは主たる建物と**別に**出す。ここを混ぜると、
+            # 車庫の面積が本体の専有面積として書面に入ってしまう
+            if reg.get("附属建物"):
+                st.info("附属建物も読み取りました: **{}**　"
+                        "（上の家屋番号・種類・床面積は**主たる建物**の値です）"
+                        .format(reg["附属建物"]))
 
         # 書式の「（住居表示）」欄へ入るのはこの合成結果。
         # 町名は公式表記が取れていればそれを使う（表記ゆれをここで吸収する）。
