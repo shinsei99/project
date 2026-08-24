@@ -4,7 +4,31 @@
 
 ---
 
-## ▶ 「続きから」と言われたら、ここから（2026-08-22 08:35 更新）
+## ▶ 「続きから」と言われたら、ここから（2026-08-24 22:4x 更新）
+
+**10本目「謄本は二枚で届く」は3媒体とも公開済み**（本体 `/works/registry-annex-building` ／
+Zenn `registry-pdf-merge-overwrite` ／ note `n62a9eda5388c`）。`links` 追記・再デプロイ・
+`validate` の転載⚠️0件まで完了している。
+
+**次は11本目。明日やる予定（本人から予告あり）。段取りは次のとおり。**
+
+1. **題材を決める** … `drafts/PUBLISH.md` 末尾の「11本目：題材の候補」から選ぶ
+   （本命は **launchd の常駐が Dropbox を読めない／`/bin/bash` にフルディスクアクセス**）
+2. **裏を取る** … 該当アプリの `README.md` と `SESSION_LOG.md`、実際のコードを読む。
+   **数値と挙動は憶測で書かない**（測った値だけ書く）
+3. **3点セットを書く** … 本体 `content/works/<slug>.json`（`category: "realestate"` / `visibility: "public"`）／
+   `drafts/zenn/<zenn-slug>.md`（症状→原因→直し方＋コード）／`drafts/note/<名前>.md`（技術用語なし・
+   末尾に本体とZennへの導線。ZennのURLはファイル名から確定できる）
+4. **出す順は 本体 → Zenn → note**
+   - 本体: `npm run validate` → `npx vercel --prod --scope brain-dump`（**`--scope` 必須**）
+   - Zenn: `drafts/zenn/*.md` を `~/articles/` へコピーして push（**1日2本まで**）
+   - note: **拡張から自動投稿できる。手順はメモリ `reference_note_auto_post.md` を読むこと**
+     （`cmd+v` は効かない／`ClipboardEvent` を `.ProseMirror` へ dispatch／
+     拡張が繋がらないときは Chrome が Visual Agent の headless 用でないか確認）
+5. **締め** … `links` に両URLを追記 → 再デプロイ → `validate` の転載⚠️が0件 →
+   `drafts/README.md` の表・`drafts/PUBLISH.md` の節・`SESSION_LOG.md` を更新
+
+## （古い）2026-08-22 08:35 の「続きから」
 
 **9本目「Excelの行の高さを実機で採寸した」は3媒体とも公開済み。**
 本体 https://ai-tools-base.vercel.app/works/excel-row-height ／

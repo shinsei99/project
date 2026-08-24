@@ -267,3 +267,39 @@ Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その
 - 本体→Zenn→note の順で同日に出す（keyline と同じく本人指示による同日進行）
 - **本体のデプロイは `npx vercel --prod --scope brain-dump`。** `--scope` を付けないと
   `Not authorized` で落ちる（プロジェクトは team `brain-dump` にある。2026-08-21 実測）
+
+
+---
+
+## 10本目：謄本は二枚で届く（区分所有の本体＋車庫／registry_parser）
+
+| 媒体 | 原稿 | URL |
+|---|---|---|
+| 本体 | `content/works/registry-annex-building.json` | ✅ https://ai-tools-base.vercel.app/works/registry-annex-building （2026-08-24 22:0x・サブPC） |
+| Zenn | `zenn/registry-pdf-merge-overwrite.md` | ✅ https://zenn.dev/shinsei99/articles/registry-pdf-merge-overwrite （2026-08-24 22:1x・push から約1分で反映＝上限に当たっていない） |
+| note | `note/touhon-ga-nimai.md` | ✅ https://note.com/shinsei99/n/n62a9eda5388c （2026-08-24 22:3x・**拡張から自動投稿**。見出し画像はみんなのフォトギャラリー「雨に濡れた駐車場」Photo by 稲垣純也） |
+
+- 素材は同日の実バグ（commit `8b0aad6`）。**本体72.59㎡が車庫16.38㎡に上書きされ、渡す順で結果が変わった**
+- 本体→Zenn→note を同日に通した（本人指示）
+- **note の自動投稿手順はメモリ `reference_note_auto_post.md` にまとめた。**
+  拡張が `not connected` のときは、動いている Chrome が Visual Agent の headless 用で、
+  拡張の入った Default プロファイルではないことを疑う
+
+---
+
+## 11本目：題材の候補（2026-08-24 時点・**未着手**）
+
+**どれも「不動産」カテゴリの実話で、まだ制作記録になっていないもの。**
+書く前に必ずコード・ログで裏を取ること（憶測で書かない）。
+
+1. **本命：launchd の常駐は Dropbox / Google Drive を読めない**（`shorui-cabinet` 8528）
+   Python 本体にフルディスクアクセスを与えても効かず、**TCC の責任プロセスが `/bin/bash` なので
+   `/bin/bash` に許可を与えると通る**、という話。症状が「エラーではなく空振り」なので記事向き。
+   材料: メモリ `reference_launchd_cloudstorage_fda.md`／`shorui-cabinet/README.md`
+2. **対抗：休業日の判定が、別PCのパスを見たまま黙って無効化されていた**（`chatwork-ai-manager`）
+   `is_holiday()` が**読めないとき False（＝営業日）を返す**設計だったため、
+   エラーも出ないまま休業日に催促が飛んでいた。2026-08-24 にメインPCで発見・修正。
+   「安全側に倒れない既定値」という普遍的な教訓になる
+3. 予備：`claude` CLI のパスを `/opt/homebrew/bin` に固定していたため、Intel Mac では
+   **AI解析が黙って無効になり正規表現フォールバックだけで動いていた**（`registry_parser.py`）。
+   ただし 10本目と同じファイルの話なので、続けて出すと重複感がある
