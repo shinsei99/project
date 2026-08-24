@@ -1,230 +1,389 @@
-# ネタ帳 — 制作記録の在庫（2026-08-24 棚卸し）
+# ネタ帳 — 制作記録の在庫（2026-08-24 棚卸し・**66本**）
 
 **目的**: 「次は何を書くか」で毎回悩まないように、**書ける題材を先に集めておく**。
 `drafts/PUBLISH.md` は公開済みの台帳、こちらは**未着手の在庫**。
 
 ## 使い方
 
-1. 上から順に見て、**直前の1本と系統が違うもの**を選ぶ（同じアプリ・同じ原因が続くと重複感が出る）
-2. **書く前に必ず裏を取る。** 根拠欄の commit / ファイルを開き、数値と挙動を実物で確認する。
+1. 上から順ではなく、**直前の1本と系統（章）が違うもの**を選ぶ。同じアプリ・同じ原因が続くと重複感が出る
+2. **書く前に必ず裏を取る。** 根拠欄の commit / ログ / ファイルを開き、数値と挙動を実物で確認する。
    思い出しで書かない（測っていない数字を書いた時点で、この媒体の値打ちが消える）
-3. 3媒体の対象は **`category: "realestate"` の公開記録だけ**。ツール・ゲームは本体のみ
-4. 書いたら、この行を消して `PUBLISH.md` に節を作る
+3. 3媒体（本体＋Zenn＋note）に出せるのは **`category: "realestate"` だけ**。
+   〔ツール〕〔ゲーム〕〔メディア〕は**本体のみ**
+4. 書いたら、その行を消して `PUBLISH.md` に節を作る
 
-**裏取りの記号**: ✅=commit本文に症状・原因・直し方が揃っている（そのまま書ける）
-／⚠️=事実は残っているが、数値や現在の実装を要確認 ／🔍=素材はあるが記録が薄く、コードを読む必要あり
+**記号**: ✅=症状・原因・直し方が記録に揃っていて、そのまま書ける
+／⚠️=事実は残っているが数値や現在の実装を要確認 ／🔍=素材はあるがコードを読む必要あり
+
+**在庫**: 全66本（✅52 / ⚠️11 / 🔍3）。うち**不動産（3媒体可）46本** ／ 本体のみ20本。
 
 ---
 
-## 1. 【✅・本命】スマホから写真を送ると3枚目で必ず失敗する（iOS Safari × Vercel）
+# A. サイレント障害 — 落ちないから気づけない
 
-- **素材**: `shorui-mobile`（不動産・3媒体可）
-- **症状**: 「この束を送る」で3枚以上のとき `413` で弾かれる。別の端末では
-  `SyntaxError: The string did not match the expected pattern.` が出る
-- **原因**: ①Vercel のリクエストボディ上限 **4.5MB**。スマホ写真は1枚2〜4MBなので原寸で複数送ると超える
-  ②**iOS Safari は FormData のファイル名に非ASCIIが混ざると例外を投げる**
-  ③縮小に使った `createImageBitmap` が **iOS Safari では失敗しやすく**、失敗時に原本を送るので縮小されない
-- **直し方**: 長辺1600px・JPEG品質0.72へ縮小（文字は読めるまま1枚数百KB）→
-  それでも枚数次第で超えるので **1枚＝1リクエストに分割**し、クライアントが束IDを生成して
-  サーバー側で1フォルダに集約 ／ ファイル名は `shot_01.jpg` の**ASCII固定** ／
-  デコードは `<img>`+canvas 方式へ ／ レスポンスは text→JSON.parse にして413でも文言を出す
-- **記事の芯**: 「上限に当たらないよう小さくする」ではなく**上限に当たり得ない形に分割する**
-- **根拠**: `30526bd` `7eeec42` `5b1285b` `f4d724d`
+> この章がこの媒体でいちばん強い。「エラーが出ないバグ」は検索されるのに書き手が少ない。
 
-## 2. 【✅・本命】Excelに貼った写真が縦に潰れる（列幅→ptの換算が2割狭かった）
+**1.** ✅〔不動産〕**pykakasi が無いと突合の一致率が黙って下がる**（`payment-reconciler`）
+漢字→カナ変換が使えないと名寄せの候補が減るが、例外は出ない。起動時に検出して画面に警告を出す形へ。
+→ `payment-reconciler/app.py:25-40`
 
-- **素材**: `maisoku-converter`（不動産・3媒体可）
-- **症状**: 帯変えで貼った画像が**横に1.2倍伸びる／縦に圧縮される**
-- **原因**: 列幅からptへの換算を `幅×7px` でやっていて**2割狭く**、さらに `TwoCellAnchor` で
-  貼っていたため**セル範囲まで画像が引き伸ばされていた**
-- **直し方**: Excel に実測させた **`_PT_PER_CHAR = 6.0`** に直し、貼り方を
-  **`OneCellAnchor`（実寸をEMUで固定）** へ変更。実測で 帯 1150.00pt / 画像 1149.75pt・
-  縦横比 0.8141（元画像と一致）
-- **記事の芯**: 9本目（行の高さを実機で採寸）と同じ「**Excelに聞く**」系。単位換算は憶測で書かない
-- **根拠**: `46ce8c7`
+**2.** ✅〔不動産〕**CLIの絶対パス決め打ちで、別のPCではAIが黙って無効になる**（`tokuyaku-generator` / `baikai-generator` / `restoration-calculator` / 直下 `registry_parser.py`）
+`/opt/homebrew/bin/claude` 固定。Intel Mac や `~/.local/bin` では見つからず、正規表現の簡易版で動き続けていた。
+→ `55be186` `514b104`、`registry_parser.py:29-50`
 
-## 3. 【✅】pykakasi が無いと、突合の一致率が黙って下がる
+**3.** ✅〔不動産〕**休業日の判定が、別PCのパスを見たまま無効化されていた**（`chatwork-ai-manager`）
+`is_holiday()` が**読めないとき False（＝営業日）を返す**設計。休業日にも催促が飛んでいた。既定値を安全側に倒す話。
+→ 直下 `TODO.md` 2026-08-24 の節
 
-- **素材**: `payment-reconciler`（不動産・3媒体可）
-- **症状**: 入金消込の一致率が低い。**エラーは出ない**
-- **原因**: 漢字→カナ変換のライブラリが入っていないと名寄せの候補が減る。
-  例外を投げないので**気づけない**
-- **直し方**: 起動時に検出して**画面に警告を出す**（「動作しますが一致率が下がります」）
-- **記事の芯**: **サイレント劣化**。落ちないバグがいちばん高くつく。
-  依存が欠けたときに「静かに悪くなる」か「止まる」かは設計で選べる
-- **根拠**: `payment-reconciler/app.py:25-40`
+**4.** ✅〔不動産〕**LINEが無反応になる本当の理由（月間無料枠切れ）**（`chatwork-ai-manager`）
+push が429で拒否。reply（受付の「調べています」）は**無料枠を消費しない**ので届き、回答だけ消えていた。
+`_post()` の握りつぶしと、障害通知の経路がLINEしか無かったことの二重の問題。
+→ `efe224b`、`chatwork-ai-manager/SESSION_LOG.md:404-412`
 
-## 4. 【✅】常駐が古いビルドを配信し続けていた（distが在れば再ビルドしない）
+**5.** ✅〔不動産〕**exit code 0 で中断していた**（`jyuusetsu-research`）
+書式レジストリが 200本→**126本に欠けた**。`RULES` に要素を足したのに `for a, b, c in RULES` で
+取り出していて `ValueError`。だが**終了コードは 0**だったので成功に見えていた。
+→ `jyuusetsu-research/SESSION_LOG.md:340`
 
-- **素材**: `madori-tracer`（editor・5175）と `theta-viewer`（8512）の**2アプリで同じ事故**（不動産・3媒体可）
-- **症状**: ソースを直して常駐を再起動しても、**画面が古いまま**
-- **原因**: `run.sh` が「`dist` が在れば再ビルドしない」作り。保存/読込機能を足した後も
-  1か月前のビルドを配信し続けていた
-- **直し方**: 起動時に毎回 `npm run build`
-- **記事の芯**: 「再起動したのに直らない」の典型。**成果物のキャッシュは、直した実感を裏切る**
-- **根拠**: `f49211a`（madori-tracer）`4e69dcb`（theta-viewer）
+**6.** ⚠️〔不動産〕**本番の常駐だけが違うPythonで動いている**（`chatwork-ai-manager`）
+worker は launchd の `/usr/bin/python3`。`requests` 前提のモジュールを足すと本番だけ ImportError になる。
+「HTTPは urllib を使う」という制約が `requirements.txt` に書いてある理由。
+→ `chatwork-ai-manager/SESSION_LOG.md:27`
 
-## 5. 【✅】launchd の常駐が Dropbox の権限をまれに失う → 自分で死んで生き返る
+**7.** ✅〔不動産〕**Streamlit は指定しないと 0.0.0.0（＝LAN公開）**（全アプリ横断）
+「指定しなければ localhost」ではない。コメントに「ローカル」と書いてあるアプリが実際は公開されていた。
+→ `8febef2` `357083c`、メモリ `reference_streamlit_bind.md`
 
-- **素材**: `parking-map`（不動産・3媒体可）
-- **症状**: 動いているのに、ある時から `PermissionError` でレントロールを読めなくなる
-- **原因**: launchd 起動の Python が CloudStorage のフルディスクアクセスをまれに失う
-- **直し方**: 権限エラーが連続したら**プロセスを自終了し、KeepAlive で再起動**させる
-  （**30分5回の上限**を入れて無限ループを防ぐ）。あわせて起動直後にプリロード
-- **記事の芯**: 直せない外部要因は、**復旧の自動化**で殺す。ただし暴走の歯止めを必ず付ける
-- **根拠**: `8c002b5`。関連: メモリ `reference_launchd_cloudstorage_fda.md`
+**8.** ✅〔ツール〕**Next.js の dev サーバーも既定で 0.0.0.0**（`digital-shosai`）
+Streamlit と同じ罠。`--hostname 127.0.0.1` を明示。
+→ `digital-shosai/SESSION_LOG.md:200`
 
-## 6. 【✅】共有フォルダのファイル名が変わってアプリが黙って古いデータを読む
+---
 
-- **素材**: `parking-map`（不動産・3媒体可）
-- **症状**: 起動しても**最新の空き状況が反映されない**
-- **原因**: 共有フォルダ側でファイル名と置き場所が変わった（**`★要更新★` が名前に付いた**）
-- **直し方**: 参照を1階層上げ、`★要更新★` 付きの名前を見るようにした
-- **記事の芯**: **人が付ける目印がファイル名に入る**のが日本の現場。
-  固定パスで読むアプリは、名前の揺れ（★・全角空白・「競合コピー」）で必ず壊れる。
-  → `gyomu-manual/generate.py:246` も同じ問題を**生成時の自動解決**で回避しており、対比に使える
-- **根拠**: `d66c10e`、`gyomu-manual/generate.py:246`
+# B. 常駐・デプロイ — 「直したのに反映されない」
 
-## 7. 【✅】PNGしか出せないエディタは、翌日には使えない
+**9.** ✅〔不動産〕**常駐が古いビルドを配信し続けていた**（`madori-tracer` editor 5175 / `theta-viewer` 8512）
+`run.sh` が「`dist` が在れば再ビルドしない」作り。**2アプリで同じ事故**。毎回 `npm run build` へ。
+→ `f49211a` `4e69dcb`
 
-- **素材**: `madori-tracer`（editor・不動産・3媒体可）
-- **症状**: タブを閉じると配置したパーツが全部消える。部屋名を1つ直すだけでもイチから置き直し
-- **原因**: 書き出しが PNG のみで、**編集状態を保存する口が無かった**
-- **直し方**: `floor-plan.json` に**下絵の dataUrl ごと**書き出して1ファイルで再編集可能に／
-  読み込み前に `pushHistory` して「元に戻す」で戻せるように／
-  `localStorage` に500msデバウンスで自動保存し、**容量超過時はパーツだけ保存して警告**
-- **記事の芯**: 「作れる」と「**直せる**」は別の機能。業務ツールは後者が無いと二度目に使われない
-- **根拠**: `ff8f229`
+**10.** ✅〔不動産〕**`launchctl kickstart -k` は plist を読み直さない**（`soufu-generator` 8518）
+バインド先を書き換えて kickstart したのに `lsof` は `*:8518` のまま。**PIDだけ変わって中身は古い**。
+`bootout` → `bootstrap` が要る。いちばん気づきにくい種類の事故。
+→ `soufu-generator/SESSION_LOG.md:16`
 
-## 8. 【✅・珍しい】作った編集機能を、あとから全部外した（表示専用に戻す判断）
+**11.** ✅〔不動産〕**run.sh を直しても、plist が別のコマンドを叩いていれば効かない**（8526 / 8527）
+plist が `run.sh` を経由せず `python3 -m streamlit run` を直接叩いていた。
+→ `357083c`
 
-- **素材**: `building-manager`（不動産・3媒体可）
-- **内容**: 物件/部屋の追加・編集・削除、AI自動入力、各種フォームを**まるごと除去**し、
-  「Excel取り込み→ローカルDB→今すぐ同期」の**表示専用**にした。
-  残したのは修繕履歴の取り込みとExcel出力だけ。**コードはリポジトリに残置（可逆）**
-- **記事の芯**: 機能を足す記事は多いが、**外す判断の記事は少ない**。
-  「二重管理をやめる」「正はExcelのまま」という業務側の理由を書ける
-- **根拠**: `fc28c47`。関連メモリ: `feedback_building_manager_readonly.md`
+**12.** ✅〔不動産〕**常駐が Dropbox の権限をまれに失う → 自分で死んで生き返る**（`parking-map`）
+権限エラーが連続したら**自終了して KeepAlive で再起動**。**30分5回の上限**で無限ループを防ぐ。
+→ `8c002b5`
 
-## 9. 【✅】同じ処理の実体を2本持つと、片方だけ直る
+**13.** ⚠️〔不動産〕**launchd の常駐は CloudStorage を読めない／TCCの責任プロセスは `/bin/bash`**（`shorui-cabinet`）
+Python 本体に許可を与えても効かず、`/bin/bash` にフルディスクアクセスを与えると通る。
+→ メモリ `reference_launchd_cloudstorage_fda.md`、`shorui-cabinet/README.md`
 
-- **素材**: `tokuyaku-generator` / `baikai-generator` / 直下 `registry_parser.py`（不動産・3媒体可）
-- **症状**: 直したはずの特約が契約書に出ない／謄本の様式対応が片方だけ古い
-- **原因**: 同じコードのコピーを2アプリが別々に持っていた
-- **直し方**: リポジトリ直下の**共有モジュールへ寄せ、grep で実体が各1本だけ**であることを確認。
-  ファイル冒頭に「**コピーを作らないこと**」と理由を書く。
-  ※Streamlit の常駐は import 済みモジュールを入れ替えないので**再起動までが1セット**
-- **根拠**: `55be186` `95004e0`
+**14.** ✅〔不動産〕**Streamlit は import 済みモジュールを入れ替えない**（`kaitori-dm-maker` ほか）
+共有モジュールを直しても、常駐は古いまま動き続ける。**直したら再起動までが1セット**。
+→ `kaitori-dm-maker/SESSION_LOG.md:20`
 
-## 10. 【✅】CLIの絶対パス決め打ちで、別のPCではAIが黙って無効になる
+**15.** ⚠️〔メディア〕**Vercel は git 連携ではない／`--scope` が要る**（`ai-tools-base`）
+push しても本番は変わらない。`whoami` は通るのにデプロイが `Not authorized`（プロジェクトはチームの持ち物）。
+→ `77c1dd6`、`ai-tools-base/CLAUDE.md`
 
-- **素材**: `tokuyaku-generator` / `baikai-generator` / `restoration-calculator` / `registry_parser.py`
-- **症状**: 片方のPCでだけ**AI生成が効かない**。エラーは出ず、正規表現の簡易版で動き続ける
-- **原因**: `/opt/homebrew/bin/claude` 決め打ち。Intel Mac（`/usr/local`）や `~/.local/bin` では見つからない
-- **直し方**: `shutil.which` → 候補パスの順で解決。見つからないときは**画面に出す**
-- **記事の芯**: 3番と同じ**サイレント・フォールバック**。「動いているように見える」が最悪
-- **根拠**: `55be186` `514b104`、`registry_parser.py:29-50`
+**16.** ✅〔メディア〕**Zenn は投稿上限に当たると「成功」と出たまま黙って未反映**（`ai-tools-base`）
+自動再試行もされない。24時間空けて空コミットで再push。**待ち時間で見分けられる**（正常なら約30秒〜1分）。
+→ `ai-tools-base/SESSION_LOG.md` 2026-08-22
 
-## 11. 【⚠️】FAX番号が全角・ハイフン混じりで検索に当たらない
+---
 
-- **素材**: `tsuikyaku-crm`（不動産・3媒体可）
-- **内容**: FAX検索で**全角/半角・ハイフンの有無を吸収**した。日本語の業務データ正規化
-  （電話番号・郵便番号・氏名の姓名間スペース）の一般論に広げられる
-- **要確認**: 実装の正規化ルールをコードで確認してから書く
-- **根拠**: `0982064` `177d8c5`
+# C. 帳票の見た目 — Excel / Word を人に配れる形にする
 
-## 12. 【⚠️】ストリートビューが社内画面で403になる（Embed専用キー）
+**17.** ✅〔不動産〕**Excelに貼った写真が縦に潰れる**（`maisoku-converter`）
+列幅→ptの換算が `幅×7px` で**2割狭く**、`TwoCellAnchor` がセル範囲まで引き伸ばしていた。
+Excel に実測させた **`_PT_PER_CHAR = 6.0`** と **`OneCellAnchor`（実寸をEMUで固定）** へ。
+実測 帯1150.00pt / 画像1149.75pt・縦横比0.8141。
+→ `46ce8c7`
 
-- **素材**: Google Maps 連携（`jyuusetsu-research` ほか・不動産・3媒体可）
-- **内容**: 127.0.0.1 の社内画面でストリートビューが403。**Embed専用キーを作って解消**
-- **あわせて書ける**: 用途地域が「キーはあるのに常に空」だった件（**XKT001 と XKT002 の取り違え**）
-- **要確認**: 現在のキー構成と、公開して差し支えない範囲（**キーそのものは絶対に載せない**）
-- **根拠**: `f77f76a` `539b1ed`、メモリ `reference_google_maps_api.md` `reference_reinfolib_api.md`
+**18.** ✅〔不動産〕**openpyxl の内部APIを触ったら、Excelが「修復」して題字が消えた**（`chatwork-ai-manager`）
+列幅の単位を合わせようと `wb._named_styles["Normal"].font` を書き換えたのが原因。
+→ `chatwork-ai-manager/SESSION_LOG.md:201`
 
-## 13. 【⚠️】旧Word(.doc)を、表を壊さずに .docx へ変換する
+**19.** ✅〔不動産〕**Wordの表に罫線が出ない**（`chatwork-ai-manager`）
+`Table Grid` スタイルの解釈が**ビューア依存**。`w:tblBorders` を直接書く＋`autofit = False`。
+→ `chatwork-ai-manager/SESSION_LOG.md:270`
 
-- **素材**: `jyuusetsu-research`（公式書式14本の変換・不動産・3媒体可）
-- **内容**: `python-docx` は `.doc` を読めないため公式書式14本だけ流し込みができなかった。
-  RTFのエスケープ（`\'xx` の連なり）を **CP932 として解釈し直して `\uNNNN` に書き換える**処理を書いた
-- **要確認**: 実装の現状（どこまで自動化したか）
-- **根拠**: `9aaf254`
+**20.** ✅〔不動産〕**Wordのページ末尾に `□` が残る**（`chatwork-ai-manager`）
+`add_page_break()` が空段落を足し、直前の箇条書きスタイルを引き継いでいた。
+見出し段落の `page_break_before` へ。あわせて箇条書きのぶら下げインデント。
+→ `chatwork-ai-manager/SESSION_LOG.md:274-279`
 
-## 14. 【⚠️】公開リポジトリに個人情報が入っていた（差出人マスタ）
+**21.** 🔍〔不動産〕**帳票を「A4 1枚」に収め続ける**（`restoration-calculator`）
+文字切れ・行間・縦フィット・項目追加のたびの調整。17番と9本目（行の高さ）に続く帳票三部作の3本目。
+→ `f9d7407` `b60afd4` `91cc68a`、`services/pledge_export_service.py`
 
-- **素材**: `soufu-generator` / `soufu-maker`（不動産・3媒体可）
-- **内容**: `senders.json` に**自宅住所と携帯番号**が入ったまま public リポジトリにあった。
-  雛形だけを git に置き、実データは `senders.local.json`（gitignore）へ分離。
-  **git 履歴には残る**ので、そこをどう扱ったかまで書けると誠実な記事になる
-- **要確認**: 履歴の扱いを事実どおりに（消していないなら「消していない」と書く）
-- **根拠**: `97103d8`、直下 TODO.md の 2026-08-23 の節
+**22.** ⚠️〔不動産〕**直すと今まで配った帳票の見た目が変わる、という理由で直していないバグ**（`maisoku-converter`）
+帯の「建設業免許番号」が横向きのとき担当者欄へはみ出す。**直せるのに直さない判断**を書ける珍しい題材。
+→ `maisoku-converter/SESSION_LOG.md:197`
 
-## 15. 【🔍】帳票を「A4 1枚」に収め続ける
+**23.** ✅〔不動産〕**スライダーの表示が 0.005 なのに 0.01 と出る**（`maisoku-converter`）
+`st.slider` の既定書式が小数2桁。刻みを 0.005 にしたので丸められていた。`format="%.3f"`。
+→ `maisoku-converter/SESSION_LOG.md:260`
 
-- **素材**: `restoration-calculator`（退去時の確認書・不動産・3媒体可）
-- **内容**: 文字切れ・行間調整・縦フィット・項目追加のたびに1枚に収める調整を繰り返している。
-  9本目（行の高さ）と2番（画像の実寸）に続く**帳票レイアウト三部作**の3本目にできる
-- **要確認**: 実装（`services/pledge_export_service.py`）を読み、**測った値**で書く
-- **根拠**: `f9d7407` `b60afd4` `91cc68a` `ed27b18`
+---
 
-## 16. 【✅】LINEが無反応になる本当の理由（無料枠切れ）
+# D. 紙を読む — PDF・公式書式・謄本
 
-- **素材**: `chatwork-ai-manager`（不動産・3媒体可）
-- **症状**: LINEに送っても何も返ってこない。ログにもエラーが出ない
-- **原因**: LINE プッシュの**月間無料枠切れ**（429）
-- **直し方**: 残通数を日次で見張る／push が失敗したら**Chatwork へ事実を知らせる**
-  （黙って消えると利用者には「無反応」にしか見えない）
-- **根拠**: `efe224b`
+**24.** ✅〔不動産〕**実物の謄本で10項目中0項目しか取れない**（`jyuusetsu-research`）
+合成テストでは通っていた。登記事項証明書は**罫線アート（`┏━━┯┃`）の表**で、見出しが
+`所 在` `① 地 番` のように**半角スペース混じり**。自前パーサは全角スペース前提だった。
+→ `jyuusetsu-research/SESSION_LOG.md:393`
 
-## 17. 【✅】休業日の判定が、別PCのパスを見たまま黙って無効化されていた
+**25.** ✅〔不動産〕**正規表現が罫線を値として拾う**（`jyuusetsu-research`）
+種類の欄に `│ ② 構 造 │ ③ 床 面 積 ㎡ │ 原因及びその日付…` が入り、本体の値まで上書きしていた。
+`re.search` で1件目に決め打ちすると見出し行を拾って終わる。
+→ `jyuusetsu-research/SESSION_LOG.md:24`
 
-- **素材**: `chatwork-ai-manager`（不動産・3媒体可）
-- **症状**: 休業日にも催促が飛ぶ。エラーは出ない
-- **原因**: 設定に**サブPCから見た Google Drive のパス**が入っており、メインPCには存在しない。
-  `is_holiday()` は**読めないとき False（＝営業日）を返す**設計だった
-- **直し方**: 実体のあるパスへ付け替え、106日を取り込み。**既定値を安全側に倒す**議論を書く
-- **根拠**: 直下 TODO.md 2026-08-24 の節
+**26.** ✅〔不動産〕**Excelの見出しから入力欄を割り出す（11/17 → 17/17）**（`jyuusetsu-research`）
+①見出しは左だけでなく**上の列見出し**にもある ②**結合セルは左上以外の値が None**。
+上下両方を探し、結合セルの左上を解決する索引を作った。
+→ `jyuusetsu-research/SESSION_LOG.md:445`
 
-## 18. 【✅】launchd の常駐は、run.sh を直しても入れ替わらない／kickstart では引数が反映されない
+**27.** ✅〔不動産〕**同梱テンプレートに他社の実案件が残っていた**（`jyuusetsu-research`）
+白紙だと思っていた `templates/*.xlsx` 4本が記入済みファイル。書式は3〜9項目しか上書きしないので、
+**残りが前案件のまま出る**。作った書類に身に覚えのない会社名が載る事故。
+→ `jyuusetsu-research/SESSION_LOG.md:440`
 
-- **素材**: 常駐まわり全般（`soufu-generator` 8518・8526/8527 の実例・不動産カテゴリで可）
-- **内容**: ①`run.sh` を直しても plist が別コマンドを叩いていれば効かない
-  ②**`launchctl kickstart -k` はロード済みの定義で再起動するだけ**で、ディスクの plist を読み直さない。
-  PIDだけ変わって中身が古いまま＝いちばん気づきにくい → `bootout` → `bootstrap` が要る
-- **記事の芯**: 4本目（自動再起動が失敗を隠す）と対になる「**再起動したのに古い**」シリーズ
-- **根拠**: `357083c`、CLAUDE.md の該当節、2026-08-24 の 8518 の実例
+**28.** ✅〔不動産〕**チェック欄の「外側の□」を指していた**（`jyuusetsu-research`）
+災害3項目の割り当て先が、中身が `□` のセルで、しかも3項目とも「外」側。公式書式25本すべてで実測して判明。
+→ `jyuusetsu-research/SESSION_LOG.md:198`
 
-## 19. 【✅】Streamlit は指定しないと 0.0.0.0（＝LANに公開）
+**29.** ✅〔不動産〕**土地専用の書式には「土地／建物」の目印が無い**（`jyuusetsu-research`）
+1つしかないので書かれていない。シート名から側を決める。**「無いことが情報」**という話。
+→ `jyuusetsu-research/SESSION_LOG.md:210`
 
-- **素材**: 全アプリ横断（不動産カテゴリで可）
-- **内容**: 「指定しなければ localhost」ではない。コメントに「ローカル」と書いてあるアプリが
-  実際にはLANへ公開されていた（保有明細・資産額を含む画面もあった）
-- **根拠**: `8febef2` `357083c`、メモリ `reference_streamlit_bind.md`
+**30.** ✅〔不動産〕**同名の書式が3つあり、先に見つかったほうを拾っていた**（`jyuusetsu-research`）
+一般売主／宅建業者売主／消費者契約用。媒介が大半なので**一般売主が正しい既定**。
+賃貸側では部分一致で「サブリース住宅賃貸借契約書」を拾っていた（→前方一致を先に見る）。
+→ `jyuusetsu-research/SESSION_LOG.md:265` `347`
 
-## 20. 【⚠️・ツール分類＝本体のみ】iCloud は認証前に UIDPLUS を名乗らない
+**31.** ⚠️〔不動産〕**旧Word(.doc)を、表を壊さずに .docx へ変換する**（`jyuusetsu-research`）
+`python-docx` は `.doc` を読めない。AppleScript の `save as` は現行Wordで `-1708`。
+`textutil`→RTF→`pandoc` に切り替え、`\'xx`(CP932) だけを Unicode エスケープに変換。
+→ `9aaf254`、`jyuusetsu-research/SESSION_LOG.md:405`
 
-- **素材**: `mail-archiver`（ツール → **本体のみ。Zenn/note には出さない**）
-- **内容**: IMAP の capability 判定を**ログイン後に取り直す**必要があった（実測）
-- **根拠**: `aeb509b`
+**32.** ⚠️〔不動産〕**PDF・画像の向きを、読ませる前に自動で直す**（全アプリ横断の共有モジュール）
+スキャンPDFが横向き・逆さのままAIに入ると精度が落ちる。`pdf_orient.py` を全アプリへ。
+→ `b77e692`、メモリ `reference_pdf_orient.md`
+
+**33.** ⚠️〔不動産〕**旧Excel(.xls)から画像を取り出す**（`kato-flyer` / `maisoku-converter`）
+OLEセクタとBIFFの CONTINUE、**二段の分断**を解く。LibreOffice を使わない実装。
+→ メモリ `reference_xls_images.md`
+
+---
+
+# E. AIを道具として使う — モデル・SDK・プロンプト
+
+**34.** ✅〔不動産〕**`--allowedTools` は自動承認リストであって禁止リストではない**（`agent-platform`）★セキュリティ
+「入れなければ Bash は使えない」と思っていたが、**実際には実行できた**（`echo TESTOK` が通る）。
+権限設計の話として単独で強い。
+→ `agent-platform/SESSION_LOG.md:315`
+
+**35.** ✅〔不動産〕**モデルが提供終了して 404 になる**（`agent-platform`）
+`gemini-2.0-flash is no longer available`。キーは有効なので認証エラーと紛らわしい。
+使えるモデルは `client.models.list()` で確認する。
+→ `agent-platform/SESSION_LOG.md:243`
+
+**36.** ✅〔不動産〕**SDKごと廃止された**（`agent-platform`）
+`google-generativeai` が提供終了。`google-genai` へ全面移行（呼び方も変わる）。
+→ `agent-platform/SESSION_LOG.md:246`
+
+**37.** ✅〔不動産〕**「思考」にも出力トークンを使うモデル**（`agent-platform`）
+長いプロンプトで `max_output_tokens=4000` だと思考で使い切り、**本文が空か途中で切れる**。
+JSONが壊れて別経路へフォールバックし、遅くなっていた。
+→ `agent-platform/SESSION_LOG.md:249`
+
+**38.** ✅〔不動産〕**タイムアウトを指定しないと待ち続ける**（`agent-platform`）
+画像生成のテストが5分以上ハング。`types.HttpOptions(timeout=…)` を指定。**1枚60秒**で成功。
+→ `agent-platform/SESSION_LOG.md:254`
+
+**39.** ✅〔不動産〕**AIが書いたファイルの末尾にタグが混入していた**（`agent-platform`）
+全31ファイルの末尾に `</content>`。`pip install -r requirements.txt` が
+`Invalid requirement: '</content>'` で失敗して発覚。
+→ `agent-platform/SESSION_LOG.md:239`
+
+**40.** ✅〔不動産〕**「本文に書くな」と言っていなかったので内部記号が漏れた**（`chatwork-ai-manager`）
+日報の要約に「（★発言0件）」。★が本人印であることは伝えたが、出力するなとは書いていなかった。
+→ `chatwork-ai-manager/SESSION_LOG.md:340`
+
+**41.** ✅〔不動産〕**設定ファイルにコメントを書いたら壊れた**（`agent-platform`）
+`mcp.json` に `_comment` を足したら `Invalid MCP configuration`。厳密JSONのみ。説明は別ファイルへ。
+→ `agent-platform/SESSION_LOG.md:313`
+
+---
+
+# F. スマホ・ブラウザ
+
+**42.** ✅〔不動産〕**スマホから写真を送ると3枚目で必ず失敗する**（`shorui-mobile`）★本命
+①Vercel のボディ上限 **4.5MB** ②**iOS Safari は FormData のファイル名に非ASCIIが混ざると例外**
+③`createImageBitmap` が **iOS Safari では失敗しやすく**、失敗時に原本を送るので縮小されない。
+縮小（長辺1600px・品質0.72）だけでは枚数次第で超えるので、**1枚＝1リクエストに分割**して
+束IDでサーバー側の1フォルダに集約。
+→ `30526bd` `7eeec42` `5b1285b` `f4d724d`
+
+**43.** ✅〔ツール〕**iOSはキーボードが出るとWebView自体が縮む**（`scrapmemo-petapeta`）
+`innerHeight` 874→538。編集シートの上部が画面外へ出て触れなくなる。
+**前回の直しは Safari だけで確認していて、実機で再発**したという経緯まで書ける。
+→ `4b717e5`、`scrapmemo-petapeta/SESSION_LOG.md:126`
+
+**44.** ✅〔ツール〕**`npx cap sync` だけでは `www/` が古いまま**（`scrapmemo-petapeta`）
+`npm run sync`（build:web → cap sync）が正。md5 不一致で発覚。
+→ `scrapmemo-petapeta/SESSION_LOG.md:35`
+
+**45.** ✅〔ツール〕**Capacitor 8 は SPM なので `.xcworkspace` が無い**（`scrapmemo-petapeta`）
+`xcodebuild -workspace` が「存在しない」で失敗。`-project` を使う。
+→ `scrapmemo-petapeta/SESSION_LOG.md:38`
+
+**46.** ✅〔ツール〕**再配信でビルド番号を上げず、修正前のビルドが審査を通った**（`photo-remake` / `neon-blocks`）
+2026-07-22 の実事故。`ios-build-guard.sh` で衝突チェックする運用に。
+→ メモリ `feedback_ios_build_bump.md`、CLAUDE.md の該当節
+
+**47.** ✅〔不動産〕**Chromeの自動ダウンロード制限で、5本中1本しか落ちない**（`jyuusetsu-research`）
+一括ダウンロードが途中で止まる。**自動では回避しない**（人が1回「常に許可」を押す）と決めた話。
+→ `jyuusetsu-research/SESSION_LOG.md:448`
+
+---
+
+# G. 日本語のデータ
+
+**48.** ✅〔不動産〕**全角マイナス U+2212 で住所を分割できない**（`jyuusetsu-research`）
+`-－ー‐` は入れていたが「−」が抜けていた。**ハイフンに見える7種**を入れて解決。
+→ `jyuusetsu-research/SESSION_LOG.md:344`
+
+**49.** ⚠️〔不動産〕**FAX番号が全角・ハイフン混じりで検索に当たらない**（`tsuikyaku-crm`）
+電話・郵便番号・氏名の姓名間スペースまで広げて「日本語業務データの正規化」として書ける。
+→ `0982064` `177d8c5`
+
+**50.** ✅〔ツール〕**IMAPのフォルダ名が NFD で持たれていて一致しない**（`mail-archiver`）
+デコードは正しいのに「ポータル」と比較して不一致（`ホ`+`゚`）。表示名だけ NFC 正規化し、原本は触らない。
+→ `aeb509b`、`mail-archiver/SESSION_LOG.md:21`
+
+**51.** ✅〔不動産〕**住所文字列から正規表現で市区町村を抜くと「区」が落ちる**（`chatwork-ai-manager` / `jyuusetsu-research`）
+人口の括弧内が「大阪府大阪市」になり実データ（中央区）と食い違った。
+API が返す**正式名称**（`metaGetFlg=Y`）を使う。
+→ `jyuusetsu-research/SESSION_LOG.md:499`
+
+**52.** ✅〔不動産〕**日本語には語の区切りが無いので、法令名が前の語とくっつく**（`tokuyaku-generator`）
+「重要事項の説明は宅地建物取引業法第35条」が引けない。末尾2〜12文字の候補を長い順に当てて**完全一致**を採る。
+さらに `{2,30}` にしていたため**2文字の「民法」が条件を満たさなかった**。
+→ `tokuyaku-generator/SESSION_LOG.md:16-20`
+
+**53.** ✅〔不動産〕**ファイル名に「★要更新★」が付いてアプリが黙って古いデータを読む**（`parking-map` / `gyomu-manual`）
+共有フォルダでは**人が付ける目印がファイル名に入る**（★・全角空白・「競合コピー」）。
+固定パスで読むアプリは必ず壊れる。`gyomu-manual` は生成時に実ファイルを自動解決して回避している（対比に使える）。
+→ `d66c10e`、`gyomu-manual/generate.py:246`
+
+---
+
+# H. 外部API
+
+**54.** ⚠️〔不動産〕**ストリートビューが社内画面で403**（`jyuusetsu-research`）
+既存キーのHTTPリファラ制限が `daikyocorp.co.jp` 限定で、127.0.0.1 が許可外。
+**Maps Embed API だけに制限した専用キー**を新規作成（アプリ制限は付けない。ポートが変わるため）。
+→ `f77f76a`、`jyuusetsu-research/SESSION_LOG.md:451`
+
+**55.** ✅〔不動産〕**「キーはあるのに常に空」— APIの取り違えとズームの間引き**（`jyuusetsu-research`）
+用途地域が常に空だったのは **XKT001 と XKT002 の取り違え**。さらに、同じ地点でも
+**高ズームでは地物が間引かれる**（XKT014 は z14 で1件・z15 で0件）ので、
+**各レイヤで使えるいちばん粗いズーム**を使う。
+→ `539b1ed`、`jyuusetsu-research/SESSION_LOG.md:206`
+
+**56.** ✅〔不動産〕**APIが既に「%」付きで返すのに、こちらも付けて `80%%`**（`jyuusetsu-research`）
+`_with_percent()` で重複を防ぎ、`"60.0%"` は `60%` に正規化。小さいが誰でも踏む。
+→ `jyuusetsu-research/SESSION_LOG.md:490`
+
+**57.** ✅〔不動産〕**e-Gov は条の絞り込みができず全文を返す**（`tokuyaku-generator`）
+民法1.7MB・借地借家法1.4MB。初回が数十秒。`.egov-cache/` に7日キャッシュ。
+→ `tokuyaku-generator/SESSION_LOG.md:21`
+
+**58.** ✅〔ツール〕**GETは200なのに中身が空。POSTでないと返さない**（`onepiece-dex`）
+公式カードリストが 51KB（選択肢のみ）で返る。`POST` にすると 463KB。
+→ `onepiece-dex/SESSION_LOG.md:176`
+
+**59.** ✅〔ツール〕**相場データは「平均が空で最安だけ入る」ことがある**（`pokecard-dex`）
+取引平均だけを見ていたので481件が画面から消えた。しかもそのとき `trend` に **0 が入る**。
+→ `pokecard-dex/SESSION_LOG.md:64`
+
+---
+
+# I. データベースと並行処理
+
+**60.** ✅〔不動産〕**`executescript()` は実行前に暗黙COMMITする**（`keyline`）
+外側の `BEGIN` が消えてマイグレーションが失敗。`BEGIN`/`COMMIT` を**スクリプト文字列の中**に書く。
+適用記録のINSERTも同じスクリプトに入れて原子性を保つ。
+→ `keyline/SESSION_LOG.md:137`
+
+**61.** ✅〔不動産〕**時刻だけでは全順序を保証できない**（`keyline`）
+同一秒に貸出が2件入り `ORDER BY checkout_at` の順序が決まらない。
+**ミリ秒に上げても同一ミリ秒に2件入るので解決しない** → `ORDER BY checkout_at DESC, rowid DESC`。
+→ `keyline/SESSION_LOG.md:142`
+
+**62.** ✅〔ツール〕**`executescript()` は busy_timeout を無視する**（`onepiece-dex`）
+`database is locked` で落ちる。同じDBに `execute("BEGIN IMMEDIATE")` を投げたほうは**46秒待って成功**（実測）。
+60番と同じ関数の別の顔なので、2本立てにもできる。
+→ `onepiece-dex/SESSION_LOG.md:180`
+
+**63.** ✅〔ツール〕**Streamlit は再実行のたびに別スレッド**（`mail-archiver`）
+`@st.cache_resource` でSQLite接続を使い回して `ProgrammingError`。`check_same_thread=False`。
+→ `mail-archiver/SESSION_LOG.md:43`
+
+**64.** ✅〔不動産〕**DBの `datetime('now')` はUTC**（`chatwork-ai-manager`）
+生成時刻が「05:43」（実際は14:43）。**表示だけ +9h**し、DBの値は他テーブルと揃えたまま、という判断。
+→ `chatwork-ai-manager/SESSION_LOG.md:337`
+
+**65.** ✅〔ツール〕**キャッシュのキーが変わって「未照合」に戻る**（`kaitori-dm-maker`）
+空欄の〒を補完するとキー（〒＋住所）が変わる。補完時に**新しいキーにも同じ結果を置く**。
+→ `kaitori-dm-maker/SESSION_LOG.md:17`
+
+**66.** ✅〔ツール〕**2つの画面が同じ `session_state` キーを共有していた**（`onepiece-dex` / `pokecard-dex`）
+片方で選んだタブが、もう片方に無い値のまま残る。**相手のキーで自分のDBを引く**ところだった。
+→ `onepiece-dex/SESSION_LOG.md:22`
+
+---
+
+# 付録：検証・自動操作の落とし穴（記事1本にまとめられる小ネタ集）
+
+単独では弱いが、**「見たつもりで見ていなかった話」**として1本にまとめられる。
+
+- `./va.sh shot` の引数は**保存ファイル名でURLではない** → 開きっぱなしの古いタブを撮っていた（`maisoku` / `jyuusetsu`）
+- `input[type=file]` が複数あり、**サイドバーの会社ロゴ欄**に当たっていた → `>> nth=1`（`maisoku`）
+- pytest が**本物のCLIを呼んで**返ってこない → `conftest.py` で強制的に道具をoff（`agent-platform`）
+- Playwright は**50MB超のファイルを転送できない**（アプリ側の制限ではない）（`digital-shosai`）
+- `class="hidden"` の `input` にはファイルを渡せない → 一時的に表示してから（`digital-shosai`）
+- テキスト一致のセレクタが**本文に先にマッチ**し、「削除」ボタンでなく説明文を押していた（`digital-shosai`）
+- `smoke_test.py` をシステムPythonで動かして `ModuleNotFoundError`（`jyuusetsu`）
+- パスワード画面を見るために、**secrets を置かない symlink 複製**を作って起動した（`chatwork-ai-manager`）
+- zsh の `path` は `PATH` に連動する**特殊変数**で、`for path in ...` がPATHを破壊する（`keyline`）
+- Excel の PDF 書き出しが `-50`／オートメーション権限のダイアログが人の画面に出た（`maisoku`）
+- mp4 が `moov atom not found` → **書き出し途中だっただけ**。一時名で書いて rename。
+  ただし `.mp4.part` にすると **ffmpeg は拡張子でコンテナを決める**ので失敗（`agent-platform`）
+- 動画に音が無いと思ったら **Mac本体がミュート**だった（`agent-platform`）
 
 ---
 
 ## まだ掘っていない層（記録が薄く、書くならコードから）
 
 `handwriting-ocr` / `quote-generator`（別リポジトリ）/ `property-notice-generator` /
-`settlement-creator` / `image-resizer` / `file-finder` / `realestate-calc` / `gyomu-manual` /
-`owner-payout-tracker` / `memorandum-generator` / `soufu-maker` / `realestate-valuation`
+`settlement-creator` / `image-resizer` / `file-finder` / `realestate-calc` /
+`owner-payout-tracker` / `soufu-maker` / `realestate-valuation` / `building-manager` の一部
 
-これらは `SESSION_LOG.md` が無いか症状の記録が0〜1件。**題材が尽きたときに、
-コードを読んで「なぜこう作ったか」を掘り起こす**。先に上の20本を出すほうが速い。
+`SESSION_LOG.md` が無いか症状の記録が0〜1件。**上の66本を出し切ってから**、コードを読んで
+「なぜこう作ったか」を掘り起こす。ここから更に5〜8本は取れる見込み（未検証）。
 
-## 手持ちの深い鉱脈（1アプリで複数本）
+## 設計判断として書けるもの（不具合ではない題材）
 
-| アプリ | SESSION_LOG の「症状」件数 |
-|---|---|
-| `jyuusetsu-research`（AI重説） | 24 |
-| `chatwork-ai-manager` | 17 |
-| `agent-platform` | 17 |
-| `maisoku-converter` | 6 |
-| `keyline` | 5 |
-
-**同じアプリを続けて出さない**こと。上の20本と交互に混ぜる。
+- **作った編集機能を、あとから全部外した**（`building-manager`・表示専用へ。コードは可逆に残置）→ `fc28c47`
+- **PNGしか出せないエディタは翌日には使えない**（`madori-tracer`・保存/読込と自動保存を足した）→ `ff8f229`
+- **同じ処理の実体を2本持つと片方だけ直る**（共有モジュール化）→ `55be186` `95004e0`
+- **公開リポジトリに個人情報が入っていた**（`soufu-generator` の差出人マスタ）→ `97103d8`
+- **直下の共有モジュールを import できない**（`sys.path` にリポジトリ直下が無かった）→ `business-plan-generator`
