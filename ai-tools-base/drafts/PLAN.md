@@ -27,8 +27,7 @@
 | 17 | normalize-japanese-data | 48,49,50 | 不動産 | 📝 | ハイフン7種・全角半角・NFD（※再編：正規化に集約） |
 | 18 | japanese-no-word-boundary | 51,52,57 | 不動産 | 📝 | 語の区切りが無いので、市区町村名と法令名が切れない |
 | 19 | api-wrong-endpoint | 54,55,56 | 不動産 | 📝 | キーはあるのに常に空／%の二重付与 |
-| 21 | sqlite-transaction | 60,61 | 不動産 | ⬜ | executescript の暗黙COMMIT／時刻だけでは順序が決まらない（小説12話） |
-| 22 | utc-in-db | 64 | 不動産 | ⬜ | DBの now はUTC |
+| 21 | sqlite-transaction | 60,61,64 | 不動産 | 📝 | executescript の暗黙COMMIT／時刻だけでは順序が決まらない（小説12話） |
 | 23 | chrome-download-limit | 47 | 不動産 | ⬜ | 自動ダウンロードの制限は自動では回避しない |
 | 24 | python-of-launchd | 6 | 不動産 | ⬜ | 本番の常駐だけ違うPythonで動く（⚠️要確認） |
 | 25 | a4-one-page | 21 | 不動産 | ⬜ | 帳票をA4一枚に収め続ける（🔍コードから） |

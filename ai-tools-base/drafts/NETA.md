@@ -117,16 +117,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 
 # I. データベースと並行処理
 
-**60.** ✅〔不動産〕**`executescript()` は実行前に暗黙COMMITする**（`keyline`）
-外側の `BEGIN` が消えてマイグレーションが失敗。`BEGIN`/`COMMIT` を**スクリプト文字列の中**に書く。
-適用記録のINSERTも同じスクリプトに入れて原子性を保つ。
-→ `keyline/SESSION_LOG.md:137`
-
-**61.** ✅〔不動産〕**時刻だけでは全順序を保証できない**（`keyline`）
-同一秒に貸出が2件入り `ORDER BY checkout_at` の順序が決まらない。
-**ミリ秒に上げても同一ミリ秒に2件入るので解決しない** → `ORDER BY checkout_at DESC, rowid DESC`。
-→ `keyline/SESSION_LOG.md:142`
-
 **62.** ✅〔ツール〕**`executescript()` は busy_timeout を無視する**（`onepiece-dex`）
 `database is locked` で落ちる。同じDBに `execute("BEGIN IMMEDIATE")` を投げたほうは**46秒待って成功**（実測）。
 60番と同じ関数の別の顔なので、2本立てにもできる。
@@ -135,10 +125,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 **63.** ✅〔ツール〕**Streamlit は再実行のたびに別スレッド**（`mail-archiver`）
 `@st.cache_resource` でSQLite接続を使い回して `ProgrammingError`。`check_same_thread=False`。
 → `mail-archiver/SESSION_LOG.md:43`
-
-**64.** ✅〔不動産〕**DBの `datetime('now')` はUTC**（`chatwork-ai-manager`）
-生成時刻が「05:43」（実際は14:43）。**表示だけ +9h**し、DBの値は他テーブルと揃えたまま、という判断。
-→ `chatwork-ai-manager/SESSION_LOG.md:337`
 
 **65.** ✅〔ツール〕**キャッシュのキーが変わって「未照合」に戻る**（`kaitori-dm-maker`）
 空欄の〒を補完するとキー（〒＋住所）が変わる。補完時に**新しいキーにも同じ結果を置く**。

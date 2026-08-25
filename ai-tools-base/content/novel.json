@@ -61,6 +61,13 @@
     },
     {
       "book": "tsukuttemasu",
+      "no": 12,
+      "title": "善意の台帳",
+      "work": "sqlite-transaction",
+      "note": "誰がいつ鍵を持ち出したか。同じ時刻に2件並んだとき、どちらが先か"
+    },
+    {
+      "book": "tsukuttemasu",
       "no": 14,
       "title": "なんか動かない",
       "work": "ai-ticket-counter",
