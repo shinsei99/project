@@ -65,24 +65,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 権限設計の話として単独で強い。
 → `agent-platform/SESSION_LOG.md:315`
 
-**35.** ✅〔不動産〕**モデルが提供終了して 404 になる**（`agent-platform`）
-`gemini-2.0-flash is no longer available`。キーは有効なので認証エラーと紛らわしい。
-使えるモデルは `client.models.list()` で確認する。
-→ `agent-platform/SESSION_LOG.md:243`
-
-**36.** ✅〔不動産〕**SDKごと廃止された**（`agent-platform`）
-`google-generativeai` が提供終了。`google-genai` へ全面移行（呼び方も変わる）。
-→ `agent-platform/SESSION_LOG.md:246`
-
-**37.** ✅〔不動産〕**「思考」にも出力トークンを使うモデル**（`agent-platform`）
-長いプロンプトで `max_output_tokens=4000` だと思考で使い切り、**本文が空か途中で切れる**。
-JSONが壊れて別経路へフォールバックし、遅くなっていた。
-→ `agent-platform/SESSION_LOG.md:249`
-
-**38.** ✅〔不動産〕**タイムアウトを指定しないと待ち続ける**（`agent-platform`）
-画像生成のテストが5分以上ハング。`types.HttpOptions(timeout=…)` を指定。**1枚60秒**で成功。
-→ `agent-platform/SESSION_LOG.md:254`
-
 **39.** ✅〔不動産〕**AIが書いたファイルの末尾にタグが混入していた**（`agent-platform`）
 全31ファイルの末尾に `</content>`。`pip install -r requirements.txt` が
 `Invalid requirement: '</content>'` で失敗して発覚。
