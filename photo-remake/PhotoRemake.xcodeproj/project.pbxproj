@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		07072E89272FC7595405F8DE /* ArrowLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 043C282B6424C1B5885504D5 /* ArrowLayer.swift */; };
 		0996204C96D441A365C57AAA /* EditorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 444D335B197E041E7F8877A9 /* EditorState.swift */; };
+		0DFFD47EECD3957A3C3AD7B9 /* ShapeGeometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9E12BF1D6AF4FC1EE1B36BE /* ShapeGeometry.swift */; };
 		0EDE23AF128D38C12DD1D28B /* PhotoRemakeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F56286CB736F996D19B711CA /* PhotoRemakeApp.swift */; };
 		141C5EE22547BA9271921121 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C96E09CCE5663F700FCFB09 /* EditorView.swift */; };
 		1C3CD5C51B1485730F1A0C2F /* AnnotatedImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92E979AB258D94E7E05B3A84 /* AnnotatedImageView.swift */; };
@@ -18,6 +19,7 @@
 		6EB5B9A64F676CDA42688610 /* PhotoSaver.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8AF076A16DABB2DAA7ED460 /* PhotoSaver.swift */; };
 		7183825A86FE7821F8F23700 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7154A31C7BD5425544A0C2AE /* RootView.swift */; };
 		71F2A6DF3B6AF509233723B2 /* TextLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B3E1258FD7726AE5F2EF03A /* TextLayer.swift */; };
+		8270F5B1470DF60001CBB1EF /* ShapeStylePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88FCC3155AA5C8405A75AC1C /* ShapeStylePanel.swift */; };
 		849B43B73626234AA322BB41 /* MosaicStylePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EA4709100310EF46FC1FCC3 /* MosaicStylePanel.swift */; };
 		9F4CC6BE20A12FE86BC0A474 /* ImageUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB10F122C833B4BC5A12A97D /* ImageUtils.swift */; };
 		A03CED5C0F9E59CAA46A4609 /* MosaicLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4B7C280723F866C9B085362 /* MosaicLayer.swift */; };
@@ -31,6 +33,7 @@
 		C8399A49F810E33564137C23 /* TextStylePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D866B65269769B626458038 /* TextStylePanel.swift */; };
 		D739260C49334CB96152EBA0 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 769EEE594AAA3905C306B15E /* Assets.xcassets */; };
 		D86FEC1E0E1CDB0DC523DDF8 /* DebugSample.swift in Sources */ = {isa = PBXBuildFile; fileRef = E09F9FBBF03CA1BF0F32462C /* DebugSample.swift */; };
+		D8C081B499AA807163218927 /* ShapeLayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C491716F681942901EEA5E77 /* ShapeLayer.swift */; };
 		DA7634B4B27DE3DED7E1FFA5 /* Annotation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F06FD2AFA8F615EE3685F76 /* Annotation.swift */; };
 		DBCEBF18E8A8258D99D947A2 /* AdjustPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 452364545F555225E90048A5 /* AdjustPanel.swift */; };
 		E2C16C43C13BBFBA477149B1 /* CameraPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE3C8AED49C55132BC81D4C4 /* CameraPicker.swift */; };
@@ -52,10 +55,11 @@
 		548437E57A92F97F920D768C /* ArrowGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArrowGeometry.swift; sourceTree = "<group>"; };
 		69F8DB108FB75111C4A80A23 /* Handles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Handles.swift; sourceTree = "<group>"; };
 		7154A31C7BD5425544A0C2AE /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
-		7485941E4A674BA69701275E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		7485941E4A674BA69701275E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		769EEE594AAA3905C306B15E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7C96E09CCE5663F700FCFB09 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		7D866B65269769B626458038 /* TextStylePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextStylePanel.swift; sourceTree = "<group>"; };
+		88FCC3155AA5C8405A75AC1C /* ShapeStylePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeStylePanel.swift; sourceTree = "<group>"; };
 		92E979AB258D94E7E05B3A84 /* AnnotatedImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotatedImageView.swift; sourceTree = "<group>"; };
 		992D0ED81473F5E369809A3B /* ArrowStylePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArrowStylePanel.swift; sourceTree = "<group>"; };
 		9B3E1258FD7726AE5F2EF03A /* TextLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextLayer.swift; sourceTree = "<group>"; };
@@ -63,12 +67,14 @@
 		AB10F122C833B4BC5A12A97D /* ImageUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageUtils.swift; sourceTree = "<group>"; };
 		B4B7C280723F866C9B085362 /* MosaicLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MosaicLayer.swift; sourceTree = "<group>"; };
 		B8AF076A16DABB2DAA7ED460 /* PhotoSaver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoSaver.swift; sourceTree = "<group>"; };
+		C491716F681942901EEA5E77 /* ShapeLayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeLayer.swift; sourceTree = "<group>"; };
 		CE3C8AED49C55132BC81D4C4 /* CameraPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPicker.swift; sourceTree = "<group>"; };
 		CE5B52A9E41EB7BB2BBCD5F3 /* CropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CropView.swift; sourceTree = "<group>"; };
-		D0F9993778AB99B67CAA0ED5 /* PhotoRemake.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PhotoRemake.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D0F9993778AB99B67CAA0ED5 /* PhotoRemake.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = PhotoRemake.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D9794856B587E6D20E9B0F57 /* ImageProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageProcessor.swift; sourceTree = "<group>"; };
 		E09F9FBBF03CA1BF0F32462C /* DebugSample.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSample.swift; sourceTree = "<group>"; };
 		F56286CB736F996D19B711CA /* PhotoRemakeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoRemakeApp.swift; sourceTree = "<group>"; };
+		F9E12BF1D6AF4FC1EE1B36BE /* ShapeGeometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShapeGeometry.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -109,6 +115,8 @@
 				B4B7C280723F866C9B085362 /* MosaicLayer.swift */,
 				1EA4709100310EF46FC1FCC3 /* MosaicStylePanel.swift */,
 				7154A31C7BD5425544A0C2AE /* RootView.swift */,
+				C491716F681942901EEA5E77 /* ShapeLayer.swift */,
+				88FCC3155AA5C8405A75AC1C /* ShapeStylePanel.swift */,
 				9B3E1258FD7726AE5F2EF03A /* TextLayer.swift */,
 				7D866B65269769B626458038 /* TextStylePanel.swift */,
 			);
@@ -141,6 +149,7 @@
 				2D299D9ED6A64167A58B9504 /* ColorHex.swift */,
 				E09F9FBBF03CA1BF0F32462C /* DebugSample.swift */,
 				AB10F122C833B4BC5A12A97D /* ImageUtils.swift */,
+				F9E12BF1D6AF4FC1EE1B36BE /* ShapeGeometry.swift */,
 				1C6FF0DA8FBA510B17EE54AA /* TextRendering.swift */,
 			);
 			path = Support;
@@ -192,7 +201,9 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 2650;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = 0CC49D219F598D1B9A407594 /* Build configuration list for PBXProject "PhotoRemake" */;
 			developmentRegion = ja;
@@ -254,6 +265,9 @@
 				0EDE23AF128D38C12DD1D28B /* PhotoRemakeApp.swift in Sources */,
 				6EB5B9A64F676CDA42688610 /* PhotoSaver.swift in Sources */,
 				7183825A86FE7821F8F23700 /* RootView.swift in Sources */,
+				0DFFD47EECD3957A3C3AD7B9 /* ShapeGeometry.swift in Sources */,
+				D8C081B499AA807163218927 /* ShapeLayer.swift in Sources */,
+				8270F5B1470DF60001CBB1EF /* ShapeStylePanel.swift in Sources */,
 				71F2A6DF3B6AF509233723B2 /* TextLayer.swift in Sources */,
 				5B6FE59F2FD2DA920E5EDBDF /* TextRendering.swift in Sources */,
 				C8399A49F810E33564137C23 /* TextStylePanel.swift in Sources */,
@@ -322,12 +336,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 773DPMVW7Q;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -343,13 +355,12 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -415,12 +426,10 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 3;
+				CURRENT_PROJECT_VERSION = 4;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 773DPMVW7Q;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_USER_SCRIPT_SANDBOXING = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -430,12 +439,11 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
-				MARKETING_VERSION = 1.0.2;
+				MARKETING_VERSION = 1.1.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.0;

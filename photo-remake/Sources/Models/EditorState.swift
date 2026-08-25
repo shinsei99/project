@@ -55,7 +55,19 @@ final class EditorState: ObservableObject {
             var m = Annotation.mosaic(at: CGPoint(x: 0.72, y: 0.5))
             m.mosaicHalfW = 0.18; m.mosaicHalfH = 0.08
             annotations.append(m)
-            selectedID = m.id
+            var box = Annotation.shape(.roundedRect, at: CGPoint(x: 0.34, y: 0.72))
+            box.shapeHalfW = 0.22; box.shapeHalfH = 0.10
+            annotations.append(box)
+            var star = Annotation.shape(.star, at: CGPoint(x: 0.74, y: 0.22))
+            star.shapeDrawStyle = .both
+            star.colorHex = "#FFCC00"; star.strokeColorHex = "#FF3B30"
+            star.rotation = .degrees(12)
+            annotations.append(star)
+            var bubble = Annotation.shape(.bubble, at: CGPoint(x: 0.30, y: 0.16))
+            bubble.shapeDrawStyle = .fill
+            bubble.colorHex = "#007AFF"; bubble.shapeOpacity = 0.55
+            annotations.append(bubble)
+            selectedID = star.id
             refreshMosaicPreview()
         }
     }
@@ -107,6 +119,12 @@ final class EditorState: ObservableObject {
         annotations.append(a)
         selectedID = a.id
     }
+    func addShape(_ kind: ShapeKind) {
+        pushUndo()
+        let a = Annotation.shape(kind)
+        annotations.append(a)
+        selectedID = a.id
+    }
     func addMosaic() {
         pushUndo()
         let a = Annotation.mosaic()
@@ -127,6 +145,9 @@ final class EditorState: ObservableObject {
     }
 
     var hasMosaic: Bool { annotations.contains { $0.kind == .mosaic } }
+
+    /// 何か編集したか（写真の入れ替え前に確認を出すかの判定に使う）。
+    var hasEdits: Bool { !annotations.isEmpty || !adjustments.isIdentity || canUndo }
 
     // MARK: - モザイク・プレビュー
 
@@ -206,6 +227,10 @@ final class EditorState: ObservableObject {
             annotations[i].fontHeightFraction /= r.height   // 画像が小さくなる分、文字割合は拡大
             annotations[i].mosaicHalfW /= r.width
             annotations[i].mosaicHalfH /= r.height
+            annotations[i].shapeHalfW /= r.width
+            annotations[i].shapeHalfH /= r.height
+            // 枠線は画像の短辺基準なので、短辺の縮み分だけ割合を戻す
+            annotations[i].shapeLineWidthRatio /= min(r.width, r.height)
         }
         previewImage = previewBase
         schedulePreview()

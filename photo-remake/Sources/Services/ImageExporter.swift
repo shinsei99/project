@@ -55,6 +55,8 @@ enum ImageExporter {
             c.restoreGState()
         case .arrow:
             drawArrow(a, in: c, imageSize: imageSize)
+        case .shape:
+            drawShape(a, in: c, imageSize: imageSize)
         case .mosaic:
             break   // compose 側で処理
         }
@@ -75,6 +77,32 @@ enum ImageExporter {
         } else {
             ref.draw(in: r)
         }
+    }
+
+    private static func drawShape(_ a: Annotation, in c: CGContext, imageSize: CGSize) {
+        let w = max(1, a.shapeHalfW * imageSize.width * 2)
+        let h = max(1, a.shapeHalfH * imageSize.height * 2)
+        // 中心を原点に置いてから回転（プレビューの rotationEffect と一致）
+        let rect = CGRect(x: -w / 2, y: -h / 2, width: w, height: h)
+        let path = ShapeGeometry.path(a.shapeKind, in: rect)
+        let lw = max(1, a.shapeLineWidthRatio * min(imageSize.width, imageSize.height))
+
+        c.saveGState()
+        c.translateBy(x: a.position.x * imageSize.width, y: a.position.y * imageSize.height)
+        c.rotate(by: CGFloat(a.rotation.radians))
+        if a.shapeDrawStyle != .stroke {
+            c.addPath(path)
+            c.setFillColor(UIColor(hex: a.colorHex).withAlphaComponent(a.shapeOpacity).cgColor)
+            c.fillPath()
+        }
+        if a.shapeDrawStyle != .fill {
+            c.addPath(path)
+            c.setStrokeColor(UIColor(hex: a.strokeColorHex).cgColor)
+            c.setLineWidth(lw)
+            c.setLineJoin(.round)
+            c.strokePath()
+        }
+        c.restoreGState()
     }
 
     private static func drawArrow(_ a: Annotation, in c: CGContext, imageSize: CGSize) {

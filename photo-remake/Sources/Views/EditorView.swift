@@ -8,7 +8,11 @@ struct EditorView: View {
     @State private var showAdjust = false
     @State private var adjustSnapshot = Adjustments()
     @State private var showCrop = false
-    @State private var showHelp = false
+    /// シートは1つの modifier で出し分ける（.sheet を複数積むと出ないことがあるため）。
+    private enum ActiveSheet: Int, Identifiable { case help, shapePicker; var id: Int { rawValue } }
+    @State private var activeSheet: ActiveSheet?
+    /// 「写真」ボタン誤タップ対策の確認
+    @State private var confirmNewPhoto = false
     @State private var saving = false
     @State private var saveMessage: String?
 
@@ -47,6 +51,13 @@ struct EditorView: View {
             }
         }
         .background(Color(hex: "#0E0E14").ignoresSafeArea())
+        .task {
+            #if DEBUG
+            if DebugSample.exportsOnLaunch {
+                DebugSample.writeExport(await state.renderFinalImage())
+            }
+            #endif
+        }
         .overlay { if saving { savingOverlay } }
         .fullScreenCover(isPresented: $showAdjust) {
             AdjustPanel(state: state, snapshot: adjustSnapshot)
@@ -54,7 +65,21 @@ struct EditorView: View {
         .fullScreenCover(isPresented: $showCrop) {
             CropView(state: state)
         }
-        .sheet(isPresented: $showHelp) { HelpView() }
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .help:
+                HelpView()
+            case .shapePicker:
+                ShapePickerView { state.addShape($0) }
+                    .presentationDetents([.medium, .large])
+            }
+        }
+        .confirmationDialog("写真を選び直しますか？", isPresented: $confirmNewPhoto, titleVisibility: .visible) {
+            Button("写真を選び直す", role: .destructive) { onNewPhoto() }
+            Button("編集を続ける", role: .cancel) {}
+        } message: {
+            Text("いま編集中の内容（文字・図形・矢印・モザイク・補正）は保存されずに消えます。")
+        }
         .fullScreenCover(isPresented: $showTextInput) {
             TextInputView(text: $draftText, align: $draftAlign,
                           onCancel: { closeTextInput() },
@@ -79,12 +104,15 @@ struct EditorView: View {
 
     private var topBar: some View {
         HStack {
-            Button { onNewPhoto() } label: {
+            Button {
+                if state.hasEdits { confirmNewPhoto = true } else { onNewPhoto() }
+            } label: {
                 Label("写真", systemImage: "photo").labelStyle(.titleAndIcon)
             }
             Spacer()
             Menu {
                 Button { startNewText() } label: { Label("文字を追加", systemImage: "textformat") }
+                Button { activeSheet = .shapePicker } label: { Label("図形を追加", systemImage: "square.on.circle") }
                 Button { state.addArrow() } label: { Label("矢印を追加", systemImage: "arrow.up.left") }
                 Button { state.addMosaic() } label: { Label("モザイクを追加", systemImage: "square.grid.3x3.fill") }
             } label: {
@@ -93,7 +121,7 @@ struct EditorView: View {
             Spacer()
             Button { state.undo() } label: { Image(systemName: "arrow.uturn.backward") }
                 .disabled(!state.canUndo)
-            Button { showHelp = true } label: { Image(systemName: "questionmark.circle") }
+            Button { activeSheet = .help } label: { Image(systemName: "questionmark.circle") }
             Spacer()
             Button { save() } label: { Text("保存").fontWeight(.semibold) }
         }
@@ -108,7 +136,7 @@ struct EditorView: View {
             selectedPanel(for: sel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         } else {
-            Text("要素をタップで選択・操作。文字・矢印・モザイクは下のパレットから追加。↩︎で元に戻す。")
+            Text("要素をタップで選択・操作。文字・図形・矢印・モザイクは下のパレットから追加。↩︎で元に戻す。")
                 .font(.caption).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 28)
@@ -126,6 +154,10 @@ struct EditorView: View {
             if let b = state.binding(for: sel.id) {
                 ArrowStylePanel(annotation: b, onDelete: { state.deleteSelected() })
             }
+        case .shape:
+            if let b = state.binding(for: sel.id) {
+                ShapeStylePanel(annotation: b, onDelete: { state.deleteSelected() })
+            }
         case .mosaic:
             MosaicStylePanel(state: state, onDelete: { state.deleteSelected() })
         }
@@ -134,6 +166,7 @@ struct EditorView: View {
     private var globalBar: some View {
         HStack(spacing: 0) {
             ToolTabButton(title: "文字", systemImage: "textformat", isActive: false) { startNewText() }
+            ToolTabButton(title: "図形", systemImage: "square.on.circle", isActive: false) { activeSheet = .shapePicker }
             ToolTabButton(title: "矢印", systemImage: "arrow.up.left", isActive: false) { state.addArrow() }
             ToolTabButton(title: "モザイク", systemImage: "square.grid.3x3.fill", isActive: false) { state.addMosaic() }
             ToolTabButton(title: "調整", systemImage: "slider.horizontal.3",
@@ -283,10 +316,15 @@ struct HelpView: View {
         NavigationStack {
             List {
                 Section("基本") {
-                    Label("上部「追加」から文字・矢印を置けます", systemImage: "plus.circle")
+                    Label("下のパレット（または上部「追加」）から文字・図形・矢印・モザイクを置けます", systemImage: "plus.circle")
                     Label("指1本でドラッグ＝移動", systemImage: "hand.draw")
                     Label("2本指でピンチ＝拡大・回転", systemImage: "arrow.up.left.and.arrow.down.right")
                     Label("要素をタップ＝選択、下のパネルで装飾", systemImage: "hand.tap")
+                }
+                Section("図形") {
+                    Label("四角・丸・三角・星・吹き出しなど12種類", systemImage: "square.on.circle")
+                    Label("「色」で塗り・枠線を別々に指定。どちらも「なし」にできます", systemImage: "paintpalette")
+                    Label("右下ハンドル＝大きさ、右上ハンドル＝回転", systemImage: "arrow.triangle.2.circlepath")
                 }
                 Section("補正") {
                     Label("「調整」で明るさ・コントラスト・鮮やかさ・シャープ・ノイズ除去", systemImage: "slider.horizontal.3")

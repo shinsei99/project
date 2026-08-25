@@ -8,3 +8,6 @@ DerivedData/
 xcuserdata/
 *.swiftpm/
 .swiftpm/
+
+# Claude Code の Visual Agent が撮った画面（コミットしない）
+.see/

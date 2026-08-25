@@ -4,6 +4,16 @@ import UIKit
 /// DEBUG時、環境変数 PM_SAMPLE=1 で起動するとサンプル画像＋注釈でエディタを開く（動作確認用）。
 enum DebugSample {
     static var isEnabled: Bool { ProcessInfo.processInfo.environment["PM_SAMPLE"] == "1" }
+    /// PM_EXPORT=1 なら起動直後に書き出し結果を Documents/export.png へ保存する（プレビューとの一致確認用）。
+    static var exportsOnLaunch: Bool { ProcessInfo.processInfo.environment["PM_EXPORT"] == "1" }
+
+    static func writeExport(_ image: UIImage) {
+        guard let data = image.pngData(),
+              let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first
+        else { return }
+        try? data.write(to: dir.appendingPathComponent("export.png"))
+        print("[PM_EXPORT] wrote export.png")
+    }
 
     static func image() -> UIImage {
         let size = CGSize(width: 1200, height: 1600)
