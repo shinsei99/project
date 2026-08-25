@@ -20,8 +20,7 @@
 | 9 | office-report-layout | 18,19,20 | 不動産 | 📝 | Excelが修復扱い・Wordの罫線・末尾の□ |
 | 10 | excel-image-aspect | 17,22,23 | 不動産 | 📝 | 写真が縦に潰れる／直さないと決めたバグ／表示の丸め |
 | 11 | form-field-detection | 24,26,28,29,30 | 不動産 | 📝 | 公式書式の入力欄をどう当てるか |
-| 12 | regex-picks-ruled-lines | 25 | 不動産 | ⬜ | 正規表現が罫線を値として拾う |
-| 13 | template-had-real-case | 27 | 不動産 | ⬜ | 同梱テンプレに他社の実案件が残っていた |
+| 12 | leftover-in-output | 25,27 | 不動産 | 📝 | 出力に前の案件が残る（雛形／代替処理）※12と13を束ねた |
 | 14 | legacy-office-convert | 31,32,33 | 不動産 | ⬜ | 旧 .doc/.xls と、向きの自動補正 |
 | 15 | model-lifetime | 35,36,37,38 | 不動産 | ⬜ | モデルとSDKの寿命・思考トークン・タイムアウト |
 | 16 | generated-text-leaks | 39,40,41 | 不動産 | ⬜ | 生成物に混じる内部記号・設定ファイルのコメント |

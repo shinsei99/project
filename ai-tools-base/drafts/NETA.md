@@ -56,16 +56,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 
 # D. 紙を読む — PDF・公式書式・謄本
 
-**25.** ✅〔不動産〕**正規表現が罫線を値として拾う**（`jyuusetsu-research`）
-種類の欄に `│ ② 構 造 │ ③ 床 面 積 ㎡ │ 原因及びその日付…` が入り、本体の値まで上書きしていた。
-`re.search` で1件目に決め打ちすると見出し行を拾って終わる。
-→ `jyuusetsu-research/SESSION_LOG.md:24`
-
-**27.** ✅〔不動産〕**同梱テンプレートに他社の実案件が残っていた**（`jyuusetsu-research`）
-白紙だと思っていた `templates/*.xlsx` 4本が記入済みファイル。書式は3〜9項目しか上書きしないので、
-**残りが前案件のまま出る**。作った書類に身に覚えのない会社名が載る事故。
-→ `jyuusetsu-research/SESSION_LOG.md:440`
-
 **31.** ⚠️〔不動産〕**旧Word(.doc)を、表を壊さずに .docx へ変換する**（`jyuusetsu-research`）
 `python-docx` は `.doc` を読めない。AppleScript の `save as` は現行Wordで `-1708`。
 `textutil`→RTF→`pandoc` に切り替え、`\'xx`(CP932) だけを Unicode エスケープに変換。
