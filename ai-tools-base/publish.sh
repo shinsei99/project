@@ -2,7 +2,9 @@
 # AIツールベース — 3媒体（本体サイト / Zenn / note）を1か所から更新する。
 #
 #   ./publish.sh status          いま3媒体がどうなっているかを表示（まずこれ）
+#   ./publish.sh queue           ネタ帳の在庫と、次に書く候補（drafts/NETA.md を読む）
 #   ./publish.sh site            本体サイトを本番へデプロイ（Vercel・手動デプロイ）
+#   ./publish.sh zenn-schedule   Zenn の記事に毎日22:30の公開予約を振る（既定はドライラン）
 #   ./publish.sh zenn            articles/ を push して Zenn へ反映
 #   ./publish.sh note <名前>     note 用のHTMLをクリップボードへ（本文欄で ⌘V）
 #
@@ -49,6 +51,16 @@ case "${1:-status}" in
     echo "  貼り付けは ./publish.sh note <名前>（Markdownは効かないのでHTMLで貼る）"
     ;;
 
+  queue)
+    /usr/bin/python3 scripts/queue.py "${@:2}"
+    ;;
+
+  zenn-schedule)
+    # ★Zenn の公開日時は一度きりで変更できない。ドライランで日付を見てから --write。
+    #   書き込むのはローカルだけで、push は ./publish.sh zenn（人の操作）に任せる。
+    /usr/bin/python3 scripts/zenn_schedule.py "${@:2}"
+    ;;
+
   site)
     # 出力を捨てないこと。最後に Aliased … が出るのを目で見る（過去に握りつぶして
     # デプロイできていないのに成功と誤認した）
@@ -83,6 +95,6 @@ case "${1:-status}" in
     ;;
 
   *)
-    sed -n '2,14p' "$0"
+    sed -n '2,16p' "$0"
     ;;
 esac
