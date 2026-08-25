@@ -3,7 +3,8 @@ title: "「直した」と「反映された」は別。常駐とビルドで4�
 emoji: "🔁"
 type: "tech"
 topics: ["launchd", "streamlit", "macos", "運用", "claudecode"]
-published: false
+published: true
+published_at: 2026-08-27 22:30
 ---
 
 社内向けのアプリを30本ほど、Mac 1台に常時起動させています。

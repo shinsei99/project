@@ -3,7 +3,8 @@ title: "モデルにもSDKにも寿命がある。生成AIを業務に組み込�
 emoji: "⏳"
 type: "tech"
 topics: ["python", "生成ai", "sdk", "運用", "claudecode"]
-published: false
+published: true
+published_at: 2026-09-02 22:30
 ---
 
 企画から動画まで一式を自動生成するパイプラインを社内で動かしています。

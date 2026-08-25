@@ -3,7 +3,8 @@ title: "本番だけ違うものが動いていた。固定パスと、launchd �
 emoji: "🏭"
 type: "tech"
 topics: ["python", "launchd", "macos", "運用", "claudecode"]
-published: false
+published: true
+published_at: 2026-09-16 22:30
 ---
 
 同じリポジトリ、同じコードなのに、**PCによって挙動が違う**。

@@ -3,7 +3,8 @@ title: "共有フォルダを固定パスで読むと、いつか必ず古いデ
 emoji: "⭐"
 type: "tech"
 topics: ["python", "設計", "claudecode", "運用"]
-published: false
+published: true
+published_at: 2026-09-12 22:30
 ---
 
 駐車場の空き状況を、配置図の上に色で出すビューアを社内で動かしています。

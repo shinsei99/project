@@ -3,7 +3,8 @@ title: "キーは有効。通信も成功。それでも結果がいつも空だ
 emoji: "🗺️"
 type: "tech"
 topics: ["python", "api", "地図", "claudecode"]
-published: false
+published: true
+published_at: 2026-09-11 22:30
 ---
 
 物件の所在地から、用途地域・災害情報・周辺の統計をまとめて調べるツールを作っています。

@@ -3,7 +3,8 @@ title: "python-docx / openpyxl で「配れる書類」にするまでに潰し�
 emoji: "📄"
 type: "tech"
 topics: ["python", "pythondocx", "openpyxl", "word", "claudecode"]
-published: false
+published: true
+published_at: 2026-09-10 22:30
 ---
 
 AIエージェントが毎日18:30に業務日報を作ります。出力は Word と Excel で、そのまま人に配ります。

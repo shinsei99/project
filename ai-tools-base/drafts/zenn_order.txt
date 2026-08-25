@@ -1,0 +1,25 @@
+# Zenn の公開順（1行1slug・上から順に1日ずつ）。
+# 同じ系統（原因の種類）が続くと読むほうが飽きるので、章がばらけるように並べてある。
+# ここに無い記事は、この後ろにファイル名順で続く。
+deploy-not-reflected
+form-field-detection
+line-free-quota-silent
+excel-image-aspect
+japanese-no-word-boundary
+launchd-cannot-read-cloud
+model-lifetime
+a4-one-page
+kana-name-matching
+legacy-office-convert
+default-bind-0000
+leftover-in-output
+normalize-japanese-data
+exit-code-zero-partial
+office-report-layout
+api-wrong-endpoint
+stale-data-star-filename
+generated-text-leaks
+sqlite-transaction
+safe-default-on-unreadable
+env-differs-in-production
+chrome-download-limit

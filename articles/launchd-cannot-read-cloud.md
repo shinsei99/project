@@ -3,7 +3,8 @@ title: "launchd から起動すると CloudStorage が読めない。FDA を与�
 emoji: "🔐"
 type: "tech"
 topics: ["macos", "launchd", "python", "dropbox", "claudecode"]
-published: false
+published: true
+published_at: 2026-09-01 22:30
 ---
 
 紙の書類をスマホで撮ってクラウド同期フォルダへ送り、Mac側のアプリがそれを取り込む、という運用をしています。

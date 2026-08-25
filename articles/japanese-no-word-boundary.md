@@ -3,7 +3,8 @@ title: "日本語には語の区切りが無い。切り出すのをやめて、
 emoji: "🈁"
 type: "tech"
 topics: ["python", "正規表現", "日本語", "claudecode"]
-published: false
+published: true
+published_at: 2026-08-31 22:30
 ---
 
 契約書の特約条項をAIに書かせています。生成された文章に**実在しない法令名**が混じると困るので、

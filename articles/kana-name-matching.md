@@ -3,7 +3,8 @@ title: "例外は出ない。一致率だけが落ちる。任意依存の「静
 emoji: "🔇"
 type: "tech"
 topics: ["python", "streamlit", "claudecode", "設計"]
-published: false
+published: true
+published_at: 2026-09-04 22:30
 ---
 
 家賃の入金消込を自動化しています。銀行からダウンロードした入金データと、こちらの入金一覧Excelを

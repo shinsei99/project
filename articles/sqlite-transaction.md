@@ -3,7 +3,8 @@ title: "同じ秒に2件入ると順序が決まらない。精度を上げて�
 emoji: "🔑"
 type: "tech"
 topics: ["sqlite", "python", "設計", "claudecode"]
-published: false
+published: true
+published_at: 2026-09-14 22:30
 ---
 
 鍵と備品の貸出を、NFCタグをかざすだけで記録する台帳を作っています。

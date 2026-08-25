@@ -59,8 +59,21 @@ def main() -> None:
         start = dt.date.today() + dt.timedelta(days=1)
 
     live = published_slugs()
+
+    # 公開順は drafts/zenn_order.txt で決める（無ければファイル名順）。
+    # 同じ系統が続かないように並べたいので、順番を人が決められる形にしてある。
+    order_file = Path(__file__).resolve().parent.parent / "drafts" / "zenn_order.txt"
+    order = []
+    if order_file.exists():
+        order = [
+            ln.strip() for ln in order_file.read_text(encoding="utf-8").splitlines()
+            if ln.strip() and not ln.startswith("#")
+        ]
+    def sort_key(path):
+        return (order.index(path.stem) if path.stem in order else len(order), path.stem)
+
     todo, held = [], []
-    for f in sorted(ARTICLES.glob("*.md")):
+    for f in sorted(ARTICLES.glob("*.md"), key=sort_key):
         fm = front_matter(f.read_text(encoding="utf-8"))
         if f.stem in live:
             held.append((f.stem, "公開済み"))
