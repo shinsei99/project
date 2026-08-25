@@ -57,7 +57,8 @@ def _handle_event(ev):
     msg = ev.get("message", {})
     mtype = msg.get("type")
     # text＝ふつうの質問 / file＝Excel・PDF等の添付（2026-08-18対応）
-    if mtype not in ("text", "file"):
+    # image＝写真・スクリーンショット（claude visionで内容を読む・2026-08-25対応）
+    if mtype not in ("text", "file", "image"):
         return
     source = ev.get("source", {})
     user_id = source.get("userId")
@@ -102,6 +103,14 @@ def _handle_event(ev):
             line_client.reply(reply_token, f"「{fname}」を受け取りました。読んでいます…📄")
             reply_token = None            # reply_tokenは1回だけ。以降はpushで返す
         attach_note = attachments.read_line_file(msg.get("id"), fname)
+        text = attachments.with_attachments(text, attach_note)
+
+    # ── 画像（写真・スクリーンショット）を claude vision で読む ──
+    if mtype == "image":
+        if reply_token:
+            line_client.reply(reply_token, "画像を受け取りました。読んでいます…🖼")
+            reply_token = None            # reply_tokenは1回だけ。以降はpushで返す
+        attach_note = attachments.read_line_image(msg.get("id"))
         text = attachments.with_attachments(text, attach_note)
 
     # ── claudeが既に詰まっていると分かっている場合は、呼ばずに預かる ──

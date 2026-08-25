@@ -10,8 +10,10 @@
 - 落とすのは一時ディレクトリ。**読み終わったら必ず消す**（個人情報を残さない）。
 - 大きいファイルは落とさない・長い本文は切る（定額枠とタイムアウトを守るため）。
 
-制限（意図的）:
-- 画像だけは別扱い。OCRが要るので `services/ocr` 系の対象。ここでは名前だけ伝える。
+画像（LINEの写真・スクリーンショット等）は別ルート（`read_line_image`）で扱う。
+テキスト抽出器ではなく claude vision（`services/knowledge.ocr_pdf` / `streetview_tools` と
+同じ作法: 一時ファイルへ保存 → `--add-dir` + `Read` ツールで見せる）で内容を読む
+（TASK-20260825-006）。
 """
 from __future__ import annotations
 
@@ -29,6 +31,11 @@ MAX_BYTES = 20 * 1024 * 1024          # 20MB
 MAX_CHARS = 8000
 # 1メッセージあたりの最大ファイル数
 MAX_FILES = 3
+# LINE画像contentのContent-Typeから拡張子を決める（Readツールが認識できる形式にする）
+_IMAGE_EXT_BY_MIME = {
+    "image/jpeg": ".jpg", "image/jpg": ".jpg", "image/png": ".png",
+    "image/gif": ".gif", "image/webp": ".webp",
+}
 
 # Chatwork のファイル投稿は本文に `[download:123]名前.xlsx (12.3 KB)[/download]` が入る
 _DOWNLOAD_RE = re.compile(r"\[download:(\d+)\]([^\[]*?)(?:\s*\([^)]*\))?\[/download\]")
@@ -55,6 +62,23 @@ def _download(url: str, dest: str, headers: dict | None = None) -> int:
                 raise ValueError("大きすぎる")
             f.write(chunk)
     return size
+
+
+def _download_ctype(url: str, dest: str, headers: dict | None = None) -> str:
+    """_download と同じだが、レスポンスの Content-Type も返す（画像の拡張子判定用）。"""
+    req = urllib.request.Request(url, headers=headers or {})
+    with urllib.request.urlopen(req, timeout=60) as resp, open(dest, "wb") as f:
+        ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        size = 0
+        while True:
+            chunk = resp.read(64 * 1024)
+            if not chunk:
+                break
+            size += len(chunk)
+            if size > MAX_BYTES:
+                raise ValueError("大きすぎる")
+            f.write(chunk)
+    return ctype
 
 
 def _extract(path: str, name: str) -> str:
@@ -144,6 +168,54 @@ def read_line_file(message_id: str, name: str) -> str:
         return _describe(name, "", f"{MAX_BYTES // 1024 // 1024}MB を超えるので読みませんでした")
     except Exception as e:
         return _describe(name, "", f"読み取りに失敗: {type(e).__name__}")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _analyze_image(tmp_dir: str, filename: str) -> str | None:
+    """claude vision で画像1枚の内容を読む（`knowledge.ocr_pdf` / `streetview_tools` と同じ作法:
+    一時ファイルを --add-dir + Read ツールで見せる）。"""
+    from services.claude_client import ClaudeError, run_claude
+    prompt = (
+        f"次の画像ファイル（ディレクトリ {tmp_dir} 内の {filename}）を Read ツールで開いて見てください。"
+        "写っている内容を具体的に説明し、書かれている文字（見出し・数値・氏名・日付など）があれば"
+        "そのまま書き起こしてください。書類やスクリーンショットならその種類（請求書・契約書・"
+        "チャット画面など）も添えてください。判読できない場合は「判読できませんでした」と正直に"
+        "書いてください。"
+    )
+    try:
+        env = run_claude(prompt, model="sonnet", timeout=180, add_dir=tmp_dir, allow_read=True)
+    except ClaudeError:
+        return None
+    return (env.get("result") or "").strip() or None
+
+
+def read_line_image(message_id: str) -> str:
+    """LINE の画像メッセージ（写真・スクリーンショット）を claude vision で読む。
+
+    Excel/PDF等と違いテキスト抽出はできないので、`_analyze_image` で「写っている内容」と
+    「書かれている文字」を書き起こしてもらい、本文に足せる形にする。
+    """
+    token = config.get("line_channel_access_token")
+    if not token:
+        return _describe("画像", "", "LINEのアクセストークンが未設定")
+    tmp = tempfile.mkdtemp(prefix="cwai-img-")
+    try:
+        dest = os.path.join(tmp, "image")
+        ctype = _download_ctype(
+            f"https://api-data.line.me/v2/bot/message/{message_id}/content", dest,
+            headers={"Authorization": f"Bearer {token}"})
+        ext = _IMAGE_EXT_BY_MIME.get(ctype, ".jpg")
+        img_name = "image" + ext
+        os.rename(dest, os.path.join(tmp, img_name))
+        text = _analyze_image(tmp, img_name)
+        if text is None:
+            return _describe("画像", "", "画像認識(claude vision)に失敗しました")
+        return _describe("画像", text)
+    except ValueError:
+        return _describe("画像", "", f"{MAX_BYTES // 1024 // 1024}MB を超えるので読みませんでした")
+    except Exception as e:
+        return _describe("画像", "", f"読み取りに失敗: {type(e).__name__}")
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
 
