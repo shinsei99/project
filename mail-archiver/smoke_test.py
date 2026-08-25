@@ -173,6 +173,7 @@ def main():
 
     server = build_server()
     fake = FakeIMAP(server)
+    real_connect = iu.connect                  # 11)で接続方式の判定だけ確かめるために取っておく
     iu.connect = lambda *a, **k: fake          # 本物には繋がない
     sync.iu = iu
 
@@ -291,6 +292,57 @@ def main():
     n_before = db.stats(conn)["messages"]
     sync.do_sync(conn, cfg, None, 0, None)
     check(db.stats(conn)["messages"] == n_before, "同じメールを二度保存しない")
+
+    print("11) 複数アカウント（設定の取り込み・接続方式の判定）")
+    # ポートと「SSLを使う」から接続方式を決める。143 は STARTTLS でなければならない
+    import imap_util as iu_mod
+    import import_mail_accounts as ima
+    check(ima.security_of("993", True) == "ssl", "993＋SSL は ssl")
+    check(ima.security_of("143", True) == "starttls", "143＋SSL は starttls（SSL直結ではない）")
+    check(ima.security_of("143", False) == "none", "143＋SSLなし は none")
+
+    calls = []
+
+    class _FakeIMAP:
+        def __init__(self, host, port):
+            calls.append(("plain", host, port))
+
+        def starttls(self):
+            calls.append(("starttls", None, None))
+
+        def login(self, u, p):
+            calls.append(("login", u, p))
+
+    class _FakeSSL(_FakeIMAP):
+        def __init__(self, host, port):
+            calls.append(("ssl", host, port))
+
+    orig_ssl, orig_plain = iu_mod.imaplib.IMAP4_SSL, iu_mod.imaplib.IMAP4
+    try:
+        iu_mod.imaplib.IMAP4_SSL, iu_mod.imaplib.IMAP4 = _FakeSSL, _FakeIMAP
+        real_connect("h", 143, "u", "p", True)            # ← 会社・独自ドメインの形
+        check(("plain", "h", 143) in calls and ("starttls", None, None) in calls,
+              "143 は平文で繋いでから STARTTLS へ切り替える")
+        calls.clear()
+        real_connect("h", 993, "u", "p", True)            # ← iCloud・Gmail の形
+        check(("ssl", "h", 993) in calls and ("starttls", None, None) not in calls,
+              "993 は最初からSSLで繋ぐ")
+    finally:
+        iu_mod.imaplib.IMAP4_SSL, iu_mod.imaplib.IMAP4 = orig_ssl, orig_plain
+
+    # 複数アカウントを回すとき、シェルに残った環境変数が全アカウントに被さらないこと
+    env_dir = os.path.join(tmp, "envs")
+    os.makedirs(env_dir, exist_ok=True)
+    one = os.path.join(env_dir, ".env.mail-archiver.test")
+    with open(one, "w", encoding="utf-8") as f:
+        f.write("MAIL_ACCOUNT=t\nIMAP_HOST=h1\nIMAP_USER=u1\nIMAP_PORT=143\n")
+    os.environ["IMAP_USER"] = "shell-side"
+    try:
+        c1 = config.load(one)
+        check(c1["IMAP_USER"] == "u1", "ファイル指定なら環境変数で上書きされない")
+        check(config.load()["IMAP_USER"] == "shell-side", "既定の読み込みでは環境変数が効く")
+    finally:
+        os.environ.pop("IMAP_USER", None)
 
     shutil.rmtree(tmp, ignore_errors=True)
     print("")

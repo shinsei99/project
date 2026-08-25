@@ -68,7 +68,8 @@ def norm_msgid(s: Optional[str]) -> str:
 def do_sync(conn, cfg: Dict[str, str], only_folder: Optional[str], limit: int,
             since_days: Optional[int]) -> None:
     imap = iu.connect(cfg["IMAP_HOST"], int(cfg["IMAP_PORT"]), cfg["IMAP_USER"],
-                      cfg["IMAP_PASSWORD"], cfg.get("IMAP_SSL", "1") == "1")
+                      cfg["IMAP_PASSWORD"], cfg.get("IMAP_SSL", "1") == "1",
+                      cfg.get("IMAP_SECURITY", ""))
     try:
         account_id = db.upsert_account(conn, cfg["MAIL_ACCOUNT"], cfg["IMAP_HOST"],
                                        int(cfg["IMAP_PORT"]), cfg["IMAP_USER"])
@@ -368,7 +369,8 @@ def do_delete(conn, cfg: Dict[str, str], days: int, really: bool, only_folder: O
                                                 "★本番" if really else "dry-run"))
 
     imap = iu.connect(cfg["IMAP_HOST"], int(cfg["IMAP_PORT"]), cfg["IMAP_USER"],
-                      cfg["IMAP_PASSWORD"], cfg.get("IMAP_SSL", "1") == "1")
+                      cfg["IMAP_PASSWORD"], cfg.get("IMAP_SSL", "1") == "1",
+                      cfg.get("IMAP_SECURITY", ""))
     uidplus = False
     try:
         caps = iu.capabilities(imap)   # ログイン後に取り直す（認証前は名乗らないサーバーがある）
@@ -513,11 +515,42 @@ def main() -> int:
     p.add_argument("--allow-full-expunge", action="store_true",
                    help="UIDPLUS非対応サーバーで素のEXPUNGEを許す（他の\\Deletedも消える）")
     p.add_argument("--db", default=config.DB_PATH)
+    p.add_argument("--account", default=None,
+                   help="設定ファイル .env.mail-archiver.<slug> を指定して1アカウントだけ扱う")
+    p.add_argument("--all-accounts", action="store_true",
+                   help="設定してある全アカウントを順に取り込む（--delete とは併用できない）")
+    p.add_argument("--list-accounts", action="store_true", help="設定済みアカウントの一覧")
     args = p.parse_args()
 
-    cfg = config.load()
     conn = db.connect(args.db)
     db.init_schema(conn)
+
+    if args.list_accounts:
+        for path in config.account_env_files():
+            c = config.load(path)
+            print("{:<22} {}@{}:{}  {}".format(
+                c.get("MAIL_ACCOUNT") or "(名前なし)", c.get("IMAP_USER") or "-",
+                c.get("IMAP_HOST") or "-", c.get("IMAP_PORT") or "-",
+                "パスワードあり" if c.get("IMAP_PASSWORD") else "★パスワード未設定"))
+            print("  {}".format(os.path.basename(path)))
+        return 0
+
+    # 削除は「どのアカウントか」を必ず名指しさせる。全アカウントまとめて消させない
+    if args.all_accounts and args.delete:
+        print("--all-accounts と --delete は併用できません。削除は --account <slug> で1つずつ。")
+        return 2
+
+    if args.all_accounts:
+        cfgs = [config.load(path) for path in config.account_env_files()]
+    elif args.account:
+        try:
+            cfgs = [config.load(config.env_file_for(args.account))]
+        except FileNotFoundError as e:
+            print(e)
+            return 2
+    else:
+        cfgs = [config.load()]
+    cfg = cfgs[0]
 
     if args.stats:
         s = db.stats(conn)
@@ -537,12 +570,31 @@ def main() -> int:
         p.print_help()
         return 0
 
-    if not cfg["IMAP_HOST"] or not cfg["IMAP_USER"] or not cfg["IMAP_PASSWORD"]:
+    if args.sync:
+        ok = ng = 0
+        for c in cfgs:
+            label = c.get("MAIL_ACCOUNT") or "(名前なし)"
+            if not c["IMAP_HOST"] or not c["IMAP_USER"] or not c["IMAP_PASSWORD"]:
+                # 1本パスワードが無いだけで全部止めない。飛ばして最後にまとめて報告する
+                print("[{}] 設定不足のため飛ばします（{}）".format(
+                    label, "パスワード未設定" if c["IMAP_HOST"] else "接続先未設定"))
+                ng += 1
+                continue
+            print("── [{}] {}@{}:{} ".format(label, c["IMAP_USER"], c["IMAP_HOST"], c["IMAP_PORT"]))
+            try:
+                do_sync(conn, c, args.folder, args.limit, args.since_days)
+                ok += 1
+            except Exception as e:
+                print("[{}] 取り込み失敗: {}".format(label, e))
+                ng += 1
+        if len(cfgs) > 1 or ng:
+            print("取り込み完了: 成功 {} / 失敗・未設定 {}".format(ok, ng))
+        if ok == 0:
+            return 1
+
+    if args.delete and (not cfg["IMAP_HOST"] or not cfg["IMAP_USER"] or not cfg["IMAP_PASSWORD"]):
         print("接続設定がありません。.env.mail-archiver.example を写して .env.mail-archiver を作ってください。")
         return 2
-
-    if args.sync:
-        do_sync(conn, cfg, args.folder, args.limit, args.since_days)
 
     if args.delete:
         days = args.days if args.days is not None else int(cfg.get("ARCHIVE_DELETE_DAYS", "14"))

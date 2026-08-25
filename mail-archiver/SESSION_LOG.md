@@ -1,5 +1,46 @@
 # SESSION_LOG — メールアーカイバ（mail-archiver）
 
+## 2026-08-25（メインPC）
+
+### 完了したこと
+
+- **メインPCで初起動**（このPCには `.venv` が無かったので作成から）。`127.0.0.1:8535` で HTTP 200、
+  画面も目視（保存19通・添付2件・サーバー残存0）。起動は直下の **`./app-start.sh mail-archiver`** に統一。
+- **Mail.app のアカウント設定7件を取り込んだ**（`import_mail_accounts.py` を新設）。
+  AppleScript で Mail.app に問い合わせ、`.env.mail-archiver.<slug>` を1アカウント1本で書き出す。
+  DBの `accounts` 表にも登録するので、画面の絞り込みに出る。**パスワードは取らない**（後述）。
+- **複数アカウント対応**: `sync.py --sync --all-accounts` / `--account <slug>` / `--list-accounts`。
+  **`--all-accounts` と `--delete` は併用禁止**にした（消す操作はアカウントを名指しさせる）。
+- **STARTTLS に対応**（`imap_util.connect` に `security` を追加）。7件中5件が **143番ポート**で、
+  従来の実装は `IMAP4_SSL` で繋ぎにいくため**全部失敗する状態**だった。
+- `config.load(env_file)` … ファイルを明示したときは**環境変数で上書きしない**。
+  複数アカウントを回すとき、シェルに残った `IMAP_USER` が全アカウントに被さる事故を防ぐ。
+- `smoke_test.py` に 11) を追加（接続方式の判定・環境変数の非干渉）。**全項目合格**。
+- **Dropboxの原本から索引を作り直せることを実測**: `sync.py --rebuild` で **19通・添付2件・失敗0**。
+  サブPCでも同じDropboxを見て `--rebuild` すれば同じ状態になる（DBは配らない）。
+
+### 発生したエラーと解決策
+
+- **★実メール19通のDB（`local/mail.db`）が public リポジトリに入っていた** → 原因は直下
+  `.gitignore` の `!mail-archiver/**` で全許可した際、`data/` と `.env` は除外したが
+  **`local/`（索引DB）の除外を書き忘れていた**（2026-08-20 `82c07b64`）。
+  → `git rm --cached` で追跡をやめ、`.gitignore` に `mail-archiver/local/` を追加。
+  **索引DBもメール本文の塊**（件名・本文・差出人が入る）。**過去のコミットには残っているので、
+  履歴からの削除は別途判断**（force push が要る）。
+- `.env.mail-archiver.<slug>` も同じく全許可に引っかかっていたので `mail-archiver/.env.mail-archiver.*`
+  を除外に追加（`.example` だけ `!` で残す）。
+- Mail.app のIMAPパスワードは**ログインキーチェーンには無い**（`security dump-keychain` の
+  inet項目は ftp が2件だけ）。データ保護キーチェーン側にあるため、**他プロセスからは取れない**。
+  → 各アカウント1回ずつ人が `security add-generic-password -s mail-archiver -a <addr> -w`。
+  **ターミナル.app から叩くこと**（Claude Code の `!` からだと空パスワードで登録される）。
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **パスワード未登録＝IMAP取り込みはまだ0件**（7アカウントとも）。iCloud と Gmail は
+  2ファクタのため **App用パスワード**の発行が要る（appleid.apple.com / myaccount.google.com）。
+- **履歴からメールDBを消すか**（`git filter-repo` ＋ force push。もう1台は取り直しが必要）。
+- サブPCでは `import_mail_accounts.py` をそのPCで実行する（設定ファイルは git で配らない）。
+
 ## 2026-08-20（サブPC）
 
 ### 完了したこと

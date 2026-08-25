@@ -15,7 +15,9 @@ import subprocess
 from typing import Dict, Optional
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
-ENV_FILE = os.path.join(APP_DIR, ".env.mail-archiver")
+# 既定の設定ファイル。`MAIL_ARCHIVER_ENV` で1本だけ差し替えられる
+ENV_FILE = os.environ.get("MAIL_ARCHIVER_ENV") or os.path.join(APP_DIR, ".env.mail-archiver")
+ENV_PREFIX = ".env.mail-archiver."
 
 
 def _read_env_file(path):
@@ -63,6 +65,9 @@ DEFAULTS = {
     "IMAP_PASSWORD": "",
     "IMAP_PASSWORD_KEYCHAIN": "",
     "IMAP_SSL": "1",
+    # ssl / starttls / none。空なら「993ならSSL・143ならSTARTTLS」と決める。
+    # Apple Mail の「ポート143＋SSLを使う」は STARTTLS のこと（143にSSLで繋ぐと落ちる）
+    "IMAP_SECURITY": "",
     # ★削除は既定で無効。有効にしても実行時に --delete --yes が要る（三重の鍵）
     "ARCHIVE_DELETE_ENABLED": "0",
     "ARCHIVE_DELETE_DAYS": "14",
@@ -84,12 +89,57 @@ def _keychain_password(service: str, account: str) -> Optional[str]:
     return None
 
 
-def load() -> Dict[str, str]:
+def account_env_files() -> list:
+    """設定ファイルを全部返す（既定の1本 ＋ `.env.mail-archiver.<slug>`）。
+
+    アカウントごとに1ファイルにしてある。1本の中に7アカウント分を詰め込むより、
+    「どれを使って走らせたか」がコマンドに残るほうが事故が少ない（消す操作があるため）。
+    """
+    files = []
+    if os.path.exists(ENV_FILE):
+        files.append(ENV_FILE)
+    for name in sorted(os.listdir(APP_DIR)):
+        if not name.startswith(ENV_PREFIX) or name.endswith(".example"):
+            continue
+        path = os.path.join(APP_DIR, name)
+        if path not in files:
+            files.append(path)
+    return files
+
+
+def env_file_for(slug: str) -> str:
+    """`--account <slug>` からファイル名を決める。"""
+    path = os.path.join(APP_DIR, ENV_PREFIX + slug)
+    if not os.path.exists(path):
+        raise FileNotFoundError(
+            "そのアカウントの設定がありません: {}\n"
+            "いまあるもの: {}".format(
+                path, ", ".join(slugs()) or "（なし）"))
+    return path
+
+
+def slugs() -> list:
+    out = []
+    for p in account_env_files():
+        base = os.path.basename(p)
+        out.append(base[len(ENV_PREFIX):] if base.startswith(ENV_PREFIX)
+                   else (_read_env_file(p).get("MAIL_ACCOUNT") or "default"))
+    return out
+
+
+def load(env_file: Optional[str] = None) -> Dict[str, str]:
+    """設定を読む。
+
+    `env_file` を明示したときは**環境変数で上書きしない**。複数アカウントを順に回すとき、
+    シェルに残った `IMAP_USER` などが全アカウントに被さって別のサーバーへ
+    別のユーザーで繋ぎにいく事故を防ぐため。
+    """
     cfg = dict(DEFAULTS)
-    cfg.update(_read_env_file(ENV_FILE))
-    for k in DEFAULTS:
-        if os.environ.get(k):
-            cfg[k] = os.environ[k]
+    cfg.update(_read_env_file(env_file or ENV_FILE))
+    if env_file is None:
+        for k in DEFAULTS:
+            if os.environ.get(k):
+                cfg[k] = os.environ[k]
     if not cfg["IMAP_PASSWORD"] and cfg["IMAP_PASSWORD_KEYCHAIN"]:
         pw = _keychain_password(cfg["IMAP_PASSWORD_KEYCHAIN"], cfg["IMAP_USER"])
         if pw:

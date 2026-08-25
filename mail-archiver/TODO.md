@@ -2,10 +2,13 @@
 
 ## 進行中・次にやること
 
-- [ ] **iCloud の App用パスワードを発行して、IMAP経由の取り込みを試す**（このPCのMail.appは
-      iCloud 1本のみ。`.env.mail-archiver` は用意済み・削除は無効のまま）。
-      `security add-generic-password -s mail-archiver -a <自分のiCloudアドレス> -w` で入れる
-- [ ] 本番アカウント（shin@daikyocorp.co.jp・メインPC側）で試すかを決める … 要オーナー確認
+- [ ] **7アカウントのパスワードをキーチェーンに入れる**（人の作業・ターミナル.appから1行ずつ）。
+      `security add-generic-password -s mail-archiver -a <メールアドレス> -w`
+      … iCloud と Gmail は**App用パスワード**の発行が先（2ファクタのため）。
+      入れ終わったら `python3 sync.py --list-accounts` で「パスワードあり」を確認
+- [ ] **メールDBを git の履歴からも消すか決める**（2026-08-25 に追跡は外した。
+      過去のコミット `82c07b64` には実メール19通ぶんが残っている。消すなら force push が要る）
+- [ ] 取り込みの最初の1本を決める（`--account daikyocorp.co.jp --since-days 7 --limit 20` から）
 - [ ] 初回取り込みの実測を残す（何通で何分・何MB か。README に数値で書く）
 - [ ] `restore.py`（`.eml` を IMAP APPEND で戻す）… 削除を実運用する前に用意したい
 - [ ] **Tailscale を入れる**（外出先からスマホで見るため。人の作業＝アカウントログインが要る）

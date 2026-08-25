@@ -26,7 +26,8 @@ IMAPサーバーの容量を空けるための、**ローカル保管＋全文�
 | `import_from_mail.py` | **Mail.app から取り込む**（IMAPパスワード不要）。取り込んだ分は削除対象にならない |
 | `smoke_test.py` | 偽IMAPサーバーでの通し検証（本物には繋がない） |
 | `run-lan.sh` | **メインPC専用**。0.0.0.0＋パスワードでスマホから開けるようにする |
-| `config.py` | `.env.mail-archiver` からの設定読み込み（キーチェーン対応） |
+| `config.py` | 設定の読み込み（キーチェーン対応）。**アカウント1つにつき設定ファイル1本** |
+| `import_mail_accounts.py` | **Mail.app のアカウント設定を丸ごと取り込む**（AppleScript。パスワードは取らない） |
 
 ```
 IMAP サーバー ──(BODY.PEEK[] で取得。既読フラグを変えない)──▶ data/raw/**.eml  ← 原本
@@ -42,6 +43,20 @@ IMAP サーバー ──(BODY.PEEK[] で取得。既読フラグを変えない)
 |---|---|---|
 | 原本 `.eml` ・添付・サイドカー `.eml.json` | **個人Dropbox**（`ARCHIVE_STORE_DIR`） | 書いたら二度と書き換えない（write-once）ので同期と喧嘩しない。2台から見えてバックアップにもなる |
 | SQLite の索引 `mail.db` | **ローカル固定**（`ARCHIVE_DB_PATH`＝`mail-archiver/local/`） | **同期フォルダに置くと壊れる。** 本体・WAL・shm を同時に書くので、書き込み途中でDropboxが持っていくと不整合になる |
+
+**索引DBは git にも入れない**（2026-08-25）。件名・本文・差出人がそのまま入っており、
+`data/` と同じくメール本文の塊だから。**2026-08-20 の `82c07b64` で実メール19通ぶんが
+public リポジトリに入っていた**（`.gitignore` で `data/` と `.env` は外したが `local/` を
+書き忘れていた）。追跡は外したが、**過去のコミットには残っている**。
+
+**2台のPC・スマホからどう読むか**: 配るのは**Dropboxの原本だけ**で、索引は各PCが自分で作る。
+
+```bash
+python3 sync.py --rebuild     # Dropboxの .eml＋サイドカーから索引を作り直す
+```
+
+実測（2026-08-25 メインPC）: **19通・添付2件・失敗0**。スマホからは、メインPCで `run-lan.sh` を
+起動して社内WiFi（またはTailscale）で開く。**DBそのものは同期させない**（壊れるため）。
 
 **会社の共有Dropboxには置かない。** メール本文と添付が同期先の全員に見える。個人Dropbox側に置く。
 
@@ -69,6 +84,43 @@ python3 sync.py --rebuild     # 原本(.eml)＋サイドカーからDBを再構�
 
 - **`synced_at` が2週間ルールの起点**。「メールの日付」ではなく「手元に取り込んだ日時」で数える。
 - **原本は `.eml` ファイル、DBは索引**という役割分担。DBが壊れても原本からやり直せる。
+
+## 複数アカウント（2026-08-25 メインPCで対応）
+
+メインPCの Mail.app には **7アカウント**入っている（iCloud / 会社 / 独自ドメイン4本 / Gmail）。
+**設定はアカウント1つにつき1ファイル**（`.env.mail-archiver.<slug>`）にしてある。
+1本に詰め込まないのは、**消す操作がどのアカウントに対するものかをコマンドに残す**ため。
+
+```bash
+python3 import_mail_accounts.py --list    # Mail.app に何があるか見るだけ
+python3 import_mail_accounts.py           # 設定ファイルを作る（既にある物は上書きしない）
+python3 sync.py --list-accounts           # 設定済み一覧とパスワードの有無
+python3 sync.py --sync --all-accounts     # 全アカウントを順に取り込む
+python3 sync.py --sync --account daikyocorp.co.jp --since-days 7 --limit 20   # 1本だけ
+```
+
+- **`--all-accounts` と `--delete` は併用できない。** 削除は必ず `--account <slug>` で名指しする
+- 設定ファイルは**gitに入らない**（`.env.mail-archiver.*` は除外・`.example` だけ追跡）。
+  **もう1台のPCでは、そのPCで `import_mail_accounts.py` を実行する**（アカウント構成が違うため）
+
+### パスワードは取り込めない（調べた結果）
+
+Mail.app のIMAPパスワードは**ログインキーチェーンには無い**。`security dump-keychain` で見える
+inet項目は ftp が2件だけで、メール系は0件だった（データ保護キーチェーン側にあるため
+他プロセスからは読めない）。**アカウントごとに人が1回だけ登録する**:
+
+```bash
+security add-generic-password -s mail-archiver -a <メールアドレス> -w
+```
+
+- **ターミナル.app から叩く。** Claude Code の `!` から叩くと入力待ちが効かず**空パスワードで登録される**
+- **iCloud と Gmail は App用パスワード**が要る（2ファクタのため。通常のログインパスワードでは通らない）
+
+### ポート143は STARTTLS（つまずいた点）
+
+Apple Mail の「ポート143＋SSLを使う」は **STARTTLS**（平文で繋いでから暗号化に切り替える）のこと。
+7アカウント中**5本が143番**で、`IMAP4_SSL` で繋ぐと必ず失敗する。`IMAP_SECURITY`（`ssl` /
+`starttls` / `none`）で指定でき、空なら **993→SSL・143→STARTTLS** と自動で決める。
 
 ## 使い方
 

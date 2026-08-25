@@ -79,9 +79,29 @@ def imap_utf7_encode(s: str) -> str:
 
 # ------------------------------------------------------------ 接続
 
-def connect(host: str, port: int, username: str, password: str, use_ssl: bool = True):
-    cls = imaplib.IMAP4_SSL if use_ssl else imaplib.IMAP4
-    conn = cls(host, port)
+def connect(host: str, port: int, username: str, password: str, use_ssl: bool = True,
+            security: str = ""):
+    """IMAPに繋いでログインする。
+
+    `security` は ssl / starttls / none。空なら**ポートから決める**:
+    993 は最初からSSL、143 は平文で繋いで `STARTTLS` で暗号化に切り替える。
+
+    **Apple Mail の「ポート143＋SSLを使う」は STARTTLS のこと。** 143 に
+    `IMAP4_SSL` で繋ぐと相手はTLSハンドシェイクを話さないので必ず失敗する
+    （2026-08-25 に会社・独自ドメイン5アカウントがこの形だと分かった）。
+    """
+    mode = (security or "").strip().lower()
+    if not mode:
+        if not use_ssl:
+            mode = "none"
+        else:
+            mode = "starttls" if int(port) == 143 else "ssl"
+    if mode == "ssl":
+        conn = imaplib.IMAP4_SSL(host, port)
+    else:
+        conn = imaplib.IMAP4(host, port)
+        if mode == "starttls":
+            conn.starttls()
     conn.login(username, password)
     return conn
 

@@ -411,6 +411,12 @@ keyline/**/*.db
 !mail-archiver/**
 mail-archiver/data/
 mail-archiver/.env.mail-archiver
+# アカウントごとの接続設定（2026-08-25 に Mail.app から取り込んだ7本）。見本だけ追跡する
+mail-archiver/.env.mail-archiver.*
+!mail-archiver/.env.mail-archiver.example
+# **索引DBもメール本文の塊**（件名・本文・差出人が入る）。data/ と同じく追跡しない。
+# 2026-08-20 の 82c07b64 で実メール19通ぶんが public リポジトリへ入っていた
+mail-archiver/local/
 mail-archiver/.venv/
 
 # ── 依存関係・ログはPCごとに作るもの。**全アプリまとめて除外**
