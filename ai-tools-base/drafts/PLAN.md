@@ -29,8 +29,8 @@
 | 19 | api-wrong-endpoint | 54,55,56 | 不動産 | 📝 | キーはあるのに常に空／%の二重付与 |
 | 21 | sqlite-transaction | 60,61,64 | 不動産 | 📝 | executescript の暗黙COMMIT／時刻だけでは順序が決まらない（小説12話） |
 | 23 | chrome-download-limit | 47 | 不動産 | ⬜ | 自動ダウンロードの制限は自動では回避しない |
-| 24 | python-of-launchd | 6 | 不動産 | ⬜ | 本番の常駐だけ違うPythonで動く（⚠️要確認） |
-| 25 | a4-one-page | 21 | 不動産 | ⬜ | 帳票をA4一枚に収め続ける（🔍コードから） |
+| 24 | env-differs-in-production | 2,6 | 不動産 | 📝 | 本番だけ違うものが動く（固定パス／常駐のPython） |
+| 25 | a4-one-page | 21 | 不動産 | 📝 | 帳票をA4一枚に収め続ける（🔍コードから） |
 | 26 | ios-capacitor-traps | 43,44,45,46 | ツール | ⬜ | キーボードでWebViewが縮む／sync漏れ／SPM／ビルド番号 |
 | 27 | streamlit-rerun-thread | 63,66 | ツール | ⬜ | 再実行ごとに別スレッド／画面間で state が衝突 |
 | 28 | cache-key-changed | 65 | ツール | ⬜ | 補完するとキーが変わって「未照合」に戻る |

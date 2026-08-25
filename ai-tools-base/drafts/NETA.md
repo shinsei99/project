@@ -23,15 +23,6 @@
 
 > この章がこの媒体でいちばん強い。「エラーが出ないバグ」は検索されるのに書き手が少ない。
 
-**2.** ✅〔不動産〕**CLIの絶対パス決め打ちで、別のPCではAIが黙って無効になる**（`tokuyaku-generator` / `baikai-generator` / `restoration-calculator` / 直下 `registry_parser.py`）
-`/opt/homebrew/bin/claude` 固定。Intel Mac や `~/.local/bin` では見つからず、正規表現の簡易版で動き続けていた。
-→ `55be186` `514b104`、`registry_parser.py:29-50`
-
-**6.** ⚠️〔不動産〕**本番の常駐だけが違うPythonで動いている**（`chatwork-ai-manager`）
-worker は launchd の `/usr/bin/python3`。`requests` 前提のモジュールを足すと本番だけ ImportError になる。
-「HTTPは urllib を使う」という制約が `requirements.txt` に書いてある理由。
-→ `chatwork-ai-manager/SESSION_LOG.md:27`
-
 ---
 
 # B. 常駐・デプロイ — 「直したのに反映されない」
@@ -47,10 +38,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 ---
 
 # C. 帳票の見た目 — Excel / Word を人に配れる形にする
-
-**21.** 🔍〔不動産〕**帳票を「A4 1枚」に収め続ける**（`restoration-calculator`）
-文字切れ・行間・縦フィット・項目追加のたびの調整。17番と9本目（行の高さ）に続く帳票三部作の3本目。
-→ `f9d7407` `b60afd4` `91cc68a`、`services/pledge_export_service.py`
 
 ---
 
