@@ -55,11 +55,32 @@ tell application "Mail"
 end tell'''))
 
 
-def fetch_one(account: str, mailbox: str, index: int, out_path: str) -> Optional[Tuple[str, str]]:
+def resolve_mailbox_index(account: str, mailbox: str) -> int:
+    """メールボックスを名前→index に解決する。
+
+    **Gmail の「すべてのメール」等は `mailbox "名前" of account` で取り出せない**
+    （実体の名前が `[Gmail]/すべてのメール` のような入れ子で、表示名と違うため -1728 になる）。
+    一覧を回して表示名が一致する index を返せば、その番号で参照できる。
+    """
+    script = '''
+tell application "Mail"
+  set a to account "{acc}"
+  repeat with i from 1 to (count of mailboxes of a)
+    if (name of mailbox i of a) is "{mb}" then return i as text
+  end repeat
+  return "0"
+end tell'''.format(acc=account.replace('"', '\\"'), mb=mailbox.replace('"', '\\"'))
+    idx = int(osa(script) or "0")
+    if idx <= 0:
+        raise RuntimeError('メールボックス「{}」が見つかりません（アカウント {}）'.format(mailbox, account))
+    return idx
+
+
+def fetch_one(account: str, mbox_index: int, index: int, out_path: str) -> Optional[Tuple[str, str]]:
     """1通のソースをファイルへ書き出す。戻り値 (Message-ID, 件名)。"""
     script = '''
 tell application "Mail"
-  set mb to mailbox "{mb}" of account "{acc}"
+  set mb to mailbox {mbidx} of account "{acc}"
   set m to message {idx} of mb
   set src to source of m
   set fh to open for access (POSIX file "{path}") with write permission
@@ -75,7 +96,7 @@ tell application "Mail"
     set sbj to subject of m
   end try
   return mid & tab & sbj
-end tell'''.format(mb=mailbox.replace('"', '\\"'), acc=account.replace('"', '\\"'),
+end tell'''.format(mbidx=mbox_index, acc=account.replace('"', '\\"'),
                    idx=index, path=out_path)
     line = osa(script)
     parts = line.split("\t", 1)
@@ -102,9 +123,10 @@ def main() -> int:
     frow = db.upsert_folder(conn, account_id, "mailapp:{}".format(args.mailbox), args.mailbox)
     db.set_folder_uidvalidity(conn, frow["id"], 0)
 
+    mbox_index = resolve_mailbox_index(args.account, args.mailbox)
     total = int(osa('tell application "Mail" to return (count of messages of '
-                    'mailbox "{}" of account "{}") as text'
-                    .format(args.mailbox, args.account)))
+                    'mailbox {} of account "{}") as text'
+                    .format(mbox_index, args.account)))
     n = min(args.limit, total)
     print("{} / {} … {}通中 {}通を取り込みます".format(args.account, args.mailbox, total, n))
 
@@ -113,7 +135,7 @@ def main() -> int:
     for i in range(1, n + 1):
         eml = os.path.join(tmp, "{}.eml".format(i))
         try:
-            msgid, subject = fetch_one(args.account, args.mailbox, i, eml)
+            msgid, subject = fetch_one(args.account, mbox_index, i, eml)
         except Exception as e:
             print("  {}通目 取得失敗: {}".format(i, e))
             continue
