@@ -247,7 +247,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | ✅ | — |
 | AI業務マネージャー（Chatwork/LINE常駐AIエージェント） | chatwork-ai-manager | 8540(画面)/8530(LINE) | ✅（画面0.0.0.0） | LINE(ngrok) |
 | 事業計画案ジェネレーター（投資収支→Excel） | business-plan-generator | 8533 | ✅ | — |
-| KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | iOSアプリ **KeyTag** が App Store **審査待ち**（1.0/build2・2026-08-17提出。2026-08-24 に API で確認＝まだ審査に入っていない） |
+| KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | iOSアプリ **KeyTag**（掲載名 KeyTagNFC）は **Guideline 2.1 で差し戻し**（2026-08-25レビュー・レビュー機は iPad Air M3＝NFC非搭載。**NFCのデモ動画の提出を求められている**。リジェクトではないので build 上げ直しは不要。詳細と撮影台本は `keyline/SESSION_LOG.md` 冒頭） |
 
 ### ツール（16本）※社内LAN共有なし
 
