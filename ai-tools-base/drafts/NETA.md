@@ -65,19 +65,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 権限設計の話として単独で強い。
 → `agent-platform/SESSION_LOG.md:315`
 
-**39.** ✅〔不動産〕**AIが書いたファイルの末尾にタグが混入していた**（`agent-platform`）
-全31ファイルの末尾に `</content>`。`pip install -r requirements.txt` が
-`Invalid requirement: '</content>'` で失敗して発覚。
-→ `agent-platform/SESSION_LOG.md:239`
-
-**40.** ✅〔不動産〕**「本文に書くな」と言っていなかったので内部記号が漏れた**（`chatwork-ai-manager`）
-日報の要約に「（★発言0件）」。★が本人印であることは伝えたが、出力するなとは書いていなかった。
-→ `chatwork-ai-manager/SESSION_LOG.md:340`
-
-**41.** ✅〔不動産〕**設定ファイルにコメントを書いたら壊れた**（`agent-platform`）
-`mcp.json` に `_comment` を足したら `Invalid MCP configuration`。厳密JSONのみ。説明は別ファイルへ。
-→ `agent-platform/SESSION_LOG.md:313`
-
 ---
 
 # F. スマホ・ブラウザ
