@@ -48,60 +48,23 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 
 # C. 帳票の見た目 — Excel / Word を人に配れる形にする
 
-**17.** ✅〔不動産〕**Excelに貼った写真が縦に潰れる**（`maisoku-converter`）
-列幅→ptの換算が `幅×7px` で**2割狭く**、`TwoCellAnchor` がセル範囲まで引き伸ばしていた。
-Excel に実測させた **`_PT_PER_CHAR = 6.0`** と **`OneCellAnchor`（実寸をEMUで固定）** へ。
-実測 帯1150.00pt / 画像1149.75pt・縦横比0.8141。
-→ `46ce8c7`
-
 **21.** 🔍〔不動産〕**帳票を「A4 1枚」に収め続ける**（`restoration-calculator`）
 文字切れ・行間・縦フィット・項目追加のたびの調整。17番と9本目（行の高さ）に続く帳票三部作の3本目。
 → `f9d7407` `b60afd4` `91cc68a`、`services/pledge_export_service.py`
 
-**22.** ⚠️〔不動産〕**直すと今まで配った帳票の見た目が変わる、という理由で直していないバグ**（`maisoku-converter`）
-帯の「建設業免許番号」が横向きのとき担当者欄へはみ出す。**直せるのに直さない判断**を書ける珍しい題材。
-→ `maisoku-converter/SESSION_LOG.md:197`
-
-**23.** ✅〔不動産〕**スライダーの表示が 0.005 なのに 0.01 と出る**（`maisoku-converter`）
-`st.slider` の既定書式が小数2桁。刻みを 0.005 にしたので丸められていた。`format="%.3f"`。
-→ `maisoku-converter/SESSION_LOG.md:260`
-
 ---
 
 # D. 紙を読む — PDF・公式書式・謄本
-
-**24.** ✅〔不動産〕**実物の謄本で10項目中0項目しか取れない**（`jyuusetsu-research`）
-合成テストでは通っていた。登記事項証明書は**罫線アート（`┏━━┯┃`）の表**で、見出しが
-`所 在` `① 地 番` のように**半角スペース混じり**。自前パーサは全角スペース前提だった。
-→ `jyuusetsu-research/SESSION_LOG.md:393`
 
 **25.** ✅〔不動産〕**正規表現が罫線を値として拾う**（`jyuusetsu-research`）
 種類の欄に `│ ② 構 造 │ ③ 床 面 積 ㎡ │ 原因及びその日付…` が入り、本体の値まで上書きしていた。
 `re.search` で1件目に決め打ちすると見出し行を拾って終わる。
 → `jyuusetsu-research/SESSION_LOG.md:24`
 
-**26.** ✅〔不動産〕**Excelの見出しから入力欄を割り出す（11/17 → 17/17）**（`jyuusetsu-research`）
-①見出しは左だけでなく**上の列見出し**にもある ②**結合セルは左上以外の値が None**。
-上下両方を探し、結合セルの左上を解決する索引を作った。
-→ `jyuusetsu-research/SESSION_LOG.md:445`
-
 **27.** ✅〔不動産〕**同梱テンプレートに他社の実案件が残っていた**（`jyuusetsu-research`）
 白紙だと思っていた `templates/*.xlsx` 4本が記入済みファイル。書式は3〜9項目しか上書きしないので、
 **残りが前案件のまま出る**。作った書類に身に覚えのない会社名が載る事故。
 → `jyuusetsu-research/SESSION_LOG.md:440`
-
-**28.** ✅〔不動産〕**チェック欄の「外側の□」を指していた**（`jyuusetsu-research`）
-災害3項目の割り当て先が、中身が `□` のセルで、しかも3項目とも「外」側。公式書式25本すべてで実測して判明。
-→ `jyuusetsu-research/SESSION_LOG.md:198`
-
-**29.** ✅〔不動産〕**土地専用の書式には「土地／建物」の目印が無い**（`jyuusetsu-research`）
-1つしかないので書かれていない。シート名から側を決める。**「無いことが情報」**という話。
-→ `jyuusetsu-research/SESSION_LOG.md:210`
-
-**30.** ✅〔不動産〕**同名の書式が3つあり、先に見つかったほうを拾っていた**（`jyuusetsu-research`）
-一般売主／宅建業者売主／消費者契約用。媒介が大半なので**一般売主が正しい既定**。
-賃貸側では部分一致で「サブリース住宅賃貸借契約書」を拾っていた（→前方一致を先に見る）。
-→ `jyuusetsu-research/SESSION_LOG.md:265` `347`
 
 **31.** ⚠️〔不動産〕**旧Word(.doc)を、表を壊さずに .docx へ変換する**（`jyuusetsu-research`）
 `python-docx` は `.doc` を読めない。AppleScript の `save as` は現行Wordで `-1708`。
