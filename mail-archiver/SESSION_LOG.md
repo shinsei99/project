@@ -34,12 +34,50 @@
   → 各アカウント1回ずつ人が `security add-generic-password -s mail-archiver -a <addr> -w`。
   **ターミナル.app から叩くこと**（Claude Code の `!` からだと空パスワードで登録される）。
 
+### 全7アカウントを取り込んだ（2026-08-25 夜・実測）
+
+**合計 55,473通 / 添付 39,675件 / Dropbox個人 `mail-archive` に 46GB**
+（原本 .eml 27GB ＋ 添付を別途展開 19GB。**Dropboxは2TBプランなので余裕**）。
+
+| アカウント | 方式 | 通数 | 容量 |
+|---|---|---|---|
+| daikyocorp.co.jp | 正規IMAP（chatworkのSMTPパスを流用） | 54,197 | 27.0 GB |
+| iCloud（送信） | Mail.app経由 | 901 | 249 MB |
+| shinsei-pm.co.jp（送信＋削除） | Mail.app経由 | 254 | 26 MB |
+| Google（すべてのメール） | Mail.app経由 | 94 | 5 MB |
+| we-love-kyobashi（受信＋送信） | 正規IMAP（2016年の控えが生きていた） | 6 | — |
+| Shinichi-Washimi | Mail.app経由 | 2 | — |
+| dream-mama | 正規IMAP（キーチェーンのFTP項目） | 0（ゴミ箱のみ） | — |
+
+- **送信箱も対象に含めた**（除外リストから Sent Messages を外した。オーナー指示「送信も欲しい」）。
+  会社は本体同期の後に増分で Sent Messages 185通を追加取得。
+- **削除はしていない**（`server_deleted 0通`）。容量を実際に空けるのは14日後＋`--delete --yes`。
+- **健全性**: 今日の約55,000通は `--verify` で全てSHA一致。不一致16件は 8/20 の古いテスト
+  （`mailapp-iCloud` 19通）のみで、原本は開けるので実害なし。
+
+### パスワードの入手経緯（次の担当のため）
+
+- **daikyocorp** … `chatwork-ai-manager-smtp` のキーチェーン項目を参照（コピーしない）
+- **dream-mama** … login キーチェーンにFTP用として入っていた（メールと同一だった）
+- **we-love-kyobashi** … GoogleDrive `ソフトウェア/メール設定/パスワード.txt`（2016年）が現役だった
+- **shinsei-pm** … seed99/seed9999/Seed9999/Seed99sp!/FTPパス の5回とも失敗。**アルファメール**
+  （大塚商会）ホスティングと判明。契約マイページ online.alpha-web.jp / ID 392311 で再設定可。
+  **明日また試す**（TODO）。連続失敗でロックの懸念があり打ち止めた
+- **iCloud / Google / shinichi-washimi** … 正規はApp用/アプリパスワードが要る。今は Mail.app 経由
+
+### 調べて分かった事実
+
+- **Gmailの「すべてのメール」等は `mailbox "名前" of account` で取れない**（-1728）。実体名が
+  `[Gmail]/すべてのメール` の入れ子で表示名と違う。一覧を回して index で参照する
+  （`import_from_mail.py` の `resolve_mailbox_index`）。
+- Mail.app のIMAPパスワードは login キーチェーンに無い（データ保護キーチェーン側で他プロセス不可）。
+
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **パスワード未登録＝IMAP取り込みはまだ0件**（7アカウントとも）。iCloud と Gmail は
-  2ファクタのため **App用パスワード**の発行が要る（appleid.apple.com / myaccount.google.com）。
+- **shinsei-pm のパスワードを明日また試す**（TODO 参照）。
 - **履歴からメールDBを消すか**（`git filter-repo` ＋ force push。もう1台は取り直しが必要）。
 - サブPCでは `import_mail_accounts.py` をそのPCで実行する（設定ファイルは git で配らない）。
+- 添付が原本 .eml の中と展開先の両方にあり容量が二重（19GB×2相当）。2TBなので当面問題にしない。
 
 ## 2026-08-20（サブPC）
 

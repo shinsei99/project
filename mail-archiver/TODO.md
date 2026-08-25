@@ -2,6 +2,17 @@
 
 ## 進行中・次にやること
 
+- [ ] **shinsei-pm.co.jp のパスワードを明日また試す**（2026-08-25 に seed99 / seed9999 / Seed9999 /
+      Seed99sp! / FileZillaのFTPパス の5回とも `Invalid username or password`。**連続失敗でロックの
+      懸念があるため今日は打ち止め**）。確実なのは大塚商会アルファメールの契約マイページ
+      （online.alpha-web.jp / ID 392311・初期PW u22u9D2s※要変更済みかも）→ メールアカウントの再設定。
+      いまは Mail.app 経由で Sent 37＋Deleted 219 を取り込み済み（受信箱は空だった）
+- [ ] **会社アカウントの本体同期が終わったら「Sent Messages」を追加取得**（この回は除外設定を
+      読み込んだ後に外したので送信箱を飛ばしている。`python3 sync.py --sync --account daikyocorp.co.jp`
+      を再実行すれば増分で送信箱だけ入る）
+- [ ] shinichi-washimi.jp（お名前.com管理画面で再設定）/ iCloud（App用パスワード）/
+      Google（アプリパスワード）の正規パスワードを入れてIMAPで取り直す（いまは Mail.app 経由）
+
 - [ ] **7アカウントのパスワードをキーチェーンに入れる**（人の作業・ターミナル.appから1行ずつ）。
       `security add-generic-password -s mail-archiver -a <メールアドレス> -w`
       … iCloud と Gmail は**App用パスワード**の発行が先（2ファクタのため）。
