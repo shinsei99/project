@@ -74,6 +74,9 @@
 !pdf_orient.py
 !va.sh
 !visual_agent.py
+# アプリを都度起動する道具（起動→ポート待ち→HTTP確認を1コマンドに畳む）。
+# Claude Code の確認プロンプトを減らす目的も兼ねる（nohup・待ちループを1本に閉じ込める）
+!app-start.sh
 !handwriting-ocr/
 !handwriting-ocr/**
 !swim-tracker-react/
@@ -414,3 +417,6 @@ mail-archiver/.venv/
 **/.deps/
 logs/
 **/__pycache__/
+# app-start.sh が各アプリ配下に作る実行時ファイル（起動ログ・PID）。PCごとの物なので配らない
+**/.run.log
+**/.run.pid
