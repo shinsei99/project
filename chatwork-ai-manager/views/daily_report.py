@@ -60,7 +60,8 @@ def render():
     names = [p["name"] for p in people]
     by_name = {p["name"]: p for p in people}
 
-    default = [n for n in ("塚本", "松本", "森") if n in names] or names
+    _by_prefix = {n.split("　")[0]: n for n in names}
+    default = [_by_prefix[p] for p in ("塚本", "松本", "森", "大鹿", "吉浦") if p in _by_prefix] or names
     targets = st.multiselect("対象者", names, default=default)
 
     msgs = DR.day_messages(date_str)
@@ -88,7 +89,7 @@ def render():
             bar.progress((i + 1) / len(targets))
         st.rerun()
 
-    # 並び順は「対象者」で選んだ順（既定は 塚本・松本・森）。書き出しもこの順になる。
+    # 並び順は「対象者」で選んだ順（既定は 塚本・松本・森・大鹿・吉浦）。書き出しもこの順になる。
     rank = {n: i for i, n in enumerate(targets)}
     rows = [r for r in DR.list_for_date(date_str) if not targets or r["person"] in targets]
     rows.sort(key=lambda r: rank.get(r["person"], 999))
