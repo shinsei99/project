@@ -101,16 +101,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 
 # G. 日本語のデータ
 
-**51.** ✅〔不動産〕**住所文字列から正規表現で市区町村を抜くと「区」が落ちる**（`chatwork-ai-manager` / `jyuusetsu-research`）
-人口の括弧内が「大阪府大阪市」になり実データ（中央区）と食い違った。
-API が返す**正式名称**（`metaGetFlg=Y`）を使う。
-→ `jyuusetsu-research/SESSION_LOG.md:499`
-
-**52.** ✅〔不動産〕**日本語には語の区切りが無いので、法令名が前の語とくっつく**（`tokuyaku-generator`）
-「重要事項の説明は宅地建物取引業法第35条」が引けない。末尾2〜12文字の候補を長い順に当てて**完全一致**を採る。
-さらに `{2,30}` にしていたため**2文字の「民法」が条件を満たさなかった**。
-→ `tokuyaku-generator/SESSION_LOG.md:16-20`
-
 ---
 
 # H. 外部API
@@ -129,10 +119,6 @@ API が返す**正式名称**（`metaGetFlg=Y`）を使う。
 **56.** ✅〔不動産〕**APIが既に「%」付きで返すのに、こちらも付けて `80%%`**（`jyuusetsu-research`）
 `_with_percent()` で重複を防ぎ、`"60.0%"` は `60%` に正規化。小さいが誰でも踏む。
 → `jyuusetsu-research/SESSION_LOG.md:490`
-
-**57.** ✅〔不動産〕**e-Gov は条の絞り込みができず全文を返す**（`tokuyaku-generator`）
-民法1.7MB・借地借家法1.4MB。初回が数十秒。`.egov-cache/` に7日キャッシュ。
-→ `tokuyaku-generator/SESSION_LOG.md:21`
 
 **58.** ✅〔ツール〕**GETは200なのに中身が空。POSTでないと返さない**（`onepiece-dex`）
 公式カードリストが 51KB（選択肢のみ）で返る。`POST` にすると 463KB。
