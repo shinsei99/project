@@ -66,7 +66,8 @@ DEFAULT_SETTINGS = {
     "monthly_report_account_id": "7426045",  # 資料をアップロードする人（既定: 鷲見慎一）
     "monthly_report_room_id": "",            # 空なら daily_report_room_id → manager_room_id → 監視中groupルーム
     "monthly_report_upload": "1",            # 1でアップロード元と同じルームへExcelを自動アップ
-    "monthly_report_mail": "0",              # 既定は送らない（画面から日報同様にON可能）
+    # 社内メールへも同じExcelを添付して送る（TASK-20260825-002・日報と同じ挙動に揃える）
+    "monthly_report_mail": "1",
     "monthly_report_mail_to": "",            # 空なら daily_report_mail_to を使う
     "model_monthly_report": "sonnet",
     # ---- ファイル添付送信（Stage 9）----
