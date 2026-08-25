@@ -77,6 +77,9 @@
 # アプリを都度起動する道具（起動→ポート待ち→HTTP確認を1コマンドに畳む）。
 # Claude Code の確認プロンプトを減らす目的も兼ねる（nohup・待ちループを1本に閉じ込める）
 !app-start.sh
+# 社内配布用のアプリ一覧Excelを作る道具。許可行が無く他PCへ渡っていなかった
+# （URLのホスト名が usernoMac-mini.local のままなので、使う前に現状へ直すこと）
+!make_app_list.py
 !handwriting-ocr/
 !handwriting-ocr/**
 !swim-tracker-react/
