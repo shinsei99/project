@@ -321,6 +321,41 @@ def list_for_date(date_str: str):
         "SELECT * FROM daily_reports WHERE report_date=? ORDER BY person", (date_str,))]
 
 
+# --- 検索・集計（TASK-20260825-009・業務管理DBとしての活用） ------------------
+def all_persons() -> list:
+    """過去に日報が存在する氏名一覧（異動・退職済みで現在の監視ルームに居ない人も含む）。"""
+    return [r["person"] for r in query(
+        "SELECT DISTINCT person FROM daily_reports ORDER BY person")]
+
+
+def date_range() -> tuple:
+    """蓄積されている日報の最古日・最新日（無ければ None, None）。"""
+    r = query_one("SELECT MIN(report_date) AS lo, MAX(report_date) AS hi FROM daily_reports")
+    return (r["lo"], r["hi"]) if r else (None, None)
+
+
+def search(date_from: str = None, date_to: str = None, persons=None, keyword: str = None) -> list:
+    """日付範囲・氏名・キーワード（本文/要約）で日報を検索する。"""
+    where, params = [], []
+    if date_from:
+        where.append("report_date>=?")
+        params.append(date_from)
+    if date_to:
+        where.append("report_date<=?")
+        params.append(date_to)
+    if persons:
+        where.append("person IN (%s)" % ",".join("?" * len(persons)))
+        params += list(persons)
+    if keyword:
+        where.append("(body LIKE ? OR summary LIKE ?)")
+        params += [f"%{keyword}%", f"%{keyword}%"]
+    sql = "SELECT * FROM daily_reports"
+    if where:
+        sql += " WHERE " + " AND ".join(where)
+    sql += " ORDER BY report_date DESC, person"
+    return [dict(r) for r in query(sql, tuple(params))]
+
+
 def delete(date_str: str, person: str):
     with get_conn() as conn:
         conn.execute("DELETE FROM daily_reports WHERE report_date=? AND person=?",
