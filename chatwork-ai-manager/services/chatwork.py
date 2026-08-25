@@ -105,6 +105,20 @@ class ChatworkClient:
         return self._request("GET", f"/rooms/{room_id}/files/{file_id}",
                              params={"create_download_url": 1}) or {}
 
+    def download_file(self, room_id: int, file_id: int):
+        """ファイル本体をダウンロードする。戻り値: (bytes, filename)。
+
+        get_file の download_url は署名付きURLで**有効期限30秒**なので、
+        取得したその場ですぐ読みに行く（トークンヘッダは付けない＝Chatwork API側ではない）。
+        """
+        info = self.get_file(room_id, file_id)
+        url = info.get("download_url")
+        if not url:
+            return None, info.get("filename")
+        req = urllib.request.Request(url, headers={"Accept": "*/*"})
+        with urllib.request.urlopen(req, timeout=self.timeout) as resp:
+            return resp.read(), info.get("filename") or f"file_{file_id}"
+
     def post_message(self, room_id: int, body: str, self_unread: bool = False) -> str:
         """メッセージ投稿。戻り値: 作成された message_id。"""
         data = {"body": body, "self_unread": 1 if self_unread else 0}

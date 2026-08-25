@@ -8,3 +8,4 @@ pandas>=2.0
 pymupdf>=1.24      # PDF テキスト抽出
 openpyxl>=3.1      # Excel 読み取り
 python-docx>=1.1   # Word 読み取り
+python-pptx>=1.0   # 業務月報の会議資料（PowerPoint）読み取り専用

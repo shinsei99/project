@@ -61,6 +61,14 @@ DEFAULT_SETTINGS = {
     # 既定は管理者=鷲見慎一(7426045)。社員が勝手にコードを書かせないための制限。
     "dev_allowed_account_ids": "7426045",
     "dev_max_attempts": "3",            # 再起動復元での再実行上限
+    # ---- 業務月報（TASK-20260825-001。鷲見の会議資料アップロードが起点。トリガー駆動＝時刻指定なし）----
+    "monthly_report_enabled": "1",
+    "monthly_report_account_id": "7426045",  # 資料をアップロードする人（既定: 鷲見慎一）
+    "monthly_report_room_id": "",            # 空なら daily_report_room_id → manager_room_id → 監視中groupルーム
+    "monthly_report_upload": "1",            # 1でアップロード元と同じルームへExcelを自動アップ
+    "monthly_report_mail": "0",              # 既定は送らない（画面から日報同様にON可能）
+    "monthly_report_mail_to": "",            # 空なら daily_report_mail_to を使う
+    "model_monthly_report": "sonnet",
     # ---- ファイル添付送信（Stage 9）----
     # 送信のたびにLINEへ通知するか。既定は 0（送らない。2026-08-19 オーナー判断）。
     # 送信の記録は設定に関わらず sent_files テーブルに必ず残る。

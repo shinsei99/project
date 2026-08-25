@@ -43,6 +43,7 @@ PAGES = {
     "📊 ダッシュボード": "dashboard",
     "✅ TODO一覧": "todos",
     "📝 業務日報": "daily_report",
+    "📅 業務月報": "monthly_report",
     "🛠 開発タスク": "dev_tasks",
     "🗺 物件マップ": "property_map",
     "❓ AI確認待ち": "ai_confirm",
@@ -74,13 +75,14 @@ st.sidebar.info(f"投稿モード: **{_mode_label.get(post_mode(), post_mode())}
 
 page = PAGES[choice]
 from views import (  # noqa: E402
-    ai_confirm, analysis_log, daily_report, dashboard, dev_tasks, knowledge, outbox,
+    ai_confirm, analysis_log, daily_report, dashboard, dev_tasks, knowledge, monthly_report, outbox,
     property_map, rooms, scheduled, settings as settings_view, todos,
 )
 
 _RENDER = {
     "dashboard": dashboard.render, "todos": todos.render, "ai_confirm": ai_confirm.render,
-    "daily_report": daily_report.render, "dev_tasks": dev_tasks.render, "property_map": property_map.render,
+    "daily_report": daily_report.render, "monthly_report": monthly_report.render,
+    "dev_tasks": dev_tasks.render, "property_map": property_map.render,
     "outbox": outbox.render, "scheduled": scheduled.render, "knowledge": knowledge.render,
     "rooms": rooms.render, "analysis_log": analysis_log.render, "settings": settings_view.render,
 }
