@@ -35,16 +35,8 @@ case "${1:-status}" in
       echo "  Vercel: **未リンク**（npx vercel login → npx vercel link が要る）"; fi
 
     echo "── Zenn ────────────────────────────────────"
-    pub="$(zenn_published_slugs)"
-    for f in "$ARTICLES"/*.md; do
-      s="$(basename "$f" .md)"
-      if grep -q '^published: true' "$f"; then
-        if echo "$pub" | grep -qx "$s"; then echo "  ✅ $s"
-        else echo "  ⬜ $s … published:true なのに未反映（投稿数の上限。空けて再push）"; fi
-      else
-        echo "  －  $s（published:false）"
-      fi
-    done
+    # ★予約中の記事は公開APIに出ない。published_at を見て区別する（判定は python 側）
+    /usr/bin/python3 scripts/zenn_status.py
 
     echo "── note ────────────────────────────────────"
     echo "  原稿: $(ls drafts/note/*.md 2>/dev/null | wc -l | tr -d ' ') 本"
