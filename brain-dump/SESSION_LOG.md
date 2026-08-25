@@ -25,7 +25,8 @@
   ローカル `/api/transcribe` の所要は 9秒で `maxDuration = 60` に収まる
 
 ### 次回への引き継ぎ事項・未解決の課題
-- **本番（Vercel）へは未デプロイ。** `npx vercel --prod` はオーナーの許可が要るため保留
+- **本番（Vercel）へデプロイ済み**（2026-08-25・オーナー許可のうえ実施）。target=production・
+  alias `brain-dump-sable-one.vercel.app`・HTTP 200・配信JSに新コードが入っていることまで確認
 - **iPhone 実機での確認が未了。** この不具合は iOS Safari 固有で Mac の Chrome では再現しないため、
   デプロイ後に実機で「1分以上の録音 → 文字起こしされる」ことを確かめる必要がある
 - Wake Lock は iOS 16.4+ のみ。それ以前の iOS では従来どおり画面ロックで切れるが、
