@@ -27,23 +27,10 @@
 `/opt/homebrew/bin/claude` 固定。Intel Mac や `~/.local/bin` では見つからず、正規表現の簡易版で動き続けていた。
 → `55be186` `514b104`、`registry_parser.py:29-50`
 
-**5.** ✅〔不動産〕**exit code 0 で中断していた**（`jyuusetsu-research`）
-書式レジストリが 200本→**126本に欠けた**。`RULES` に要素を足したのに `for a, b, c in RULES` で
-取り出していて `ValueError`。だが**終了コードは 0**だったので成功に見えていた。
-→ `jyuusetsu-research/SESSION_LOG.md:340`
-
 **6.** ⚠️〔不動産〕**本番の常駐だけが違うPythonで動いている**（`chatwork-ai-manager`）
 worker は launchd の `/usr/bin/python3`。`requests` 前提のモジュールを足すと本番だけ ImportError になる。
 「HTTPは urllib を使う」という制約が `requirements.txt` に書いてある理由。
 → `chatwork-ai-manager/SESSION_LOG.md:27`
-
-**7.** ✅〔不動産〕**Streamlit は指定しないと 0.0.0.0（＝LAN公開）**（全アプリ横断）
-「指定しなければ localhost」ではない。コメントに「ローカル」と書いてあるアプリが実際は公開されていた。
-→ `8febef2` `357083c`、メモリ `reference_streamlit_bind.md`
-
-**8.** ✅〔ツール〕**Next.js の dev サーバーも既定で 0.0.0.0**（`digital-shosai`）
-Streamlit と同じ罠。`--hostname 127.0.0.1` を明示。
-→ `digital-shosai/SESSION_LOG.md:200`
 
 ---
 
