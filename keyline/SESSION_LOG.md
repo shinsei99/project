@@ -57,6 +57,27 @@
 - **返信・提出は外部への操作**なのでオーナーの判断で行う（CLAUDE.md 6項）。
 - 審査状況の確認は `python3 appstore_api.py --review com.shinsei99.keytag`。
 
+### 返信文のドラフト（動画URLが決まってから Resolution Center で返す）
+
+> Hello,
+>
+> Thank you for the review. We have added a link to a demo video in the App Review Information
+> section (Notes) in App Store Connect.
+>
+> The video was recorded on a physical iPhone (not a simulator) and shows the NFC tag and the app
+> screen at the same time, including: launching the app, writing to a blank NTAG213 tag (initial
+> pairing), reading that tag, and the full workflow of registering a key, checking it out, and
+> returning it by scanning the tag again.
+>
+> Please also note that this app is submitted as **iPhone only** (TARGETED_DEVICE_FAMILY = 1).
+> The review was performed on an iPad Air 11-inch (M3), which has no NFC reader, so the NFC
+> features cannot be exercised on that device. All NFC functionality requires an iPhone with NFC
+> tag reading support. The server integration is optional — every feature works entirely
+> on-device without it.
+>
+> Best regards,
+
+
 ## 2026-08-24（メインPC）— KeyTag の審査状況を API で確認（変化なし・待ち）
 
 ### 完了したこと
