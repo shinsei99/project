@@ -56,19 +56,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 
 # D. 紙を読む — PDF・公式書式・謄本
 
-**31.** ⚠️〔不動産〕**旧Word(.doc)を、表を壊さずに .docx へ変換する**（`jyuusetsu-research`）
-`python-docx` は `.doc` を読めない。AppleScript の `save as` は現行Wordで `-1708`。
-`textutil`→RTF→`pandoc` に切り替え、`\'xx`(CP932) だけを Unicode エスケープに変換。
-→ `9aaf254`、`jyuusetsu-research/SESSION_LOG.md:405`
-
-**32.** ⚠️〔不動産〕**PDF・画像の向きを、読ませる前に自動で直す**（全アプリ横断の共有モジュール）
-スキャンPDFが横向き・逆さのままAIに入ると精度が落ちる。`pdf_orient.py` を全アプリへ。
-→ `b77e692`、メモリ `reference_pdf_orient.md`
-
-**33.** ⚠️〔不動産〕**旧Excel(.xls)から画像を取り出す**（`kato-flyer` / `maisoku-converter`）
-OLEセクタとBIFFの CONTINUE、**二段の分断**を解く。LibreOffice を使わない実装。
-→ メモリ `reference_xls_images.md`
-
 ---
 
 # E. AIを道具として使う — モデル・SDK・プロンプト
