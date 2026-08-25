@@ -36,14 +36,6 @@ worker は launchd の `/usr/bin/python3`。`requests` 前提のモジュール�
 
 # B. 常駐・デプロイ — 「直したのに反映されない」
 
-**12.** ✅〔不動産〕**常駐が Dropbox の権限をまれに失う → 自分で死んで生き返る**（`parking-map`）
-権限エラーが連続したら**自終了して KeepAlive で再起動**。**30分5回の上限**で無限ループを防ぐ。
-→ `8c002b5`
-
-**13.** ⚠️〔不動産〕**launchd の常駐は CloudStorage を読めない／TCCの責任プロセスは `/bin/bash`**（`shorui-cabinet`）
-Python 本体に許可を与えても効かず、`/bin/bash` にフルディスクアクセスを与えると通る。
-→ メモリ `reference_launchd_cloudstorage_fda.md`、`shorui-cabinet/README.md`
-
 **15.** ⚠️〔メディア〕**Vercel は git 連携ではない／`--scope` が要る**（`ai-tools-base`）
 push しても本番は変わらない。`whoami` は通るのにデプロイが `Not authorized`（プロジェクトはチームの持ち物）。
 → `77c1dd6`、`ai-tools-base/CLAUDE.md`
@@ -61,19 +53,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 Excel に実測させた **`_PT_PER_CHAR = 6.0`** と **`OneCellAnchor`（実寸をEMUで固定）** へ。
 実測 帯1150.00pt / 画像1149.75pt・縦横比0.8141。
 → `46ce8c7`
-
-**18.** ✅〔不動産〕**openpyxl の内部APIを触ったら、Excelが「修復」して題字が消えた**（`chatwork-ai-manager`）
-列幅の単位を合わせようと `wb._named_styles["Normal"].font` を書き換えたのが原因。
-→ `chatwork-ai-manager/SESSION_LOG.md:201`
-
-**19.** ✅〔不動産〕**Wordの表に罫線が出ない**（`chatwork-ai-manager`）
-`Table Grid` スタイルの解釈が**ビューア依存**。`w:tblBorders` を直接書く＋`autofit = False`。
-→ `chatwork-ai-manager/SESSION_LOG.md:270`
-
-**20.** ✅〔不動産〕**Wordのページ末尾に `□` が残る**（`chatwork-ai-manager`）
-`add_page_break()` が空段落を足し、直前の箇条書きスタイルを引き継いでいた。
-見出し段落の `page_break_before` へ。あわせて箇条書きのぶら下げインデント。
-→ `chatwork-ai-manager/SESSION_LOG.md:274-279`
 
 **21.** 🔍〔不動産〕**帳票を「A4 1枚」に収め続ける**（`restoration-calculator`）
 文字切れ・行間・縦フィット・項目追加のたびの調整。17番と9本目（行の高さ）に続く帳票三部作の3本目。

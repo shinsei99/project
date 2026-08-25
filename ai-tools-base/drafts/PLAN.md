@@ -16,8 +16,8 @@
 | 5 | safe-default-on-unreadable | 3 | 不動産 | 📝 | 読めないときの既定値を安全側へ |
 | 6 | exit-code-zero-partial | 5 | 不動産 | 📝 | 終了コード0で中断していた |
 | 7 | default-bind-0000 | 7,8 | 不動産 | 📝 | 指定しないとLANに出る（Streamlit / Next.js） |
-| 8 | launchd-cannot-read-cloud | 12,13 | 不動産 | ⬜ | 常駐がクラウド同期フォルダを読めない／TCCの責任プロセス |
-| 9 | office-report-layout | 18,19,20 | 不動産 | ⬜ | Excelが修復扱い・Wordの罫線・末尾の□ |
+| 8 | launchd-cannot-read-cloud | 12,13 | 不動産 | 📝 | 常駐がクラウド同期フォルダを読めない／TCCの責任プロセス |
+| 9 | office-report-layout | 18,19,20 | 不動産 | 📝 | Excelが修復扱い・Wordの罫線・末尾の□ |
 | 10 | excel-image-aspect | 17,22,23 | 不動産 | ⬜ | 写真が縦に潰れる／直さないと決めたバグ／表示の丸め |
 | 11 | form-field-detection | 24,26,28,29,30 | 不動産 | ⬜ | 公式書式の入力欄をどう当てるか |
 | 12 | regex-picks-ruled-lines | 25 | 不動産 | ⬜ | 正規表現が罫線を値として拾う |
