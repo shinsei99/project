@@ -287,6 +287,29 @@ Zennのレート制限があるため、**1日2本ずつ**Zennへ出し、その
 
 ---
 
+## 11本目：3枚目から必ず失敗する（shorui-mobile／iOS Safari × Vercel 4.5MB）
+
+| 媒体 | 原稿 | URL |
+|---|---|---|
+| 本体 | `content/works/mobile-photo-upload.json` | ✅ https://ai-tools-base.vercel.app/works/mobile-photo-upload （2026-08-25 21:3x・サブPC） |
+| Zenn | `zenn/ios-safari-vercel-upload-413.md` | ✅ https://zenn.dev/shinsei99/articles/ios-safari-vercel-upload-413 （**21:42 の push は投稿数の上限で弾かれ、22:11 に空コミットで再push → 約1分で反映**） |
+| note | `note/sanmai-me-de-tomaru.md` | ✅ https://note.com/shinsei99/n/nc4ce3a25341d （2026-08-25 21:5x・**拡張から自動投稿**。見出し画像はみんなのフォトギャラリー「書類の山に埋もれる男性」Photo by alkalinedrysell） |
+
+- 題材はネタ帳42番。裏取りは commit `7eeec42`（FormData のASCII名）/ `30526bd`（縮小）/
+  `5b1285b`（`createImageBitmap` → `<img>`）/ `f4d724d`（1枚＝1リクエスト）と現行 `app/page.tsx`
+- **Zenn のレート制限を実際に踏んだ2回目**（1回目は 8/22 の `openpyxl-row-height-autofit`）。
+  デプロイ履歴のお知らせ欄に「投稿数の上限に達したためデプロイされませんでした」と出る。
+  **前回の公開から24時間**を空けて空コミットで再push すれば通る
+- note の本文は Zenn のURLを先に載せている（ファイル名でURLが確定するため）。
+  Zenn が反映されるまでの約30分だけ、そのリンクは404だった
+- **再push のときに `.git/index.lock` で1度失敗した。** 別セッションの git が残した
+  0バイトの lock（22:05）で、git プロセス自体は動いていなかった。`ps aux | grep git` で
+  実行中が無いことを確かめてから消して再実行した
+- 締めまで実施: `links` に両URL → `npx vercel --prod --scope brain-dump` →
+  本番ページから Zenn / note の両リンクが引けることを確認（転載⚠️ 0件）
+
+---
+
 ## 11本目：題材の候補（2026-08-24 時点・**未着手**）
 
 **どれも「不動産」カテゴリの実話で、まだ制作記録になっていないもの。**

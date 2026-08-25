@@ -4,12 +4,19 @@
 
 ---
 
-## ▶ 進行中（2026-08-25 サブPC）— 11本目に着手
+## ▶ 「続きから」と言われたら、ここから（2026-08-25 22:2x 更新）
 
-**題材はネタ帳42番「スマホから写真を送ると3枚目で必ず失敗する」（`shorui-mobile`）**に決定。
-裏取りは commit `7eeec42` `30526bd` `5b1285b` `f4d724d` の4本＋現行 `app/page.tsx` で実施済み。
-3点セットのslugは 本体 `mobile-photo-upload` ／ Zenn `ios-safari-vercel-upload-413` ／
-note `sanmai-me-de-tomaru`。出す順は 本体 → Zenn → note。
+**11本目「3枚目から必ず失敗する」は3媒体とも公開済み**（本体 `/works/mobile-photo-upload` ／
+Zenn `ios-safari-vercel-upload-413` ／ note `nc4ce3a25341d`）。`links` 追記・再デプロイ・
+`validate` の転載⚠️0件まで完了している。
+
+**次は12本目。段取りは下の（古い）節と同じで、題材だけ `drafts/NETA.md` から選び直す。**
+11本目は F章（スマホ・ブラウザ）なので、**別の章から選ぶ**。在庫の本命候補は
+A章1番（pykakasi 無しで一致率が黙って下がる）／C章17番（Excelに貼った写真が縦に潰れる）／
+B章10番（`launchctl kickstart -k` は plist を読み直さない）。
+
+**Zenn は「前回公開から24時間」を空けること。** 11本目はこれを踏んで1度弾かれた
+（詳細は `SESSION_LOG.md` 2026-08-25 の節）。
 
 ## ▶ 「続きから」と言われたら、ここから（2026-08-24 22:4x 更新）
 

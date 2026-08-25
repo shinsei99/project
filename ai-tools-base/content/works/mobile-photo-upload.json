@@ -79,5 +79,16 @@
     }
   ],
   "featured": false,
-  "links": []
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/ios-safari-vercel-upload-413",
+      "note": "4.5MBの上限、iOS SafariのFormData例外、縮小が黙って無効になる話とコード"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/nc4ce3a25341d",
+      "note": "「上限は避けるより当たらない形にする」という、運び方を変えた話"
+    }
+  ]
 }

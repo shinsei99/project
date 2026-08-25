@@ -1,3 +1,41 @@
+## 2026-08-25（サブPC・夜）— 11本目の3点セットを、このPCから3媒体とも公開した
+
+### 完了したこと
+
+- **11本目「3枚目から必ず失敗する。スマホで撮った書類は、送信の上限に当たっていた」を3媒体とも公開**
+  （題材はネタ帳42番＝`shorui-mobile` の iOS Safari × Vercel。裏取りは commit
+  `7eeec42` / `30526bd` / `5b1285b` / `f4d724d` と現行 `app/page.tsx` を読んで実施）
+  - 本体 https://ai-tools-base.vercel.app/works/mobile-photo-upload （21:3x）
+  - Zenn https://zenn.dev/shinsei99/articles/ios-safari-vercel-upload-413 （22:1x・再push で反映）
+  - note https://note.com/shinsei99/n/nc4ce3a25341d （21:5x・拡張から自動投稿。h2×6・p×47・a×3・2,335文字。
+    見出し画像＝みんなのフォトギャラリー「書類の山に埋もれる男性」Photo by alkalinedrysell）
+- `links` を追記して再デプロイ。**本番ページから Zenn / note の両リンクが引けることを確認**。
+  `npm run validate` の転載⚠️は 0 件（残る4件は tools の review 空欄で別件）
+- 記事の中身: ①iOS Safari は FormData のファイル名に非ASCIIが混ざると例外
+  ②Vercel のボディ上限 4.5MB（写真1枚2〜4MB＝3枚目で必ず超える）
+  ③`createImageBitmap` が iOS Safari で失敗し `catch` が原本を返すので縮小が黙って無効になる
+  ④縮小は対症療法なので 1枚＝1リクエストに分割し、束IDで1フォルダに集約
+
+### 発生したエラーと解決策
+
+- **症状**: push しても Zenn に出ない（`./publish.sh status` が ⬜）。
+  **原因**: **投稿数の上限**。デプロイ履歴のお知らせ欄に
+  「次の記事は投稿数の上限に達したためデプロイされませんでした: ios-safari-vercel-upload-413」。
+  前回公開（10本目）が 8/24 22:08 で、21:42 の push はその24時間以内だった。
+  **直し方**: 22:11（24時間経過後）に空コミットで再push → **約1分で反映**。
+  切り分けは https://zenn.dev/dashboard/deploys のお知らせ欄が最短（拡張から読めた）。
+- **症状**: 再push の `git commit` が `Unable to create '.git/index.lock': File exists` で失敗。
+  **原因**: 別セッションの git が残した0バイトの lock（22:05）。**git プロセスは動いていなかった**。
+  **直し方**: `ps aux | grep git` で実行中が無いことを確かめてから lock を消して再実行した。
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **次は12本目の題材選び**（`drafts/NETA.md` の在庫から、11本目のF章「スマホ・ブラウザ」以外を選ぶ）。
+- **Zenn のレート制限を踏んだのはこれで2回目**（1回目は 8/22 の `openpyxl-row-height-autofit`）。
+  同じ日に2本目を出すときは、**前回公開の時刻から24時間**を数えること。
+
+---
+
 ## 2026-08-24（サブPC・夜）— 10本目の3点セットを、このPCから3媒体とも公開した
 
 ### 完了したこと
