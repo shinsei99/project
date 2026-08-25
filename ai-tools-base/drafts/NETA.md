@@ -80,10 +80,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 2026-07-22 の実事故。`ios-build-guard.sh` で衝突チェックする運用に。
 → メモリ `feedback_ios_build_bump.md`、CLAUDE.md の該当節
 
-**47.** ✅〔不動産〕**Chromeの自動ダウンロード制限で、5本中1本しか落ちない**（`jyuusetsu-research`）
-一括ダウンロードが途中で止まる。**自動では回避しない**（人が1回「常に許可」を押す）と決めた話。
-→ `jyuusetsu-research/SESSION_LOG.md:448`
-
 ---
 
 # G. 日本語のデータ
