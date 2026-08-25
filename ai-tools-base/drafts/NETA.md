@@ -27,10 +27,6 @@
 `/opt/homebrew/bin/claude` 固定。Intel Mac や `~/.local/bin` では見つからず、正規表現の簡易版で動き続けていた。
 → `55be186` `514b104`、`registry_parser.py:29-50`
 
-**3.** ✅〔不動産〕**休業日の判定が、別PCのパスを見たまま無効化されていた**（`chatwork-ai-manager`）
-`is_holiday()` が**読めないとき False（＝営業日）を返す**設計。休業日にも催促が飛んでいた。既定値を安全側に倒す話。
-→ 直下 `TODO.md` 2026-08-24 の節
-
 **5.** ✅〔不動産〕**exit code 0 で中断していた**（`jyuusetsu-research`）
 書式レジストリが 200本→**126本に欠けた**。`RULES` に要素を足したのに `for a, b, c in RULES` で
 取り出していて `ValueError`。だが**終了コードは 0**だったので成功に見えていた。
