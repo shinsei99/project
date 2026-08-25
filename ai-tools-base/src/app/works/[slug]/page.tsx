@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/Badge";
 import { CoverArt } from "@/components/ui/CoverArt";
 import { getWork, getWorks } from "@/lib/content/works";
 import { getPhoto } from "@/lib/content/photos";
+import { getEpisodesForWork } from "@/lib/content/novel";
 import type { Work } from "@/lib/schema";
 import { JsonLd, breadcrumb } from "@/components/seo/JsonLd";
 import { SITE } from "@/lib/site";
@@ -80,6 +81,10 @@ export default async function WorkPage({
   if (!work) notFound();
 
   const photo = getPhoto(work.slug);
+
+  // この記録が題材になった小説の話（無ければ空）
+
+  const episodes = getEpisodesForWork(work.slug);
   // 関連記録: 同カテゴリを優先し、足りなければ他カテゴリで埋める（詳細ページ同士を必ず繋ぐ）
   const others = getWorks().filter((w) => w.slug !== work.slug);
   const related = [
@@ -147,6 +152,38 @@ export default async function WorkPage({
                 </li>
               ))}
             </ul>
+          </div>
+        ) : null}
+
+        {episodes.length > 0 ? (
+          <div className="mt-4 rounded-xl border border-border bg-surface p-4">
+            <p className="text-sm font-semibold">この記録は、小説の題材になっています</p>
+            <ul className="mt-2 space-y-1.5">
+              {episodes.map((e) => (
+                <li key={`${e.no}-${e.title}`} className="text-sm">
+                  <span className="font-semibold">
+                    『{e.book!.title}』第{e.no}話「{e.title}」
+                  </span>
+                  <span className="ml-2 text-muted">{e.note}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-3 text-sm">
+              {episodes[0].book!.url ? (
+                <a
+                  href={episodes[0].book!.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-accent hover:underline"
+                >
+                  カクヨムで読む ↗
+                </a>
+              ) : (
+                <Link href="/novel" className="font-semibold text-accent hover:underline">
+                  小説について →
+                </Link>
+              )}
+            </p>
           </div>
         ) : null}
 

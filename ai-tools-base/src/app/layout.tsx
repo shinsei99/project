@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { NovelLink } from "@/components/novel/NovelLink";
 import "./globals.css";
 import { Container } from "@/components/ui/Container";
 import { PhotoCredits } from "@/components/ui/PhotoCredits";
@@ -46,6 +47,7 @@ const NAV = [
   { href: "/works", label: "制作記録" },
   { href: "/articles", label: "記事" },
   { href: "/history", label: "AIの歴史" },
+  { href: "/novel", label: "小説" },
 ];
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -77,6 +79,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex flex-wrap items-center justify-between gap-4">
               <p>AIツールベース — 掲載する評価は実際に触った範囲のものです。</p>
               <p>料金・仕様は変動します。契約前に公式サイトで確認してください。</p>
+            </div>
+            <div className="mt-4">
+              <NovelLink />
             </div>
             <PhotoCredits />
           </Container>
