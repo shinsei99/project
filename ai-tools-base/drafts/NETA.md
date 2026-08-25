@@ -1,7 +1,10 @@
-# ネタ帳 — 制作記録の在庫（2026-08-24 棚卸し・**66本**）
+# ネタ帳 — 制作記録の在庫
 
-**目的**: 「次は何を書くか」で毎回悩まないように、**書ける題材を先に集めておく**。
-`drafts/PUBLISH.md` は公開済みの台帳、こちらは**未着手の在庫**。
+**2026-08-26 に、棚卸ししてあった66本をすべて書き上げた。いまの在庫は0本。**
+書いたものは `drafts/PLAN.md`（束ね方と状態）と `drafts/PUBLISH.md`（公開の記録）にある。
+
+**次に何か起きたら、ここへ足す。** 書き方は下の「使い方」のとおり
+（症状・原因・直し方と、根拠のコミット／ログの行番号をセットで書く）。
 
 ## 使い方
 
@@ -27,13 +30,7 @@
 
 # B. 常駐・デプロイ — 「直したのに反映されない」
 
-**15.** ⚠️〔メディア〕**Vercel は git 連携ではない／`--scope` が要る**（`ai-tools-base`）
-push しても本番は変わらない。`whoami` は通るのにデプロイが `Not authorized`（プロジェクトはチームの持ち物）。
-→ `77c1dd6`、`ai-tools-base/CLAUDE.md`
 
-**16.** ✅〔メディア〕**Zenn は投稿上限に当たると「成功」と出たまま黙って未反映**（`ai-tools-base`）
-自動再試行もされない。24時間空けて空コミットで再push。**待ち時間で見分けられる**（正常なら約30秒〜1分）。
-→ `ai-tools-base/SESSION_LOG.md` 2026-08-22
 
 ---
 
@@ -63,22 +60,9 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 束IDでサーバー側の1フォルダに集約。
 → `30526bd` `7eeec42` `5b1285b` `f4d724d`
 
-**43.** ✅〔ツール〕**iOSはキーボードが出るとWebView自体が縮む**（`scrapmemo-petapeta`）
-`innerHeight` 874→538。編集シートの上部が画面外へ出て触れなくなる。
-**前回の直しは Safari だけで確認していて、実機で再発**したという経緯まで書ける。
-→ `4b717e5`、`scrapmemo-petapeta/SESSION_LOG.md:126`
 
-**44.** ✅〔ツール〕**`npx cap sync` だけでは `www/` が古いまま**（`scrapmemo-petapeta`）
-`npm run sync`（build:web → cap sync）が正。md5 不一致で発覚。
-→ `scrapmemo-petapeta/SESSION_LOG.md:35`
 
-**45.** ✅〔ツール〕**Capacitor 8 は SPM なので `.xcworkspace` が無い**（`scrapmemo-petapeta`）
-`xcodebuild -workspace` が「存在しない」で失敗。`-project` を使う。
-→ `scrapmemo-petapeta/SESSION_LOG.md:38`
 
-**46.** ✅〔ツール〕**再配信でビルド番号を上げず、修正前のビルドが審査を通った**（`photo-remake` / `neon-blocks`）
-2026-07-22 の実事故。`ios-build-guard.sh` で衝突チェックする運用に。
-→ メモリ `feedback_ios_build_bump.md`、CLAUDE.md の該当節
 
 ---
 
@@ -88,34 +72,15 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 
 # H. 外部API
 
-**58.** ✅〔ツール〕**GETは200なのに中身が空。POSTでないと返さない**（`onepiece-dex`）
-公式カードリストが 51KB（選択肢のみ）で返る。`POST` にすると 463KB。
-→ `onepiece-dex/SESSION_LOG.md:176`
 
-**59.** ✅〔ツール〕**相場データは「平均が空で最安だけ入る」ことがある**（`pokecard-dex`）
-取引平均だけを見ていたので481件が画面から消えた。しかもそのとき `trend` に **0 が入る**。
-→ `pokecard-dex/SESSION_LOG.md:64`
 
 ---
 
 # I. データベースと並行処理
 
-**62.** ✅〔ツール〕**`executescript()` は busy_timeout を無視する**（`onepiece-dex`）
-`database is locked` で落ちる。同じDBに `execute("BEGIN IMMEDIATE")` を投げたほうは**46秒待って成功**（実測）。
-60番と同じ関数の別の顔なので、2本立てにもできる。
-→ `onepiece-dex/SESSION_LOG.md:180`
 
-**63.** ✅〔ツール〕**Streamlit は再実行のたびに別スレッド**（`mail-archiver`）
-`@st.cache_resource` でSQLite接続を使い回して `ProgrammingError`。`check_same_thread=False`。
-→ `mail-archiver/SESSION_LOG.md:43`
 
-**65.** ✅〔ツール〕**キャッシュのキーが変わって「未照合」に戻る**（`kaitori-dm-maker`）
-空欄の〒を補完するとキー（〒＋住所）が変わる。補完時に**新しいキーにも同じ結果を置く**。
-→ `kaitori-dm-maker/SESSION_LOG.md:17`
 
-**66.** ✅〔ツール〕**2つの画面が同じ `session_state` キーを共有していた**（`onepiece-dex` / `pokecard-dex`）
-片方で選んだタブが、もう片方に無い値のまま残る。**相手のキーで自分のDBを引く**ところだった。
-→ `onepiece-dex/SESSION_LOG.md:22`
 
 ---
 

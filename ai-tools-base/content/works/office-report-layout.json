@@ -1,10 +1,16 @@
 {
   "slug": "office-report-layout",
-  "name": "配れる書類にするまで。罫線が出ない、題字が消える、末尾に□が残る",
+  "name": "配れる書類にするまで。罫線が出ない、題字が消える、末尾に記号が残る",
   "visibility": "public",
   "category": "realestate",
   "summary": "AIが毎日作る業務日報を、そのまま人に配れるWordとExcelにするまでの記録。中身が正しくても、罫線が出ない・題字が消える・ページ末尾に記号が残る状態では配れない。見た目の不具合を1つずつ潰した。",
-  "stack": ["Python", "python-docx", "openpyxl", "Word", "Excel"],
+  "stack": [
+    "Python",
+    "python-docx",
+    "openpyxl",
+    "Word",
+    "Excel"
+  ],
   "year": 2026,
   "features": [
     "その日のやりとりから、担当者ごとの日報をWordとExcelで書き出す",

@@ -31,11 +31,10 @@
 | 23 | chrome-download-limit | 47 | 不動産 | 📝 | 自動ダウンロードの制限は自動では回避しない |
 | 24 | env-differs-in-production | 2,6 | 不動産 | 📝 | 本番だけ違うものが動く（固定パス／常駐のPython） |
 | 25 | a4-one-page | 21 | 不動産 | 📝 | 帳票をA4一枚に収め続ける（🔍コードから） |
-| 26 | ios-capacitor-traps | 43,44,45,46 | ツール | ⬜ | キーボードでWebViewが縮む／sync漏れ／SPM／ビルド番号 |
-| 27 | streamlit-rerun-thread | 63,66 | ツール | ⬜ | 再実行ごとに別スレッド／画面間で state が衝突 |
-| 28 | cache-key-changed | 65 | ツール | ⬜ | 補完するとキーが変わって「未照合」に戻る |
-| 29 | api-post-only | 58,59 | ツール | ⬜ | GETは200で空／平均が空で最安だけ入る |
-| 30 | media-ops | 15,16 | メディア | ⬜ | Vercelは手動・--scope／Zennの投稿上限は黙って落ちる |
+| 26 | ios-capacitor-traps | 43,44,45,46 | ツール | 📝 | キーボードでWebViewが縮む／sync漏れ／SPM／ビルド番号 |
+| 27 | streamlit-execution-model | 62,63,65,66 | ツール | 📝 | 実行モデルで踏む4つ（※28を統合） |
+| 29 | external-data-quirks | 58,59 | ツール | 📝 | GETは200で空／平均が空で最安だけ入る |
+| 30 | media-ops | 15,16 | メディア | 📝 | Vercelは手動・--scope／Zennの投稿上限は黙って落ちる |
 
 **進め方**: 上から順ではなく、章（原因の系統）がばらけるように選ぶ。
 書いたら NETA.md の該当行を消し、この表の状態を更新する。
