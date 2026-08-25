@@ -1,2 +1,5 @@
 streamlit>=1.40
 requests
+# card_sheet.py（4枚をA4に並べてPDF）で使う。streamlit の依存で入ってはいるが、
+# 直接使う側が書いておかないと将来 streamlit 側の都合で消えたときに気づけない
+Pillow>=10.0
