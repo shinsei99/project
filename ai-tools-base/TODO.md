@@ -4,6 +4,13 @@
 
 ---
 
+## ▶ 進行中（2026-08-25 サブPC）— 11本目に着手
+
+**題材はネタ帳42番「スマホから写真を送ると3枚目で必ず失敗する」（`shorui-mobile`）**に決定。
+裏取りは commit `7eeec42` `30526bd` `5b1285b` `f4d724d` の4本＋現行 `app/page.tsx` で実施済み。
+3点セットのslugは 本体 `mobile-photo-upload` ／ Zenn `ios-safari-vercel-upload-413` ／
+note `sanmai-me-de-tomaru`。出す順は 本体 → Zenn → note。
+
 ## ▶ 「続きから」と言われたら、ここから（2026-08-24 22:4x 更新）
 
 **10本目「謄本は二枚で届く」は3媒体とも公開済み**（本体 `/works/registry-annex-building` ／
