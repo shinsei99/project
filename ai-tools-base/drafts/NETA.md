@@ -105,21 +105,6 @@ push しても本番は変わらない。`whoami` は通るのにデプロイが
 
 # H. 外部API
 
-**54.** ⚠️〔不動産〕**ストリートビューが社内画面で403**（`jyuusetsu-research`）
-既存キーのHTTPリファラ制限が `daikyocorp.co.jp` 限定で、127.0.0.1 が許可外。
-**Maps Embed API だけに制限した専用キー**を新規作成（アプリ制限は付けない。ポートが変わるため）。
-→ `f77f76a`、`jyuusetsu-research/SESSION_LOG.md:451`
-
-**55.** ✅〔不動産〕**「キーはあるのに常に空」— APIの取り違えとズームの間引き**（`jyuusetsu-research`）
-用途地域が常に空だったのは **XKT001 と XKT002 の取り違え**。さらに、同じ地点でも
-**高ズームでは地物が間引かれる**（XKT014 は z14 で1件・z15 で0件）ので、
-**各レイヤで使えるいちばん粗いズーム**を使う。
-→ `539b1ed`、`jyuusetsu-research/SESSION_LOG.md:206`
-
-**56.** ✅〔不動産〕**APIが既に「%」付きで返すのに、こちらも付けて `80%%`**（`jyuusetsu-research`）
-`_with_percent()` で重複を防ぎ、`"60.0%"` は `60%` に正規化。小さいが誰でも踏む。
-→ `jyuusetsu-research/SESSION_LOG.md:490`
-
 **58.** ✅〔ツール〕**GETは200なのに中身が空。POSTでないと返さない**（`onepiece-dex`）
 公式カードリストが 51KB（選択肢のみ）で返る。`POST` にすると 463KB。
 → `onepiece-dex/SESSION_LOG.md:176`
