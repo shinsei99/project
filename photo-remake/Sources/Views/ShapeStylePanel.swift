@@ -3,6 +3,7 @@ import SwiftUI
 /// 選択中の図形のパネル。タブは 種類 / 色 / 線 ＋ 削除。
 struct ShapeStylePanel: View {
     @Binding var annotation: Annotation
+    var onChangeTool: (AnnotationTool) -> Void
     var onDelete: () -> Void
 
     enum Tab { case kind, color, line }
@@ -45,9 +46,9 @@ struct ShapeStylePanel: View {
         switch tab {
         case .kind:
             VStack(alignment: .leading, spacing: 8) {
-                Text("図形の種類（タップで差し替え）")
+                Text("種類（タップで差し替え。矢印にもできます）")
                     .font(.caption).foregroundStyle(.secondary)
-                ShapeKindRow(selection: $annotation.shapeKind)
+                ToolRow(current: .shape(annotation.shapeKind), onPick: onChangeTool)
                 Text("本体ドラッグ＝移動／右下＝大きさ／右上＝回転")
                     .font(.caption2).foregroundStyle(.secondary)
             }
@@ -151,18 +152,19 @@ struct ShapeStylePanel: View {
     }
 }
 
-/// 図形の種類を横スクロールで並べる（実際のパスをそのまま縮小表示）。
-struct ShapeKindRow: View {
-    @Binding var selection: ShapeKind
+/// 矢印＋図形12種を横スクロールで並べる（実際のパスをそのまま縮小表示）。
+struct ToolRow: View {
+    let current: AnnotationTool
+    let onPick: (AnnotationTool) -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 10) {
-                ForEach(ShapeKind.allCases) { kind in
+                ForEach(AnnotationTool.all) { tool in
                     Button {
-                        selection = kind
+                        onPick(tool)
                     } label: {
-                        ShapeChip(kind: kind, isSelected: kind == selection)
+                        ToolChip(tool: tool, isSelected: tool == current)
                     }
                     .buttonStyle(.plain)
                 }
@@ -173,15 +175,15 @@ struct ShapeKindRow: View {
     }
 }
 
-/// 図形1つぶんの見本。
-struct ShapeChip: View {
-    let kind: ShapeKind
+/// 1つぶんの見本。
+struct ToolChip: View {
+    let tool: AnnotationTool
     var isSelected: Bool = false
     var side: CGFloat = 44
 
     var body: some View {
         VStack(spacing: 4) {
-            AnnotationShape(kind: kind)
+            ToolShape(tool: tool)
                 .stroke(isSelected ? Color.accentColor : Color.primary,
                         style: StrokeStyle(lineWidth: 2, lineJoin: .round))
                 .padding(6)
@@ -194,14 +196,14 @@ struct ShapeChip: View {
                     RoundedRectangle(cornerRadius: 10)
                         .strokeBorder(Color.accentColor, lineWidth: isSelected ? 2 : 0)
                 )
-            Text(kind.label).font(.caption2).foregroundStyle(.secondary)
+            Text(tool.label).font(.caption2).foregroundStyle(.secondary)
         }
     }
 }
 
-/// 追加する図形を選ぶシート。
+/// 追加するもの（矢印・図形）を選ぶシート。
 struct ShapePickerView: View {
-    var onPick: (ShapeKind) -> Void
+    var onPick: (AnnotationTool) -> Void
     @Environment(\.dismiss) private var dismiss
 
     private let columns = [GridItem(.adaptive(minimum: 84), spacing: 12)]
@@ -210,19 +212,19 @@ struct ShapePickerView: View {
         NavigationStack {
             ScrollView {
                 LazyVGrid(columns: columns, spacing: 14) {
-                    ForEach(ShapeKind.allCases) { kind in
+                    ForEach(AnnotationTool.all) { tool in
                         Button {
-                            onPick(kind)
+                            onPick(tool)
                             dismiss()
                         } label: {
-                            ShapeChip(kind: kind, side: 64)
+                            ToolChip(tool: tool, side: 64)
                         }
                         .buttonStyle(.plain)
                     }
                 }
                 .padding()
             }
-            .navigationTitle("図形を選ぶ")
+            .navigationTitle("図形・矢印を選ぶ")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("閉じる") { dismiss() } }

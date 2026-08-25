@@ -119,6 +119,68 @@ final class EditorState: ObservableObject {
         annotations.append(a)
         selectedID = a.id
     }
+    /// 「図形」パレットから追加する（矢印もここに含まれる）。
+    func addTool(_ tool: AnnotationTool) {
+        switch tool {
+        case .arrow: addArrow()
+        case .shape(let k): addShape(k)
+        }
+    }
+
+    /// 選択中の注釈の種類を変える。矢印⇄図形も、位置・大きさ・向きを引き継いで入れ替える。
+    func convertSelected(to tool: AnnotationTool) {
+        guard let i = selectedIndex else { return }
+        var a = annotations[i]
+        let W = max(1, originalImage.size.width), H = max(1, originalImage.size.height)
+
+        switch (a.kind, tool) {
+        case (.shape, .shape(let k)):
+            guard a.shapeKind != k else { return }
+            pushUndo()
+            a.shapeKind = k
+
+        case (.arrow, .shape(let k)):
+            pushUndo()
+            // 2点（尾・先端）から 中心・長さ・向き を作って図形へ移す
+            let dx = (a.arrowEnd.x - a.arrowStart.x) * W
+            let dy = (a.arrowEnd.y - a.arrowStart.y) * H
+            let len = max(1, (dx * dx + dy * dy).squareRoot())
+            a.kind = .shape
+            a.shapeKind = k
+            a.position = CGPoint(x: (a.arrowStart.x + a.arrowEnd.x) / 2,
+                                 y: (a.arrowStart.y + a.arrowEnd.y) / 2)
+            a.rotation = .radians(atan2(Double(dy), Double(dx)))
+            a.shapeHalfW = min(max(len / 2 / W, 0.02), 0.6)
+            a.shapeHalfH = min(max(len * a.arrowThicknessRatio * 1.3 / H, 0.02), 0.6)
+            a.shapeDrawStyle = .fill          // 矢印は塗りなので塗りで引き継ぐ
+            a.strokeColorHex = a.colorHex
+
+        case (.shape, .arrow):
+            pushUndo()
+            let halfLen = a.shapeHalfW * W
+            let th = a.rotation.radians
+            let cx = a.position.x * W, cy = a.position.y * H
+            let ex = cos(th) * halfLen, ey = sin(th) * halfLen
+            a.kind = .arrow
+            a.arrowStart = clamp01(CGPoint(x: (cx - ex) / W, y: (cy - ey) / H))
+            a.arrowEnd = clamp01(CGPoint(x: (cx + ex) / W, y: (cy + ey) / H))
+            let thickness = a.shapeHalfH * H * 2 / 1.3
+            a.arrowThicknessRatio = min(max(thickness / max(1, halfLen * 2), 0.06), 0.30)
+            // 塗りだけの図形だった場合は塗り色、枠線だけなら枠線色を矢印の色にする
+            if a.shapeDrawStyle == .stroke { a.colorHex = a.strokeColorHex }
+            a.rotation = .zero
+
+        default:
+            return                              // 矢印→矢印など、変化なし
+        }
+        annotations[i] = a
+        refreshMosaicPreview()
+    }
+
+    private func clamp01(_ p: CGPoint) -> CGPoint {
+        CGPoint(x: min(max(p.x, 0), 1), y: min(max(p.y, 0), 1))
+    }
+
     func addShape(_ kind: ShapeKind) {
         pushUndo()
         let a = Annotation.shape(kind)

@@ -47,6 +47,39 @@ enum ShapeKind: String, CaseIterable, Equatable, Identifiable {
     }
 }
 
+/// 「図形」パレットに並ぶもの＝矢印＋図形12種。矢印だけは別の注釈（2点で持つ）なので分けてある。
+enum AnnotationTool: Identifiable, Equatable {
+    case arrow
+    case shape(ShapeKind)
+
+    static let all: [AnnotationTool] = [.arrow] + ShapeKind.allCases.map { .shape($0) }
+
+    var id: String {
+        switch self {
+        case .arrow: return "arrow"
+        case .shape(let k): return k.rawValue
+        }
+    }
+    var label: String {
+        switch self {
+        case .arrow: return "矢印"
+        case .shape(let k): return k.label
+        }
+    }
+    /// 見本用のパス。矢印は左下→右上、図形は枠いっぱい。
+    func path(in rect: CGRect) -> CGPath {
+        switch self {
+        case .arrow:
+            return ArrowGeometry.pathBetween(
+                from: CGPoint(x: rect.minX, y: rect.maxY),
+                to: CGPoint(x: rect.maxX, y: rect.minY),
+                thickness: min(rect.width, rect.height) * 0.22)
+        case .shape(let k):
+            return ShapeGeometry.path(k, in: rect)
+        }
+    }
+}
+
 /// 図形注釈のパス生成。プレビュー(SwiftUI)と書き出し(UIKit)で同じ関数を使い、形を一致させる。
 /// すべて閉じたパスなので、塗り・枠線のどちらでも成立する。
 enum ShapeGeometry {

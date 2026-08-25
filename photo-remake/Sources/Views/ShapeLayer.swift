@@ -6,6 +6,12 @@ struct AnnotationShape: Shape {
     func path(in rect: CGRect) -> Path { Path(ShapeGeometry.path(kind, in: rect)) }
 }
 
+/// 見本用（パレット・ピッカー）。矢印も図形も同じ見せ方で並べる。
+struct ToolShape: Shape {
+    var tool: AnnotationTool
+    func path(in rect: CGRect) -> Path { Path(tool.path(in: rect)) }
+}
+
 /// 図形を自分のバウンディングボックス内だけに描く（他要素のタップを奪わない）。
 /// 本体ドラッグ＝移動、右下ハンドル＝サイズ変更、右上ハンドル＝回転。
 struct ShapeLayer: View {

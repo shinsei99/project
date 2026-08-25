@@ -70,7 +70,7 @@ struct EditorView: View {
             case .help:
                 HelpView()
             case .shapePicker:
-                ShapePickerView { state.addShape($0) }
+                ShapePickerView { state.addTool($0) }
                     .presentationDetents([.medium, .large])
             }
         }
@@ -136,7 +136,7 @@ struct EditorView: View {
             selectedPanel(for: sel)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         } else {
-            Text("要素をタップで選択・操作。文字・図形・矢印・モザイクは下のパレットから追加。↩︎で元に戻す。")
+            Text("要素をタップで選択・操作。文字・図形（矢印を含む）・モザイクは下のパレットから追加。↩︎で元に戻す。")
                 .font(.caption).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 28)
@@ -152,11 +152,15 @@ struct EditorView: View {
             }
         case .arrow:
             if let b = state.binding(for: sel.id) {
-                ArrowStylePanel(annotation: b, onDelete: { state.deleteSelected() })
+                ArrowStylePanel(annotation: b,
+                                onChangeTool: { state.convertSelected(to: $0) },
+                                onDelete: { state.deleteSelected() })
             }
         case .shape:
             if let b = state.binding(for: sel.id) {
-                ShapeStylePanel(annotation: b, onDelete: { state.deleteSelected() })
+                ShapeStylePanel(annotation: b,
+                                onChangeTool: { state.convertSelected(to: $0) },
+                                onDelete: { state.deleteSelected() })
             }
         case .mosaic:
             MosaicStylePanel(state: state, onDelete: { state.deleteSelected() })
@@ -167,7 +171,6 @@ struct EditorView: View {
         HStack(spacing: 0) {
             ToolTabButton(title: "文字", systemImage: "textformat", isActive: false) { startNewText() }
             ToolTabButton(title: "図形", systemImage: "square.on.circle", isActive: false) { activeSheet = .shapePicker }
-            ToolTabButton(title: "矢印", systemImage: "arrow.up.left", isActive: false) { state.addArrow() }
             ToolTabButton(title: "モザイク", systemImage: "square.grid.3x3.fill", isActive: false) { state.addMosaic() }
             ToolTabButton(title: "調整", systemImage: "slider.horizontal.3",
                           isActive: !state.adjustments.isIdentity) {
@@ -322,9 +325,10 @@ struct HelpView: View {
                     Label("要素をタップ＝選択、下のパネルで装飾", systemImage: "hand.tap")
                 }
                 Section("図形") {
-                    Label("四角・丸・三角・星・吹き出しなど12種類", systemImage: "square.on.circle")
+                    Label("矢印＋四角・丸・三角・星・吹き出しなど全13種類", systemImage: "square.on.circle")
                     Label("「色」で塗り・枠線を別々に指定。どちらも「なし」にできます", systemImage: "paintpalette")
                     Label("右下ハンドル＝大きさ、右上ハンドル＝回転", systemImage: "arrow.triangle.2.circlepath")
+                    Label("「種類」タブで矢印⇄図形を入れ替えられます", systemImage: "arrow.left.arrow.right")
                 }
                 Section("補正") {
                     Label("「調整」で明るさ・コントラスト・鮮やかさ・シャープ・ノイズ除去", systemImage: "slider.horizontal.3")
