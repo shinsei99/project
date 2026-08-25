@@ -24,8 +24,8 @@
 | 14 | legacy-office-convert | 31,32,33 | 不動産 | 📝 | 旧 .doc/.xls と、向きの自動補正 |
 | 15 | model-lifetime | 35,36,37,38 | 不動産 | 📝 | モデルとSDKの寿命・思考トークン・タイムアウト |
 | 16 | generated-text-leaks | 39,40,41 | 不動産 | 📝 | 生成物に混じる内部記号・設定ファイルのコメント |
-| 17 | japanese-tokenize | 48,51,52 | 不動産 | ⬜ | 住所と法令名を、正規表現で切ると落ちる |
-| 18 | normalize-before-match | 49,50 | 不動産 | ⬜ | 全角・NFD・ハイフンの正規化 |
+| 17 | normalize-japanese-data | 48,49,50 | 不動産 | 📝 | ハイフン7種・全角半角・NFD（※再編：正規化に集約） |
+| 18 | japanese-no-word-boundary | 51,52 | 不動産 | ⬜ | 語の区切りが無いので、市区町村名と法令名が切れない |
 | 19 | api-wrong-endpoint | 54,55,56 | 不動産 | ⬜ | キーはあるのに常に空／%の二重付与 |
 | 20 | egov-fulltext | 57 | 不動産 | ⬜ | 条で絞れないAPIから、必要な条だけ出す |
 | 21 | sqlite-transaction | 60,61 | 不動産 | ⬜ | executescript の暗黙COMMIT／時刻だけでは順序が決まらない（小説12話） |
