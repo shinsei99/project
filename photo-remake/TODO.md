@@ -9,8 +9,10 @@
 - [x] 矢印を「図形」に統合（全13種。種類タブで矢印⇄図形を入れ替え）— 2026-08-25
 
 ## TODO
-- [ ] 図形をApp Storeへ配信する（**未提出**。`CURRENT_PROJECT_VERSION` は 4 に上げ済み＝1.1.0/build4）
-      → Archive前に `./ios-build-guard.sh photo-remake` で衝突確認。提出は人の判断
+- [ ] **★メインPCで App Store へ提出する（1.1.0 / build 4）。手順は `RELEASE.md`**
+      実機で触る → Archive → App Store Connect で 1.1.0 を作成し build 4 を選んで提出。
+      配信中は 1.0.2/build3・審査中なし（2026-08-25 API 確認）
+- [ ] 実機での動作確認（サブPCでは配布証明書が無くできていない）
 - [ ] やり直し（Redo）。いまは Undo だけ
 - [ ] 図形の線を破線にする選択肢
 - [ ] 番号バッジ（①②③）
