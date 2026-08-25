@@ -1,3 +1,25 @@
+> ## 🖥 メインPCでやること（2026-08-25 サブPCより）— ブレインダンプの音声入力
+>
+> **やることは `git pull` だけ。** 常駐していない（launchd 未登録・Vercel 運用）ので
+> 再起動もポート確認も要らない。機密ファイルの受け渡しも**なし**。
+>
+> ```bash
+> cd ~ && git pull
+> ```
+>
+> **何が直ったか**: iPhone Safari で1分ほど録音して止めると「録音が空でした」になり
+> 文字起こしされなかった不具合。**サブPCで直し、Vercel 本番へ反映済み・オーナーが実機で確認済み**
+> （https://brain-dump-sable-one.vercel.app ）。**メインPC側の作業は残っていない。**
+>
+> **原因は iOS 固有の2点**（Mac の Chrome では再現しないので、次に触るときは実機で確かめること）
+> 1. iOS Safari は `ondataavailable` が `onstop` より後に届くことがあり、
+>    timeslice なしで `start()` すると停止時点の chunk が0個 → `blob.size === 0`
+> 2. iPhone の自動ロックで画面が消えるとマイクのトラックが止まり、録音がそこで切れる
+>
+> 対処は `rec.start(1000)` の逐次回収／chunk を最大3秒待ってから Blob 化／Screen Wake Lock／
+> トラック `onended` で自動停止。詳細と実測値は `brain-dump/README.md` にある。
+> **サイズ超過でもタイムアウトでもなかった**（59秒=250KB・API 9秒）ことは実測で否定済み。
+
 > ## 🖥 メインPCでやること（2026-08-25 サブPCより）— ポケカ図鑑の「🖨 並べる」
 >
 > **やることは2つだけ。`git pull` と、PSAカード管理(8527)の入れ替え。**
@@ -919,7 +941,7 @@
 | maisoku-converter | **メイン** | **マイソクコンバーター**（8505・社内LAN共有あり）。**2026-08-21: 帯変えモードの改修は完了**（A4縦対応／本体幅195mm・中央寄せ／白フチ自動カット既定オン／帯とのすき間4mm／帯の文字を実寸で統一）。**重大バグを1件修正: 列幅→ptの換算が2割狂っており、貼った画像が横に1.2倍伸びていた**（TwoCellAnchor→OneCellAnchor＋`_PT_PER_CHAR=6.0`。Excelで実測確認済み）。`smoke_test.py` 全項目OK・`./va.sh check` でUI崩れ0・**オーナーが画面で確認し既定値のままで確定**（紙に刷っての最終確認は未実施）。**★メインPCでやることは1つだけ: `git pull` 後に `launchctl kickstart -k gui/$(id -u)/com.shinsei.maisoku-converter`**（再起動しないと社内に修正前のコードが出続ける）。残っている課題は「帯の建設業免許番号が横向きで担当者欄へはみ出す（以前からの症状）」と「通常モード（AI解析）は用紙合わせ未対応でA4横のまま」 | 2026-08-21 |
 | mail-archiver | サブ | **新規（2026-08-20）: メールアーカイバ**（IMAP容量対策・8535）。取り込み／サーバー側削除（14日＋SHA256・UIDVALIDITY・Message-ID照合＋UID EXPUNGE）／閲覧UI／偽IMAP30項目の検証。**Mail.app経由で実メール19通を取り込み確認済み。** **置き場は 原本=個人Dropbox(`Dropbox-個人/mail-archive`)・DB=ローカル固定**（同期でDBが壊れるため）。`--rebuild` でDBを原本から作り直せる（実証済み）。スマホ用に `run-lan.sh`（0.0.0.0＋`UI_PASSWORD`必須）を用意。**残り: ①iCloudのApp用パスワード発行→IMAP取り込み ②Tailscale導入（人の作業）③メインPC常駐時は/bin/bashにFDA ④restore.py** | 2026-08-20 |
 | soufu-generator | **メイン** | **送付書ジェネレーター（オーナー個人専用・8518）。2026-08-24: 常駐が社内LANに全公開（`*:8518`）だったのを `127.0.0.1` に閉じた。** 実測で localhost=200・192.168.1.105/.140=接続拒否、画面の送付者4件も確認。デスクトップの `.app` は `open http://localhost:8518` なので影響なし。**はまり所: 引数を変えたら `launchctl kickstart -k` では反映されない**（ロード済み定義で再起動するだけ）。`bootout` → `bootstrap` で入れ直すこと。残タスクなし | 2026-08-24 |
-| brain-dump | サブ | **ブレインダンプ（3002 / Vercel）。2026-08-25: iPhone Safari で音声入力が1分ほどで「録音が空でした」になる不具合を修正**（原因は ① iOS Safari は `ondataavailable` が `onstop` より後に届くことがあり timeslice なしだと Blob が0バイト ② 自動ロックで画面が消えるとマイクが止まる。対処は `rec.start(1000)` の逐次回収＋chunk を最大3秒待ってから Blob 化＋Screen Wake Lock＋トラック `onended` で自動停止）。サイズ超過・タイムアウトではないことは実測で否定済み（59秒=250KB・API 9秒）。lint/build 通過・Chrome の仮想マイクで通し確認済み。**Vercel 本番へデプロイ済み（配信JSに新コードが入るところまで確認）。次は iPhone 実機で1分以上の録音を確認**（iOS固有のためChromeでは再現しない） | 2026-08-25 |
+| brain-dump | サブ | **ブレインダンプ（3002 / Vercel）。2026-08-25: iPhone Safari で音声入力が1分ほどで「録音が空でした」になる不具合を修正**（原因は ① iOS Safari は `ondataavailable` が `onstop` より後に届くことがあり timeslice なしだと Blob が0バイト ② 自動ロックで画面が消えるとマイクが止まる。対処は `rec.start(1000)` の逐次回収＋chunk を最大3秒待ってから Blob 化＋Screen Wake Lock＋トラック `onended` で自動停止）。サイズ超過・タイムアウトではないことは実測で否定済み（59秒=250KB・API 9秒）。lint/build 通過・Chrome の仮想マイクで通し確認済み。**Vercel 本番へ反映済み・オーナーが iPhone 実機で確認して直っていることを確認（2026-08-25）。このアプリの残タスクは無し**（メインPCは `git pull` のみ・常駐していないので再起動不要） | 2026-08-25 |
 
 ## 横断作業（複数アプリにまたがるもの）
 
