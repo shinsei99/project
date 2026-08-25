@@ -11,8 +11,8 @@
 |---|---|---|---|---|---|
 | 1 | kana-name-matching | 1 | 不動産 | 📝 | 任意依存が無いと突合の一致率だけ静かに落ちる |
 | 2 | stale-data-star-filename | 53 | 不動産 | 📝 | ファイル名の★で古い表を読み続ける（小説10話） |
-| 3 | deploy-not-reflected | 9,10,11,14 | 不動産 | ⬜ | 「直したのに反映されない」4パターン |
-| 4 | line-free-quota-silent | 4 | 不動産 | ⬜ | 受付だけ届いて回答が消える（無料枠切れ） |
+| 3 | deploy-not-reflected | 9,10,11,14 | 不動産 | 📝 | 「直したのに反映されない」4パターン |
+| 4 | line-free-quota-silent | 4 | 不動産 | 📝 | 受付だけ届いて回答が消える（無料枠切れ） |
 | 5 | safe-default-on-unreadable | 3 | 不動産 | ⬜ | 読めないときの既定値を安全側へ |
 | 6 | exit-code-zero-partial | 5 | 不動産 | ⬜ | 終了コード0で中断していた |
 | 7 | default-bind-0000 | 7,8 | 不動産 | ⬜ | 指定しないとLANに出る（Streamlit / Next.js） |

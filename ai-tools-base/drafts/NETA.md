@@ -31,11 +31,6 @@
 `is_holiday()` が**読めないとき False（＝営業日）を返す**設計。休業日にも催促が飛んでいた。既定値を安全側に倒す話。
 → 直下 `TODO.md` 2026-08-24 の節
 
-**4.** ✅〔不動産〕**LINEが無反応になる本当の理由（月間無料枠切れ）**（`chatwork-ai-manager`）
-push が429で拒否。reply（受付の「調べています」）は**無料枠を消費しない**ので届き、回答だけ消えていた。
-`_post()` の握りつぶしと、障害通知の経路がLINEしか無かったことの二重の問題。
-→ `efe224b`、`chatwork-ai-manager/SESSION_LOG.md:404-412`
-
 **5.** ✅〔不動産〕**exit code 0 で中断していた**（`jyuusetsu-research`）
 書式レジストリが 200本→**126本に欠けた**。`RULES` に要素を足したのに `for a, b, c in RULES` で
 取り出していて `ValueError`。だが**終了コードは 0**だったので成功に見えていた。
@@ -58,19 +53,6 @@ Streamlit と同じ罠。`--hostname 127.0.0.1` を明示。
 
 # B. 常駐・デプロイ — 「直したのに反映されない」
 
-**9.** ✅〔不動産〕**常駐が古いビルドを配信し続けていた**（`madori-tracer` editor 5175 / `theta-viewer` 8512）
-`run.sh` が「`dist` が在れば再ビルドしない」作り。**2アプリで同じ事故**。毎回 `npm run build` へ。
-→ `f49211a` `4e69dcb`
-
-**10.** ✅〔不動産〕**`launchctl kickstart -k` は plist を読み直さない**（`soufu-generator` 8518）
-バインド先を書き換えて kickstart したのに `lsof` は `*:8518` のまま。**PIDだけ変わって中身は古い**。
-`bootout` → `bootstrap` が要る。いちばん気づきにくい種類の事故。
-→ `soufu-generator/SESSION_LOG.md:16`
-
-**11.** ✅〔不動産〕**run.sh を直しても、plist が別のコマンドを叩いていれば効かない**（8526 / 8527）
-plist が `run.sh` を経由せず `python3 -m streamlit run` を直接叩いていた。
-→ `357083c`
-
 **12.** ✅〔不動産〕**常駐が Dropbox の権限をまれに失う → 自分で死んで生き返る**（`parking-map`）
 権限エラーが連続したら**自終了して KeepAlive で再起動**。**30分5回の上限**で無限ループを防ぐ。
 → `8c002b5`
@@ -78,10 +60,6 @@ plist が `run.sh` を経由せず `python3 -m streamlit run` を直接叩いて
 **13.** ⚠️〔不動産〕**launchd の常駐は CloudStorage を読めない／TCCの責任プロセスは `/bin/bash`**（`shorui-cabinet`）
 Python 本体に許可を与えても効かず、`/bin/bash` にフルディスクアクセスを与えると通る。
 → メモリ `reference_launchd_cloudstorage_fda.md`、`shorui-cabinet/README.md`
-
-**14.** ✅〔不動産〕**Streamlit は import 済みモジュールを入れ替えない**（`kaitori-dm-maker` ほか）
-共有モジュールを直しても、常駐は古いまま動き続ける。**直したら再起動までが1セット**。
-→ `kaitori-dm-maker/SESSION_LOG.md:20`
 
 **15.** ⚠️〔メディア〕**Vercel は git 連携ではない／`--scope` が要る**（`ai-tools-base`）
 push しても本番は変わらない。`whoami` は通るのにデプロイが `Not authorized`（プロジェクトはチームの持ち物）。

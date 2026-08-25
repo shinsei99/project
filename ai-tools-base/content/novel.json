@@ -75,6 +75,20 @@
     },
     {
       "book": "tsukuttemasu",
+      "no": 17,
+      "title": "黙って、止まる",
+      "work": "line-free-quota-silent",
+      "note": "入居者からの連絡を受ける窓口が、四日間、返事だけを落としていた"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 19,
+      "title": "出したつもり",
+      "work": "deploy-not-reflected",
+      "note": "二か月前に直したはずの募集条件が、外に出る紙では直っていなかった"
+    },
+    {
+      "book": "tsukuttemasu",
       "no": 24,
       "title": "渡していいもの",
       "work": "baikai-generator",
