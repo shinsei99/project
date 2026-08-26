@@ -34,6 +34,51 @@
 > note を1本出したら、**URLを `content/works/<slug>.json` の `links` に追記 → `./publish.sh site`**。
 > `npm run validate` の転載⚠️が消えれば完了。
 >
+> ### ★③ note の自動投稿を、今夜から動かす（**メインPCで常駐**・午前中の作業は5分）
+>
+> **`claude -p`（非対話）からは claude-in-chrome の拡張が使えない**ので（2026-08-27 実測）、
+> Playwright で自前の投稿スクリプトを書いた。**headless では note のエディタが描画されない**
+> （`editor.note.com/new` で止まり body が空）ため、**画面ありで動かし、ウィンドウを画面の外**
+> （`--window-position=-3000,-3000`）に出す。作業中に画面が飛び出すことはない。
+>
+> ```bash
+> cd ~ && git pull
+> cd ~/ai-tools-base
+> PY=$HOME/agent-platform/.venv/bin/python
+>
+> # 1. 初回ログイン（画面が出る。note にログインすると自動で検知して閉じる。最大10分待つ）
+> $PY scripts/note_post.py --login
+>
+> # 2. 確認（画面外にウィンドウが出て数秒で終わる）
+> $PY scripts/note_post.py --check          # → 「OK（エディタを開けている）」なら成立
+>
+> # 3. 常駐に入れる（毎晩22:35＝Zennの5分後）
+> cp _launchd/com.shinsei.note-daily.plist ~/Library/LaunchAgents/
+> launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shinsei.note-daily.plist
+> launchctl print gui/$(id -u)/com.shinsei.note-daily | grep -A3 StartCalendar
+> ```
+>
+> **今夜22:35に1本目**（`deploy-not-reflected`＝「直したはずのものが、直っていなかった」）。
+> 以降は `drafts/zenn_order.txt` の順で1日1本、**22本＝9/17まで**。
+> ログは `/tmp/note-daily.log`、進み具合は `./publish.sh status`。
+>
+> **★守ること**
+> - **サブPCの launchd には入れない。** 投稿済みの記録（`drafts/.note_posted.json`）は端末ごとなので、
+>   2台で動かすと**同じ記事が2本出る**。常駐は**メインPCだけ**
+> - **画面ありで動く**ので、Macがスリープ・ログアウトしていると動かない可能性がある。
+>   **翌朝いちど `/tmp/note-daily.log` と `./publish.sh status` を見る**こと
+> - ログインが切れたら `--check` が NG になり、その晩は投稿されない（`--login` をやり直す）
+>
+> ### ★④ note の下書きを2本消してほしい（こちらでは消せない）
+>
+> 検証で **同じ内容の下書きが2本** できている（どちらも「直したはずのものが、直っていなかった」）。
+> **データの削除はこちらでは行わない決まり**なので、note の記事一覧から消してください。
+>
+> - https://note.com/notes → 下書き2本（2026-08-27 06:52 と 2026-08-26 09:00）
+>
+> 消さなくても自動投稿には影響しない（毎回あたらしく作るため）。ただし今夜1本目が公開されると
+> **同じ内容が下書きとして2本残る**ので、整理しておくほうがよい。
+>
 > ### 使い方が増えた道具（両PCで使える）
 >
 > - `./publish.sh queue` … ネタ帳の在庫と3媒体の進み具合、次に書く候補（在庫は `drafts/NETA.md` 一本のまま）

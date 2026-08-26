@@ -39,8 +39,9 @@ case "${1:-status}" in
     /usr/bin/python3 scripts/zenn_status.py
 
     echo "── note ────────────────────────────────────"
-    echo "  原稿: $(ls drafts/note/*.md 2>/dev/null | wc -l | tr -d ' ') 本"
-    echo "  貼り付けは ./publish.sh note <名前>（Markdownは効かないのでHTMLで貼る）"
+    # 公開済みかどうかは note の公開API × 原稿のタイトルで突き合わせる
+    /usr/bin/python3 scripts/note_status.py
+    echo "  自動投稿: scripts/note-daily.sh（毎晩22:35・メインPCのlaunchdのみ）"
     ;;
 
   queue)
