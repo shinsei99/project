@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 
+import base64
 import hmac
 import os
 from datetime import date, datetime, timedelta, timezone
@@ -16,7 +17,32 @@ import streamlit as st
 import config
 import db
 
-st.set_page_config(page_title="メールアーカイバ", page_icon="📥", layout="wide")
+_HERE = os.path.dirname(os.path.abspath(__file__))
+_ICON_180 = os.path.join(_HERE, "assets", "appicon-180.png")
+
+
+def _icon_data_uri(path: str) -> str:
+    with open(path, "rb") as fh:
+        return "data:image/png;base64," + base64.b64encode(fh.read()).decode("ascii")
+
+
+st.set_page_config(page_title="メールアーカイバ",
+                   page_icon=_ICON_180 if os.path.exists(_ICON_180) else "📥",
+                   layout="wide")
+
+# スマホの「ホーム画面に追加」で、ブレインダンプのように専用アイコン＋名前で並ぶようにする。
+# apple-touch-icon は <head> が理想だが Streamlit では body へ入る。iOS は body の
+# apple-touch-icon も拾うので data URI で埋める（127.0.0.1 限定なので外部取得は起きない）。
+if os.path.exists(_ICON_180):
+    _uri = _icon_data_uri(_ICON_180)
+    st.markdown(
+        '<link rel="apple-touch-icon" href="{u}">'
+        '<link rel="apple-touch-icon" sizes="180x180" href="{u}">'
+        '<meta name="apple-mobile-web-app-capable" content="yes">'
+        '<meta name="apple-mobile-web-app-status-bar-style" content="black">'
+        '<meta name="apple-mobile-web-app-title" content="メールアーカイバ">'.format(u=_uri),
+        unsafe_allow_html=True,
+    )
 
 PAGE_SIZE = 50
 
