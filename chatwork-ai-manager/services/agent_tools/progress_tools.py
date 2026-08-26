@@ -19,6 +19,16 @@ from services.agent_tools import format_tools
 # OPEN_STATUSES自体は変えない（ダッシュボード集計等、AI確認待ちを含めたくない既存呼び出しがあるため）。
 _ATTENTION_STATUSES = T.OPEN_STATUSES + [T.STATUS_AI_CONFIRM]
 
+# 「空き待ち」「空車待ち」等の予約受付系TODOは、空きが出るまで担当者側で動きようがなく
+# 催促・確認待ち化が正しく機能しないため、定時の進捗確認から恒久的に除外する
+# （skip_checkのような手動フラグに頼らず、内容キーワードで機械的に判定する。TASK-20260826-001）。
+WAITING_EXCLUDE_KEYWORDS = ("空き待ち", "空車待ち")
+
+
+def _is_waiting_task(content):
+    content = content or ""
+    return any(kw in content for kw in WAITING_EXCLUDE_KEYWORDS)
+
 
 def _open_ph():
     return ",".join("?" * len(_ATTENTION_STATUSES)), list(_ATTENTION_STATUSES)
@@ -87,6 +97,7 @@ def tasks_needing_attention(kind="overdue", limit=50):
                          (tomorrow, *params, limit))
     else:
         return {"ok": False, "error": f"unknown kind: {kind}"}
+    rows = [r for r in rows if not _is_waiting_task(r["content"])]
     tasks = _fmt(rows)
     # formatted: 担当者ごとにグループ化＋状態アイコンで整形済みの文字列（定時TODO確認と同じ見た目）。
     # QAが複数件を一覧で答えるときは、これをそのまま回答本文として使うこと。
