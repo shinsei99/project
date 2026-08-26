@@ -1,3 +1,83 @@
+## 2026-08-26（サブPC）— KeyTagNFC が Guideline 2.1（デモ動画の提出要求）で差し戻された
+
+### 完了したこと
+
+- 審査メールの内容を記録した。**リジェクト（Rejected）ではなく Information Needed**＝
+  情報が足りないので出せ、という状態。**バイナリは受理されたままなので build を上げ直す必要はない**
+  （動画リンクを入れて ASC で返信すれば、そのまま審査が再開する）。
+
+  | 項目 | 値 |
+  |---|---|
+  | Submission ID | `a47e6a37-ee0d-48dc-8a35-2559cb1b976b` |
+  | 提出 | 2026-08-17 19:20（Pacific） |
+  | レビュー日 | 2026-08-25 |
+  | **レビュー機** | **iPad Air 11-inch (M3)** |
+  | 対象 | 1.0 (2) |
+  | 指摘 | Guideline 2.1 - Information Needed（NFC機能のデモ動画） |
+
+- Apple が求めている動画の条件は3つ:
+  1. **実機**で動く現行バージョン（シミュレータ不可）
+  2. アプリと対象ハードウェア（＝NFCタグ）の**初回ペアリング**の様子
+  3. そのハードウェアを使う**全ワークフロー**
+  さらに「**タグと、実機で動くアプリ画面の両方が映るように撮る**」ことが条件。
+
+### 発生したエラーと解決策
+
+- 症状: NFC機能を確認できないとして 2.1 が返った。
+  → 原因(推定): **レビュー機が iPad Air で、iPad には NFC リーダーが無い**。審査員は
+  どうやってもタグをかざす確認ができないため、動画を要求してきた（＝アプリの不具合ではない）。
+  → 直し方: iPhone 実機＋NTAG213 で動画を撮り、App Store Connect の
+  **App Review Information > Notes** に URL を書いて、審査メッセージに返信する。
+  - 別案として **iPhone 専用に絞る**（`TARGETED_DEVICE_FAMILY = 1`）手もあるが、
+    その場合は build 3 を作り直して再提出になる。**今回は動画対応が正攻法。**
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **NFCタグは手元にある**（2026-08-26 オーナー確認）。ただし**アプリのNFC機能は
+  まだ一度も実機で動かしていない**ので、**動画を撮る作業が、そのまま RELEASE.md の
+  「実機が手に入ったら確認すること」チェックリストの消化になる**。
+  撮る前に「NFC 利用可」表示と読み取りシートの表示を確認すること
+  （ここで失敗したら原因は Developer Portal の **NFC Tag Reading 未設定**＝RELEASE.md の🔴）。
+- **提出は iPhone 専用（`TARGETED_DEVICE_FAMILY = 1`）で出している**（`keytag/setup-ios.sh` に明記）。
+  それでも審査は iPad Air で行われた＝**iPhone専用アプリの iPad 互換モードで確認された**ため。
+  設定ミスではないので直す必要はなく、**返信文にその旨を書くほうが効く**。
+- **App Store Connect 上の state は `REJECTED`**（2026-08-26 に `appstore_api.py --review` で確認）。
+  文面の分類は "Information Needed" だが、システム上はリジェクト扱いになっている。
+  それでも**新ビルドは不要**で、動画リンク＋返信で再開できる（再提出を求められたら build 2 を選び直す）。
+- 撮影後の動画は**サブPCへ渡せばフレームを切り出して条件を満たすか確認できる**
+  （`imageio-ffmpeg` を 2026-08-26 にサブPCへ導入済み。brew は汚していない）。
+- 撮影台本（1本撮り・2〜3分。手元のタグと iPhone の画面が同時に映る角度で固定撮影する）
+  1. iPhone のホーム画面から KeyTag を起動 → 右上が「**NFC 利用可**」になるところを映す
+  2. **初回ペアリング**: 「タグに書き込む」で未フォーマットの NTAG213 に書き込む
+     → 書き込み成功のシートまで
+  3. 書いたタグをかざして読み取り → 画面に内容が出る
+  4. 鍵を登録 → **貸出** → もう一度かざして **返却** → 台帳に履歴が残るまで
+  5. （任意）サーバー連携は「使わなくても全機能が動く」ことを見せるため、**設定しないまま**通す
+- 動画の置き場は **YouTube の限定公開**が無難（審査員がログイン不要で見られる）。
+- **返信・提出は外部への操作**なのでオーナーの判断で行う（CLAUDE.md 6項）。
+- 審査状況の確認は `python3 appstore_api.py --review com.shinsei99.keytag`。
+
+### 返信文のドラフト（動画URLが決まってから Resolution Center で返す）
+
+> Hello,
+>
+> Thank you for the review. We have added a link to a demo video in the App Review Information
+> section (Notes) in App Store Connect.
+>
+> The video was recorded on a physical iPhone (not a simulator) and shows the NFC tag and the app
+> screen at the same time, including: launching the app, writing to a blank NTAG213 tag (initial
+> pairing), reading that tag, and the full workflow of registering a key, checking it out, and
+> returning it by scanning the tag again.
+>
+> Please also note that this app is submitted as **iPhone only** (TARGETED_DEVICE_FAMILY = 1).
+> The review was performed on an iPad Air 11-inch (M3), which has no NFC reader, so the NFC
+> features cannot be exercised on that device. All NFC functionality requires an iPhone with NFC
+> tag reading support. The server integration is optional — every feature works entirely
+> on-device without it.
+>
+> Best regards,
+
+
 ## 2026-08-24（メインPC）— KeyTag の審査状況を API で確認（変化なし・待ち）
 
 ### 完了したこと

@@ -30,10 +30,20 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
+import sys
+from datetime import datetime
 
 import streamlit as st
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# PSAカード管理から import されると cwd が向こうになり、`import card_sheet` が
+# 見つからない。図鑑フォルダを探索先に足しておく（_p() と同じ理由の対処）。
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+import card_sheet  # noqa: E402  （sys.path を足したあとに読む必要がある）
+
+# 4枚並べる画面の名前空間。ワンピ図鑑（opdex）と混ざらないように分ける
+SHEET_NS = "dex"
 DB = os.path.join(HERE, "data", "cards.db")
 
 
@@ -262,6 +272,39 @@ def thumb_of(row):
     return image_of(row)
 
 
+def sheet_image(row):
+    """4枚並べてPDFにするときの画像。**候補のうち一番大きいもの**を選ぶ。
+
+    画面表示は image_of()（公式優先＝絵柄の対応が確実）でよいが、印刷では
+    公式 360px よりマイカ 400px のほうが1割ほど大きい。72mm幅に伸ばすと
+    その差が出るので、ここだけは画素数で選ぶ。Pillow の open はヘッダしか
+    読まないので、押した1枚ぶんなら判定は一瞬で終わる。
+    """
+    from PIL import Image
+
+    best, best_px = None, -1
+    for col in ("img_off", "img", "img_web"):
+        p = _p(row[col])
+        if not p or not os.path.exists(p):
+            continue
+        try:
+            with Image.open(p) as im:
+                n = im.width * im.height
+        except Exception:
+            continue
+        if n > best_px:
+            best, best_px = p, n
+    return best or image_of(row)
+
+
+def sheet_pick(row, uid: str) -> None:
+    """一覧・詳細に置く「🖨 並べる」ボタン。"""
+    no = card_no_label(row)
+    card_sheet.pick_button(
+        SHEET_NS, uid, row["key"],
+        f"{no} {row['name']}".strip(), lambda: sheet_image(row))
+
+
 def _key_parts(row):
     k = (row["key"] or "").split("/")
     return (k[0], f"{k[1]}.jpg") if len(k) == 2 else ("", "none.jpg")
@@ -400,6 +443,7 @@ def show_detail(card):
             st.info("このカードの画像は未収録です")
         # 「欲しいカード」としてアルバムへ（PSAカード管理から開いたときだけ出る）
         _album_ui(card, f"detail_{card['key']}")
+        sheet_pick(card, f"detail_{card['key']}")
 
     with col_txt:
         st.markdown(f"### {card['name']}")
@@ -481,6 +525,7 @@ def show_cards(rows, cols=6, key_prefix=""):
                           on_click=_pick, args=("detail", row["key"]))
                 # 「欲しいカード」としてアルバムへ（PSAカード管理から開いたときだけ出る）
                 _album_ui(row, f"{key_prefix}_{row['key']}")
+                sheet_pick(row, f"{key_prefix}_{row['key']}")
 
 
 def show_cover_grid(items, key_prefix, on_pick_key, cols=6):
@@ -688,9 +733,15 @@ def render(album_ui=None, title: str = "🃏 ポケモンカード図鑑"):
     # 飛ぶ」という動きになった。ラジオなら選択が session_state に残るので
     # リセットされない。選んだタブだけ描画するので表示も軽くなる
     # （st.tabs は3タブ全部を毎回描画していた）。
-    TABS = ["🔎 さがす", "📦 拡張パック", "🗃 構築デッキ・その他"]
+    # タブ名は増やしても**文字列を変えない**。radio は session_state に選択中の
+    # 文字列を持つので、「🖨 並べる（2枚）」のように可変にすると選択が飛ぶ。
+    # 枚数はタブの下のキャプションで出す
+    TABS = ["🔎 さがす", "📦 拡張パック", "🗃 構築デッキ・その他", "🖨 並べる"]
     tab = st.radio("表示", TABS, horizontal=True, label_visibility="collapsed",
                    key="tab")
+    n_sheet = len(card_sheet.picked(SHEET_NS))
+    if n_sheet and tab != TABS[3]:
+        st.caption(f"🖨 並べる に **{n_sheet} / {card_sheet.SLOTS} 枚**選んでいます")
 
     # ── さがす ────────────────────────────────────────────────────────────
     if tab == TABS[0]:
@@ -773,6 +824,10 @@ def render(album_ui=None, title: str = "🃏 ポケモンカード図鑑"):
             st.caption(f"{len(packs)}パック　新しい順　｜　"
                        "「収録カード」でそのパックの中身へ")
             show_cover_grid(packs, "pk", "pack")
+
+    # ── 4枚をA4に並べてPDF ───────────────────────────────────────────────
+    elif tab == TABS[3]:
+        card_sheet.render(SHEET_NS, stamp=datetime.now().strftime("%Y%m%d-%H%M"))
 
     # ── 構築デッキ・その他 ────────────────────────────────────────────────
     else:

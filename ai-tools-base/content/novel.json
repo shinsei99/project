@@ -1,0 +1,105 @@
+{
+  "books": [
+    {
+      "slug": "tsukuttemasu",
+      "title": "不動産屋、つくってます。",
+      "status": "preparing",
+      "episodes": 32,
+      "lead": "十七年勤めた会社を辞めた久美が、儲からない四十二戸を引き受けながら、自分の仕事を道具にしていく話。",
+      "summary": "十七年勤めた会社を辞めた久美が、一戸あたり月二千円の管理料しか入らない四十二戸を引き受けながら、自分の手順をひとつずつ道具に変えていく話。このサイトの制作記録に書いた不具合が、そのまま各話の事件になっている。全32話・脱稿済み。カクヨムでの公開は準備中。"
+    }
+  ],
+  "episodes": [
+    {
+      "book": "tsukuttemasu",
+      "no": 5,
+      "title": "電線の向こう",
+      "work": "photo-inpainter",
+      "note": "空き家の写真から電線を消す。消してよい線と、消してはいけない線の話"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 6,
+      "title": "同じ箱の中に",
+      "work": "port-conflict",
+      "note": "動いているつもりの入れ物が、実は同じ場所を取り合っていた"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 8,
+      "title": "鵜呑みという事故",
+      "work": "registry-annex-building",
+      "note": "二枚で届いた謄本を一枚に潰すと、部屋の広さが車庫の広さになる"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 9,
+      "title": "紙の在り処",
+      "work": "shorui-cabinet",
+      "note": "亡くなった家主の頭の中にしかなかったものを、書類の側から組み直す"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 9,
+      "title": "紙の在り処",
+      "work": "mobile-photo-upload",
+      "note": "現地で撮った書類が、三枚目から送れない"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 11,
+      "title": "切れた文字",
+      "work": "excel-row-height",
+      "note": "オーナー報告書の一行が、紙の外に出ていた。三か月、誰も言わなかった"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 12,
+      "title": "善意の台帳",
+      "work": "keyline",
+      "note": "鍵が一本、返ってこない。台帳は、人を疑うために作るものではない"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 12,
+      "title": "善意の台帳",
+      "work": "sqlite-transaction",
+      "note": "誰がいつ鍵を持ち出したか。同じ時刻に2件並んだとき、どちらが先か"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 14,
+      "title": "なんか動かない",
+      "work": "ai-ticket-counter",
+      "note": "「なんか動かない」としか言えない側から見た一日"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 15,
+      "title": "文字で来る声",
+      "work": "chatwork-ai-manager",
+      "note": "電話をかけられない入居者の、三日半"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 17,
+      "title": "黙って、止まる",
+      "work": "line-free-quota-silent",
+      "note": "入居者からの連絡を受ける窓口が、四日間、返事だけを落としていた"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 19,
+      "title": "出したつもり",
+      "work": "deploy-not-reflected",
+      "note": "二か月前に直したはずの募集条件が、外に出る紙では直っていなかった"
+    },
+    {
+      "book": "tsukuttemasu",
+      "no": 24,
+      "title": "渡していいもの",
+      "work": "baikai-generator",
+      "note": "型のある書類を、どこまで機械に渡してよいか"
+    }
+  ]
+}

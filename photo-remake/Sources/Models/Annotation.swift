@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// 画像の上に載せる注釈（テキスト or 矢印）。
+/// 画像の上に載せる注釈（テキスト / 矢印 / モザイク / 図形）。
 /// サイズ・位置はすべて画像に対する正規化値で保持し、プレビューと書き出しを一致させる。
 struct Annotation: Identifiable, Equatable {
-    enum Kind: Equatable { case text, arrow, mosaic }
+    enum Kind: Equatable { case text, arrow, mosaic, shape }
+    /// 図形の描き方。
+    enum DrawStyle: Equatable { case stroke, fill, both }
     /// テキストの行揃え。
     enum Align: Equatable { case left, center, right }
 
@@ -44,11 +46,31 @@ struct Annotation: Identifiable, Equatable {
     var mosaicHalfW: CGFloat = 0.14
     var mosaicHalfH: CGFloat = 0.06
 
+    // ---- 図形（中心＝position、半サイズを正規化で保持。回転は rotation を使う）----
+    var shapeKind: ShapeKind = .rect
+    var shapeDrawStyle: DrawStyle = .stroke
+    var shapeHalfW: CGFloat = 0.20
+    var shapeHalfH: CGFloat = 0.13
+    /// 枠線の太さ（画像の短辺に対する割合）。
+    var shapeLineWidthRatio: CGFloat = 0.012
+    /// 塗りの不透明度（枠線は常に不透明）。
+    var shapeOpacity: CGFloat = 1
+    /// 枠線の色（塗りの色は colorHex）。
+    var strokeColorHex: String = "#FF3B30"
+
     static func text(at p: CGPoint = CGPoint(x: 0.5, y: 0.5)) -> Annotation {
         Annotation(kind: .text, position: p)
     }
     static func mosaic(at p: CGPoint = CGPoint(x: 0.5, y: 0.5)) -> Annotation {
         Annotation(kind: .mosaic, position: p, colorHex: "#000000")
+    }
+    static func shape(_ kind: ShapeKind, at p: CGPoint = CGPoint(x: 0.5, y: 0.5)) -> Annotation {
+        var a = Annotation(kind: .shape, position: p, colorHex: "#FF3B30")
+        a.strokeColorHex = "#FF3B30"
+        a.shapeKind = kind
+        a.shapeHalfW = kind.defaultHalfSize.width
+        a.shapeHalfH = kind.defaultHalfSize.height
+        return a
     }
     static func arrow(at p: CGPoint = CGPoint(x: 0.5, y: 0.5)) -> Annotation {
         var a = Annotation(kind: .arrow, position: p, colorHex: "#FF2D55")

@@ -34,6 +34,9 @@ type ImageEntry = {
 };
 type HistoryEntry = TextEntry | ImageEntry;
 
+/** Screen Wake Lock の最小型（TS の lib.dom に無い環境でも通るよう自前で定義）。 */
+type WakeLockLike = { release: () => Promise<void> };
+
 const ACCESS_KEY = "bd_access_code";
 const HISTORY_KEY = "bd_history";
 const TASK_ORDER_KEY = "bd_task_order";
@@ -309,6 +312,8 @@ export default function Home() {
   const streamRef = useRef<MediaStream | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const elapsedRef = useRef(0); // 停止時の録音秒数を確実に取るための実値
+  // 録音中だけ画面ロックを抑止する（iOS は画面が消えるとマイクが止まり録音が切れる）
+  const wakeLockRef = useRef<WakeLockLike | null>(null);
   // 整理(analyze)されるまで音声を一時保持し、作られたメモに元データとして紐付ける
   const pendingAudioRef = useRef<{ blob: Blob; sec: number }[]>([]);
 
@@ -363,6 +368,7 @@ export default function Home() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
+      void wakeLockRef.current?.release().catch(() => {});
     };
   }, []);
 
@@ -637,6 +643,27 @@ export default function Home() {
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
   }
+  /**
+   * 録音中は画面の自動ロックを抑止する（iOS 16.4+ / Chrome）。
+   * iPhone の自動ロック（既定 30秒〜1分）で画面が消えるとマイクの取得が止まり、
+   * 録音が途中で切れて「空」のまま終わるため。取得できない端末では何もしない。
+   */
+  async function acquireWakeLock() {
+    try {
+      const nav = navigator as Navigator & {
+        wakeLock?: { request: (type: "screen") => Promise<WakeLockLike> };
+      };
+      if (!nav.wakeLock) return;
+      wakeLockRef.current = await nav.wakeLock.request("screen");
+    } catch {
+      /* 取れなくても録音は続ける */
+    }
+  }
+  function releaseWakeLock() {
+    const lock = wakeLockRef.current;
+    wakeLockRef.current = null;
+    void lock?.release().catch(() => {});
+  }
   function pickAudioMime(): string {
     if (typeof MediaRecorder === "undefined") return "";
     // mp4(AAC)＝iOS Safari / webm(opus)＝Chrome・Android を優先
@@ -677,7 +704,18 @@ export default function Home() {
         void finishRecording();
       };
       recorderRef.current = rec;
-      rec.start();
+      // timeslice を指定して 1 秒ごとに小分けで chunk を受け取る。
+      // iOS Safari は停止時にまとめて吐き出そうとすると取りこぼすことがあり、
+      // 途中で中断された場合も、ここまでに受け取った分は手元に残る。
+      rec.start(1000);
+      // 端末側の都合（画面ロック・着信・他アプリのマイク使用）でマイクが止まったら、
+      // そこまでの録音を無駄にしないよう自動で停止して文字起こしへ回す。
+      stream.getAudioTracks().forEach((t) => {
+        t.onended = () => {
+          if (recorderRef.current?.state === "recording") stopRecording();
+        };
+      });
+      void acquireWakeLock();
       setRecording(true);
       setElapsed(0);
       elapsedRef.current = 0;
@@ -702,20 +740,29 @@ export default function Home() {
 
   function stopRecording() {
     stopTimer();
+    releaseWakeLock();
     const rec = recorderRef.current;
     if (rec && rec.state !== "inactive") rec.stop(); // → onstop → finishRecording
     setRecording(false);
   }
 
   async function finishRecording() {
-    cleanupStream();
     const rec = recorderRef.current;
+    // iOS Safari は最後の ondataavailable が onstop より後に届くことがある。
+    // ここで待たずに Blob を作ると 0 バイトになり「録音が空でした」になっていた。
+    // マイク（stream）はデータが揃うまで止めない。
+    for (let i = 0; i < 30 && chunksRef.current.length === 0; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    cleanupStream();
     const type = rec?.mimeType || chunksRef.current[0]?.type || "audio/webm";
     const blob = new Blob(chunksRef.current, { type });
     chunksRef.current = [];
     recorderRef.current = null;
     if (blob.size === 0) {
-      setError("録音が空でした。もう一度お試しください。");
+      setError(
+        "録音を取り込めませんでした。録音中は画面を消さず、この画面を開いたままお試しください。"
+      );
       return;
     }
     if (blob.size > MAX_AUDIO_BYTES) {

@@ -55,7 +55,19 @@ final class EditorState: ObservableObject {
             var m = Annotation.mosaic(at: CGPoint(x: 0.72, y: 0.5))
             m.mosaicHalfW = 0.18; m.mosaicHalfH = 0.08
             annotations.append(m)
-            selectedID = m.id
+            var box = Annotation.shape(.roundedRect, at: CGPoint(x: 0.34, y: 0.72))
+            box.shapeHalfW = 0.22; box.shapeHalfH = 0.10
+            annotations.append(box)
+            var star = Annotation.shape(.star, at: CGPoint(x: 0.74, y: 0.22))
+            star.shapeDrawStyle = .both
+            star.colorHex = "#FFCC00"; star.strokeColorHex = "#FF3B30"
+            star.rotation = .degrees(12)
+            annotations.append(star)
+            var bubble = Annotation.shape(.bubble, at: CGPoint(x: 0.30, y: 0.16))
+            bubble.shapeDrawStyle = .fill
+            bubble.colorHex = "#007AFF"; bubble.shapeOpacity = 0.55
+            annotations.append(bubble)
+            selectedID = star.id
             refreshMosaicPreview()
         }
     }
@@ -107,6 +119,74 @@ final class EditorState: ObservableObject {
         annotations.append(a)
         selectedID = a.id
     }
+    /// 「図形」パレットから追加する（矢印もここに含まれる）。
+    func addTool(_ tool: AnnotationTool) {
+        switch tool {
+        case .arrow: addArrow()
+        case .shape(let k): addShape(k)
+        }
+    }
+
+    /// 選択中の注釈の種類を変える。矢印⇄図形も、位置・大きさ・向きを引き継いで入れ替える。
+    func convertSelected(to tool: AnnotationTool) {
+        guard let i = selectedIndex else { return }
+        var a = annotations[i]
+        let W = max(1, originalImage.size.width), H = max(1, originalImage.size.height)
+
+        switch (a.kind, tool) {
+        case (.shape, .shape(let k)):
+            guard a.shapeKind != k else { return }
+            pushUndo()
+            a.shapeKind = k
+
+        case (.arrow, .shape(let k)):
+            pushUndo()
+            // 2点（尾・先端）から 中心・長さ・向き を作って図形へ移す
+            let dx = (a.arrowEnd.x - a.arrowStart.x) * W
+            let dy = (a.arrowEnd.y - a.arrowStart.y) * H
+            let len = max(1, (dx * dx + dy * dy).squareRoot())
+            a.kind = .shape
+            a.shapeKind = k
+            a.position = CGPoint(x: (a.arrowStart.x + a.arrowEnd.x) / 2,
+                                 y: (a.arrowStart.y + a.arrowEnd.y) / 2)
+            a.rotation = .radians(atan2(Double(dy), Double(dx)))
+            a.shapeHalfW = min(max(len / 2 / W, 0.02), 0.6)
+            a.shapeHalfH = min(max(len * a.arrowThicknessRatio * 1.3 / H, 0.02), 0.6)
+            a.shapeDrawStyle = .fill          // 矢印は塗りなので塗りで引き継ぐ
+            a.strokeColorHex = a.colorHex
+
+        case (.shape, .arrow):
+            pushUndo()
+            let halfLen = a.shapeHalfW * W
+            let th = a.rotation.radians
+            let cx = a.position.x * W, cy = a.position.y * H
+            let ex = cos(th) * halfLen, ey = sin(th) * halfLen
+            a.kind = .arrow
+            a.arrowStart = clamp01(CGPoint(x: (cx - ex) / W, y: (cy - ey) / H))
+            a.arrowEnd = clamp01(CGPoint(x: (cx + ex) / W, y: (cy + ey) / H))
+            let thickness = a.shapeHalfH * H * 2 / 1.3
+            a.arrowThicknessRatio = min(max(thickness / max(1, halfLen * 2), 0.06), 0.30)
+            // 塗りだけの図形だった場合は塗り色、枠線だけなら枠線色を矢印の色にする
+            if a.shapeDrawStyle == .stroke { a.colorHex = a.strokeColorHex }
+            a.rotation = .zero
+
+        default:
+            return                              // 矢印→矢印など、変化なし
+        }
+        annotations[i] = a
+        refreshMosaicPreview()
+    }
+
+    private func clamp01(_ p: CGPoint) -> CGPoint {
+        CGPoint(x: min(max(p.x, 0), 1), y: min(max(p.y, 0), 1))
+    }
+
+    func addShape(_ kind: ShapeKind) {
+        pushUndo()
+        let a = Annotation.shape(kind)
+        annotations.append(a)
+        selectedID = a.id
+    }
     func addMosaic() {
         pushUndo()
         let a = Annotation.mosaic()
@@ -127,6 +207,9 @@ final class EditorState: ObservableObject {
     }
 
     var hasMosaic: Bool { annotations.contains { $0.kind == .mosaic } }
+
+    /// 何か編集したか（写真の入れ替え前に確認を出すかの判定に使う）。
+    var hasEdits: Bool { !annotations.isEmpty || !adjustments.isIdentity || canUndo }
 
     // MARK: - モザイク・プレビュー
 
@@ -206,6 +289,10 @@ final class EditorState: ObservableObject {
             annotations[i].fontHeightFraction /= r.height   // 画像が小さくなる分、文字割合は拡大
             annotations[i].mosaicHalfW /= r.width
             annotations[i].mosaicHalfH /= r.height
+            annotations[i].shapeHalfW /= r.width
+            annotations[i].shapeHalfH /= r.height
+            // 枠線は画像の短辺基準なので、短辺の縮み分だけ割合を戻す
+            annotations[i].shapeLineWidthRatio /= min(r.width, r.height)
         }
         previewImage = previewBase
         schedulePreview()

@@ -176,6 +176,40 @@ export const workSchema = z.object({
   featured: z.boolean().default(false),
 });
 
+/**
+ * 小説（カクヨム）と制作記録の対応。
+ *
+ * 制作記録に書いた不具合が、そのまま小説の事件になっている。読者の行き先を1本増やすために、
+ * 詳細ページとフッターから作品へ送る。**続編は未投稿なので `url` を持たない**（`status: "preparing"`）。
+ * 投稿したら url を入れるだけで、話ごとのリンクまで出せる形にしてある。
+ */
+export const novelSchema = z.object({
+  books: z
+    .array(
+      z.object({
+        slug: z.string().regex(/^[a-z0-9-]+$/),
+        title: z.string().min(1),
+        status: z.enum(["published", "preparing"]),
+        /** 公開済みのときだけ持つ。カクヨムの作品トップ */
+        url: z.string().url().optional(),
+        episodes: z.number().int().positive(),
+        lead: z.string().min(1),
+        summary: z.string().min(10),
+      }),
+    )
+    .min(1),
+  /** 制作記録 → 何話の題材になったか。1つの記録が複数話に出ることもある */
+  episodes: z.array(
+    z.object({
+      book: z.string().min(1),
+      no: z.number().int().positive(),
+      title: z.string().min(1),
+      work: z.string().min(1),
+      note: z.string().min(1),
+    }),
+  ),
+});
+
 export const categorySchema = z.object({
   id: z.enum(TOOL_CATEGORIES),
   label: z.string().min(1),
@@ -186,6 +220,7 @@ export type Tool = z.infer<typeof toolSchema>;
 export type Article = z.infer<typeof articleSchema>;
 export type Work = z.infer<typeof workSchema>;
 export type Category = z.infer<typeof categorySchema>;
+export type Novel = z.infer<typeof novelSchema>;
 export type Scores = z.infer<typeof scoresSchema>;
 export type ToolCategory = (typeof TOOL_CATEGORIES)[number];
 export type PricingModel = (typeof PRICING_MODELS)[number];
