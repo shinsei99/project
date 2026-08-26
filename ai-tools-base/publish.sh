@@ -3,6 +3,7 @@
 #
 #   ./publish.sh status          いま3媒体がどうなっているかを表示（まずこれ）
 #   ./publish.sh queue           ネタ帳の在庫と、次に書く候補（drafts/NETA.md を読む）
+#   ./publish.sh scan            各アプリの SESSION_LOG から、まだ書いていないネタを拾う
 #   ./publish.sh site            本体サイトを本番へデプロイ（Vercel・手動デプロイ）
 #   ./publish.sh zenn-schedule   Zenn の記事に毎日22:30の公開予約を振る（既定はドライラン）
 #   ./publish.sh zenn            articles/ を push して Zenn へ反映
@@ -46,6 +47,11 @@ case "${1:-status}" in
 
   queue)
     /usr/bin/python3 scripts/queue.py "${@:2}"
+    ;;
+
+  scan)
+    # 各アプリの SESSION_LOG から、まだ書いていないネタを拾う（素材は日々勝手に溜まる）
+    /usr/bin/python3 scripts/neta_scan.py "${@:2}"
     ;;
 
   zenn-schedule)
