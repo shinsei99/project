@@ -109,14 +109,6 @@ conn = get_conn()
 s = db.stats(conn)
 
 st.title("📥 メールアーカイバ")
-st.caption("IMAPサーバーの容量を空けるための、ローカル保管＋全文検索。"
-           "サーバーからの削除は取り込みから14日後・CLIからのみ。")
-
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("保存メール", "{:,} 通".format(s["messages"]), help="ローカルに原本(.eml)がある通数")
-c2.metric("サーバーに残存", "{:,} 通".format(s["present"]), human_size(s["present_bytes"]))
-c3.metric("サーバーから削除済", "{:,} 通".format(s["deleted"]), human_size(s["deleted_bytes"]))
-c4.metric("添付ファイル", "{:,} 件".format(s["attachments"]), human_size(s["attachment_bytes"]))
 
 tab_search, tab_archive = st.tabs(["🔍 検索・閲覧", "🗄 アーカイブ状況"])
 
@@ -128,6 +120,11 @@ with tab_search:
         acc_map = {a["name"]: a["id"] for a in accounts}
         acc_name = st.selectbox("アカウント", ["（すべて）"] + list(acc_map.keys()))
         account_id = acc_map.get(acc_name)
+
+        direction = st.selectbox("受信／送信", ["all", "received", "sent"],
+                                 format_func=lambda x: {"all": "（すべて）",
+                                                        "received": "受信のみ",
+                                                        "sent": "送信のみ"}[x])
 
         folders = db.list_folders(conn, account_id)
         f_map = {f["name"]: f["id"] for f in folders}
@@ -150,12 +147,20 @@ with tab_search:
                                                     "gone": "他で消された",
                                                     "local": "Mail.appから取込(IMAP管理外)"}[x])
 
+        st.divider()
+        m1, m2 = st.columns(2)
+        m1.metric("保存メール", "{:,} 通".format(s["messages"]), help="ローカルに原本(.eml)がある通数")
+        m2.metric("サーバーに残存", "{:,} 通".format(s["present"]), human_size(s["present_bytes"]))
+        m3, m4 = st.columns(2)
+        m3.metric("サーバーから削除済", "{:,} 通".format(s["deleted"]), human_size(s["deleted_bytes"]))
+        m4.metric("添付ファイル", "{:,} 件".format(s["attachments"]), human_size(s["attachment_bytes"]))
+
     q = st.text_input("キーワード（件名・本文・宛先を横断。3文字以上が速い）", "")
     page = st.number_input("ページ", min_value=1, value=1, step=1)
 
     rows, total = db.search(conn, q=q, sender=sender, folder_id=folder_id,
                             account_id=account_id, date_from=date_from, date_to=date_to,
-                            state=state, has_attach=has_attach,
+                            state=state, has_attach=has_attach, direction=direction,
                             limit=PAGE_SIZE, offset=(int(page) - 1) * PAGE_SIZE)
     st.write("**{:,} 件**該当（{} 〜 {} 件目を表示）".format(
         total, (int(page) - 1) * PAGE_SIZE + 1 if total else 0,

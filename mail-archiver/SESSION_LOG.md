@@ -1,5 +1,79 @@
 # SESSION_LOG — メールアーカイバ（mail-archiver）
 
+## 2026-08-26（メインPC）
+
+### 完了したこと
+
+- **shinsei-pm.co.jp（info@）の正規IMAP認証を確立**した。8/25 に5回失敗したのは
+  パスワードが変わっていたため（2016メモの `seed99` は失効）。**アルファメール会員サイト
+  （利用者メニュー）に管理者 `administrator@shinsei-pm.co.jp` / `u22u9D2s` でログインし、
+  管理者メニューから info@ のパスワードを `Seed9999sp!` へ変更**（オーナーの手で実施）。
+  キーチェーン（`mail-archiver` / `info@shinsei-pm.co.jp`）へ登録し、`imap.shinsei-pm.co.jp:143`
+  ＋STARTTLS で **LOGIN OK・フォルダ12個**を確認。`sync.py --sync` は成功したが
+  **サーバー側INBOXは1通のみ**（過去分254通は 8/25 に Mail.app 経由で取得済み・サーバーには残っていない）。
+  → 今後サーバーに届く分は `--sync` で増分取得できる状態になった。
+- **★Mail.app の info@ も同じIMAPアカウント**なので、パスワード変更で受信が一度止まる。
+  新パスワードを Mail.app 側にも入れ直すこと（オーナーへ案内済み）。
+- **参考: 契約情報のスクショから判明した接続情報**（アルファメール2／大塚商会）:
+  お客様番号 `0000392311` ／ 管理者 `administrator@shinsei-pm.co.jp` ／ 受信 `pop.shinsei-pm.co.jp`
+  （IMAPは `imap.shinsei-pm.co.jp` でも通る）／ 送信 `amsub.shinsei-pm.co.jp` ／
+  会員サイト `https://www.alpha-mail.jp/`（利用者）・`cont.mypage.otsuka-shokai.co.jp`（契約管理）。
+
+### 常駐化・自動化・UI（2026-08-26 追記）
+
+- **メインPCで常駐化した**（launchd 2本を新規登録・plistはリポジトリ外）:
+  - `com.shinsei.mail-archiver` … 閲覧UI（`run.sh`／127.0.0.1:8535／KeepAlive）。**社内LANには出さない**（メール本文＝個人情報）。
+  - `com.shinsei.mail-archiver-sync` … **毎日2時**の自動処理（`StartCalendarInterval` Hour=2）。
+    どちらも **/bin/bash 経由**で呼ぶ（保管先が個人Dropbox＝CloudStorage。責任プロセスに FDA が要る。
+    このMacは /bin/bash に付与済み [[reference_launchd_cloudstorage_fda]]）。
+  - **launchd文脈で実測成功**（kickstart で手動起動）: キーチェーン認証OK・Dropbox書き込みOK・
+    パスワード未設定3件は自動スキップ・rc=0。CLAUDE.md のポート表（8535＝launchd未登録）は登録済みへ要更新。
+- **自動取り込み `sync-daily.sh`（新規）**: `sync.py --all-accounts --sync` → 各アカウントで
+  `--delete --yes --older-than-days 365`（保存期間1年。**1年より前をサーバーから削除**）。
+  `--all-accounts` と `--delete` は併用不可なのでアカウント別に回す。ログは `local/sync-daily.log`。
+- **保存期間＝1年をコードに実装**（オーナー指示・2026-08-26）:
+  - `db.deletable_candidates` に `before_date` を追加（メール日付 `date_utc` がそれより前だけ。
+    日付不明は消さない）。`sync.py` に `--older-than-days`、`.env` に `ARCHIVE_RETENTION_DAYS`。
+  - **「取り込みから14日」ルールは保存期間モードでは使わない**（指定時 days=0）。判定はメール日付だけ。
+  - 4アカウントの `.env` に `ARCHIVE_DELETE_ENABLED=1` / `ARCHIVE_RETENTION_DAYS=365`。
+    送信も対象に含める（shinsei-pm の除外から `Sent Messages` を外した。他3件は元から除外なし）。
+    ドライラン規模: **daikyocorp 44,648通・21.38GB**（他3アカウントは1年超0通）。
+  - **実際の削除（--yes）は未実行**。今夜2時の自動ジョブが初回を消す（またはオーナーが
+    `launchctl kickstart -k …-sync` で手動起動）。**恒久削除はエージェントからは実行しない方針。**
+- **UI改修**（`app.py`）: 説明文（IMAP容量…）を削除／指標4つをサイドバー絞り込みの下へ移動／
+  **受信・送信フィルタ**を追加（`db.search(direction=)`。送信=フォルダ名にsent/送信、受信=それ以外・下書き除く）。
+  iOSシミュレータ（iPhone 17 Safari・127.0.0.1:8535）で操作確認。
+- **Desktop ランチャ**: `Desktop/社内ツール/メールアーカイバ.app` を新規作成（他アプリと同じ launcher＋
+  Info.plist＋AppIcon.icns。開くと localhost:8535）。アイコンは家族の様式に合わせPILで生成
+  （角丸スクエア＋ティール＋白の受信トレイ＋下向き矢印）。Dropboxには配らない（メール本文のため）。
+
+### 削除タイミングの決定（蒸し返さない）
+
+- **サーバー保存期間は1年**。メール日付が1年より前をサーバーから削除（ローカルは永久保存）。
+- **削除は毎日2時の自動処理に組み込み済み**（取り込みの直後）。手動時は `--older-than-days 365`。
+- 日中に Mail.app 上で自分で消した不要メールは**取り込まない**（2時までにゴミ箱へ移動＝除外フォルダ。
+  オーナー了承済み＝残さなくてよい／案A）。取りこぼしを気にするなら頻度を上げる案は保留。
+
+### 調べて分かった事実（パスワード探索の顛末）
+
+- **メール設定画面のスクショからパスワード本体は取れない**（欄は伏せ字。OCRしても化けるだけ）。
+  個人Dropbox `カメラアップロード` の PNG 5,781枚を macOS Vision（Swift/`ocr.swift`）で全OCRし
+  「shinsei/パスワード/imap 等」で絞ったが、`info@` の平文パスワードは無し。得られたのは
+  **契約マイページの管理者初期パスワード**（＝上記）だけで、これが再設定の入口になった。
+- IMAP当ての失敗履歴（info@）: `seed99` / `seed9999` / `Seed9999`（=旧FTP） / `Seed99sp!` /
+  `Seed9999sp!`（8/26に当てた時点ではまだ旧パス＝失敗。**変更後に一致**）。当てで解けたのではなく、
+  管理者ログイン→再設定で解決した。**これ以上の総当たりはロック懸念があり不可**。
+
+### 次回への引き継ぎ事項
+
+- **shinichi-washimi も正規IMAPで取り込めるようにした**（2026-08-26）。パスワード `kyobashi99!` が通った
+  （`mail92.onamae.ne.jp:143` STARTTLS）。キーチェーン登録済み＝2時の `--all-accounts --sync` に自動で乗る。
+  ただし `ARCHIVE_DELETE_ENABLED` は立てていない＝**取り込みのみ・自動削除の対象外**。
+- **正規IMAPは5アカウント**（daikyocorp / shinsei-pm / dream-mama / we-love-kyobashi / shinichi-washimi）。
+  **iCloud と Google はMail.app経由のまま据え置き**（オーナー判断・2026-08-26。App用/アプリパスワード未発行）。
+- 1年保存期間の**自動削除の対象は daikyocorp など4アカウント**（shinichi-washimi は含めない）。
+- `kumiko@shinsei-pm.co.jp` も同じ管理者メニューから `Seed9999!` に変更した（未使用アカウント・取り込み対象外）。
+
 ## 2026-08-25（メインPC）
 
 ### 完了したこと

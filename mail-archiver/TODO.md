@@ -2,16 +2,23 @@
 
 ## 進行中・次にやること
 
-- [ ] **shinsei-pm.co.jp のパスワードを明日また試す**（2026-08-25 に seed99 / seed9999 / Seed9999 /
-      Seed99sp! / FileZillaのFTPパス の5回とも `Invalid username or password`。**連続失敗でロックの
-      懸念があるため今日は打ち止め**）。確実なのは大塚商会アルファメールの契約マイページ
-      （online.alpha-web.jp / ID 392311・初期PW u22u9D2s※要変更済みかも）→ メールアカウントの再設定。
-      いまは Mail.app 経由で Sent 37＋Deleted 219 を取り込み済み（受信箱は空だった）
+- [ ] **初回の自動削除の結果を見届ける**（今夜2時 or 手動 kickstart）。daikyocorp 44,648通・21.4GB が
+      サーバーから消える見込み。翌朝 `local/sync-daily.log` と `--stats` の「サーバーに残存」で確認
+- [x] **常駐化＋毎日2時の自動取り込み＋1年保存期間の自動削除**（2026-08-26）。launchd 2本登録
+      （`com.shinsei.mail-archiver` 8535閲覧・`com.shinsei.mail-archiver-sync` 2時）。詳細は SESSION_LOG
+- [x] **Desktop/社内ツール/メールアーカイバ.app を作成**（他アプリの様式に合わせたアイコン付き）
+- [x] **受信/送信・期間・アカウントで絞り込めるUI**（2026-08-26。説明文削除・指標をサイドバーへ）
+
+- [x] **shinsei-pm.co.jp（info@）の正規IMAP取り込みを確立**（2026-08-26）。当てずっぽうは解けず、
+      アルファメール会員サイトに管理者 `administrator@shinsei-pm.co.jp`/`u22u9D2s` でログインし
+      info@ のパスワードを `Seed9999sp!` に**再設定**→キーチェーン登録→`imap.shinsei-pm.co.jp:143` で
+      LOGIN OK・`--sync` 成功（サーバー側INBOXは1通のみ。過去分254通は 8/25 Mail.app 経由で取得済み）。
+      ★Mail.app 側の info@ にも新パスワードを入れ直すこと。詳細は SESSION_LOG 2026-08-26。
 - [ ] **会社アカウントの本体同期が終わったら「Sent Messages」を追加取得**（この回は除外設定を
       読み込んだ後に外したので送信箱を飛ばしている。`python3 sync.py --sync --account daikyocorp.co.jp`
       を再実行すれば増分で送信箱だけ入る）
-- [ ] shinichi-washimi.jp（お名前.com管理画面で再設定）/ iCloud（App用パスワード）/
-      Google（アプリパスワード）の正規パスワードを入れてIMAPで取り直す（いまは Mail.app 経由）
+- [x] **shinichi-washimi.jp を正規IMAPで取り込み**（2026-08-26・パス `kyobashi99!`・キーチェーン登録済み）。
+      iCloud / Google は**Mail.app経由のまま据え置き**（オーナー判断・App用/アプリパスワードは発行しない）
 
 - [ ] **7アカウントのパスワードをキーチェーンに入れる**（人の作業・ターミナル.appから1行ずつ）。
       `security add-generic-password -s mail-archiver -a <メールアドレス> -w`

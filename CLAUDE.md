@@ -371,7 +371,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8532 | マルチプロダクション | com.shinsei.agent-platform |
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
 | 8534 | KeyLine（NFC鍵・備品貸出管理／※画像自動削除は -purge が毎日3:30） | com.shinsei.keyline ＋ -purge |
-| 8535 | メールアーカイバ（※ツール・127.0.0.1・launchd未登録／メール本文＝個人情報のためLANに出さない） | （未登録） |
+| 8535 | メールアーカイバ（※ツール・127.0.0.1・メール本文＝個人情報のためLANに出さない） | com.shinsei.mail-archiver（閲覧）＋ -sync（毎日2時に取り込み＋1年超をサーバー削除） |
 | 8530 | AI業務マネージャー LINE webhook（※メインPCのみ稼働。ngrok固定ドメイン経由で公開） | com.shinsei.chatwork-ai-manager-line ＋ -ngrok |
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |

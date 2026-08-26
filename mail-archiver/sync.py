@@ -339,7 +339,7 @@ def do_rebuild(conn) -> int:
 
 def do_delete(conn, cfg: Dict[str, str], days: int, really: bool, only_folder: Optional[str],
               max_delete: int, include_unseen: bool, include_flagged: bool,
-              allow_full_expunge: bool) -> None:
+              allow_full_expunge: bool, before_date: str = "") -> None:
     if cfg.get("ARCHIVE_DELETE_ENABLED", "0") != "1":
         print("削除は設定で無効です（.env の ARCHIVE_DELETE_ENABLED=1 が要る）。中止します。")
         return
@@ -351,13 +351,17 @@ def do_delete(conn, cfg: Dict[str, str], days: int, really: bool, only_folder: O
     excluded = config.excluded_folders(cfg)
     cands = db.deletable_candidates(conn, acc["id"], days,
                                     keep_flagged=not include_flagged,
-                                    keep_unseen=not include_unseen)
+                                    keep_unseen=not include_unseen,
+                                    before_date=before_date)
     if only_folder:
         cands = [c for c in cands if only_folder in (c["folder_name"], c["folder_raw"])]
     cands = [c for c in cands if not any(c["folder_name"].endswith(x) or c["folder_name"] == x
                                          for x in excluded)]
     if not cands:
-        print("条件を満たす削除候補はありません（synced_at が {}日以上前・ローカル保存済み）".format(days))
+        if before_date:
+            print("条件を満たす削除候補はありません（メール日付が {} より前・ローカル保存済み）".format(before_date[:10]))
+        else:
+            print("条件を満たす削除候補はありません（synced_at が {}日以上前・ローカル保存済み）".format(days))
         return
 
     by_folder: Dict[int, List[Any]] = {}
@@ -505,7 +509,10 @@ def main() -> int:
     p.add_argument("--rebuild", action="store_true",
                    help="原本(.eml)とサイドカーからDBを作り直す（DBを消しても戻せる）")
     p.add_argument("--stats", action="store_true", help="件数・容量を表示")
-    p.add_argument("--days", type=int, default=None, help="削除の据置日数（既定14）")
+    p.add_argument("--days", type=int, default=None, help="削除の据置日数（synced_at基準・既定14）")
+    p.add_argument("--older-than-days", type=int, default=None,
+                   help="メール日付がこの日数より前のものをサーバーから消す（保存期間。365=1年）。"
+                        "指定すると据置日数(--days)は使わない")
     p.add_argument("--folder", default=None, help="対象フォルダ名を1つに絞る")
     p.add_argument("--limit", type=int, default=0, help="1フォルダあたりの取り込み上限")
     p.add_argument("--since-days", type=int, default=None, help="この日数以内のメールだけ取り込む")
@@ -597,9 +604,21 @@ def main() -> int:
         return 2
 
     if args.delete:
-        days = args.days if args.days is not None else int(cfg.get("ARCHIVE_DELETE_DAYS", "14"))
+        # 保存期間（メール日付が N 日より前を消す）。--older-than-days か
+        # .env の ARCHIVE_RETENTION_DAYS で指定。指定時は据置日数(synced_at基準)を使わない
+        retention = args.older_than_days
+        if retention is None:
+            retention = int(cfg.get("ARCHIVE_RETENTION_DAYS", "0") or "0")
+        before_date = ""
+        if retention and retention > 0:
+            before_date = (datetime.now(timezone.utc) - timedelta(days=retention)
+                           ).strftime("%Y-%m-%dT%H:%M:%SZ")
+            days = 0   # 「取り込みから14日」は使わない。判定はメール日付だけ
+        else:
+            days = args.days if args.days is not None else int(cfg.get("ARCHIVE_DELETE_DAYS", "14"))
         do_delete(conn, cfg, days, args.yes, args.folder, args.max_delete,
-                  args.include_unseen, args.include_flagged, args.allow_full_expunge)
+                  args.include_unseen, args.include_flagged, args.allow_full_expunge,
+                  before_date=before_date)
     return 0
 
 

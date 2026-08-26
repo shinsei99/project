@@ -264,6 +264,7 @@ def search(conn: sqlite3.Connection, q: str = "", sender: str = "",
            folder_id: Optional[int] = None, account_id: Optional[int] = None,
            date_from: str = "", date_to: str = "",
            state: str = "all", has_attach: bool = False,
+           direction: str = "all",
            limit: int = 200, offset: int = 0) -> Tuple[List[sqlite3.Row], int]:
     """全文検索＋絞り込み。戻り値は (行, 総件数)。
 
@@ -308,6 +309,18 @@ def search(conn: sqlite3.Connection, q: str = "", sender: str = "",
     if has_attach:
         where.append("m.has_attachments=1")
 
+    # 受信／送信の絞り込み。サーバーごとにフォルダ名が違う（Sent / Sent Messages /
+    # Sent Items / INBOX.Sent / 送信済み …）ので、フォルダ名で判定する。
+    # 送信 = 名前に sent または 送信 を含む。受信 = 送信でも下書きでもないフォルダ全部
+    # （daikyocorp は受信を独自フォルダに振り分けているため「INBOX だけ」にはできない）。
+    SENT_LIKE = "(LOWER(name) LIKE '%sent%' OR name LIKE '%送信%')"
+    DRAFT_LIKE = "(LOWER(name) LIKE '%draft%' OR name LIKE '%下書き%')"
+    if direction == "sent":
+        where.append("m.folder_id IN (SELECT id FROM folders WHERE " + SENT_LIKE + ")")
+    elif direction == "received":
+        where.append("m.folder_id IN (SELECT id FROM folders WHERE NOT " +
+                     SENT_LIKE + " AND NOT " + DRAFT_LIKE + ")")
+
     sql_where = ("WHERE " + " AND ".join(where)) if where else ""
     base = "FROM messages m {join} {w}".format(join=join, w=sql_where)
 
@@ -335,8 +348,12 @@ def get_message(conn: sqlite3.Connection, message_row: int) -> Optional[sqlite3.
 def deletable_candidates(conn: sqlite3.Connection, account_id: int, days: int,
                          folder_id: Optional[int] = None,
                          keep_flagged: bool = True, keep_unseen: bool = True,
+                         before_date: str = "",
                          limit: Optional[int] = None) -> List[sqlite3.Row]:
     """`synced_at` から days 日以上が経ち、まだサーバーに在ると記録されているメールを返す。
+
+    before_date を渡すと、さらに「メールの日付（date_utc）がそれより前」のものだけに絞る。
+    サーバーの保存期間を「直近1年」にする用途（1年より前をサーバーから消す）で使う。
 
     ここで返るのは**候補**。実際に消してよいかは sync.py 側で
     「原本ファイルの実在」「SHA256一致」「UIDVALIDITY一致」「Message-ID一致」を確かめて決める。
@@ -347,6 +364,10 @@ def deletable_candidates(conn: sqlite3.Connection, account_id: int, days: int,
            "JOIN folders fo ON fo.id=m.folder_id "
            "WHERE m.account_id=? AND m.server_state='present' AND m.synced_at <= ?"]
     params: List[Any] = [account_id, cutoff]
+    if before_date:
+        # date_utc が空（日付不明）のメールは「1年より前」と断定できないので消さない
+        sql.append("AND m.date_utc IS NOT NULL AND m.date_utc <> '' AND m.date_utc < ?")
+        params.append(before_date)
     if folder_id:
         sql.append("AND m.folder_id=?")
         params.append(folder_id)
