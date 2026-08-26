@@ -69,6 +69,40 @@
 >   **翌朝いちど `/tmp/note-daily.log` と `./publish.sh status` を見る**こと
 > - ログインが切れたら `--check` が NG になり、その晩は投稿されない（`--login` をやり直す）
 >
+> ### ★③-b 記事を書くところまで自動にした（同じくメインPCで常駐）
+>
+> **週に一度、新しいネタから1本書いて、公開の予約まで入る。** 人が見なくても回るが、
+> **外へ出る前に機械の関門を通す**（人の目の代わり）。
+>
+> ```
+> 日曜 8:07（launchd）
+>   ① ./publish.sh scan          … 各アプリの SESSION_LOG から、前回以降のネタを拾う
+>   ② claude -p が1本書く         … 根拠のコミット/コードを開いて裏を取る。
+>                                   **確認できない数値は書かない**（metric を空にする）
+>   ③ ./publish.sh guard         … ★個人情報・固有名詞・寿命を縮める語を止める
+>   ④ ./publish.sh zenn-schedule … 通ったものだけ予約に入る（埋まっている日は飛ばす）
+> ```
+>
+> **③で落ちれば、その週は何も出ない。** ログは `/tmp/weekly-write.log`。
+>
+> **入れ方（メインPCで。note-daily と一緒に）**
+>
+> ```bash
+> cp _launchd/com.shinsei.weekly-write.plist ~/Library/LaunchAgents/
+> launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shinsei.weekly-write.plist
+> ```
+>
+> **★先に `drafts/.pii-blocklist.txt` が要る。** サブPCで作ってあるが **gitignore なので
+> メインPCには渡らない**。メインPCでは `drafts/.pii-blocklist.txt.example` を写して、
+> 同じものを作ること（会社・物件・地番は example に無いので、サブPCから手で運ぶか、
+> `parking-map/serve.py` と `gyomu-manual/generate.py` から拾い直す）。
+>
+> **試運転の結果（2026-08-27・サブPC）**: 1本書けた（`excel-calendar-theme-color`＝
+> 休業日カレンダーのExcelをテーマ色から読む話）。実測値が確認できなかったので
+> **metric は全部空**のまま出てきた＝指示どおりの挙動。**9/20 22:30 に予約済み**。
+> あわせて2つの不具合を直した: 予約日が既存と重なっていた／`zenn_order.txt` に無い記事が
+> note だけ永久に出ない状態だった。
+>
 > ### ★④ note の下書きを2本消してほしい（こちらでは消せない）
 >
 > 検証で **同じ内容の下書きが2本** できている（どちらも「直したはずのものが、直っていなかった」）。
