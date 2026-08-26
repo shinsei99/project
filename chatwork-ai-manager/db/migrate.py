@@ -109,6 +109,8 @@ def migrate() -> None:
         # Stage 0: メッセージ処理状態（冪等・クラッシュ復旧用）
         _ensure_column(conn, "messages", "process_status", "TEXT NOT NULL DEFAULT 'pending'")
         _ensure_column(conn, "messages", "process_error", "TEXT")
+        # 物件×担当者マスタ（管理物件台帳の「担当」列。TASK-20260826-003）
+        _ensure_column(conn, "properties", "assignee_name", "TEXT")
         for key, value in DEFAULT_SETTINGS.items():
             conn.execute(
                 "INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)",

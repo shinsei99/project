@@ -25,9 +25,9 @@ from services import config, gis  # noqa: E402
 
 # 台帳の列（2行目のヘッダ）→ DBの列
 COLUMNS = {
-    "種別": "category", "物件名": "name", "分類": "classification", "住所": "address",
-    "郵便番号": "postal_code", "築年数": "built", "構造": "structure", "戸数": "units",
-    "交通": "access", "オーナー": "owner", "フォルダ": "folder",
+    "種別": "category", "物件名": "name", "分類": "classification", "担当": "assignee_name",
+    "住所": "address", "郵便番号": "postal_code", "築年数": "built", "構造": "structure",
+    "戸数": "units", "交通": "access", "オーナー": "owner", "フォルダ": "folder",
 }
 # 取り込まない列（個人情報）
 SKIP_COLUMNS = {"連絡先1", "TEL1", "連絡先2", "TEL2", "補足"}
@@ -103,7 +103,7 @@ def upsert(rows, dry_run=False) -> dict:
             else:
                 added += 1
         return {"added": added, "updated": updated, "total": len(rows)}
-    cols = ["property_id", "name", "category", "classification", "address",
+    cols = ["property_id", "name", "category", "classification", "assignee_name", "address",
             "postal_code", "built", "structure", "units", "access", "owner", "folder"]
     with get_conn() as conn:
         seen = []

@@ -14,7 +14,7 @@ import datetime
 import json
 
 from db.connection import get_conn, query
-from services import tasks as T
+from services import property_master, tasks as T
 from services.claude_client import ClaudeError, run_json
 
 CONTEXT_MSG_LIMIT = 15   # 会話の流れとして渡す直近メッセージ数
@@ -146,6 +146,17 @@ def _norm_name(s):
     return str(s or "").replace(" ", "").replace("　", "")
 
 
+def _apply_property_master(content, reason):
+    """担当者が未確定のTODOに、物件×担当者マスタ（properties.assignee_name）から
+    物件名を突き合わせて担当者を補う（TASK-20260826-003）。一致しなければ何もしない。"""
+    match = property_master.find_assignee(content)
+    if not match:
+        return None, reason
+    note = f"物件担当マスタから自動割当（{'/'.join(match['matched_candidates'])}）"
+    reason = f"{reason}／{note}" if reason else note
+    return match["assignee_name"], reason
+
+
 def _global_member_lookup(name):
     """全ルーム横断で氏名→account_id を引く（該当ルームの members 同期がまだ実行されていない/
     そのルームでは未確認のメンバーの場合のフォールバック）。
@@ -188,6 +199,9 @@ def _apply_events(room_id, events, members, msg_by_id):
             if not content:
                 continue
             aid = _resolve_account_id(members, task.get("assignee_name"), task.get("assignee_account_id"))
+            assignee_name = task.get("assignee_name")
+            if not assignee_name and not aid:
+                assignee_name, reason = _apply_property_master(content, reason)
             status = T.STATUS_AI_CONFIRM if conf in LOW_CONF else T.STATUS_TODO
             dedup_key = f"{room_id}:{content}"[:200]
             # 同一 dedup_key の未完了TODOが既にあればスキップ（多重生成防止）
@@ -197,7 +211,7 @@ def _apply_events(room_id, events, members, msg_by_id):
                 continue
             T.create_task({
                 "content": content,
-                "assignee_name": task.get("assignee_name"),
+                "assignee_name": assignee_name,
                 "assignee_account_id": aid,
                 "requester": task.get("requester"),
                 "customer": task.get("customer"),

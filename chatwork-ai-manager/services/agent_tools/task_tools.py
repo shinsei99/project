@@ -1,6 +1,6 @@
 """TODO Tool。既存 services/tasks.py を安全にラップ。"""
 from db.connection import query
-from services import tasks as T
+from services import property_master, tasks as T
 from services.agent_tools import format_tools
 
 
@@ -48,6 +48,12 @@ def task_create(content, assignee_name=None, assignee_account_id=None, requester
     content = (content or "").strip()
     if not content:
         return {"ok": False, "error": "content が空です"}
+    if not assignee_name and not assignee_account_id:
+        match = property_master.find_assignee(content)
+        if match:
+            assignee_name = match["assignee_name"]
+            note = f"物件担当マスタから自動割当（{'/'.join(match['matched_candidates'])}）"
+            reason = f"{reason}／{note}" if reason else note
     # 重複防止: 同ルーム・同内容の未完了TODOがあれば流用
     dedup_key = f"{room_id}:{content}"[:200] if room_id else None
     if dedup_key:
