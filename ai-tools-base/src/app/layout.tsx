@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+// アクセスの計測。どの媒体から来たかを見るために入れている（Zenn/noteからの流入を測る）
+import { Analytics } from "@vercel/analytics/next";
 import { NovelLink } from "@/components/novel/NovelLink";
 import "./globals.css";
 import { Container } from "@/components/ui/Container";
@@ -86,6 +88,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <PhotoCredits />
           </Container>
         </footer>
+
+        <Analytics />
       </body>
     </html>
   );
