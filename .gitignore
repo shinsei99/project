@@ -444,3 +444,7 @@ logs/
 .note-profile/
 # 投稿済みの記録（PCごとに違う）
 ai-tools-base/drafts/.note_posted.json
+
+# 外に出してはいけない語のリスト（社名・物件名・氏名を書くので、これ自体が機密）
+ai-tools-base/drafts/.pii-blocklist.txt
+ai-tools-base/drafts/.neta_scan.json
