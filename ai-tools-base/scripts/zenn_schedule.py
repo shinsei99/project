@@ -90,12 +90,30 @@ def main() -> None:
     if not held:
         print("  （なし）")
 
-    print(f"── 振る予定（{TIME_OF_DAY}・1日1本・開始 {start}）──")
+    # ★すでに埋まっている日は飛ばす。開始日から順に振るだけだと、
+    #   あとから1本足したときに既存の予約と同じ日になる（2026-08-27 に踏んだ）
+    taken = set()
+    for _, why in held:
+        m = re.search(r"予約済み (\d{4}-\d{2}-\d{2})", why)
+        if m:
+            taken.add(dt.date.fromisoformat(m.group(1)))
+
+    def next_free(d: dt.date) -> dt.date:
+        while d in taken:
+            d += dt.timedelta(days=1)
+        taken.add(d)
+        return d
+
+    print(f"── 振る予定（{TIME_OF_DAY}・1日1本・開始 {start}・埋まっている日は飛ばす）──")
     if not todo:
         print("  予約を振れる記事がない。先に articles/ へ原稿を置くこと")
         return
-    for i, (f, fm, why) in enumerate(todo):
-        day = start + dt.timedelta(days=i)
+    plan = []
+    cursor = start
+    for f, fm, why in todo:
+        day = next_free(cursor)
+        cursor = day + dt.timedelta(days=1)
+        plan.append((f, fm, day))
         print(f"  {day} {TIME_OF_DAY}  {f.stem}  … {why}")
 
     if not write:
@@ -103,8 +121,7 @@ def main() -> None:
         print("  ★公開日時は一度きりで変更できない。上の日付をよく見てから実行すること")
         return
 
-    for i, (f, fm, _) in enumerate(todo):
-        day = start + dt.timedelta(days=i)
+    for f, fm, day in plan:
         text = f.read_text(encoding="utf-8")
         head, body = text.split("---\n", 2)[1], text.split("---\n", 2)[2]
         head = re.sub(r"^published:.*$", "published: true", head, flags=re.M)

@@ -238,7 +238,12 @@ def main() -> None:
         done = set(_posted())
         order = (ROOT / "drafts" / "zenn_order.txt").read_text(encoding="utf-8").splitlines()
         order = [x.strip() for x in order if x.strip() and not x.startswith("#")]
+        # order にあるものを先に、無いものはファイル名順で後ろに（週次で足した記事が
+        # order に載っていないと、note だけ永久に出ないことになる）
         rest = [x for x in order if x not in done and (NOTE_DIR / f"{x}.md").exists()]
+        extra = sorted(f.stem for f in NOTE_DIR.glob("*.md")
+                       if f.stem not in done and f.stem not in order)
+        rest += extra
         if not rest:
             print("出すものが無い")
             return
