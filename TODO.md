@@ -24,6 +24,10 @@
 >
 > 1. **KeyTagNFC のデモ動画撮影と Resolution Center への返信**（下のブロックがそのまま台本）。
 >    **メインPCに ffmpeg が無い**ので、720p/H.264 への変換はサブPC（`imageio-ffmpeg` 導入済み）へ渡すのが早い
+>    - **2026-08-26: 実機に入れる準備は完了。**TestFlight の内部テストグループ「社内テスト」を作り、
+>      `s.washimi@icloud.com` を招待済み（`INVITED`）。**審査に出した build 2 そのもの**が入る。
+>      iPhone で App Store から **TestFlight** を入れ → 招待メールの `View in TestFlight` →
+>      **KeyTagNFC** をインストール。（詳細 `keyline/keytag/RELEASE.md`・`keyline/SESSION_LOG.md`）
 > 2. ~~**ポケカ図鑑「🖨 並べる」で PDF が実際に落ちること**の目視~~ →
 >    **2026-08-26 オーナーがメインPCで確認済み＝完了。この件はこれで終わり。**
 >
@@ -61,8 +65,9 @@
 > - アプリ起動 → 右上が「**NFC 利用可**」になるか
 > - 「タグを読み取る」で iOS の読み取りシートが出るか
 >
-> ここで失敗したら、原因は **Developer Portal の App ID `com.shinsei99.keytag` に
-> 「NFC Tag Reading」ケーパビリティが無い**こと（`keyline/keytag/RELEASE.md` の🔴）。
+> ~~ここで失敗したら、原因は Developer Portal の App ID に「NFC Tag Reading」が無いこと~~
+> → **2026-08-26 に API で確認したところ `NFC_TAG_READING` は有効だった**（`keyline/keytag/RELEASE.md`）。
+> **ここが原因ではない**ので、失敗したら別の原因を疑うこと。
 > この撮影がそのまま RELEASE.md の「実機が手に入ったら確認すること」の消化になる。
 >
 > ### 撮影（2台使う・一発撮り・2〜3分）

@@ -24,10 +24,16 @@
 
 ---
 
-## 🔴 提出前に必ず必要な作業（コードでは解決できない）
+## ✅ 提出前に必ず必要な作業（コードでは解決できない）— **2026-08-26 に有効化済みを確認**
 
 **Apple Developer Portal で App ID `com.shinsei99.keytag` に
 「NFC Tag Reading」ケーパビリティを有効化する。**
+
+> **2026-08-26（メインPC）: 有効になっていることを API で実測した。**
+> `GET /v1/bundleIds?filter[identifier]=com.shinsei99.keytag&include=bundleIdCapabilities`
+> → `UKQ5NC8UC5_NFC_TAG_READING` が付いている（ほかに `IN_APP_PURCHASE`）。
+> **したがって「タグを読んだ瞬間に必ず失敗する」状態ではない**。
+> 実機でNFCが動かなかったときは、ここではなく別の原因を疑うこと。
 
 これが無いと、`com.apple.developer.nfc.readersession.formats` エンタイトルメントを
 持つプロビジョニングプロファイルが作られず、**実機でタグを読んだ瞬間に必ず失敗する**。
@@ -99,6 +105,36 @@ CLAUDE.md の再発防止ルール。2026-07-22 に photo-remake / neon-blocks �
 - 収集するデータ: **なし**（すべて端末内の localStorage に保存）
 - サーバー連携を設定した場合のみ、利用者が指定したサーバーへ送信される
 - プライバシーポリシーのURLが必要（未作成）
+
+---
+
+## 実機に入れる方法 — TestFlight（内部テスト）※2026-08-26 に用意した
+
+**審査に出した build 2 そのものを iPhone に入れられる。**Xcode もケーブルも要らない。
+デモ動画は「現行バージョンが実機で動くこと」を見せるものなので、**開発ビルドより
+TestFlight のほうが証拠として正しい**。
+
+| | 値 |
+|---|---|
+| 内部テストグループ | **社内テスト**（`b9115212-26cf-44d5-97a0-0c5130be91aa`・`isInternalGroup=true`） |
+| 配る build | 1.0 (2)（`2247671f-9b48-4763-967b-aece012fea7e`・`VALID`・期限 2026-11-15） |
+| テスター | `s.washimi@icloud.com`（Account Holder。2026-08-26 に `INVITED`） |
+
+**内部テストは Beta App Review が不要**なので、招待した時点ですぐ入れられる。
+**審査中の提出物（1.0 build 2）には影響しない**（TestFlight配布と審査は別系統）。
+
+- グループは `hasAccessToAllBuilds=true` で作った。**この設定のときは build を手で
+  割り当てられない**（`POST /betaGroups/{id}/relationships/builds` は
+  422 `Cannot add internal group to a build.` を返す）。新しい build は自動で流れる
+- 追加のテスターは、まず App Store Connect の **ユーザー**として登録が要る
+  （内部テスターはチームメンバーだけ。社外に配るなら外部グループ＝Beta App Review が要る）
+
+iPhone側:
+
+1. App Store から **TestFlight** を入れる
+2. 招待メール（`s.washimi@icloud.com` 宛・差出人 App Store Connect）の
+   **View in TestFlight** を開く → TestFlight が開く
+3. **KeyTagNFC** の `インストール` → ホーム画面に **KeyTag** が出る
 
 ---
 

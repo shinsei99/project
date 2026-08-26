@@ -1,3 +1,41 @@
+## 2026-08-26（メインPC）— KeyTag を実機に入れる道を用意した（TestFlight 内部テスト）
+
+### 完了したこと
+
+- **オーナーから「NFCアプリをスマホに入れたい」。デモ動画撮影の前提なので TestFlight で用意した。**
+- App Store Connect API で実測して分かったこと:
+
+  | 調べたこと | 結果 |
+  |---|---|
+  | build 2 の状態 | `VALID` / `expired=false` / 期限 **2026-11-15** / `usesNonExemptEncryption=false`（輸出コンプライアンス回答済み）＝**そのまま配れる** |
+  | TestFlight グループ | **1つも無かった**（`betaGroups` が空）。だから iPhone から落とせなかった |
+  | **App ID の NFC ケーパビリティ** | 🟢 **`UKQ5NC8UC5_NFC_TAG_READING` が有効**（`GET /v1/bundleIds?...&include=bundleIdCapabilities`）。`RELEASE.md` の🔴「未設定だとタグを読んだ瞬間に必ず失敗する」は**解消済み**と確認し、RELEASE.md を ✅ に書き換えた |
+  | チームユーザー | `s.washimi@icloud.com`（ACCOUNT_HOLDER/ADMIN）の1名のみ＝内部テスターにできるのはこの人だけ |
+
+- **オーナーの許可を得たうえで**（外部への操作なので CLAUDE.md 6項に従い確認した）、API で:
+  1. 内部テストグループ **社内テスト**（`b9115212-26cf-44d5-97a0-0c5130be91aa`・`isInternalGroup=true`・`hasAccessToAllBuilds=true`）を作成
+  2. テスター `s.washimi@icloud.com` を招待 → **`state=INVITED`**
+  3. グループから build 2 が見えることを確認（`GET /betaGroups/{id}/builds` に該当 id）
+- 手順は `keytag/RELEASE.md` に「実機に入れる方法 — TestFlight（内部テスト）」として残した。
+
+### 発生したエラーと解決策
+
+- 症状: `POST /betaGroups/{id}/relationships/builds` が **422 `Cannot add internal group to a build.`**
+  → 原因: グループを **`hasAccessToAllBuilds=true`** で作ったため、**個別の build 割り当ては
+  そもそも受け付けない**（全ビルドが自動で流れる仕様）。エラーだが実害なし。
+  → 確認: `GET /betaGroups/{id}/builds` に build 2 が入っていることを実測。**対処不要**。
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **iPhone 側の操作はオーナーの手**: App Store から TestFlight を入れる → 招待メールの
+  `View in TestFlight` → KeyTagNFC をインストール。
+- 入ったら **`RELEASE.md` の「実機が手に入ったら確認すること」の上4つ**（NFC利用可 / 読み取りシート /
+  未フォーマットのタグでUID / NTAG213へ書き込み）を先に通す。**ここが通れば、そのまま
+  差し戻し対応のデモ動画の撮影に入れる**（台本は下の 2026-08-26（サブPC）の節と直下 `TODO.md`）。
+- **撮影前に集中モードON・ホーム画面の映り込み対策**（動画は public に置く可能性がある）。
+- **審査中の提出物には影響していない**（TestFlight配布と審査は別系統）。状態確認は
+  `python3 appstore_api.py --review com.shinsei99.keytag`。
+
 ## 2026-08-26（サブPC）— KeyTagNFC が Guideline 2.1（デモ動画の提出要求）で差し戻された
 
 ### 完了したこと
