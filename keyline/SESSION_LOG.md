@@ -58,11 +58,27 @@ Products/Applications/App.app/public/app.js` を直接見て確認した
 
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **修正はまだ実機に入っていない。TestFlight にあるのは壊れている build 2。**
-  順番は「① Xcode から USB で開発ビルドを実機に入れて **NFCが本当に動くか確かめる** →
-  ② 通ってから build 3 を Archive・アップロード → ③ **build 3 でデモ動画を撮る** →
-  ④ Resolution Center に『不具合を修正した build 3 を添付』＋動画URLで返信」。
-  **①を飛ばして build 3 を上げると、また動かないものを審査に出すことになる。**
+- **build 3 を作ってアップロードした（2026-08-26 15:49・オーナーの指示）。**
+  オーナーの選択は「実機での事前確認を挟まず、いきなり build 3 を上げる」。
+  - `npx cap sync ios` → `./ios-build-guard.sh keyline/keytag --bump`（2→3・`version.json` も更新）
+  - `xcodebuild archive`（クラウド署名なので ASC の API キーを渡す。手順は
+    `photo-remake/SESSION_LOG.md` 2026-08-26 と同じ）→ **ARCHIVE SUCCEEDED**
+  - `xcodebuild -exportArchive`（`destination=upload`）→ **Upload succeeded / EXPORT SUCCEEDED**
+  - アーカイブの中身を実測: `CFBundleVersion=3` / `public/app.js` に `iosSessionType` と
+    `keepOpen` が入っている / entitlement は `["TAG"]` / Team `773DPMVW7Q`
+  - **処理後 `VALID`**。TestFlight の「社内テスト」グループに build 3 が入ったことを API で確認
+- **★踏んだ罠: build 3 が TestFlight に出てこなかった（オーナーから「1.0.0 は表示されてる」）。**
+  原因は **`internalBuildState = MISSING_EXPORT_COMPLIANCE`**＝輸出コンプライアンス未回答。
+  `Info.plist` に `ITSAppUsesNonExemptEncryption` が無いと**毎回ASCで聞かれ、回答するまで
+  TestFlight に一切出ない**（build 2 は提出時にオーナーが画面で答えていた）。
+  → `PATCH /v1/builds/{id} {"usesNonExemptEncryption": false}` で解除 → **`IN_BETA_TESTING`**。
+  暗号は使っていない（通信は社内LANの平文HTTPのみ・暗号APIの呼び出し0件を grep で確認）ので
+  `false` が正しく、**build 2 の既存の宣言とも一致**する。
+  → 再発防止に **`Info.plist` と `setup-ios.sh` の両方に `ITSAppUsesNonExemptEncryption=False` を入れた**
+  （※すでに上げた build 3 には効かない。次のビルドから）
+- **残り: ③ build 3 を実機で動かして NFC が直ったことを確認 → ④ デモ動画 →
+  ⑤ Resolution Center へ返信（動画URL＋『不具合を修正した build 3 を添付した』）。**
+  ⑤は外部への操作なのでオーナーの手で。
 - Archive・アップロード・審査への返信は**外部への操作**なのでオーナーの判断で（CLAUDE.md 6項）。
 - build を上げるときは `./ios-build-guard.sh keyline/keytag --bump` ＋ `npx cap sync ios` を忘れない。
 - **`www/` を直したら `npx cap sync ios` をしないと `ios/App/App/public/` は古いまま**

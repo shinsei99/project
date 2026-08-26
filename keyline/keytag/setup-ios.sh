@@ -40,6 +40,12 @@ d["CFBundleDisplayName"] = "KeyTag"
 d["NFCReaderUsageDescription"] = (
     "鍵に貼ったNFCタグを読み書きして、どの鍵かを確認できるようにするために使用します。")
 
+# 輸出コンプライアンス。これが無いと、アップロードした build が
+# **MISSING_EXPORT_COMPLIANCE で止まり TestFlight に一切出てこない**
+# （2026-08-26 に build 3 で実際に踏んだ。API で回答を入れて解除した）。
+# このアプリは暗号を使わない（通信は社内LANの平文HTTPのみ）ので False が正しい。
+d["ITSAppUsesNonExemptEncryption"] = False
+
 # 社内サーバー（平文HTTP・プライベートIP）へ繋げるようにする。
 # ★NSAllowsArbitraryLoads は使わない。全HTTPを開けてしまい、審査でも理由を問われる
 d["NSAppTransportSecurity"] = {"NSAllowsLocalNetworking": True}

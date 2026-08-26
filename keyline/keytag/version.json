@@ -1,8 +1,9 @@
 {
   "_comment": "KeyTag の版数の正。ios/ は gitignore なので、ここが唯一 git に残る版数の記録。setup-ios.sh がこれを ios/ に当てる（既存が大きいときは下げない）。build番号を上げたら **ここも更新する**（ios-build-guard.sh --bump は pbxproj しか触らない）",
   "marketing_version": "1.0.0",
-  "build": 2,
+  "build": 3,
   "_history": [
-    "1.0.0 / build 2 … 2026-08-18 App Store へ提出（掲載名 KeyTagNFC）"
+    "1.0.0 / build 2 … 2026-08-18 App Store へ提出（掲載名 KeyTagNFC）",
+    "1.0.0 / build 3 … 2026-08-26 実機NFCの不具合2件を修正（iosSessionType の誤り／書き込み時にセッションを閉じていた）"
   ]
 }

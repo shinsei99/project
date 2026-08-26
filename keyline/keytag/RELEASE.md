@@ -121,6 +121,27 @@ TestFlight のほうが証拠として正しい**。
 | テスター | `s.washimi@icloud.com`（Account Holder。2026-08-26 に `INVITED`） |
 
 **内部テストは Beta App Review が不要**なので、招待した時点ですぐ入れられる。
+
+### ⚠️ 上げた build が TestFlight に出てこないとき（2026-08-26 に実際に踏んだ）
+
+`processingState` が `VALID` なのに TestFlight に出ない場合、まず疑うのは
+**輸出コンプライアンス未回答**（`internalBuildState = MISSING_EXPORT_COMPLIANCE`）。
+`Info.plist` に `ITSAppUsesNonExemptEncryption` が無いと毎回ASCで聞かれ、
+**答えるまでその build は TestFlight に一切現れない**。
+
+```bash
+python3 - <<'EOF'   # 状態を見る
+import appstore_api as A
+for b in A._get("/builds", {"filter[app]":"6802493580","limit":5,"sort":"-version",
+                            "include":"buildBetaDetail"}).get("included", []):
+    print(b["id"][:8], b["attributes"])
+EOF
+```
+
+解除は `PATCH /v1/builds/{id}` に `{"usesNonExemptEncryption": false}`。
+**2026-08-26 に `Info.plist` と `setup-ios.sh` の両方へ `ITSAppUsesNonExemptEncryption=False`
+を入れたので、build 4 以降は聞かれない。**
+このアプリは暗号を使わない（通信は社内LANの平文HTTPのみ）ので `false` が正しい。
 **審査中の提出物（1.0 build 2）には影響しない**（TestFlight配布と審査は別系統）。
 
 - グループは `hasAccessToAllBuilds=true` で作った。**この設定のときは build を手で
