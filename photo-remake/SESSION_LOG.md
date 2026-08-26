@@ -2,6 +2,46 @@
 
 新しい日付の節を**先頭に追記**する（上書きしない）。見出しには必ず作業したPCを書く。
 
+## 2026-08-26（メインPC）
+
+### 完了したこと
+- サブPCの 1.1.0 / build 4 を受領し、**Archive まで完了**。
+  `~/Library/Developer/Xcode/Archives/2026-08-26/PhotoRemake 26-08-26, 13.30.xcarchive`
+  （1.1.0 / build 4・`com.shinsei.photoremake`・Team `773DPMVW7Q`・iOS 16.0+・8.7MB）。
+- 事前確認: `./ios-build-guard.sh photo-remake` → **衝突なし（build 4 > 既存最大 3）**、
+  `appstore_api.py --review com.shinsei.photoremake` → **配信中 1.0.2 / 審査中なし**。
+  `project.pbxproj` の **Debug / Release 両方**が 1.1.0 / build 4 であることも確認。
+- `RELEASE.md` の著作権者名を **`SHINSEI PROPERTY MANAGEMENT.K.K.`** に訂正
+  （「新誠プロパティマネジメント」は誤り。2026-08-19確定の表記 [[reference_developer_entity]]）。
+
+### 発生したエラーと解決策
+- **症状**: Archive するのに配布証明書が見つからない。`security find-identity -v -p codesigning` は
+  **`Apple Development` の1本だけ**で、`Apple Distribution` / `iPhone Distribution` は
+  キーチェーンに**0件**（`security find-certificate -a -c "Apple Distribution"` で確認）。
+  **原因**: このMacの配布証明書は**クラウド署名（cloud-managed distribution certificate）**で、
+  秘密鍵が Apple 側にあり**ローカルのキーチェーンには存在しない**。
+  プロファイル `iOS Team Store Provisioning Profile: com.shinsei.photoremake`
+  （Team `773DPMVW7Q`・2027-06-23まで有効）が参照している証明書は
+  `Apple Distribution: shinichi washimi (773DPMVW7Q)` だが、**手元には無くて正常**。
+  **直し方**: Archive は開発証明書で署名されるままでよい（**配布時に署名し直される**）。
+  CLI から通すなら ASC の API キーで認証しながら叩く:
+  ```bash
+  set -a; . ~/.env.appstore; set +a
+  xcodebuild archive -project PhotoRemake.xcodeproj -scheme PhotoRemake -configuration Release \
+    -destination 'generic/platform=iOS' -archivePath "<パス>.xcarchive" -allowProvisioningUpdates \
+    -authenticationKeyPath "${ASC_PRIVATE_KEY_PATH/#\~/$HOME}" \
+    -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+    DEVELOPMENT_TEAM=773DPMVW7Q CODE_SIGN_STYLE=Automatic
+  ```
+  **`-archivePath` は `~/Library/Developer/Xcode/Archives/<YYYY-MM-DD>/` の下に置く**こと。
+  ここに置かないと Xcode の Organizer に出てこない＝ GUI から配布できない。
+  なお `DEVELOPMENT_TEAM` を渡さないと個人チーム（`FWYY2U2N6P`）で署名されるので必ず指定する。
+
+### 次回への引き継ぎ事項・未解決の課題
+- **アップロード（Distribute App）と審査提出は未実施**。外部に出る操作なのでオーナーの判断待ち。
+- **実機での動作確認も未実施**（`RELEASE.md` の「2. 実機で触る」）。今回の変更は
+  図形の追加・移動・回転・色の付け外しと**全部が指の操作**なので、提出前に一度は触ること。
+
 ## 2026-08-25（サブPC）
 
 ### 完了したこと
