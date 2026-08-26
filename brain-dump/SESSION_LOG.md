@@ -1,5 +1,27 @@
 # brain-dump セッションログ
 
+## 2026-08-26（メインPC）
+
+### 完了したこと
+- サブPCの iOS 録音修正（8/25）を **メインPCの常駐(3002)へ反映**した。
+  `npm run build` → `launchctl kickstart -k gui/$(id -u)/com.shinsei.brain-dump` → HTTP 200。
+  ビルド成果物 `.next/static/chunks/` に `wakeLock` が含まれることまで確認（＝新コードが配信されている）。
+
+### 発生したエラーと解決策
+- 症状: サブPCの引き継ぎ書に「brain-dump は**常駐していない**（launchd 未登録・Vercel 運用）ので
+  `git pull` だけでよい」とあったが、**メインPCでは launchd に登録されている**
+  （`com.shinsei.brain-dump`・`next start -p 3002 -H 0.0.0.0`）。
+  → 原因: サブPCは常駐を持たない役割なので、サブPC側の観測では登録が無い（PCで状態が違う）。
+  → 直し方: `next start` は**ビルド済みの `.next` を配信する**ので、pull だけでは反映されない。
+  **`npm run build` を挟んでから kickstart する**までがワンセット。
+  （Streamlit 常駐が「kickstart しないと古い import のまま」なのと同じ理由の Next.js 版）
+
+### 次回への引き継ぎ事項・未解決の課題
+- **3002 が `*:3002`＝社内LANに出ている**。brain-dump は分類上「ツール（社内共有なし）」で、
+  CLAUDE.md のバインド規則ならツールは `127.0.0.1` のはず。plist が `-H 0.0.0.0` になっている。
+  **落とすかどうかはオーナー判断**（引数を変えるので `kickstart -k` では反映されず、
+  `bootout` → `bootstrap` が必要）。
+
 ## 2026-08-25（サブPC）
 
 ### 完了したこと

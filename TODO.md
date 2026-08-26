@@ -1,3 +1,32 @@
+> ## 🖥 メインPCで受領・実施した（2026-08-26 メインPC）— サブPCへの返信
+>
+> **サブPCの44コミットを受領。機械でできるものはすべて完了。残りは人にしかできない1件（KeyTagの動画撮影）。**
+> 手元にも未pushの3コミット（chatwork-ai-manager・8/25〜8/26 の開発エージェント分）があったので、
+> **fast-forward ではなくマージ**（`77cd1b0f`）。競合は無し。
+>
+> | 依頼 | 結果 |
+> |---|---|
+> | ポケカ図鑑「🖨 並べる」の反映 | ✅ `git pull` ＋ `com.shinsei.psa-collection` を kickstart → **8527 HTTP 200 / 127.0.0.1 待受**。`Pillow 11.3.0` と `card_sheet` の import も実測（`ModuleNotFoundError: PIL` は起きない）。**PDFの実ダウンロードだけ未確認**（下記） |
+> | ブレインダンプ（iOS録音の修正） | ✅ **申し送りと違い、メインPCでは launchd 常駐だった**（`next start -p 3002`＝ビルド済みを配信）。`npm run build` → kickstart → **3002 HTTP 200**、`.next` に `wakeLock` が入っていることまで確認。**pull だけでは反映されない**ので注意（詳細 `brain-dump/SESSION_LOG.md`） |
+> | 8/25 23:47「✅ 完了しました。」の中身 | ✅ **`dev_tasks` id=38（TASK-20260825-009・日報検索/集計画面）**。JST 23:35着手→23:47完了。コミット `c4cdcdf9` としてメインPCにローカルで残っていた＝**設計どおり push されていなかった**ので、今回まとめて push した |
+> | KeyTag の審査状態 | ✅ `appstore_api.py --review com.shinsei99.keytag` → **リジェクト（要対応）**。サブPCの報告どおり |
+> | pull で変わった常駐アプリ | ✅ 洗い出し済み。**再起動が要るのは psa-collection と brain-dump の2本だけ**（他は ai-tools-base=Vercel / articles=Zenn / photo-remake=iOS / keyline=ログのみ） |
+>
+> **★人の手が要る（残り）**
+>
+> 1. **KeyTagNFC のデモ動画撮影と Resolution Center への返信**（下のブロックがそのまま台本）。
+>    **メインPCに ffmpeg が無い**ので、720p/H.264 への変換はサブPC（`imageio-ffmpeg` 導入済み）へ渡すのが早い
+> 2. **ポケカ図鑑「🖨 並べる」で PDF が実際に落ちること**の目視（8527 →「📖 ポケモンカード図鑑」→
+>    検索 → 4回「🖨 並べる」→ タブで「📄 PDFをダウンロード」）。ヘッドレスでは確認できない部分
+>
+> **★気づいたこと（オーナー判断待ち・急がない）**
+>
+> - **`dev_tasks` に `WAITING_USER` が2件たまっている**（id=39 空き待ち系TODOの除外／
+>   id=41 管理物件台帳の担当者列。41は 8/26 03:44 UTC＝JST 12:44 でまだ返事待ち）
+> - **3002（ブレインダンプ）が `*:3002`＝社内LANに出ている**。分類は「ツール（社内共有なし）」なので
+>   規則上は `127.0.0.1` のはず。plist が `-H 0.0.0.0`。落とすなら**引数変更＝`bootout`→`bootstrap`**
+>   （`kickstart -k` では反映されない）
+
 > ## 🖥 メインPCでやること（2026-08-26 サブPCより）— KeyTagNFC の審査差し戻し（デモ動画の提出）
 >
 > **App Store から差し戻された。やることは「動画を撮って、リンクを添えて返信」だけ。**
