@@ -1,3 +1,73 @@
+## 2026-08-26（メインPC）— 実機で「Failed to read NDEF message」→ **原因はバグ2件**。修正した
+
+### 完了したこと
+
+- オーナーが TestFlight の build 2 でタグをかざしたところ
+  **「failed to read NDEF message …NDEF tag…」** でシートが赤くなった、との報告。
+  **アプリ側のバグ2件**を特定し、`www/app.js` を修正した。**タグの不良でも実機の問題でもない。**
+
+**バグ①（今回のエラーそのもの）— プラグインのオプション名が違う**
+
+`scanOnce()` が `sessionType: 'tag'` を渡していたが、`@capgo/capacitor-nfc` 8.2.3 の
+正しい名前は **`iosSessionType`**（`dist/esm/definitions.d.ts:121` / `NfcPlugin.swift:124`
+`call.getString("iosSessionType", "ndef")`）。**知らないキーは黙って捨てられ、既定の
+`ndef` セッションになる**＝ `NFCNDEFReaderSession` で動いていた。
+
+その経路（`NfcPlugin.swift:553-562`）は、まっさら（NDEF未フォーマット）のタグで
+`readNDEF` がエラーになると
+`session.invalidate(errorMessage: "Failed to read NDEF message: \(readError.localizedDescription)")`
+を呼ぶ。iOSの `localizedDescription` は「NDEF tag does not contain any NDEF message」なので、
+**オーナーが見た文言と一致する**。
+TAGセッション（`processTag`）なら `message == nil` のとき `emitTagEvent` でUIDだけ返して続行するので、
+この失敗は起きない。
+
+**バグ②（まだ誰も踏んでいないが、書き込みが必ず失敗する）**
+
+`scanOnce()` は検出直後に `Nfc.stopScanning()` を呼んでいた。`stopScanning` は
+**セッションを invalidate したうえで `currentTag = nil` にする**（`NfcPlugin.swift:200-209`）。
+その後に `Nfc.write()` を呼んでも
+`guard currentTag != nil else { call.reject("No active NFC session or tag…") }` で必ず落ちる。
+`invalidateAfterFirstRead: true` も同じ向きに効く。
+**iOSは「タグに繋がっている同じセッションの中」でしか書けない。**
+
+→ 修正: `scanOnce(msg, {keepOpen:true})` を足し、書き込み時はセッションを開いたまま
+`Nfc.write()` し、`finally` で `closeScan()` する。読み取り側は今までどおり1回で閉じる。
+
+**★この2件は、審査に出した build 2 の実体に入っている**（推測ではない）。
+`~/Library/Developer/Xcode/Archives/2026-08-18/KeyTag 2026-08-18 11.10 build2.xcarchive/
+Products/Applications/App.app/public/app.js` を直接見て確認した
+（`CFBundleVersion=2` / 74行目 `sessionType: 'tag'` / 66行目 `stopScanning()`）。
+**つまり build 2 では「まっさらなタグは読めない」「タグに書けない」。**
+
+### 発生したエラーと解決策
+
+- 症状: 実機でタグをかざすと `Failed to read NDEF message: NDEF tag does not contain any NDEF message`
+  → 原因: 上のバグ①（`sessionType` ではなく `iosSessionType`。誤ったキーは無視され既定のNDEFセッションになる）
+  → 直し方: `www/app.js` の `scanOnce()` で `iosSessionType: 'tag'` を渡す。
+- **App ID の NFC Tag Reading は有効だった**（2026-08-26 に API で確認済み）ので、
+  `RELEASE.md` の🔴は今回の原因ではなかった。**先に潰しておいたのが効いて、切り分けが早かった。**
+
+### 検証（実機以外でできる範囲）
+
+- `node --check` で `app.js` / `ndef.js` とも構文OK
+- `python3 -m http.server 5180 --directory www` ＋ `./va.sh` で実際に開いた:
+  - `/` `style.css` `app.js` `ndef.js` すべて **200**、**JSエラー0件**（favicon の404のみ）
+  - 「書き込み」タブ → 鍵の名称を入れて「タグに書き込む」→
+    **⚠️ NFCの読み書きは実機でのみ動作します（いまはブラウザ表示）** が出る＝ハンドラは通っている
+- **NFCの実挙動は実機でしか確かめられない。ここは未検証。**
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **修正はまだ実機に入っていない。TestFlight にあるのは壊れている build 2。**
+  順番は「① Xcode から USB で開発ビルドを実機に入れて **NFCが本当に動くか確かめる** →
+  ② 通ってから build 3 を Archive・アップロード → ③ **build 3 でデモ動画を撮る** →
+  ④ Resolution Center に『不具合を修正した build 3 を添付』＋動画URLで返信」。
+  **①を飛ばして build 3 を上げると、また動かないものを審査に出すことになる。**
+- Archive・アップロード・審査への返信は**外部への操作**なのでオーナーの判断で（CLAUDE.md 6項）。
+- build を上げるときは `./ios-build-guard.sh keyline/keytag --bump` ＋ `npx cap sync ios` を忘れない。
+- **`www/` を直したら `npx cap sync ios` をしないと `ios/App/App/public/` は古いまま**
+  （今回まさにそこを見て build 2 の中身を確認した）。
+
 ## 2026-08-26（メインPC）— KeyTag を実機に入れる道を用意した（TestFlight 内部テスト）
 
 ### 完了したこと

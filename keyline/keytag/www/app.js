@@ -56,28 +56,47 @@ function needDevice(msgEl) {
   return !!m;
 }
 
-/** タグを1枚検出するまで待つ。iOSは読み取りシートが自動で出る。 */
-function scanOnce(alertMessage) {
+/** タグを1枚検出するまで待つ。iOSは読み取りシートが自動で出る。
+ *
+ *  keepOpen=true のときはセッションを開いたままにする。**書き込みには必須**。
+ *  iOSはタグに繋がっているセッションの中でしか書けないので、検出後に
+ *  stopScanning すると（プラグインが currentTag を null にするため）
+ *  write が「No active NFC session or tag」で必ず失敗する。
+ *  → 呼んだ側が最後に closeScan() を呼ぶこと。
+ *
+ *  ★2026-08-26 修正: オプション名は `sessionType` ではなく **`iosSessionType`**。
+ *    間違えると黙って既定の NDEF セッションになり、まっさらな（NDEF未フォーマットの）
+ *    タグをかざした瞬間に
+ *    「Failed to read NDEF message: NDEF tag does not contain any NDEF message」
+ *    でシートが赤くなる（実機で発生）。TAG セッションなら UID だけ拾って続けられる。
+ */
+function scanOnce(alertMessage, { keepOpen = false } = {}) {
   return new Promise(async (resolve, reject) => {
     let handle = null, done = false;
     const finish = (fn, v) => {
       if (done) return; done = true;
       if (handle) handle.remove().catch(() => {});
-      Nfc.stopScanning().catch(() => {});
+      if (!keepOpen) Nfc.stopScanning().catch(() => {});
       fn(v);
     };
     try {
       handle = await Nfc.addListener('nfcEvent', ev => finish(resolve, ev && ev.tag));
       await Nfc.startScanning({
-        // 'tag' セッションでないと、まっさらな（NDEF未フォーマットの）タグを掴めない。
-        // iOSでは TAG エンタイトルメントが要る。
-        sessionType: 'tag',
+        // TAG セッションでないと、まっさらな（NDEF未フォーマットの）タグを掴めない。
+        // iOSでは TAG エンタイトルメントが要る（App.entitlements で付与済み）。
+        iosSessionType: 'tag',
         alertMessage: alertMessage || 'タグに近づけてください',
-        invalidateAfterFirstRead: true,
+        // 書き込むときは閉じさせない（閉じるとタグとの接続ごと失われる）
+        invalidateAfterFirstRead: !keepOpen,
       });
       setTimeout(() => finish(reject, new Error('timeout')), 65000);
     } catch (e) { finish(reject, e); }
   });
+}
+
+/** keepOpen で開けたセッションを閉じる（読み取りシートも消える）。 */
+function closeScan() {
+  if (Nfc) Nfc.stopScanning().catch(() => {});
 }
 
 // ---------------------------------------------------------------------------
@@ -565,7 +584,8 @@ $('btn-write').addEventListener('click', async () => {
     const p = N.plan(f, conf.tagType);
     if (!p.fits) throw new Error('このタグには収まりません');
 
-    const tag = await scanOnce('書き込むタグに近づけてください');
+    // ★セッションを開いたまま受け取る。閉じるとタグとの接続が切れて書けない
+    const tag = await scanOnce('書き込むタグに近づけてください', { keepOpen: true });
     await Nfc.write({ records: p.records, allowFormat: true });
 
     // uid を控えておくと、次にかざしたとき確実にこの鍵だと分かる（サーバー不要）
@@ -585,6 +605,7 @@ $('btn-write').addEventListener('click', async () => {
       : (e && e.message) || '書き込めませんでした');
     msg.className = 'msg err';
   } finally {
+    closeScan();   // keepOpen で開けたセッションを必ず閉じる（成功・失敗とも）
     btn.disabled = false; btn.textContent = 'タグに書き込む';
   }
 });
