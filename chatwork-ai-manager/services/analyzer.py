@@ -12,13 +12,29 @@
 """
 import datetime
 import json
+import os
 
 from db.connection import get_conn, query
-from services import property_master, tasks as T
+from services import attachments, property_master, tasks as T
 from services.claude_client import ClaudeError, run_json
 
 CONTEXT_MSG_LIMIT = 15   # 会話の流れとして渡す直近メッセージ数
 LOW_CONF = ("推測", "不明")
+
+
+def _line_body(room_id, m, limit) -> str:
+    """会話ラインに載せる本文。音声添付があれば文字起こしを足す（TASK-20260826-004）。
+
+    従来ファイル添付（Excel/PDF等）はQ&A時のみ内容を読み、TODO抽出には載せない設計だが、
+    音声は「文字起こし・要約もTODO抽出と同様に活用」というオーナー要望のため例外的に対応する。
+    transcribe_chatwork_audio はキャッシュ済みなら即返るので、直近文脈に繰り返し出てきても軽い。
+    """
+    body = m["body"] or ""
+    text = body[:limit]
+    for file_id, name in attachments.chatwork_file_refs(body):
+        if os.path.splitext(name)[1].lower() in attachments.AUDIO_EXTENSIONS:
+            text += "\n" + attachments.transcribe_chatwork_audio(room_id, file_id, name)
+    return text
 
 
 def _today_str() -> str:
@@ -59,11 +75,11 @@ def _build_prompt(room_id, new_msgs, context_msgs, members, open_tasks) -> str:
         f"  - {m['name']}（account_id={m['account_id']}）" for m in members
     ) or "  （不明）"
     ctx_lines = "\n".join(
-        f"  [{m['message_id']}] {m['account_name'] or m['account_id']}: {(m['body'] or '')[:300]}"
+        f"  [{m['message_id']}] {m['account_name'] or m['account_id']}: {_line_body(room_id, m, 300)}"
         for m in context_msgs
     ) or "  （なし）"
     new_lines = "\n".join(
-        f"  [{m['message_id']}] {m['account_name'] or m['account_id']}: {(m['body'] or '')[:600]}"
+        f"  [{m['message_id']}] {m['account_name'] or m['account_id']}: {_line_body(room_id, m, 600)}"
         for m in new_msgs
     )
     if open_tasks:

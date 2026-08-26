@@ -68,6 +68,8 @@ _ENV_MAP = {
     "line_allowed_user_ids": "LINE_ALLOWED_USER_IDS",
     "ngrok_domain": "NGROK_DOMAIN",
     "reinfolib_api_key": "REINFOLIB_API_KEY",
+    "gemini_api_key": "GEMINI_API_KEY",
+    "gemini_model": "GEMINI_MODEL",
 }
 
 

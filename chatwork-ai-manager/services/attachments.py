@@ -37,6 +37,16 @@ _IMAGE_EXT_BY_MIME = {
     "image/gif": ".gif", "image/webp": ".webp",
 }
 
+# 音声添付（ボイスメモ等）の拡張子→Gemini向けMIME（TASK-20260826-004）
+_AUDIO_MIME_BY_EXT = {
+    ".m4a": "audio/mp4", ".mp4": "audio/mp4", ".mp3": "audio/mpeg",
+    ".wav": "audio/wav", ".aac": "audio/aac", ".ogg": "audio/ogg",
+    ".oga": "audio/ogg", ".webm": "audio/webm", ".flac": "audio/flac",
+    ".amr": "audio/amr", ".3gp": "audio/3gpp", ".3gpp": "audio/3gpp",
+    ".caf": "audio/x-caf",
+}
+AUDIO_EXTENSIONS = frozenset(_AUDIO_MIME_BY_EXT)
+
 # Chatwork のファイル投稿は本文に `[download:123]名前.xlsx (12.3 KB)[/download]` が入る
 _DOWNLOAD_RE = re.compile(r"\[download:(\d+)\]([^\[]*?)(?:\s*\([^)]*\))?\[/download\]")
 
@@ -123,6 +133,11 @@ def read_chatwork_files(room_id, refs: list[tuple[int, str]]) -> str:
     parts = []
     try:
         for file_id, name in refs:
+            if os.path.splitext(name)[1].lower() in _AUDIO_MIME_BY_EXT:
+                # 音声は専用ルート（Gemini文字起こし→Claude要約・キャッシュ有）。
+                # get_file/downloadも中で行うのでここでは呼ばない（二重取得を避ける）
+                parts.append(transcribe_chatwork_audio(room_id, file_id, name))
+                continue
             try:
                 info = cw.get_file(room_id, file_id)
                 url = info.get("download_url")
@@ -147,6 +162,91 @@ def read_chatwork_files(room_id, refs: list[tuple[int, str]]) -> str:
     finally:
         shutil.rmtree(tmp, ignore_errors=True)         # ★個人情報を残さない
     return "\n\n".join(parts)
+
+
+_AUDIO_SUMMARY_PROMPT = (
+    "次はChatworkに投稿された音声ファイル「{name}」の文字起こしです。"
+    "内容を3〜5行程度で簡潔に要約してください。"
+    "「誰が・何を・いつまでに」といった業務上の要点があれば漏らさず含めてください。"
+    "前置きや説明は不要で、要約の本文だけを出力してください。\n\n"
+    "----- 文字起こし -----\n{transcript}"
+)
+
+
+def _audio_cache_get(room_id, file_id):
+    from db.connection import query
+    rows = query("SELECT * FROM audio_transcripts WHERE room_id=? AND file_id=?", (room_id, file_id))
+    return rows[0] if rows else None
+
+
+def _audio_cache_put(room_id, file_id, filename, transcript, summary):
+    from db.connection import get_conn
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO audio_transcripts (room_id, file_id, filename, transcript, summary) "
+            "VALUES (?, ?, ?, ?, ?) "
+            "ON CONFLICT(room_id, file_id) DO UPDATE SET filename=excluded.filename, "
+            "transcript=excluded.transcript, summary=excluded.summary",
+            (room_id, file_id, filename, transcript, summary),
+        )
+
+
+def transcribe_chatwork_audio(room_id, file_id: int, name: str) -> str:
+    """Chatwork の音声添付（ボイスメモ等）を文字起こし→要約する（TASK-20260826-004）。
+
+    文字起こしは Gemini（claude は音声非対応のため）、要約は既存の Claude 呼び出しで行う。
+    結果は `audio_transcripts` にキャッシュし、同じ添付が会話コンテキストへ何度出てきても
+    二度と外部へ問い合わせない。失敗しても例外は投げない（QA/TODO抽出を止めないため）。
+    """
+    cached = _audio_cache_get(room_id, file_id)
+    if cached:
+        if not cached["transcript"]:
+            return _describe(name, "", "音声に内容がありませんでした（無音・雑音のみ）")
+        return _describe(name, f"▼文字起こし\n{cached['transcript']}\n\n▼要約\n{cached['summary']}")
+
+    from services.chatwork import ChatworkClient, ChatworkError
+    tmp = tempfile.mkdtemp(prefix="cwai-audio-")
+    try:
+        cw = ChatworkClient()
+        info = cw.get_file(room_id, file_id)
+        url = info.get("download_url")
+        name = name or info.get("filename") or f"audio-{file_id}"
+        if not url:
+            return _describe(name, "", "ダウンロードURLを取得できませんでした")
+        ext = os.path.splitext(name)[1].lower()
+        mime = _AUDIO_MIME_BY_EXT.get(ext, "audio/mp4")
+        dest = os.path.join(tmp, os.path.basename(name) or f"audio-{file_id}")
+        _download(url, dest)
+        with open(dest, "rb") as f:
+            audio_bytes = f.read()
+
+        from services.gemini_client import GeminiError, transcribe_audio
+        try:
+            transcript = transcribe_audio(audio_bytes, mime)
+        except GeminiError as e:
+            return _describe(name, "", f"文字起こしに失敗: {e}")
+        if not transcript:
+            _audio_cache_put(room_id, file_id, name, "", "")
+            return _describe(name, "", "音声に内容がありませんでした（無音・雑音のみ）")
+
+        from services import settings
+        from services.claude_client import ClaudeError, run_text
+        try:
+            summary, _env = run_text(
+                _AUDIO_SUMMARY_PROMPT.format(name=name, transcript=transcript),
+                model=settings.get_setting("model_audio_summary", "haiku"), timeout=120)
+        except ClaudeError:
+            summary = "（要約に失敗しました）"
+        _audio_cache_put(room_id, file_id, name, transcript, summary)
+        return _describe(name, f"▼文字起こし\n{transcript}\n\n▼要約\n{summary}")
+    except ValueError:
+        return _describe(name, "", f"{MAX_BYTES // 1024 // 1024}MB を超えるので読みませんでした")
+    except ChatworkError as e:
+        return _describe(name, "", f"取得に失敗: {e}")
+    except Exception as e:
+        return _describe(name, "", f"読み取りに失敗: {type(e).__name__}")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def read_line_file(message_id: str, name: str) -> str:

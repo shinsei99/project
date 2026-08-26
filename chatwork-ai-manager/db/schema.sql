@@ -434,3 +434,17 @@ CREATE TABLE IF NOT EXISTS holidays (
     source       TEXT,
     updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Chatwork音声添付（ボイスメモ等）の文字起こし・要約キャッシュ（TASK-20260826-004）。
+-- 同じ添付が会話コンテキスト（直近メッセージ）に何度も登場しても、二度と
+-- Gemini/Claudeへ問い合わせないための土台（geocode_cacheと同じ考え方）。成功時のみ保存する
+-- （失敗はキーの未設定・一時的な通信エラーがありうるため、次回また試せるようキャッシュしない）。
+CREATE TABLE IF NOT EXISTS audio_transcripts (
+    room_id     INTEGER NOT NULL,
+    file_id     INTEGER NOT NULL,
+    filename    TEXT,
+    transcript  TEXT,
+    summary     TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (room_id, file_id)
+);
