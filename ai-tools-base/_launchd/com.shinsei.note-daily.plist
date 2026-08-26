@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- note へ毎晩1本投稿する。Zenn（22:30）の5分後に出す。
+     note本文にZennのURLを埋めてあるので、Zennが先に公開されている必要がある。
+
+     入れ方（メインPCで）:
+       cp ai-tools-base/_launchd/com.shinsei.note-daily.plist ~/Library/LaunchAgents/
+       launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shinsei.note-daily.plist
+     外し方:
+       launchctl bootout gui/$(id -u)/com.shinsei.note-daily
+     ★先に一度 ./scripts/note_post.py --login （画面が出る）でログインしておくこと。 -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.shinsei.note-daily</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/apple/ai-tools-base/scripts/note-daily.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>22</integer>
+    <key>Minute</key><integer>35</integer>
+  </dict>
+  <key>StandardOutPath</key><string>/tmp/note-daily.log</string>
+  <key>StandardErrorPath</key><string>/tmp/note-daily.err</string>
+  <key>RunAtLoad</key><false/>
+</dict>
+</plist>

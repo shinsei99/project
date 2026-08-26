@@ -439,3 +439,8 @@ logs/
 # 小説続編の通し読みファイルを作り直す道具（原稿は GoogleDrive にあり git 管理外だが、
 # 生成の道具はこちらに置く。話の先頭の「（第一部　…）」は原稿側にあるので生成側では足さない）
 !novel_readthrough.py
+
+# note のログイン済みプロファイル（Cookieを含むので絶対に入れない）
+.note-profile/
+# 投稿済みの記録（PCごとに違う）
+ai-tools-base/drafts/.note_posted.json
