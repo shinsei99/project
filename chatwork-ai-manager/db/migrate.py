@@ -61,15 +61,19 @@ DEFAULT_SETTINGS = {
     # 既定は管理者=鷲見慎一(7426045)。社員が勝手にコードを書かせないための制限。
     "dev_allowed_account_ids": "7426045",
     "dev_max_attempts": "3",            # 再起動復元での再実行上限
-    # ---- 業務月報（TASK-20260825-001。鷲見の会議資料アップロードが起点。トリガー駆動＝時刻指定なし）----
+    # ---- 業務月報（TASK-20260825-001。TASK-20260826-002でLINE起点に変更）----
+    # 入力源・トリガー＝オーナーがLINEで「月報開始」〜「月報終了」の間に送った内容。
+    # Chatworkの資料アップロードでは今後いっさい作らない（services/scheduler.py参照）。
     "monthly_report_enabled": "1",
-    "monthly_report_account_id": "7426045",  # 資料をアップロードする人（既定: 鷲見慎一）
-    "monthly_report_room_id": "",            # 空なら daily_report_room_id → manager_room_id → 監視中groupルーム
-    "monthly_report_upload": "1",            # 1でアップロード元と同じルームへExcelを自動アップ
+    "monthly_report_room_id": "",            # Excelのアップ先（空なら daily_report_room_id → manager_room_id → 監視中groupルーム）
+    "monthly_report_upload": "1",            # 1でアップ先ルームへExcelを自動アップ
     # 社内メールへも同じExcelを添付して送る（TASK-20260825-002・日報と同じ挙動に揃える）
     "monthly_report_mail": "1",
     "monthly_report_mail_to": "",            # 空なら daily_report_mail_to を使う
     "model_monthly_report": "sonnet",
+    # LINEの材料受付セッションを開いたまま放置された場合、何分後に自動で締め切るか（TASK-20260826-002）。
+    # 締め切らないと、忘れたセッションが以降のLINE質問応答を乗っ取り続けてしまう。
+    "monthly_report_line_session_timeout_min": "180",
     # ---- ファイル添付送信（Stage 9）----
     # 送信のたびにLINEへ通知するか。既定は 0（送らない。2026-08-19 オーナー判断）。
     # 送信の記録は設定に関わらず sent_files テーブルに必ず残る。

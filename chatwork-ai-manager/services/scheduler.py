@@ -410,11 +410,11 @@ def tick(client, now=None):
             ran.append(run_daily_report(client, now=now))
     except Exception as e:
         ran.append({"job": DAILY_REPORT_JOB, "error": f"{type(e).__name__}: {e}"})
-    # 業務月報（鷲見の資料アップロードがトリガー。時刻指定なし＝毎サイクル確認）
+    # 業務月報（LINEの材料受付セッションが放置されていないかの毎サイクル確認。TASK-20260826-002）
     try:
-        ran += run_monthly_report_check(client, now=now)
+        ran += run_monthly_report_line_check(client, now=now)
     except Exception as e:
-        ran.append({"job": "monthly_report", "error": f"{type(e).__name__}: {e}"})
+        ran.append({"job": "monthly_report_line", "error": f"{type(e).__name__}: {e}"})
     return ran
 
 
@@ -592,105 +592,59 @@ def run_daily_report(client, now=None):
     return {"job": DAILY_REPORT_JOB, "claimed": True, **result}
 
 
-# ---- 業務月報の自動作成・保管・アップ（TASK-20260825-001）----
-# 日報と違い時刻指定はない。鷲見が全体Chatworkルームへ会議資料をアップロードしたメッセージが
-# トリガー。tick() のたびに「まだ月報にしていない資料アップロード日」が無いか確認して作る。
+# ---- 業務月報のLINEセッション放置対策（TASK-20260826-002）----
+# 入力源・トリガーは「オーナーがLINEで直接送った内容」（月報開始〜月報終了）に変更した
+# （line_webhook.py が受付・締めを処理する）。ここでは、締め忘れて開いたままのセッションを
+# tick() のたびに確認し、一定時間（monthly_report_line_session_timeout_min・既定180分）操作が
+# 無ければ自動で締め切る。締め切らないと、忘れたセッションが以降のLINE質問応答をずっと
+# 材料受付として乗っ取り続けてしまう（本来のQ&Aに戻れなくなる）。
 #
-# 二重処理防止は2重: monthly_reports.trigger_message_id の UNIQUE（本体）に加え、
-# 既存の scheduled_runs も流用（run_date=トリガー送信日、job_type=monthly_report:<message_id>）。
-# 出力（Excel）は日報と**同じ保存フォルダ**（daily_report_save_dir）に保管する。
-
-MONTHLY_REPORT_JOB_PREFIX = "monthly_report"
+# ★Chatworkの資料アップロードでは今後いっさい月報を作らない（旧 run_monthly_report_check・
+#   MR.pending_triggers 等は削除済み。TASK-20260826-002 オーナー指示）。
 
 
-def run_monthly_report_check(client, now=None):
+def run_monthly_report_line_check(client, now=None):
     if settings.get_setting("monthly_report_enabled", "1") != "1":
         return []
     from services import monthly_report as MR
-    from services import monthly_report_export as MEX
+    from services import monthly_report_line as MRL
 
-    ran = []
-    for trigger in MR.pending_triggers():
-        day = datetime.datetime.fromtimestamp(trigger["send_time"]).date().isoformat()
-        job_type = f"{MONTHLY_REPORT_JOB_PREFIX}:{trigger['message_id']}"
-        if not _claim(job_type, day):
-            continue
-
-        result = {"trigger_message_id": trigger["message_id"], "errors": []}
-        try:
-            row = MR.generate(trigger["message_id"], generated_by="scheduled", client=client)
-        except Exception as e:
-            result["errors"].append(f"generate: {type(e).__name__}: {e}")
-            _finish(job_type, day, result)
-            ran.append({"job": job_type, "claimed": True, **result})
-            _alert_monthly_report_errors(result, trigger["message_id"])
-            continue
-
-        import os
-        import tempfile
-        tmpdir = tempfile.mkdtemp(prefix="monthly_report_")
-        xlsx = os.path.join(tmpdir, f"業務月報_{row['report_period']}.xlsx")
-        MEX.build_xlsx(row, xlsx)
-
-        # Dropbox の共有フォルダへ保管（日報と同じ場所）
-        save_dir = settings.get_setting("daily_report_save_dir", "") or ""
-        if save_dir:
-            try:
-                os.makedirs(save_dir, exist_ok=True)
-                dst = os.path.join(save_dir, os.path.basename(xlsx))
-                with open(xlsx, "rb") as f, open(dst, "wb") as g:
-                    g.write(f.read())
-                result["saved"] = dst
-            except OSError as e:
-                result["errors"].append(f"保管失敗: {type(e).__name__}: {e}")
-
-        # 資料がアップロードされたのと同じルームへアップ
-        if settings.get_setting("monthly_report_upload", "1") == "1":
-            msg = (f"{settings.get_setting('ai_prefix', '🤖AI業務マネージャー')}\n"
-                   f"📝 業務月報（{MEX.period_label(row['report_period'])}分）を作成しました。\n"
-                   "事実と違う点があれば直してください。")
-            try:
-                fid = client.post_file(trigger["room_id"], xlsx, message=msg)
-                result["uploaded"] = {"room_id": trigger["room_id"], "file_id": fid}
-            except Exception as e:
-                result["errors"].append(f"アップ失敗: {type(e).__name__}: {e}")
-
-        # 社内メール（既定は送らない。設定でON可能・宛先未設定なら daily_report_mail_to を流用）
-        if settings.get_setting("monthly_report_mail", "0") == "1":
-            to = (settings.get_setting("monthly_report_mail_to", "").strip()
-                  or settings.get_setting("daily_report_mail_to", "").strip())
-            if not to:
-                result["errors"].append("メール送信先が未設定（monthly_report_mail_to）")
-            else:
-                from services import mailer
-                lack = mailer.missing()
-                if lack:
-                    result["errors"].append(
-                        "メール未送信: SMTPの設定が足りない（" + " / ".join(lack) + "）")
-                else:
-                    subject = f"業務月報 {MEX.period_label(row['report_period'])}"
-                    body = f"業務月報送付\n添付：{MEX.sheet_name(row['report_period'])}"
-                    try:
-                        sent = mailer.send([t.strip() for t in to.split(",") if t.strip()],
-                                           subject, body, attachments=[xlsx],
-                                           sender_name="AI業務マネージャー")
-                        result["mailed"] = {"to": sent["to"]}
-                    except Exception as e:
-                        result["errors"].append(f"メール送信失敗: {e}")
-
-        _alert_monthly_report_errors(result, trigger["message_id"])
-        _finish(job_type, day, result)
-        ran.append({"job": job_type, "claimed": True, **result})
-    return ran
+    session = MRL.current_session()
+    if not session or not MRL.is_expired(session):
+        return []
+    result = MR.finalize_line_session(session, client=client, generated_by="line_timeout")
+    _notify_line_session_timeout(session, result)
+    _alert_monthly_report_errors(result, f"line:{session['id']}")
+    return [{"job": f"monthly_report_line:{session['id']}", "claimed": True, **result}]
 
 
-def _alert_monthly_report_errors(result, trigger_message_id):
+def _notify_line_session_timeout(session, result):
+    """放置後に自動で締め切ったことを、本人（LINE）へも知らせる（黙って締めない）。"""
+    uid = session.get("line_user_id")
+    if not uid:
+        return
+    if result["errors"] and "row" not in result:
+        msg = ("⏰ 月報の材料受付を一定時間操作が無かったため自動的に締め切りましたが、"
+               "月報を作成できませんでした:\n- " + "\n- ".join(result["errors"]))
+    elif result["errors"]:
+        msg = ("⏰ 月報の材料受付を一定時間操作が無かったため自動的に締め切り、"
+               "月報を作成しました（一部の処理で問題がありました。管理画面をご確認ください）。")
+    else:
+        msg = "⏰ 月報の材料受付を一定時間操作が無かったため自動的に締め切り、月報を作成しました。"
+    try:
+        from services import line_client
+        line_client.push(uid, msg, label="monthly_report_line_timeout")
+    except Exception:
+        pass
+
+
+def _alert_monthly_report_errors(result, trigger_key):
     if not result["errors"]:
         return
     try:
         from services import line_alert
         line_alert.alert(
             "📝 業務月報の自動処理で問題が出ました:\n- " + "\n- ".join(result["errors"]),
-            dedup_key=f"monthly_report_error:{trigger_message_id}")
+            dedup_key=f"monthly_report_error:{trigger_key}")
     except Exception:
         pass

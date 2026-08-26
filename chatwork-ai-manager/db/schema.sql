@@ -384,24 +384,47 @@ CREATE TABLE IF NOT EXISTS daily_reports (
 );
 CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date);
 
--- 業務月報（TASK-20260825-001）。日報とは別物。
--- 鷲見が全体Chatworkルームへ月1回アップロードする会議資料・会議内容のメッセージが起点。
--- 1トリガー（=その資料アップロード日の最初のメッセージ）につき1本。UNIQUE(trigger_message_id)で冪等。
+-- 業務月報（TASK-20260825-001。TASK-20260826-002でLINE起点に変更）。日報とは別物。
+-- オーナーがLINEで直接送った内容（「月報開始」〜「月報終了」の間の材料）が起点。
+-- 1セッション（trigger_message_id='line:<monthly_report_line_sessions.id>'）につき1本。
+-- UNIQUE(trigger_message_id)で冪等。
 CREATE TABLE IF NOT EXISTS monthly_reports (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    report_period       TEXT NOT NULL,          -- 'YYYY-MM'（トリガー送信月。表示・ファイル名用）
-    trigger_message_id  TEXT NOT NULL UNIQUE,   -- 元になった鷲見のメッセージ（Chatwork message_id）
+    report_period       TEXT NOT NULL,          -- 'YYYY-MM'（作成月。表示・ファイル名用）
+    trigger_message_id  TEXT NOT NULL UNIQUE,   -- 元になったセッション（'line:<session_id>'）
     room_id             INTEGER,
     summary             TEXT,                   -- 1行要約
     body                TEXT NOT NULL,          -- 月報本文（Markdown。日報と同じ見出し記法）
-    evidence            TEXT,                   -- json（元にしたmessage_idの配列）
+    evidence            TEXT,                   -- json（元にしたmonthly_report_line_items.idの配列）
     files               TEXT,                   -- json（添付ファイルの抽出結果 [{filename, ok, error}]）
     model               TEXT,
-    generated_by        TEXT,                   -- manual / scheduled
+    generated_by        TEXT,                   -- manual / line / line_timeout
     created_at          TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_monthly_reports_period ON monthly_reports(report_period);
+
+-- 業務月報のLINE材料受付セッション（TASK-20260826-002）。
+-- オーナーがLINEで「月報開始」〜「月報終了」の間に送った内容だけが、その回の月報の材料になる。
+CREATE TABLE IF NOT EXISTS monthly_report_line_sessions (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    line_user_id  TEXT,
+    status        TEXT NOT NULL DEFAULT 'open',   -- open / closed
+    opened_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    closed_at     TEXT
+);
+
+CREATE TABLE IF NOT EXISTS monthly_report_line_items (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id  INTEGER NOT NULL REFERENCES monthly_report_line_sessions(id),
+    kind        TEXT NOT NULL,     -- text / image / file
+    filename    TEXT,
+    text        TEXT,
+    ok          INTEGER NOT NULL DEFAULT 1,
+    error       TEXT,
+    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_mr_line_items_session ON monthly_report_line_items(session_id);
 
 -- 会社の休業日（年間休暇スケジュールExcelのオレンジ塗り＝休み）を写したもの。
 -- 元ファイルは Google Drive 上にあり launchd からは読めないことがあるため、DBに持つ。

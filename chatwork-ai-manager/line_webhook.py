@@ -50,6 +50,71 @@ def _is_admin(user_id: str) -> bool:
     return user_id in admins if admins else line_client.is_allowed(user_id)
 
 
+def _monthly_report_result_text(result) -> str:
+    if result["errors"] and "row" not in result:
+        return "⚠️ 月報を作成できませんでした:\n- " + "\n- ".join(result["errors"])
+    if result["errors"]:
+        return ("📝 業務月報を作成しました（一部の処理で問題がありました）:\n- "
+               + "\n- ".join(result["errors"]))
+    return "📝 業務月報を作成しました。内容はChatworkの対象ルームに送っています。"
+
+
+def _handle_monthly_report(user_id: str, text: str, msg: dict, reply_token) -> bool:
+    """業務月報のLINE材料受付（TASK-20260826-002）。処理したら True（呼び出し元はそこで終了する）。
+
+    「月報開始」〜「月報終了」の間に送った内容だけを、その回の月報の材料にする
+    （通常のAI質問応答 qa.answer は経由しない。取りこぼし・雑談との混在を防ぐため）。
+    """
+    from services import monthly_report as MR
+    from services import monthly_report_line as MRL
+    from services import settings
+
+    if settings.get_setting("monthly_report_enabled", "1") != "1":
+        return False  # 機能停止中は従来どおり qa.answer 等に任せる
+
+    session = MRL.current_session()
+    if session and MRL.is_expired(session):
+        # 締め忘れの放置セッション。今回のメッセージを扱う前に、そこまでの材料で自動的に締める
+        # （scheduler.pyの定期チェックと同じ処理。ここでも締めるのは、次のtickを待たず
+        #  「今すぐ別の話をしたい」オーナーを待たせないため）。
+        result = MR.finalize_line_session(session, generated_by="line_timeout")
+        line_client.push(user_id,
+                         "⏰ 前回の月報の材料受付が一定時間操作が無かったため自動的に締め切り、"
+                         "そこまでの材料で月報を作成しました。\n" + _monthly_report_result_text(result),
+                         label="monthly_report_line_timeout")
+        session = None
+
+    cmd = MRL.parse_command(text) if msg.get("type") == "text" else None
+    if cmd == "start":
+        MRL.start_session(user_id)
+        if reply_token:
+            line_client.reply(reply_token,
+                              "📥 月報の材料受付を開始しました。\n"
+                              "会議の要点（テキスト）・会議資料（PDF/Excel/Word/PowerPoint等）・"
+                              "画像を続けて送ってください。\n"
+                              "終わったら「月報終了」と送ってください。")
+        return True
+    if cmd == "end":
+        if not session:
+            if reply_token:
+                line_client.reply(reply_token,
+                                  "現在受付中の月報はありません。「月報開始」から始めてください。")
+            return True
+        if reply_token:
+            line_client.reply(reply_token, "🧠 受け付けた材料から月報を作成しています…")
+        result = MR.finalize_line_session(session, generated_by="line")
+        line_client.push(user_id, _monthly_report_result_text(result), label="monthly_report_line_done")
+        return True
+    if session:
+        reply = MRL.capture(session["id"], msg)
+        if reply_token:
+            line_client.reply(reply_token, reply)
+        else:
+            line_client.push(user_id, reply, label="monthly_report_line_item")
+        return True
+    return False
+
+
 def _handle_event(ev):
     """1つのLINEイベントを処理（別スレッドで実行）。"""
     if ev.get("type") != "message":
@@ -94,6 +159,12 @@ def _handle_event(ev):
             admin_ops.restart_detached(targets, line_user_id=user_id)
             _log_line(user_id, text, note=f"admin:restart {targets}")
             return
+
+    # ── 業務月報: LINEの材料受付（TASK-20260826-002。オーナー指示でChatwork起点を廃止し、
+    #    LINEで直接送った内容だけを月報の材料・トリガーにする）──
+    if _handle_monthly_report(user_id, text, msg, reply_token):
+        _log_line(user_id, text, note="monthly_report_line")
+        return
 
     # ── 添付ファイル（Excel/Word/PDF/CSV…）を読む ──
     attach_note = ""
