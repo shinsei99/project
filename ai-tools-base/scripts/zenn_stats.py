@@ -10,6 +10,7 @@ note と同じやり方（ログイン済みプロファイル＋画面あり・
 """
 from __future__ import annotations
 
+import re
 import sys
 import time
 from pathlib import Path
@@ -67,28 +68,39 @@ def main() -> None:
     with sync_playwright() as p:
         ctx = _ctx(p)
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
-        page.goto("https://zenn.dev/dashboard", wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(4000)
+        # ★統計は /dashboard/stats（/dashboard/analytics は404）。反映は翌日。
+        page.goto("https://zenn.dev/dashboard/stats", wait_until="domcontentloaded", timeout=60000)
+        page.wait_for_timeout(5000)
         if "/enter" in page.url:
             print("  （Zenn 未ログイン。scripts/zenn_stats.py --login で1回入る）")
             ctx.close()
             return
-        rows = page.evaluate("""() => {
-            const out = [];
-            document.querySelectorAll('a[href*="/articles/"]').forEach(a => {
-                const row = a.closest('article, li, tr, div');
-                if (!row) return;
-                const t = (row.innerText || '').replace(/\\n+/g, ' | ').trim();
-                if (t) out.push(t.slice(0, 160));
-            });
-            return out.slice(0, 40);
-        }""")
-        seen = set()
-        for r in rows:
-            if r in seen:
-                continue
-            seen.add(r)
-            print("  " + r)
+
+        txt = page.inner_text("body")
+        m = re.search(r"表示回数.*?直近1か月の集計結果\s*([\d,]+)\s*回", txt, re.S)
+        if m:
+            print(f"  表示回数（直近1か月）: {m.group(1)} 回")
+        m2 = re.search(r"執筆文字数.*?直近1年の集計結果\s*([\d,]+)字", txt, re.S)
+        if m2:
+            print(f"  執筆文字数（直近1年）: {m2.group(1)} 字")
+
+        # 「もっと読み込む」を押せるだけ押してから、記事ごとの回数を拾う
+        for _ in range(6):
+            try:
+                btn = page.get_by_role("button", name="もっと読み込む")
+                if btn.count() == 0:
+                    break
+                btn.first.click()
+                page.wait_for_timeout(1200)
+            except Exception:
+                break
+
+        rows = re.findall(r"(.+?)\s*\n\s*(\d{4}年\d{1,2}月\d{1,2}日)に公開\s*\n\s*([\d,]+)\s*\n?\s*回",
+                          page.inner_text("body"))
+        if rows:
+            print("  記事ごと（表示回数の多い順）:")
+            for title, day, n in sorted(rows, key=lambda r: -int(r[2].replace(",", "")))[:15]:
+                print(f"    {n:>6} 回  {title.strip()[:44]}")
         ctx.close()
 
 

@@ -1,6 +1,7 @@
-# Zenn の公開順（1行1slug・上から順に1日ずつ）。
-# 同じ系統（原因の種類）が続くと読むほうが飽きるので、章がばらけるように並べてある。
-# ここに無い記事は、この後ろにファイル名順で続く。
+# 公開順（1行1slug）。**note の自動投稿はこの順**で1日1本出る。
+# Zenn の予約もここを見るが、すでに published_at が入っている記事は触らない。
+# 同じ系統が続くと読むほうが飽きるので、章がばらけるように並べてある。
+# 10本ごとに「まとめ」を挟んである（note は 11本目と最後に出る／Zenn は予約枠の都合で 9/18・9/19）。
 deploy-not-reflected
 form-field-detection
 line-free-quota-silent
@@ -11,6 +12,7 @@ model-lifetime
 a4-one-page
 kana-name-matching
 legacy-office-convert
+silent-failures-10
 default-bind-0000
 leftover-in-output
 normalize-japanese-data
@@ -23,3 +25,4 @@ sqlite-transaction
 safe-default-on-unreadable
 env-differs-in-production
 chrome-download-limit
+silent-failures-12
