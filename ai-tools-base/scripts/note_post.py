@@ -58,7 +58,16 @@ def _remember(name: str, url: str) -> None:
     STATE.write_text(json.dumps(d, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def _context(p, headless: bool):
+def _context(p, headless: bool = False, offscreen: bool = True):
+    """★headless では note のエディタが描画されない（2026-08-27 実測）。
+
+    `headless=True` だと `editor.note.com/new` で止まり、body が空のまま
+    `.ProseMirror` が現れない。画面ありなら記事キーが発行されて正常に開く。
+    なので**画面ありで動かし、ウィンドウを画面の外に置いて**邪魔にならないようにする。
+    """
+    args = ["--disable-blink-features=AutomationControlled"]
+    if offscreen and not headless:
+        args += ["--window-position=-3000,-3000", "--window-size=1280,900"]
     return p.chromium.launch_persistent_context(
         user_data_dir=str(PROFILE),
         headless=headless,
@@ -66,43 +75,60 @@ def _context(p, headless: bool):
         viewport={"width": 1280, "height": 900},
         locale="ja-JP",
         timezone_id="Asia/Tokyo",
-        args=["--disable-blink-features=AutomationControlled"],
+        args=args,
     )
 
 
 def logged_in(page) -> bool:
-    page.goto("https://note.com/", wait_until="domcontentloaded", timeout=60000)
-    page.wait_for_timeout(2500)
-    # ログイン中は「投稿」ボタンが出る。未ログインなら「ログイン」が出る
-    html = page.content()
-    return ("ログイン" not in html[:200000]) or ("/notes/new" in html)
+    """**エディタが実際に開けるか**で判定する。
+    トップページの文字列で判定していたときは、headless で描画されていないのに
+    OK と出てしまった（2026-08-27）。"""
+    page.goto("https://note.com/notes/new", wait_until="domcontentloaded", timeout=60000)
+    try:
+        page.wait_for_selector(".ProseMirror", timeout=30000)
+    except Exception:
+        return False
+    return "/edit" in page.url
 
 
-def do_login(wait_sec: int = 300) -> None:
-    """画面を出して人にログインしてもらう。**Enter待ちにはしない**
-    （`!` 付きの一発実行や、他のセッションからでも走らせられるように）。
-    ログインできたことを自分で見つけて終わる。"""
+def do_login(wait_sec: int = 600) -> None:
+    """画面を出して人にログインしてもらう。
+
+    ★**人が操作している画面には、こちらから一切触らない。**
+    以前はループの中で `page.goto()` を呼んで確認していたが、ログインの途中で
+    画面を奪ってしまい、入力できなかった（2026-08-27）。
+    確認は**別タブ**を一瞬開いて行い、そのタブはすぐ閉じる。
+    """
     from playwright.sync_api import sync_playwright
     with sync_playwright() as p:
-        ctx = _context(p, headless=False)
+        ctx = _context(p, headless=False, offscreen=False)   # 人が操作するので画面内に出す
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         page.goto("https://note.com/login", wait_until="domcontentloaded")
-        print(f"開いた画面で note にログインしてください（最大 {wait_sec} 秒待ちます）。")
+        print(f"開いた画面で note にログインしてください（最大 {wait_sec // 60} 分待ちます）。")
+        print("こちらからは、その画面に触りません。ログインできたら自動で終わります。")
+
         deadline = time.time() + wait_sec
         while time.time() < deadline:
-            page.wait_for_timeout(3000)
-            url = page.url
-            if "note.com/login" not in url:
-                # ログイン後はどこかへ飛ぶ。エディタを開けるかで確かめる
-                page.goto("https://note.com/notes/new", wait_until="domcontentloaded")
+            time.sleep(5)
+            try:
+                # 人の画面は触らない。別タブで確かめて、すぐ閉じる
+                probe = ctx.new_page()
                 try:
-                    page.wait_for_selector('.ProseMirror', timeout=15000)
-                    print("ログインできました。プロファイル:", PROFILE)
-                    print("次: ./scripts/note_post.py --check （headless でも入れるかの確認）")
-                    ctx.close()
-                    return
-                except Exception:
-                    page.goto("https://note.com/login", wait_until="domcontentloaded")
+                    probe.goto("https://note.com/notes/new",
+                               wait_until="domcontentloaded", timeout=30000)
+                    ok = probe.locator(".ProseMirror").count() > 0
+                    if not ok:
+                        probe.wait_for_timeout(3000)
+                        ok = probe.locator(".ProseMirror").count() > 0
+                finally:
+                    probe.close()
+            except Exception:
+                continue
+            if ok:
+                print("ログインを確認しました。プロファイル:", PROFILE)
+                print("次: scripts/note_post.py --check （headless でも入れるかの確認）")
+                ctx.close()
+                return
         print("時間切れ。もう一度 --login を実行してください")
         ctx.close()
 
@@ -113,15 +139,15 @@ def do_check() -> None:
         print("プロファイルが無い。先に --login を実行すること")
         sys.exit(1)
     with sync_playwright() as p:
-        ctx = _context(p, headless=True)
+        ctx = _context(p)                                     # 画面あり・画面外
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         ok = logged_in(page)
-        print("ログイン状態:", "OK（headless でも入れている）" if ok else "NG（--login をやり直す）")
+        print("ログイン状態:", "OK（エディタを開けている）" if ok else "NG（エディタが開けない。--login をやり直す）")
         ctx.close()
         sys.exit(0 if ok else 1)
 
 
-def post(name: str, headless: bool = True, dry: bool = False) -> str | None:
+def post(name: str, headless: bool = False, dry: bool = False) -> str | None:
     from playwright.sync_api import sync_playwright
     title, html = _html(name)
     print(f"[note] {name} … {title}")
@@ -199,7 +225,7 @@ def main() -> None:
     ap.add_argument("--check", action="store_true")
     ap.add_argument("--next", action="store_true", dest="nxt")
     ap.add_argument("--dry", action="store_true", help="下書きまでで止める")
-    ap.add_argument("--headed", action="store_true", help="画面を出す")
+    ap.add_argument("--visible", action="store_true", help="ウィンドウを画面内に出す（既定は画面外）")
     a = ap.parse_args()
 
     if a.login:
@@ -220,7 +246,7 @@ def main() -> None:
     if not name:
         ap.error("原稿名 か --next が要る")
 
-    url = post(name, headless=not a.headed, dry=a.dry)
+    url = post(name, headless=False, dry=a.dry)
     if url:
         _remember(name, url)
 
