@@ -260,7 +260,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅（**1.0 build1 が配信中**・2026-08-24 に API で確認） |
 | ママカウンター | mom-counter | — | GitHub Pages / App Store ✅（**1.0 build4 が配信中**・2026-08-24 に API で確認。「v1.0.1」は誤記だった） |
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
-| フォトリメイク | photo-remake | — | iOS App Store ✅（**1.0.2 build3 が配信中**・2026-08-24 に API で確認） |
+| フォトリメイク | photo-remake | — | iOS App Store ✅（**1.0.2 build3 が配信中**）＋**1.1.0 build4 を 2026-08-26 に提出＝審査待ち**（図形13種。API で `WAITING_FOR_REVIEW` を確認） |
 | 買取DMジェネレーター | kaitori-dm-maker | 8526 | — |
 | PSAカード管理 | psa-collection | 8527 | — |
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |

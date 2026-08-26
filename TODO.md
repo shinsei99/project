@@ -12,6 +12,14 @@
 > | KeyTag の審査状態 | ✅ `appstore_api.py --review com.shinsei99.keytag` → **リジェクト（要対応）**。サブPCの報告どおり |
 > | pull で変わった常駐アプリ | ✅ 洗い出し済み。**再起動が要るのは psa-collection と brain-dump の2本だけ**（他は ai-tools-base=Vercel / articles=Zenn / photo-remake=iOS / keyline=ログのみ） |
 >
+> **★フォトリメイク 1.1.0 / build 4 を App Store へ提出した（2026-08-26 メインPC・完了）**
+>
+> サブPCが用意した図形13種の版。`ios-build-guard.sh` で衝突なしを確認 → Archive → アップロード
+> （build 4 が `VALID`）→ オーナーが画面で審査へ提出 → **`WAITING_FOR_REVIEW` を API で確認**。
+> **配布証明書はこのMacのキーチェーンに無くクラウド署名**（＝異常ではない。CLIからの手順込みで
+> `photo-remake/SESSION_LOG.md` に記録）。**実機確認は未消化のまま出したので、審査中に TestFlight で
+> 触ること**（不具合が出たら build 5 で出し直し）。担当PC＝メイン。
+>
 > **★人の手が要る（残り）**
 >
 > 1. **KeyTagNFC のデモ動画撮影と Resolution Center への返信**（下のブロックがそのまま台本）。
