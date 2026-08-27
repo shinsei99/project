@@ -358,9 +358,11 @@ with tab_search:
                         os.makedirs(att_dir, exist_ok=True)
                         shutil.copy2(ap, dst)
                     url = "/app/static/att/" + urllib.parse.quote(safe)
+                    # 同じタブで開く（target=_blank にしない）＝ブラウザの「戻る」でメールに戻れる。
+                    # 新しいタブだとスマホSafariで閉じる導線が分かりにくい、という指摘への対応。
                     st.markdown(
-                        '<a href="{u}" target="_blank" rel="noopener">📄 {n} を開く（新しいタブ）</a>'
-                        '　<span style="color:#888">{s}</span>'.format(
+                        '<a href="{u}">📄 {n} を開く</a>'
+                        '　<span style="color:#888">{s}（開いたら「戻る」でメールに戻れます）</span>'.format(
                             u=url, n=a["filename"], s=human_size(a["size_bytes"])),
                         unsafe_allow_html=True)
                     with open(ap, "rb") as fp:
