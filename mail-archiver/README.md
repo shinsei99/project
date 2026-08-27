@@ -162,6 +162,24 @@ python3 import_from_mail.py --mailbox "Sent Messages" --limit 20
 **公開URLは作らない。** Tailscale は自分のApple ID/Googleアカウントで繋いだ端末どうしだけが
 繋がる私設ネットワークなので、メールの中身を外に晒さずにスマホから開ける。
 
+> **⚠️ スマホから開けなくなったら、まず Mac mini の Tailscale が動いているかを見る**（2026-08-27に実際に発生）。
+>
+> ```bash
+> /Applications/Tailscale.app/Contents/MacOS/Tailscale status        # → "Tailscale is stopped." なら止まっている
+> /Applications/Tailscale.app/Contents/MacOS/Tailscale serve status  # → 中継先が出るか
+> ```
+>
+> 直し方は **Mac mini で Tailscale.app を起動する**だけ（`open -a Tailscale`）。
+> iPhone側のランプが点いていても、**Mac mini 側が止まっていれば届かない**。
+> 管理画面では Mac mini が `not connected` に見える。
+>
+> **★紛らわしい罠**: Tailscale が止まっていると `serve status` が **`No serve config`** と出る。
+> **設定が消えたわけではない**（起動すると `https://usermac-mini.tailfcc81a.ts.net (tailnet only)` と戻る）。
+> ここで慌てて `tailscale serve` を叩き直す必要は無い。
+>
+> なお `serve`（Tailnet内だけ）と `funnel`（インターネット全体に公開）は別物。
+> **メールには絶対に `funnel` を使わない。**
+
 1. メインPCに Tailscale を入れてログイン（`brew install --cask tailscale` またはApp Store版）
 2. iPhoneにも Tailscale を入れて**同じアカウント**でログイン
 3. メインPCで `./run-lan.sh` を起動しておく
