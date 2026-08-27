@@ -25,6 +25,7 @@
   li { margin: 4px 0; }
   code { background: rgba(120,120,128,.12); padding: 2px 6px; border-radius: 5px; font-size: .9em; }
   .note { color: #8e8e93; font-size: .88rem; }
+  video { width: 100%; display: block; border-radius: 10px; background: #000; }
   footer { text-align: center; color: #8e8e93; font-size: .85rem; margin-top: 40px; }
   .back { display: inline-block; margin-top: 24px; color: #2563eb; text-decoration: none; }
   @media (prefers-color-scheme: dark) {
@@ -44,6 +45,21 @@
     <p>鍵に貼った NFC タグへ「物件名・鍵の名称・鍵番号・保管場所」を書き込み、かざすだけで
     <strong>どの鍵か</strong>・<strong>いま誰が借りているか</strong>を確認できるアプリです。</p>
     <p>建物の鍵、事務所の鍵、工具や備品の管理にお使いいただけます。</p>
+  </div>
+
+  <h2>使い方の動画（約2分）</h2>
+  <div class="card">
+    <video controls playsinline preload="metadata" poster="./demo-poster.jpg">
+      <source src="./keytag-nfc-demo.mp4" type="video/mp4">
+      お使いのブラウザでは動画を再生できません。
+      <a href="./keytag-nfc-demo.mp4">動画ファイルをダウンロード</a>してご覧ください。
+    </video>
+    <p class="note">まっさらな NFC タグへの書き込み（初回）→ 読み取り → 貸出 → 返却 → 台帳まで、
+    iPhone 実機での操作をひと通り収めています。日本語の音声解説と英語字幕付き。
+    <a href="./keytag-nfc-demo.mp4">動画ファイル（MP4・約20MB）</a></p>
+    <p class="note" lang="en">Demo video (about 2 minutes): first pairing with a blank NFC tag (NTAG213),
+    reading the tag, lending and returning a key, and the on-device ledger — all shown on a real iPhone.
+    Japanese narration with English subtitles. The app works fully offline; no server is required.</p>
   </div>
 
   <h2>ご利用に必要なもの</h2>
