@@ -11,15 +11,47 @@
 ## 0. 追記（2026-08-27 メインPC）— **1.0 は配信中。いまは 1.0.1 のアップロード待ち**
 
 - **1.0 / build 1 は審査を通って配信中**（`python3 appstore_api.py --review com.shinsei.shosai`）
-- **アイコンをオーナー支給の画像に差し替え**、**1.0.1 / build 2** で **Archive まで済ませた**
+- **アイコンをオーナー支給の画像に差し替え**、**1.0.1 / build 2** を
+  **Archive → アップロードまで済ませた**
 
 ```
 ~/Library/Developer/Xcode/Archives/2026-08-27/デジタル書斎 2026-08-27 1.0.1-build2.xcarchive
 ```
 
-**残り（オーナーが手で行う）**: Xcode → Window → Organizer → 上のアーカイブを選ぶ →
-Distribute App → App Store Connect → Upload → App Store Connect で 1.0.1 を作って build 2 を選び、
+**残り（オーナーが手で行う）**: App Store Connect で 1.0.1 を作って build 2 を選び、
 「このバージョンの新機能」に `アプリアイコンを新しくしました。` と書いて審査へ提出。
+
+### Organizer を開かずにアップロードする（2026-08-27 に実際に通した手順）
+
+**GUI は要らない。** 配布用の証明書は `security find-identity` に出てこないが、
+`xcodebuild` は同じ仕組みで見つけるので、下の3コマンドで最後まで行ける。
+
+```bash
+cd ~/digital-shosai
+# ① 配布用に署名し直して .ipa を書き出す（ExportOptions.plist は git に入れてある。build/ は gitignore）
+xcodebuild -exportArchive -archivePath build/App.xcarchive \
+  -exportOptionsPlist ExportOptions.plist -exportPath build/export \
+  -allowProvisioningUpdates \
+  -authenticationKeyPath ~/.appstore/AuthKey_35U53KWY5J.p8 \
+  -authenticationKeyID 35U53KWY5J -authenticationKeyIssuerID e55bd1b7-1481-4ee1-9c7e-8caac82815b1
+# ② 検証（ここで落ちればアップロードしても弾かれる）
+xcrun altool --validate-app -f build/export/App.ipa -t ios \
+  --apiKey 35U53KWY5J --apiIssuer e55bd1b7-1481-4ee1-9c7e-8caac82815b1
+# ③ アップロード
+xcrun altool --upload-app -f build/export/App.ipa -t ios \
+  --apiKey 35U53KWY5J --apiIssuer e55bd1b7-1481-4ee1-9c7e-8caac82815b1
+```
+
+**つまずく所（実際に踏んだ）**
+
+- **`altool` は `--apiKey` にパスを取らない。** `~/private_keys` / `~/.private_keys` /
+  `~/.appstoreconnect/private_keys` などの決まった場所しか探さないので、
+  この環境の鍵（`~/.appstore/AuthKey_35U53KWY5J.p8`）を
+  **`~/.appstoreconnect/private_keys/` にコピーしておく**（`chmod 600`）
+- `ExportOptions.plist` は **`manageAppVersionAndBuildNumber` を `false`** にする。
+  true だと Xcode が版数を勝手に書き換える（ビルド番号を自分で管理する方針と衝突する）
+- **アップロード直後は App Store Connect に出てこない**（処理に十数分）。
+  `python3 appstore_api.py com.shinsei.shosai` で build 2 が並ぶまで待つ
 
 **アイコンの作り直し方は `icon-src/make_icon.py` の冒頭に書いた。**
 支給画像は白背景に角丸アイコンが乗った形なので、**そのまま渡すとホーム画面で角が白く欠ける**。

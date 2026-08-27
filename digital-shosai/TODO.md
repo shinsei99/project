@@ -99,7 +99,9 @@ Mac があることを前提にしない（Macのフォルダ一括指定は将�
       `make_icon.py` で白余白を落として角まで塗り潰す（iOSの角丸マスクで白く欠けないように）
 - [x] **1.0.1 / build 2** に上げて `npm run build` → `cap sync` → **Archive 済み**
       （`~/Library/Developer/Xcode/Archives/2026-08-27/デジタル書斎 2026-08-27 1.0.1-build2.xcarchive`）
-- [ ] **★オーナー: Organizer から Upload → App Store Connect で 1.0.1 を審査へ提出**
+- [x] **App Store Connect へアップロード済み**（Organizer を使わず `xcodebuild -exportArchive` →
+      `xcrun altool --upload-app`。`UPLOAD SUCCEEDED`・Delivery UUID `79457332-…`）
+- [ ] **★オーナー: App Store Connect で 1.0.1 を作り、build 2 を選んで審査へ提出**
 
 ## App Store 提出（メインPCの担当）
 

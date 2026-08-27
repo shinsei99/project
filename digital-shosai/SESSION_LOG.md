@@ -4,7 +4,7 @@
 
 ---
 
-## 2026-08-27（メインPC）— アイコンを差し替え、1.0.1 / build 2 を Archive まで
+## 2026-08-27（メインPC）— アイコンを差し替え、1.0.1 / build 2 をアップロードまで
 
 ### 完了したこと
 
@@ -22,6 +22,30 @@
   `~/Library/Developer/Xcode/Archives/2026-08-27/デジタル書斎 2026-08-27 1.0.1-build2.xcarchive`（22MB）へ配置
 - **Archive の中身を目で確認**: `Info.plist` が 1.0.1 / build 2 / `com.shinsei.shosai`、
   `AppIcon60x60@2x.png`（iPhone）と `AppIcon76x76@2x~ipad.png`（iPad）が**新しい絵になっている**
+- **App Store Connect へアップロード完了**（オーナー依頼で追加実施）。**Organizer を開かず
+  コマンドだけで通した**（手順は `HANDOFF-APPSTORE.md` 冒頭にも同じものを置いた）
+
+```bash
+# ① 配布用に署名し直して .ipa を書き出す（Distribution 証明書は Xcode が持っている）
+xcodebuild -exportArchive -archivePath build/App.xcarchive \
+  -exportOptionsPlist ExportOptions.plist -exportPath build/export \
+  -allowProvisioningUpdates \
+  -authenticationKeyPath ~/.appstore/AuthKey_35U53KWY5J.p8 \
+  -authenticationKeyID 35U53KWY5J -authenticationKeyIssuerID e55bd1b7-1481-4ee1-9c7e-8caac82815b1
+# ② 検証 → ③ アップロード
+xcrun altool --validate-app -f build/export/App.ipa -t ios \
+  --apiKey 35U53KWY5J --apiIssuer e55bd1b7-1481-4ee1-9c7e-8caac82815b1
+xcrun altool --upload-app   -f build/export/App.ipa -t ios \
+  --apiKey 35U53KWY5J --apiIssuer e55bd1b7-1481-4ee1-9c7e-8caac82815b1
+```
+
+- `EXPORT SUCCEEDED` → `VERIFY SUCCEEDED` → `UPLOAD SUCCEEDED`
+  （Delivery UUID `79457332-c9fd-49ea-801d-9270fc91d2a9`・**`.ipa` 10,941,582 バイト**を1.3秒で転送）
+- `ExportOptions.plist` を**git に入れた**（`build/` は gitignore なので中に置くと消える）。
+  要点: `method=app-store-connect` / `teamID=773DPMVW7Q` / `signingStyle=automatic` /
+  **`manageAppVersionAndBuildNumber=false`**（true だと Xcode が版数を勝手に書き換える）
+- **受理を確認**: `python3 appstore_api.py com.shinsei.shosai` で **`build 2 … VALID`**
+  （アップロードの**約1分後**に処理完了。build 1 も VALID のまま並ぶ）
 
 ### 発生したエラーと解決策
 
@@ -34,13 +58,19 @@
 - **Archive 内のアイコンPNGが PIL で開けない**（`broken data stream`） → 原因: Xcode が
   iOS向けにPNGを最適化する（CgBI形式）ため → 直し方:
   `xcrun -sdk iphoneos pngcrush -revert-iphone-optimizations` で戻してから見る
+- **`altool` が `.p8` を見つけられない**（`Failed to load AuthKey file. (-43)`） → 原因:
+  `altool` は `--apiKey` にパスを取らず、**決まった場所しか探さない**
+  （`~/private_keys` / `~/.private_keys` / `~/.appstoreconnect/private_keys` ほか）。
+  この環境の鍵は `~/.appstore/` にある（`appstore_api.py` はパスで読むので気づかない） →
+  直し方: `~/.appstoreconnect/private_keys/` へコピー（`chmod 600`）。**鍵は増やさず同じもの**
 
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **★オーナーが手で行う: Xcode の Organizer から Distribute App → App Store Connect → Upload、
-  そのあと App Store Connect で 1.0.1 を審査へ提出**（オーナー判断で提出は手動にした）。
+- **★オーナーが手で行う: App Store Connect で 1.0.1 を作り、build 2 を選んで審査へ提出**
+  （ビルドのアップロードまでは機械で済んでいる）。
   「このバージョンの新機能」には「アプリアイコンを新しくしました。」で足りる
-- アップロード後は `python3 appstore_api.py --review com.shinsei.shosai` で状態を見る
+- 状態を見るのは `python3 appstore_api.py com.shinsei.shosai`（ビルド一覧）と
+  `python3 appstore_api.py --review com.shinsei.shosai`（審査状況）
 - **実機（iPhone）で1度通すのは依然として未了**
 
 ---
