@@ -195,24 +195,18 @@ with tab_search:
         m3.metric("サーバーから削除済", "{:,} 通".format(s["deleted"]), human_size(s["deleted_bytes"]))
         m4.metric("添付ファイル", "{:,} 件".format(s["attachments"]), human_size(s["attachment_bytes"]))
 
-    mode = st.radio("検索のしかた", ["単純検索", "AI検索（キーワード変換）", "意味検索（ベクトル）"],
+    mode = st.radio("検索のしかた", ["単純検索", "ベクトル検索（意味）"],
                     horizontal=True, label_visibility="collapsed")
 
     q = ""
-    fts_expr = ""
-    ai = st.session_state.get("ai_result")
     sem_ids = None
     sim_map = {}
     reason_map = {}
 
     if mode == "単純検索":
-        st.session_state.pop("ai_result", None)
         st.session_state.pop("sem", None)
-        ai = None
         q = st.text_input("キーワード（件名・本文・宛先を横断。3文字以上が速い）", "")
-    elif mode == "意味検索（ベクトル）":
-        st.session_state.pop("ai_result", None)
-        ai = None
+    else:
         cnt = db.embedding_count(conn, semantic.MODEL_NAME)
         if cnt < s["messages"]:
             st.caption("🧠 ベクトル作成中：{:,} / {:,} 通（増えるほど取りこぼしが減ります）".format(
@@ -266,47 +260,8 @@ with tab_search:
                         "以降はベクトル順。".format(sem["q"]))
             else:
                 sem_ids = sem["ids"]
-                st.info("**意味検索**：「{}」に意味が近い順（アカウント・期間の絞り込みは後がけ）。".format(
+                st.info("**ベクトル検索**：「{}」に意味が近い順（アカウント・期間の絞り込みは後がけ）。".format(
                     sem["q"]))
-    else:
-        st.session_state.pop("sem", None)
-        nl = st.text_input("やりたいことを日本語で（例：1年以内で水道局と質疑調整したメール）")
-        c_go, c_clear = st.columns([1, 1])
-        if c_go.button("🔎 AIで検索", width="stretch") and nl.strip():
-            with st.spinner("AIが条件に変換中…"):
-                try:
-                    ai = ai_query.parse_query(nl)
-                    ai["_expr"] = ai_query.build_fts_expr(ai["keywords_all"], ai["keywords_any"])
-                    st.session_state["ai_result"] = ai
-                except Exception as e:  # noqa: BLE001
-                    st.error("AI検索に失敗: {}".format(e))
-                    ai = None
-        if c_clear.button("条件をクリア", width="stretch"):
-            st.session_state.pop("ai_result", None)
-            ai = None
-
-        if ai:
-            # AIが決めた条件を、サイドバーの絞り込みより優先して使う
-            fts_expr = ai.get("_expr", "")
-            if ai.get("date_from"):
-                date_from = ai["date_from"] + "T00:00:00Z"
-            if ai.get("date_to"):
-                date_to = ai["date_to"] + "T23:59:59Z"
-            if ai.get("direction") in ("received", "sent"):
-                direction = ai["direction"]
-            if ai.get("sender"):
-                sender = ai["sender"]
-            _all = "・".join(ai["keywords_all"]) or "（なし）"
-            _any = " / ".join(ai["keywords_any"]) or "（なし）"
-            _term = ai.get("date_from") or "指定なし"
-            if ai.get("date_to"):
-                _term += " 〜 " + ai["date_to"]
-            elif ai.get("date_from"):
-                _term += " 以降"
-            st.info("**AIの解釈**：{}\n\n必須語 **{}** ／ どれか **{}** ／ 期間 **{}** ／ "
-                    "種別 **{}**".format(
-                        ai.get("explain", ""), _all, _any, _term,
-                        {"all": "すべて", "received": "受信", "sent": "送信"}[direction]))
 
     page = st.number_input("ページ", min_value=1, value=1, step=1)
 
@@ -334,7 +289,6 @@ with tab_search:
         rows, total = db.search(conn, q=q, sender=sender, folder_id=folder_id,
                                 account_id=account_id, date_from=date_from, date_to=date_to,
                                 state=state, has_attach=has_attach, direction=direction,
-                                fts_expr=fts_expr,
                                 limit=PAGE_SIZE, offset=(int(page) - 1) * PAGE_SIZE)
     st.write("**{:,} 件**該当（{} 〜 {} 件目を表示）".format(
         total, (int(page) - 1) * PAGE_SIZE + 1 if total else 0,
