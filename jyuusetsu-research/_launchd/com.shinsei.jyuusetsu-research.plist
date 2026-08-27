@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AI重説アシスタント（port 8536・社内LAN共有）。**メインPCだけに入れる。**
+
+  ★ python を直に呼ばず /bin/bash run.sh を呼ぶ理由:
+    このアプリは Dropbox（CloudStorage）の「契約・書類/書類雛形」を実行時に読む。
+    launchd から起動したプロセスは CloudStorage を読めないため、
+    **/bin/bash にフルディスクアクセスを与え、その bash 経由で起動する**
+    （shorui-cabinet 8528 と同じ。システム設定 > プライバシーとセキュリティ >
+     フルディスクアクセス に /bin/bash を追加しておくこと）。
+
+  入れ替え:
+    launchctl bootout   gui/$(id -u)/com.shinsei.jyuusetsu-research
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shinsei.jyuusetsu-research.plist
+    lsof -nP -iTCP:8536 -sTCP:LISTEN
+-->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.shinsei.jyuusetsu-research</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/bin/bash</string>
+		<string>/Users/apple/jyuusetsu-research/run.sh</string>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>/Users/apple/jyuusetsu-research</string>
+	<key>EnvironmentVariables</key>
+	<dict>
+		<key>PATH</key>
+		<string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+	</dict>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+	<key>StandardOutPath</key>
+	<string>/Users/apple/Library/Logs/com.shinsei.jyuusetsu-research.log</string>
+	<key>StandardErrorPath</key>
+	<string>/Users/apple/Library/Logs/com.shinsei.jyuusetsu-research.err.log</string>
+</dict>
+</plist>

@@ -202,6 +202,21 @@ _LICENSE = re.compile(
 )
 
 
+def format_license(profile: dict = None) -> str:
+    """3分割の免許を「○○県知事(10)第12345号」の1行に戻す（`parse_license` の逆）。
+
+    重説の書式は3分割の欄だが、**媒介契約書（8517）は1行の欄**なので変換が要る。
+    知事名か番号が欠けていたら空文字を返す（中途半端な免許番号を書かない）。
+    """
+    p = profile if profile is not None else load()
+    gov = str(p.get("免許_知事名") or "").strip()
+    no = str(p.get("免許_番号") or "").strip()
+    if not gov or not no:
+        return ""
+    times = str(p.get("免許_更新回数") or "").strip()
+    return "{}{}第{}号".format(gov, "（{}）".format(times) if times else "", no)
+
+
 def parse_license(text: str) -> dict:
     """「○○県知事(10)第12345号」のような1行を3分割に直す。
 

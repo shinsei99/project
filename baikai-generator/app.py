@@ -88,7 +88,11 @@ def main():
             st.session_state["company_select"] = "（新規入力）"
         st.selectbox("登録済みの自社情報", options, key="company_select",
                      on_change=_on_select_company,
-                     help="名称で登録した自社情報を呼び出せます。")
+                     help="名称で登録した自社情報を呼び出せます。"
+                          "「自社（共通マスタ）」は全アプリ共通の登録から読み込みます。")
+        if company_store.is_readonly(st.session_state.get("company_select")):
+            st.caption("🔒 共通マスタ（全アプリ共通）の内容です。ここでは保存・削除できません。"
+                       "直すのは AI重説アシスタントの「自社情報」から。")
 
         otsu = {
             "商号": st.text_input("商号（名称）", key="otsu_商号"),
@@ -116,11 +120,15 @@ def main():
                 st.error(str(e))
         sel_now = st.session_state.get("company_select", "（新規入力）")
         if bc[1].button("🗑 削除", use_container_width=True,
-                        disabled=(sel_now == "（新規入力）")):
-            company_store.delete(sel_now)
-            st.session_state["_pending_company_select"] = "（新規入力）"
-            st.session_state["_flash"] = f"「{sel_now}」を削除しました。"
-            st.rerun()
+                        disabled=(sel_now == "（新規入力）"
+                                  or company_store.is_readonly(sel_now))):
+            try:
+                company_store.delete(sel_now)
+                st.session_state["_pending_company_select"] = "（新規入力）"
+                st.session_state["_flash"] = f"「{sel_now}」を削除しました。"
+                st.rerun()
+            except ValueError as e:
+                st.error(str(e))
 
     # ── ① 謄本アップロード ──────────────────────────────────────────────────
     st.subheader("① 謄本アップロード（最大5枚）")

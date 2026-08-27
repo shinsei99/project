@@ -31,7 +31,7 @@ from typing import Dict, List, Optional
 from openpyxl import load_workbook
 from openpyxl.utils import column_index_from_string
 
-from services import agent_fields, checkbox_fill, xlsx_patcher
+from services import agent_fields, checkbox_fill, intake_fill, xlsx_patcher
 
 # 入力欄の色（注意事項シートの凡例と実測が一致）
 COLOR_SHARED = "FFFFFF99"   # 共通入力欄（他書式へ反映）
@@ -40,11 +40,41 @@ COLOR_LOCAL = "FFFFCC99"    # その書式のみ
 INPUT_COLORS = (COLOR_SHARED, COLOR_SELECT, COLOR_LOCAL)
 
 _CELL_RE = re.compile(r"([A-Z]{1,3})(\d+)")
+# 「①」「（1）」「Ⅰ」など、番号だけの見出し
+_MARKER_ONLY = re.compile(r"^[（(]?[0-9０-９①-⑳ⅠⅡⅢⅣⅤ〔〕\[\]]+[）)]?$")
 
 
 def _split(cell: str):
     m = _CELL_RE.match(cell)
     return column_index_from_string(m.group(1)), int(m.group(2))
+
+
+def _is_checkbox(value) -> bool:
+    """そのセルの中身が「□」だけか。
+
+    **□ のセルにテキストを流し込むと、チェック欄が説明文に置き換わって書式が壊れる。**
+    色が付いていて数式からも参照されているので入力欄には見えるが、これは
+    `checkbox_fill` が■を入れる欄であって、値を書く欄ではない。
+    2026-08-27 の紙面確認で、売買重説の「登記名義人と □同じ」の□に所有者名が、
+    「床面積 □登記簿」の□に床面積が入っているのを見つけた（どちらも印字が壊れる）。
+    """
+    if not isinstance(value, str):
+        return False
+    return value.strip().replace("\n", "").replace(" ", "").replace("　", "") in ("□", "☐", "■")
+
+
+def _has_text(value) -> bool:
+    """そのセルに**すでに文字が印刷されている**か（数式は除く）。
+
+    色が付いていて入力欄に見えても、実際には書式の見出しが入っているセルがある
+    （区分所有の「敷地権の種類」など）。そこへ値を書くと**見出しが消えて
+    値に置き換わる**ので、対象から外す。2026-08-27 の紙面確認で、
+    区分所有の重説の見出し「敷地権」の上に地積が印字されているのを見つけた。
+    """
+    if not isinstance(value, str):
+        return False
+    t = value.strip()
+    return bool(t) and not t.startswith("=")
 
 
 def _fill_rgb(cell) -> Optional[str]:
@@ -111,6 +141,27 @@ def _label_for(ws, cell: str, max_left: int = 16, max_up: int = 14, merged=None)
     return "／".join(parts)
 
 
+def _section_for(ws, cell: str, max_up: int = 40, merged=None) -> str:
+    """入力欄が属する「まとまり」の見出し（帳票いちばん左の縦見出し）。
+
+    見出しの文言だけでは足りない欄があるため（2026-08-27 の紙面確認で判明）:
+      区分所有の書式には **「一棟の建物の表示」の構造・延床面積** と
+      **「専有部分の建物の表示」の構造・床面積** が両方あり、見出しはどちらも
+      「構　造」「床面積」。左と上だけを見ると**一棟のほうを先に拾う**ので、
+      謄本の専有部分の値が一棟の欄に入っていた。
+    左端（A〜E列）を上へ辿って最初に見つかる文字列を返す。
+    """
+    col, row = _split(cell)
+    for r in range(row, max(0, row - max_up), -1):
+        for c in range(1, min(6, col)):
+            t = _text_at(ws, r, c, merged)
+            # ①②③ や （1） だけの行番号は「まとまりの名前」ではないので飛ばして
+            # さらに上を見る（区分所有の土地欄は ① の上に「土地の表示」がある）
+            if t and not _MARKER_ONLY.match(t):
+                return t
+    return ""
+
+
 def driver_sheet(wb) -> Optional[str]:
     """他シートの数式が最も多く参照しているシート＝入力の起点を返す。
 
@@ -174,7 +225,10 @@ def scan(path: str) -> dict:
             "cell": cell,
             "color": _fill_rgb(ws[cell]),
             "label": _label_for(ws, cell, merged=merged),
+            "section": _section_for(ws, cell, merged=merged),
             "fanout": n,
+            "checkbox": _is_checkbox(ws[cell].value),
+            "has_text": _has_text(ws[cell].value),
         })
         seen.add(cell)
     # 起点シート内だけで完結する入力欄も拾う（重説そのものを出すときに要る）
@@ -193,7 +247,10 @@ def scan(path: str) -> dict:
                     "cell": c.coordinate,
                     "color": rgb,
                     "label": _label_for(ws, c.coordinate, merged=merged),
+                    "section": _section_for(ws, c.coordinate, merged=merged),
                     "fanout": 0,
+                    "checkbox": _is_checkbox(v),
+                    "has_text": _has_text(v),
                 })
     inputs.sort(key=lambda d: (_split(d["cell"])[1], _split(d["cell"])[0]))
     return {
@@ -209,6 +266,9 @@ def scan(path: str) -> dict:
         # 自社が媒介のときと売主（宅建業者）のときで**入れる欄が違う**ので両方持つ
         "agent_cells_by_role": agent_fields.detect_all(
             row_strings, [(d["cell"], d["label"]) for d in inputs]),
+        # 追加資料（管理会社の重要事項調査報告書）から入る欄。
+        # **書式が入力欄として色を付けていない**ので mapping には出てこない
+        "intake_cells": intake_fill.detect(ws, merged, row_strings),
     }
 
 

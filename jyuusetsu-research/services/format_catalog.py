@@ -23,7 +23,7 @@ _ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__
 if _ROOT not in sys.path:
     sys.path.insert(0, _ROOT)
 
-from services import agent_fields, checkbox_fill
+from services import agent_fields, checkbox_fill, intake_fill
 from services import docx_format_service as dfs
 from services import official_format_service as ofs
 
@@ -316,6 +316,10 @@ def generate(entry: dict, data: Dict[str, str], out_dir: str,
         return dfs.fill(src, dst, data, targets=entry.get("targets"))
 
     cells = {cell: data.get(field, "") for field, cell in (entry.get("mapping") or {}).items()}
+    # 同じ値を書く2箇所目以降（例: 売買重説の「（1）土地／所在」と「（2）建物／所在」）
+    for field, extra_cells in (entry.get("repeat") or {}).items():
+        for cell in extra_cells:
+            cells.setdefault(cell, data.get(field, ""))
     # 災害欄はテキストではなくチェック（□→■）。該当したときだけ「内」に入る
     cells.update(checkbox_fill.marks(data, entry.get("checkboxes") or {}))
     # 1枚目の宅建業者・宅建士欄（毎回同じ内容なので自社マスタから入れる）。
@@ -323,6 +327,8 @@ def generate(entry: dict, data: Dict[str, str], out_dir: str,
     by_role = entry.get("agent_cells_by_role") or {}
     cells.update(agent_fields.values(_company_profile(),
                                      by_role.get(role) or {}))
+    # 追加資料（管理会社の重要事項調査報告書）から入る欄。資料を上げていなければ空
+    cells.update(intake_fill.values(data, entry.get("intake_cells") or {}))
     return ofs.fill(src, dst, entry["driver"], cells)
 
 
@@ -336,4 +342,7 @@ def filled_fields(entry: dict, data: Dict[str, str]) -> List[str]:
     out = [k for k in keys if str(data.get(k, "") or "").strip()]
     if checkbox_fill.marks(data, entry.get("checkboxes") or {}):
         out.append("土砂災害（チェック）")
+    # 追加資料から入るぶん（管理費・修繕積立金など）も数に入れる
+    out += [k for k in (entry.get("intake_cells") or {})
+            if str(data.get(k, "") or "").strip()]
     return out

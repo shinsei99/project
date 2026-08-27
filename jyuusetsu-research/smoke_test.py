@@ -378,4 +378,87 @@ assert _di.flatten({"kanri": {"管理費月額": " 12,300円 "}}) == {"管理費
 assert _di.parse("kanri", None) == {}
 print("[ok] 追加資料: 5種類・読めない項目は取り込まない")
 
+# ---------------------------------------------------------------------------
+# 書式への割り当て（2026-08-27 の紙面確認で見つけた事故の再発防止）
+from services import field_map as _fm
+from services import intake_fill as _if
+
+# ★□ のセルと、すでに文字が入っているセルには書かない。
+#   □に書くとチェック欄が消え、見出しに書くと見出しが値に置き換わる。
+_inputs = [
+    {"cell": "L38", "label": "登記名義人と", "section": "", "checkbox": True},
+    {"cell": "AX62", "label": "の表示／地　積", "section": "土地の表示", "has_text": True},
+    {"cell": "V64", "label": "地　番／所　在", "section": "土地の表示"},
+    {"cell": "AD64", "label": "地　目／地　番", "section": "土地の表示"},
+    {"cell": "AO64", "label": "地　積／地　目", "section": "土地の表示"},
+]
+assert _fm.resolve(_inputs).get("地積") == "AO64", _fm.resolve(_inputs)
+assert "所有者" not in _fm.resolve(_inputs)
+
+# ★登記の所在（謄本）と住居表示は別の欄。住居表示の欄が無い書式には**書かない**
+_addr = [
+    {"cell": "H42", "label": "所　　在／①", "section": "（１）土地"},
+    {"cell": "O77", "label": "□／住居表示", "section": "（2）建物"},
+]
+_m = _fm.resolve(_addr)
+assert _m.get("登記所在") == "H42" and _m.get("所在地") == "O77", _m
+_land_only = [{"cell": "F41", "label": "所　　在／①", "section": "（１）土地"}]
+_m2 = _fm.resolve(_land_only)
+assert _m2.get("登記所在") == "F41" and "所在地" not in _m2, _m2
+
+# ★同じ登記の所在を「土地」と「建物」の2箇所へ書く
+_rep = {}
+_fm.resolve([
+    {"cell": "H42", "label": "所　　在／①", "section": "（１）土地"},
+    {"cell": "H44", "label": "所　　在／②", "section": "（１）土地"},     # 2筆目には書かない
+    {"cell": "O76", "label": "□／所在", "section": "（2）建物"},
+    {"cell": "O288", "label": "高潮／水害ハザードマップにおける宅地建物の所在",
+     "section": "水害ハザードマップ"},                                    # ハザード欄にも書かない
+], extra=_rep)
+assert _rep == {"登記所在": ["O76"]}, _rep
+
+# ★追加資料の値は、単位（円）を落として枠へ入れる
+assert _if.values({"管理費月額": "12,300円", "管理形態": "全部委託", "管理組合名": ""},
+                  {"管理費月額": "J457", "管理形態": "L467", "管理組合名": "AG467"}) == {
+    "J457": "12,300", "L467": "全部委託"}
+
+# ★実物の書式（レジストリがある環境だけ）で、当たり所を1本確かめる
+from services import format_catalog as _fc
+if _fc.available():
+    _e = [f for f in _fc.load()["formats"]
+          if f["name"].startswith("【ファイル４】") and "一般売主" in f["path"]]
+    if _e:
+        _mp = _e[0]["mapping"]
+        assert _mp["登記所在"] == "H42" and _mp["所在地"] == "O77", _mp
+        assert _mp["地積"] == "AW42" and _mp["床面積"] == "BC82", _mp
+        assert "所有者" not in _mp, _mp
+        assert _e[0].get("repeat") == {"登記所在": ["O76"]}, _e[0].get("repeat")
+    _k = [f for f in _fc.load()["formats"]
+          if f["name"].startswith("【ファイル５】") and "一般売主" in f["path"]]
+    if _k:
+        # 区分所有は「一棟」ではなく「専有部分」の構造・床面積を採る
+        assert _k[0]["mapping"]["構造"] == "M50", _k[0]["mapping"]
+        assert _k[0]["mapping"]["床面積"] == "AE52", _k[0]["mapping"]
+        assert _k[0]["intake_cells"].get("管理費月額") == "J457", _k[0]["intake_cells"]
+print("[ok] 書式への割り当て: □と見出しには書かない／登記所在と住居表示を分ける／"
+      "土地と建物の2箇所／追加資料の欄")
+
+# ---------------------------------------------------------------------------
+# 謄本の読み取り（区分建物で家屋番号・種類が落ちる件の受け皿）
+import registry_parser as _rp
+
+_TOUKI = ("家屋番号　中野町一丁目1番20の1の307\n"
+          "種　類　居宅\n構　造　鉄筋コンクリート造1階建\n床　面　積　72.59㎡\n")
+_r = {"建物": {"家屋番号": "", "種類": "", "構造": "", "床面積": ""}}
+_rp._fill_missing_building(_r, _TOUKI)
+assert _r["建物"]["家屋番号"] == "中野町一丁目1番20の1の307", _r["建物"]
+assert _r["建物"]["種類"] == "居宅", _r["建物"]
+# AI が読めているものは上書きしない
+_r2 = {"建物": {"家屋番号": "AIが読んだ値", "種類": "共同住宅", "構造": "", "床面積": ""}}
+_rp._fill_missing_building(_r2, _TOUKI)
+assert _r2["建物"]["家屋番号"] == "AIが読んだ値" and _r2["建物"]["種類"] == "共同住宅"
+# 罫線の直後に値がある形でも拾う（車庫の謄本で実際にあった形）
+assert _rp._cell("┃中野町一丁目1番20の1の61 │ ② 構 造 │") == "中野町一丁目1番20の1の61"
+print("[ok] 謄本: 区分建物の家屋番号・種類を取りこぼしたら埋め戻す（既存値は残す）")
+
 print("smoke test: all assertions passed")

@@ -56,7 +56,10 @@ def main():
                 print("[%3d/%3d] %-52s Word 項目 %d" % (i, len(files), os.path.basename(f)[:52], len(fields)), flush=True)
                 continue
             r = ofs.scan(f)
-            mapping = field_map.resolve(r["inputs"])
+            # `repeat` は「同じ値を別のまとまりにもう一度書く」セル
+            # （売買重説の土地の所在／建物の所在）
+            repeat = {}
+            mapping = field_map.resolve(r["inputs"], extra=repeat)
             reg.append({
                 "path": rel,
                 "name": r["name"],
@@ -67,12 +70,17 @@ def main():
                 "input_count": len(r["inputs"]),
                 "fanout_count": sum(1 for x in r["inputs"] if x["fanout"]),
                 "mapping": mapping,
+                # {項目: [2箇所目以降のセル]}。同じ値をそこにも書く
+                "repeat": repeat,
                 # 「□」のチェック欄（災害・権利部・法令）。テキストではなく■を入れる欄なので
                 # mapping と分けて持つ
                 "checkboxes": r.get("checkboxes") or {},
                 # 1枚目の宅建業者・宅建士欄（自社マスタから毎回入れる）。
                 # {"媒介": {...}, "売主": {...}}。自社の立場で使い分ける
                 "agent_cells_by_role": r.get("agent_cells_by_role") or {},
+                # 追加資料（管理会社の重要事項調査報告書）から入る欄。
+                # 書式が入力欄として色を付けていないので mapping とは別に持つ
+                "intake_cells": r.get("intake_cells") or {},
                 # RULES は要素数が可変（予備の見出しを持つ規則がある）。
                 # 添字で取らないと、規則を1つ増やしただけでここが落ちる
                 # （2026-08-21 に実際に落ちて、レジストリが200→126本に欠けた）

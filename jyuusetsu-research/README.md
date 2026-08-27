@@ -1,8 +1,9 @@
-# AI重説調査 〜 Excel自動入力システム
+# AI重説アシスタント（旧: AI重説調査 〜 Excel自動入力システム）
 
-不動産業務の「物件調査 → 登記簿解析 → 重説下調べ → Excelテンプレート自動入力」を
-一気通貫で行う**調査支援・下書き生成**システム（Streamlit）。最終ゴールは宅建士が
-確認できる「重要事項説明書ドラフト（Excel）」の自動生成。完全自動ではありません。
+不動産業務の「物件調査 → 登記簿解析 → 重説下調べ → **全宅連の公式書式へ自動入力**」を
+一気通貫で行う**調査支援・下書き生成**システム（Streamlit・port 8536）。
+最終ゴールは宅建士が確認できる「重要事項説明書・契約書のドラフト（Excel）」の自動生成。
+完全自動ではありません（**取引条件＝賃料・売買代金・引渡日は人が打つ**）。
 
 ## 設計方針
 
@@ -48,6 +49,56 @@
 > 用途地域・人口は無料でもキー登録が必要なため、未設定時は空欄で継続します。
 
 ## 調べて分かったこと（次の担当が同じ調査を繰り返さないため）
+
+### ★紙面を見ないと分からない事故が6件あった（2026-08-27）
+
+**「どの項目がどのセルに入ったか」を突き合わせても、書面が壊れていることは分からない。**
+2026-08-27 に初めて印刷イメージを1ページずつ見たところ、値の対応表は全部埋まっているのに
+**紙の上では6箇所が壊れていた**。以後、書式まわりを触ったら `print_check.py` を回して
+**紙を見る**こと。
+
+| 症状（紙の上） | 原因 | 対処 |
+|---|---|---|
+| チェック欄の□が所有者名・床面積に置き換わっていた | 公式書式は□のセルにも色を付け数式で参照するので、入力欄として拾われる | `_is_checkbox()`＝**中身が□のセルには書かない** |
+| 見出し「敷地権の種類」の上に地積が印字 | 見出しのセルにも色が付いている | `_has_text()`＝**すでに文字があるセルには書かない**（200本中4件が該当） |
+| 所在・登記所在・地積が1列ずつずれた | 売買の書式に住居表示欄が無く、列見出しが「登記簿面積」 | 登記所在を先に決める／**住居表示の欄が無い書式には書かない**／地積の予備見出しに「登記簿面積」 |
+| 区分所有で**一棟**の構造・延床面積に専有部分の値 | 見出しがどちらも「構　造」「床面積」 | `_section_for()`＝**まとまりの見出し**（帳票いちばん左の縦見出し）を除外判定に使う |
+| 建物の「所在」が空 | 1項目＝1セルの対応表 | `resolve(..., extra=)` が**別のまとまりの2箇所目**を返す（土地・建物・物件のときだけ） |
+| 床面積が「新築：」の年月欄へ／延床面積しか無い書式で空 | 「延床面積」も「床面積」を含む | 素の床面積を先に（`(?<!延)`）、無ければ「計」「（登記簿）」「延床面積」 |
+
+**所有者は書式へ自動入力しない。** 公式書式に氏名欄が無く、あるのは
+「登記名義人と □同じ ／ □異なる→理由」というチェックだけ。ここへ名前を書くと意味が変わる。
+
+### 印刷イメージの作り方 — **LibreOffice は要らない**（2026-08-27）
+
+過去の記録に「Excel の AppleScript PDF 化は -50 で不可」とあるが、**構文違い**だった。
+
+```applescript
+tell application "Microsoft Excel"
+  set wb to open workbook workbook file name POSIX file "/path/to.xlsx"
+  save wb in POSIX file "/path/to.pdf" as PDF file format
+  close wb saving no
+end tell
+```
+
+これで**ブック全体（76ページ）**が1本のPDFになる。画像化は poppler の `pdftoppm -png -r 110`。
+`qlmanage` は1ページ目しか描けないので使わない。道具は `print_check.py` にまとめてある。
+
+- **Excel のウィンドウが開く**（作業中の Excel があるときは注意）。開いたブックは保存せずに閉じる
+- 出力は `reports/print_check/`（gitignore）
+
+### 管理費・修繕積立金の欄は「入力欄」ではない（2026-08-27）
+
+区分所有の重説でいちばん効く
+
+    通常の管理費（月額・滞納額）／計画修繕積立金（月額・滞納額・積立総額）
+
+は、**全宅連の書式では色も数式参照も付いていない**。したがって色と参照から入力欄を割り出す
+`field_map` からは**見えない**（画面には出るが書面に入らない、という状態だった）。
+
+作りは規則正しく `見出し ｜ 記入枠 ｜ 円` なので、**単位「円」を目印にその1つ左の結合セル**を
+取れば版が変わっても追随できる。これを `services/intake_fill.py` に分けた。
+一棟の見出しが3行分の結合セルで**単位が次の行に回る**ことがあるので、数行下まで見ている。
 
 ### 旧Word（.doc）を表を壊さずに .docx へ変換する（`doc2docx.py`・2026-08-21）
 
@@ -518,17 +569,36 @@ claude CLI の WebSearch で自治体の都市計画情報を見にいく。た�
 
 ## セットアップ / 起動
 
-**`./run.sh` 1本でよい**（venv作成 → 書式レジストリ作成 → 127.0.0.1:8536 で起動まで面倒を見る）。
+**`./run.sh` 1本でよい**（venv作成 → 書式レジストリ作成 → 8536 で起動まで面倒を見る）。
 
 ```bash
 cd jyuusetsu-research
-./run.sh          # → http://127.0.0.1:8536
+./run.sh          # → http://localhost:8536
 ```
 
-**port は 8536。`--server.address 127.0.0.1` を必ず明示する**（省略時の Streamlit の既定は
-`0.0.0.0`＝社内LANに公開。開発中かつ案件の個人情報を扱うので出さない）。
-※以前ここに `--server.port 8512` と書いてあったのは誤り。**8512 は THETAパノラマの常駐ポート**で、
-メインPCで叩くと衝突する。
+**port は 8536。`--server.address` は必ず明示する**（省略時の Streamlit の既定は `0.0.0.0`）。
+
+- **メインPC**: 2026-08-27 に完成扱いへ移行し、**社内LAN共有（`0.0.0.0`）＋ launchd 常駐**。
+  `run.sh` はこの前提で `0.0.0.0` になっている
+- **サブPC**: 常駐させない。動きを見るときは **`--server.address 127.0.0.1` を明示して**起動する
+  （`run.sh` をそのまま叩くと社内LANに二重公開される）
+- ※以前ここに `--server.port 8512` と書いてあったのは誤り。**8512 は THETAパノラマの常駐ポート**
+
+### 常駐（メインPCのみ）
+
+```bash
+cp _launchd/com.shinsei.jyuusetsu-research.plist ~/Library/LaunchAgents/
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shinsei.jyuusetsu-research.plist
+lsof -nP -iTCP:8536 -sTCP:LISTEN        # *:8536 なら社内LANに出ている
+```
+
+**plist は python を直に呼ばず `/bin/bash run.sh` を呼ぶ。** このアプリは実行時に
+Dropbox（CloudStorage）の書類雛形を読むが、**launchd から起動したプロセスは
+CloudStorage を読めない**。`/bin/bash` にフルディスクアクセスを与えてある環境なら、
+bash 経由で起動することで読めるようになる（`shorui-cabinet` 8528 と同じ手）。
+
+社内への入口は Dropbox `（★必読★）新共有フォルダ/社内ツール/AI重説アシスタント.url`
+（`http://192.168.1.105:8536`）。アイコンは `icon/make_icon.py` で作り直せる。
 
 ### 別PCで初めて動かすときに要るもの（git に入らない3つ）
 
@@ -588,13 +658,31 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 ```
 jyuusetsu-research/
   app.py
-  services/  address / zoning / hazard / facility / population / registry / comment / excel_export / pdf_export
+  run.sh              起動（メインPCは 0.0.0.0＝社内LAN共有）
+  scan_formats.py     Dropbox の公式書式200本を走査 → data/format_registry.json
+  print_check.py      ★書式を作って PDF→PNG にする（紙面の目視用）
+  smoke_test.py       検証の最低ライン
+  _launchd/           常駐の plist（メインPCのみ）
+  icon/               配布用アイコンと作り直しスクリプト
+  services/
+    format_catalog    書式カタログ（画面へ提供・出力の入口）
+    official_format_service  書式を解析して入力欄を割り出す（色・数式参照・見出し）
+    field_map         PropertyData の項目 → セル の対応規則
+    checkbox_fill     □→■（災害・権利部・法令）
+    intake_fill       ★追加資料（管理費・修繕積立金など）の欄
+    agent_fields      1枚目の自社（宅建業者・宅建士）欄
+    xlsx_patcher      無損失でセルに書く（openpyxl の再保存は図形を落とす）
+    address / zoning / hazard / facility / population / registry / landprice / legal_area
+    document_intake / crosscheck / law_validator / maisoku / excel_export / pdf_export
   models/    property_data.py
   utils/     parser.py / formatter.py
-  templates/ jyuusetsu_template.xlsx（自動生成）
-  reports/   出力先
-  data/
+  templates/ jyuusetsu_template.xlsx（自動生成）／law_check_template.xlsx
+  reports/   出力先（print_check/ もここ・gitignore）
+  data/      format_registry.json（gitignore）
 ```
+
+**リポジトリ直下の共有モジュール**も使う: `registry_parser.py`（謄本解析。8517 と共有）／
+`company_profile.py`（自社情報。8517・チラシと共有）／`tokuyaku_clauses.py`（特約カタログ。8513 と共有）。
 
 ## 将来拡張（設計上の差し込み口）
 

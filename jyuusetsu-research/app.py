@@ -54,7 +54,7 @@ REPORTS_DIR = os.path.join(BASE_DIR, "reports")
 # 追加資料から入る項目を PropertyData の受け入れ対象に足しておく
 extend_fields(document_intake.EXTRA_FIELDS)
 
-st.set_page_config(page_title="AI重説調査システム", page_icon="🏠", layout="wide")
+st.set_page_config(page_title="AI重説アシスタント", page_icon="🏠", layout="wide")
 
 
 def run_pipeline(address, land_pdf, building_pdf, web_law=False):
@@ -517,10 +517,10 @@ def render_hazard_notes(hazard_detail):
 
 
 def main():
-    st.title("🏠 AI重説調査 〜 Excel自動入力システム")
+    st.title("🏠 AI重説アシスタント")
     st.caption(
-        "住所と登記簿PDFから重要事項説明書のドラフトを生成する調査支援ツール。"
-        "無料公開データのみ使用。最終確認は宅地建物取引士が行ってください。"
+        "住所と登記簿PDFから、全宅連の公式書式（重要事項説明書・契約書）へ自動で流し込みます。"
+        "調査は無料公開データのみ使用。**最終確認は宅地建物取引士が行ってください。**"
     )
 
     with st.sidebar:

@@ -231,7 +231,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | 入金突合（消込）システム | payment-reconciler | 8514 | ✅ | — |
 | 物件写真一括リサイズ | image-resizer | 8515 | ✅ | GitHub Pages |
 | 顧客追客マネージャー | tsuikyaku-crm | 8516 | ✅ | — |
-| AI重説調査〜Excel自動入力 | jyuusetsu-research | — | 開発中 | — |
+| AI重説アシスタント（調査→公式書式へ自動入力→特約→検算） | jyuusetsu-research | 8536 | ✅ | — |
 | 媒介契約書ジェネレーター | baikai-generator | 8517 | ✅ | — |
 | AI受付＆起票カウンター | ai-ticket-counter | 8600 | ✅ | — |
 | マンション・ビル管理 | building-manager | — | 開発中 | — |
@@ -312,6 +312,8 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
   （**ポケモンカード図鑑をオプションとして中から開ける**。図鑑の実体は `pokecard-dex/` のまま）
 - **マルチプロダクション**（`agent-platform`・port 8532） … `agent-platform/README.md`
 - **AI業務マネージャー**（`chatwork-ai-manager`） … `chatwork-ai-manager/README.md`
+- **AI重説アシスタント**（`jyuusetsu-research`・port 8536） … `jyuusetsu-research/README.md`
+  （**書式を触ったら `print_check.py` で紙面を見る**。値の突き合わせでは書面の破損が見つからない）
 - **チラシクリエーター**（`flyer-creator`・port 8529） … `flyer-creator/README.md`
 - **書類キャビネット**（`shorui-cabinet`・port 8528） … `shorui-cabinet/README.md`
 - **ワンピースカード図鑑**（`onepiece-dex`・port 8537） … `onepiece-dex/README.md`
@@ -372,6 +374,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
 | 8534 | KeyLine（NFC鍵・備品貸出管理／※画像自動削除は -purge が毎日3:30） | com.shinsei.keyline ＋ -purge |
 | 8535 | メールアーカイバ（※ツール・127.0.0.1・メール本文＝個人情報のためLANに出さない） | com.shinsei.mail-archiver（閲覧）＋ -sync（毎日2時に取り込み＋1年超をサーバー削除） |
+| 8536 | AI重説アシスタント（※不動産・0.0.0.0／**plistは `/bin/bash run.sh` を呼ぶ**＝Dropboxの公式書式200本を読むため `/bin/bash` にフルディスクアクセスが要る） | com.shinsei.jyuusetsu-research |
 | 8530 | AI業務マネージャー LINE webhook（※メインPCのみ稼働。ngrok固定ドメイン経由で公開） | com.shinsei.chatwork-ai-manager-line ＋ -ngrok |
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
@@ -390,8 +393,8 @@ PSA管理は図鑑の `app.py` を**モジュールとして直接読み込む**
 
 | 分類 | バインド | 対象 |
 |---|---|---|
-| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8534 keyline＋8540 chatwork-ai-manager |
-| 不動産だが**開発中** | `--server.address 127.0.0.1` | （現在なし。8532 agent-platform は2026-08-17に完成扱いへ移行） |
+| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8534 keyline＋**8536 jyuusetsu-research**（2026-08-27に完成扱いへ移行）＋8540 chatwork-ai-manager |
+| 不動産だが**開発中** | `--server.address 127.0.0.1` | （現在なし。8532 agent-platform は2026-08-17に、8536 jyuusetsu-research は2026-08-27に完成扱いへ移行） |
 | ツール（社内共有なし） | `--server.address 127.0.0.1` | 8518 soufu-generator（個人専用） / 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 8535 mail-archiver / 8537 onepiece-dex / 3004 ai-tools-base（Next.js） |
 
 確認は `lsof -nP -iTCP:<port> -sTCP:LISTEN`（`127.0.0.1:<port>` なら正しい。`*:<port>` は全公開）。
@@ -400,9 +403,9 @@ PSA管理は図鑑の `app.py` を**モジュールとして直接読み込む**
 
 | 置き場 | 中身 |
 |---|---|
-| Dropbox `共有フォルダ/（★必読★）新共有フォルダ/社内ツール/` | 各アプリの `.url`（23本）＋ `icons/*.ico` |
+| Dropbox `共有フォルダ/（★必読★）新共有フォルダ/社内ツール/` | 各アプリの `.url`（**24本**。2026-08-27にAI重説アシスタントを追加）＋ `icons/*.ico` |
 | その**1つ上**（`（★必読★）新共有フォルダ/` 直下） | `横断ファイル検索.url` と `業務マニュアル.url` の2本だけ。全社員が毎日使う入口なので浅い位置に置く |
-| `Desktop/社内ツール/`（このMacのみ） | `.app`（29本）。Mac用のランチャで、Dropboxには置かない |
+| `Desktop/社内ツール/`（このMacのみ） | `.app`（**31本**）。Mac用のランチャで、Dropboxには置かない |
 
 - `.url` は **Shift-JIS(CP932)＋CRLF**。`URL=http://192.168.1.105:<port>`、
   `IconFile=%USERPROFILE%\大京商事　株式会社 Dropbox\…\社内ツール\icons\<名前>.ico`
