@@ -306,6 +306,25 @@ def _clean_context_line(body: str) -> str:
     return text[:_CONTEXT_LINE_MAX]
 
 
+def _anchor_caption(room_id, message_id) -> str | None:
+    """画像を投稿したのと**同一メッセージ**に書かれた本文（キャプション）を取り出す。
+
+    Chatworkは本文とファイルを1メッセージにまとめて投稿できる
+    （例:「本庄西駐車場です [download:123]image.jpg[/download]」）。
+    従来 `_surrounding_message_context` は前後の別メッセージしか見ておらず、
+    **同一メッセージ内のキャプションは完全に無視されていた**（TASK-20260827-009で判明。
+    「メッセージ本文に物件名が明記されているのに画像解析側の誤判定でタイトルがずれる」
+    事故の根本原因の一つ）。前後の会話より直接的な手がかりのため最優先で扱う。
+    """
+    if not message_id:
+        return None
+    from db.connection import query_one
+    row = query_one("SELECT body FROM messages WHERE room_id=? AND message_id=?", (room_id, message_id))
+    if not row:
+        return None
+    return _clean_context_line(row["body"]) or None
+
+
 def _surrounding_message_context(room_id, message_id) -> str | None:
     """画像が投稿されたメッセージの前後（同じ会話）のメッセージ本文を集める（TASK-20260827-003）。
 
@@ -398,6 +417,25 @@ def _resolve_master_property_name(context_text, description, property_name, titl
     return matched["name"] if matched else None
 
 
+def _resolve_master_property_from_caption(caption_text) -> str | None:
+    """**画像と同一メッセージのキャプション**にマスター物件名がそのまま出現していないか確認する
+    （TASK-20260827-009）。見つかれば画像解析(vision)の推定より優先して採用する。
+
+    前後メッセージ（surrounding）は対象にしない。実データ（room_id=349546270の巡回写真）で
+    検証したところ、前後メッセージまで対象に含めると、同じ会話ルーム内で時間的に近いだけの
+    無関係な別案件の物件名（例: ランドリー対応の会話）を拾って誤爆することを確認した。
+    同一メッセージのキャプションは投稿者本人が直接書いた文字列であり誤爆の余地が無いため、
+    決定的な上書きにはここだけを使う（`_resolve_master_property_name` の
+    vision解析結果＋前後メッセージを照合する経路は、キャプションが無い/マスターに一致しない
+    画像向けの従来通りのフォールバックとして残す）。
+    """
+    if not caption_text:
+        return None
+    from services import gis
+    matched = gis.match_property_in_text(caption_text)
+    return matched["name"] if matched else None
+
+
 def read_chatwork_image(room_id, file_id: int, name: str, message_id=None) -> str:
     """Chatwork の画像添付（写真・スクリーンショット等）を claude vision で読む（TASK-20260827-001）。
 
@@ -406,9 +444,13 @@ def read_chatwork_image(room_id, file_id: int, name: str, message_id=None) -> st
     （`transcribe_chatwork_audio` と同じキャッシュの考え方）。失敗しても例外は投げない
     （QA/TODO抽出を止めないため）。
 
-    `message_id` が分かれば、その前後に投稿された同じ会話のメッセージ（場所・案件名の説明文等）
-    も vision プロンプトに渡し、画像単体では分からない具体的なタイトルを付けさせる
-    （TASK-20260827-003）。
+    `message_id` が分かれば、同一メッセージのキャプション（TASK-20260827-009で追加）と、
+    その前後に投稿された同じ会話のメッセージ（場所・案件名の説明文等）を vision プロンプトに
+    渡し、画像単体では分からない具体的なタイトルを付けさせる（TASK-20260827-003）。
+    さらに、それらメッセージ本文の中に管理物件マスターの正式名称がそのまま書かれていれば、
+    画像解析(vision)の推定より優先してそれをタイトル・物件名として採用する
+    （TASK-20260827-009・巡回写真等でメッセージに物件名が明記されているのに vision 側の
+    誤判定でタイトルがずれる事故対策）。
     """
     cached = _image_cache_get(room_id, file_id)
     if cached:
@@ -429,14 +471,23 @@ def read_chatwork_image(room_id, file_id: int, name: str, message_id=None) -> st
         img_name = "image" + ext
         dest = os.path.join(tmp, img_name)
         _download(url, dest)
-        context_text = _surrounding_message_context(room_id, message_id)
+        caption_text = _anchor_caption(room_id, message_id)
+        surrounding_text = _surrounding_message_context(room_id, message_id)
+        context_text = "\n\n".join(filter(None, [
+            f"（この画像を投稿したメッセージ本文）\n{caption_text}" if caption_text else None,
+            f"（前後のメッセージ）\n{surrounding_text}" if surrounding_text else None,
+        ])) or None
         text = _analyze_image(tmp, img_name, ask_property=True, context_text=context_text)
         if text is None:
             return _describe(name, "", "画像認識(claude vision)に失敗しました")
         text, title = _split_title(text)
         description, property_name = _split_property_name(text)
-        property_name = _resolve_master_property_name(
-            context_text, description, property_name, title) or property_name
+        forced_name = _resolve_master_property_from_caption(caption_text)
+        if forced_name:
+            property_name, title = forced_name, forced_name
+        else:
+            property_name = _resolve_master_property_name(
+                context_text, description, property_name, title) or property_name
         _image_cache_put(room_id, file_id, name, description, _room_name(room_id),
                           property_name, title)
         return _describe(name, description)
@@ -481,9 +532,10 @@ def _analyze_image(tmp_dir: str, filename: str, ask_property: bool = False,
     `ask_property=True` のとき、末尾に `物件名: ○○` の1行を追加させる
     （Chatwork画像の検索用。TASK-20260827-002・`_split_property_name` で切り離して保存する）。
 
-    `context_text` が渡された場合（画像投稿の前後に同じ会話で投稿されたメッセージ本文）、
-    画像単体では分からない場所名・案件名をそこから拾わせ、末尾に `タイトル: ○○` の1行を
-    追加させる（TASK-20260827-003・`_split_title` で切り離して保存する）。
+    `context_text` が渡された場合（画像投稿と同一メッセージのキャプション＋前後に同じ会話で
+    投稿されたメッセージ本文。TASK-20260827-009でキャプションを追加）、画像単体では分からない
+    場所名・案件名をそこから拾わせ、末尾に `タイトル: ○○` の1行を追加させる
+    （TASK-20260827-003・`_split_title` で切り離して保存する）。
     """
     from services.claude_client import ClaudeError, run_claude
     prompt = (
@@ -501,16 +553,18 @@ def _analyze_image(tmp_dir: str, filename: str, ask_property: bool = False,
             "`物件名: 不明` としてください。"
         )
         context_block = (
-            f"\n\n参考: この画像の前後に同じ会話で投稿されたメッセージ\n{context_text}"
+            f"\n\n参考: この画像の投稿メッセージ本文・前後のメッセージ\n{context_text}"
             if context_text else ""
         )
         prompt += (
             "\n\nさらに、この画像に付けるタイトル（例:「花園町駅前駐輪場」のような、"
             "具体的な場所名・案件名など内容が一目で分かる短い名前）を考え、"
-            "`タイトル: ○○` という1行を追加してください。上記の会話メッセージに場所・"
-            "物件名・案件名の説明があれば、それを最優先でタイトルに反映してください"
-            "（画像だけからは分からない情報でも、会話に書いてあれば使ってください）。"
-            "会話に手がかりが無ければ、画像から読み取れる内容から分かりやすい短い"
+            "`タイトル: ○○` という1行を追加してください。上記のメッセージ本文（特に画像と"
+            "同じメッセージに書かれた文章）に場所・物件名・案件名が明記されている場合は、"
+            "**それを画像から見た印象より必ず優先して**タイトルに使ってください"
+            "（画像だけからは分からない情報でも、メッセージに書いてあれば使ってください。"
+            "画像の見た目から別の場所のように見えても、メッセージの記載を信用してください）。"
+            "手がかりが無ければ、画像から読み取れる内容から分かりやすい短い"
             "タイトルを付けてください。それでも付けられない場合は `タイトル: 不明` として"
             f"ください。{context_block}"
         )
