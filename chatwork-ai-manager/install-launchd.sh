@@ -70,10 +70,10 @@ register "com.shinsei.chatwork-ai-manager-worker"  "run_worker.sh"
 register "com.shinsei.chatwork-ai-manager-line"    "run_line_webhook.sh"
 register "com.shinsei.chatwork-ai-manager-ngrok"   "run_ngrok.sh"
 
-# 夜間のOCR一括取込（毎日 01:00 開始・3時間で打ち切り＝04:00には終わる）
-# 02:00 の com.shinsei.mail-archiver-sync と16分ほど重なるが、
+# 夜間のOCR一括取込（毎日 02:00 開始・2時間で打ち切り＝04:00には終わる）
+# メール取込＋翻訳は00:30〜01:00に前倒ししたので、こちらと重ならない（2026-08-28）。旧: 
 # あちらは IMAP＋SQLite・こちらは claude CLI＋PDF描画で取り合う資源が無い（2026-08-27 実測）。
-register_daily "com.shinsei.chatwork-ai-manager-ocr" "run_ocr_nightly.sh" 1 0
+register_daily "com.shinsei.chatwork-ai-manager-ocr" "run_ocr_nightly.sh" 2 0
 
 echo ""
 echo "確認: launchctl list | grep chatwork-ai-manager"

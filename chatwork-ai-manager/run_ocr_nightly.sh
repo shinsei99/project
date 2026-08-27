@@ -1,5 +1,5 @@
 #!/bin/bash
-# 夜間のOCR一括取込（launchd から毎晩1回・01:00開始／3時間で打ち切り）。
+# 夜間のOCR一括取込（launchd から毎晩1回・02:00開始／2時間で打ち切り）。
 #
 # なぜ bash 経由なのか:
 #   Dropbox（CloudStorage）は launchd の常駐からは TCC で読めない。
@@ -12,7 +12,7 @@
 #   --max-new は取込済みを飛ばしながら進み、**新しく処理できた件数**で止まる。
 #
 # 手で流すとき:
-#   ./run_ocr_nightly.sh                  # 既定（300件 / 180分）
+#   ./run_ocr_nightly.sh                  # 既定（300件 / 120分）
 #   OCR_MAX_NEW=20 ./run_ocr_nightly.sh
 #   OCR_MAX_MINUTES=60 ./run_ocr_nightly.sh
 set -u
@@ -20,7 +20,7 @@ set -m          # 子を独立したプロセスグループにする（下の c
 cd "$(dirname "$0")" || exit 1
 
 MAX_NEW="${OCR_MAX_NEW:-300}"
-MAX_MIN="${OCR_MAX_MINUTES:-180}"     # 01:00 開始で 04:00 に終わる想定（2:00のメール取込と資源は競合しない）
+MAX_MIN="${OCR_MAX_MINUTES:-120}"     # 02:00 開始で 04:00 に終わる（2026-08-28 オーナー指定）
 LOG="$HOME/Library/Logs/com.shinsei.chatwork-ai-manager-ocr.log"
 LOCK="/tmp/chatwork-ocr-nightly.lock"
 CHILD=""
