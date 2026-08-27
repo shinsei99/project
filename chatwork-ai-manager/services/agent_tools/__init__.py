@@ -63,7 +63,8 @@ REGISTRY = {
         "desc": "過去にChatworkへ投稿され、claude visionで解析済みの画像をタイトル/物件名/"
                 "ルーム名/ファイル名/解析結果本文のキーワードで検索する（画像本体はまだ取得しない）。"
                 "タイトルは画像投稿の前後に投稿された会話メッセージ（場所・案件名の説明文）も踏まえて"
-                "自動で付けたもの（例:「花園町駅前駐輪場」）。"
+                "自動で付けたもの（例:「花園町駅前駐輪場」）。同一室・同一ファイル名で撮影時刻が近い"
+                "重複投稿は代表1件にまとめて返す（duplicate_count>1で分かる）。"
                 "「○○の外観写真を表示して」のように過去の実物写真を求められたら、まずこれで探す。"
                 "戻り値の room_id/file_id を chatwork_image_fetch に渡すと実際に送れる",
         "usage": 'chatwork_image_search {"keyword":"クリスタルコート66 外観","limit":10}',
@@ -74,6 +75,13 @@ REGISTRY = {
                 "image_token を発行する（streetview_lookupと同じ流れ）。実際に送るには"
                 "戻り値の image_token を chatwork_send_web_image / line_send_web_image に渡す",
         "usage": 'chatwork_image_fetch {"room_id":12345678,"file_id":987}',
+    },
+    "chatwork_image_set_title": {
+        "func": chatwork_image_tools.chatwork_image_set_title,
+        "desc": "chatwork_images の1件のtitleを手動で設定/上書きする。"
+                "画像投稿の前後の会話から物件名・案件名が判明しているのに、"
+                "自動解析ではtitleが空のまま（不明）だった画像を後から埋めるのに使う",
+        "usage": 'chatwork_image_set_title {"room_id":349546270,"file_id":2145187954,"title":"花園町駅前駐輪場"}',
     },
     # ---- ファイル送付（社内資料をChatworkへ添付） ----
     "chatwork_send_file": {
