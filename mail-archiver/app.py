@@ -39,11 +39,12 @@ st.set_page_config(page_title="メールアーカイバ",
 # apple-touch-icon も拾うので data URI で埋める（127.0.0.1 限定なので外部取得は起きない）。
 if os.path.exists(_ICON_180):
     _uri = _icon_data_uri(_ICON_180)
+    # ★apple-mobile-web-app-capable は付けない。付けるとホーム画面から
+    #   フルスクリーン(standalone)で開き、Safariの「戻る」が消えてPDFから戻れなくなる
+    #   （2026-08-27 指摘）。ナビを残すため通常のSafari表示にする。
     st.markdown(
         '<link rel="apple-touch-icon" href="{u}">'
         '<link rel="apple-touch-icon" sizes="180x180" href="{u}">'
-        '<meta name="apple-mobile-web-app-capable" content="yes">'
-        '<meta name="apple-mobile-web-app-status-bar-style" content="black">'
         '<meta name="apple-mobile-web-app-title" content="メールアーカイバ">'.format(u=_uri),
         unsafe_allow_html=True,
     )
