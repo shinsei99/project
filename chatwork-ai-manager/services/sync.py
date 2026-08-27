@@ -66,7 +66,7 @@ def process_questions(client, room, ai_account_id) -> int:
         refs = attachments.chatwork_file_refs(m["body"])
         if refs:
             question = attachments.with_attachments(
-                question, attachments.read_chatwork_files(rid, refs))
+                question, attachments.read_chatwork_files(rid, refs, message_id=m["message_id"]))
         prefix = settings.get_setting("ai_prefix", "🤖AI業務マネージャー")
         to = mention(m["account_id"], m["account_name"])
         # 受付確認: エージェント処理（複数ツール反復）は数秒〜数十秒かかることがあるため、

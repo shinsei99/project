@@ -455,6 +455,8 @@ CREATE TABLE IF NOT EXISTS audio_transcripts (
 -- room_name/property_nameはTASK-20260827-002で追加（過去画像のキーワード検索用。
 -- property_nameはclaude visionの解析結果から拾えた物件名らしき語、room_nameは投稿ルーム名
 -- ＝物件名を拾えなかった場合の代替検索キー）。
+-- titleはTASK-20260827-003で追加。画像単体でなく、投稿前後の会話メッセージ（場所・案件名の
+-- 説明文）も踏まえてclaude visionに付けさせた具体的なタイトル（例:「花園町駅前駐輪場」）。
 CREATE TABLE IF NOT EXISTS chatwork_images (
     room_id       INTEGER NOT NULL,
     file_id       INTEGER NOT NULL,
@@ -462,6 +464,7 @@ CREATE TABLE IF NOT EXISTS chatwork_images (
     description   TEXT,
     room_name     TEXT,
     property_name TEXT,
+    title         TEXT,
     created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (room_id, file_id)
 );

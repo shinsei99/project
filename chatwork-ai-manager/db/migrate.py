@@ -122,6 +122,8 @@ def migrate() -> None:
         # Chatwork画像の検索用（物件名/ルーム名。TASK-20260827-002）
         _ensure_column(conn, "chatwork_images", "room_name", "TEXT")
         _ensure_column(conn, "chatwork_images", "property_name", "TEXT")
+        # 前後の会話メッセージも踏まえたタイトル（TASK-20260827-003）
+        _ensure_column(conn, "chatwork_images", "title", "TEXT")
         for key, value in DEFAULT_SETTINGS.items():
             conn.execute(
                 "INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)",

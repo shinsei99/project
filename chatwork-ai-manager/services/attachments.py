@@ -130,8 +130,12 @@ def _describe(name: str, text: str, note: str = "") -> str:
     return f"{head}\n{cut}{tail}"
 
 
-def read_chatwork_files(room_id, refs: list[tuple[int, str]]) -> str:
-    """Chatwork のファイルを落として本文にする。失敗しても例外は投げない。"""
+def read_chatwork_files(room_id, refs: list[tuple[int, str]], message_id=None) -> str:
+    """Chatwork のファイルを落として本文にする。失敗しても例外は投げない。
+
+    `message_id`（このファイルが添付されたメッセージ）は画像添付の場合のみ使う
+    （前後メッセージの文脈からタイトルを付けるため。TASK-20260827-003）。
+    """
     if not refs:
         return ""
     from services.chatwork import ChatworkClient, ChatworkError
@@ -149,7 +153,7 @@ def read_chatwork_files(room_id, refs: list[tuple[int, str]]) -> str:
             if ext0 in IMAGE_EXTENSIONS:
                 # 画像は専用ルート（claude vision・キャッシュ有）。
                 # get_file/downloadも中で行うのでここでは呼ばない（二重取得を避ける）
-                parts.append(read_chatwork_image(room_id, file_id, name))
+                parts.append(read_chatwork_image(room_id, file_id, name, message_id=message_id))
                 continue
             try:
                 info = cw.get_file(room_id, file_id)
@@ -268,16 +272,18 @@ def _image_cache_get(room_id, file_id):
     return rows[0] if rows else None
 
 
-def _image_cache_put(room_id, file_id, filename, description, room_name=None, property_name=None):
+def _image_cache_put(room_id, file_id, filename, description, room_name=None,
+                      property_name=None, title=None):
     from db.connection import get_conn
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO chatwork_images (room_id, file_id, filename, description, room_name, property_name) "
-            "VALUES (?, ?, ?, ?, ?, ?) "
+            "INSERT INTO chatwork_images "
+            "(room_id, file_id, filename, description, room_name, property_name, title) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(room_id, file_id) DO UPDATE SET filename=excluded.filename, "
             "description=excluded.description, room_name=excluded.room_name, "
-            "property_name=excluded.property_name",
-            (room_id, file_id, filename, description, room_name, property_name),
+            "property_name=excluded.property_name, title=excluded.title",
+            (room_id, file_id, filename, description, room_name, property_name, title),
         )
 
 
@@ -287,9 +293,69 @@ def _room_name(room_id) -> str | None:
     return row["name"] if row else None
 
 
+# 前後メッセージの文脈として渡す件数・文字数（TASK-20260827-003）
+_CONTEXT_MSG_COUNT = 4
+_CONTEXT_LINE_MAX = 200
+_CONTEXT_TOTAL_MAX = 1000
+
+
+def _clean_context_line(body: str) -> str:
+    """会話コンテキストに渡す1行を整形（[download:..] 等のタグを剥がす）。"""
+    text = _DOWNLOAD_RE.sub(lambda m: m.group(2).strip(), body or "")
+    text = re.sub(r"\[[^\]]*\]", "", text).strip()
+    return text[:_CONTEXT_LINE_MAX]
+
+
+def _surrounding_message_context(room_id, message_id) -> str | None:
+    """画像が投稿されたメッセージの前後（同じ会話）のメッセージ本文を集める（TASK-20260827-003）。
+
+    投稿者が別メッセージで書いた場所名・案件名の説明を vision プロンプトに渡すため。
+    `messages` は poll_room で画像メッセージと同時に一括保存済みなので、ここでは
+    Chatwork APIを呼ばず自DBを見るだけでよい。
+    """
+    if not message_id:
+        return None
+    from db.connection import query, query_one
+    anchor = query_one(
+        "SELECT send_time FROM messages WHERE room_id=? AND message_id=?",
+        (room_id, message_id),
+    )
+    if not anchor:
+        return None
+    send_time = anchor["send_time"]
+    before = query(
+        "SELECT account_name, body FROM messages WHERE room_id=? AND "
+        "(send_time<? OR (send_time=? AND message_id<?)) "
+        "ORDER BY send_time DESC, message_id DESC LIMIT ?",
+        (room_id, send_time, send_time, message_id, _CONTEXT_MSG_COUNT),
+    )
+    after = query(
+        "SELECT account_name, body FROM messages WHERE room_id=? AND "
+        "(send_time>? OR (send_time=? AND message_id>?)) "
+        "ORDER BY send_time ASC, message_id ASC LIMIT ?",
+        (room_id, send_time, send_time, message_id, _CONTEXT_MSG_COUNT),
+    )
+    lines = []
+    for r in reversed(before):
+        text = _clean_context_line(r["body"])
+        if text:
+            lines.append(f"{r['account_name'] or ''}: {text}")
+    for r in after:
+        text = _clean_context_line(r["body"])
+        if text:
+            lines.append(f"{r['account_name'] or ''}: {text}")
+    if not lines:
+        return None
+    return "\n".join(lines)[:_CONTEXT_TOTAL_MAX]
+
+
 # claude visionの回答の末尾に付けさせる `物件名: ○○` 行（TASK-20260827-002・検索用に拾う）
 _PROPERTY_LINE_RE = re.compile(r"\n?物件名[:：]\s*(.*?)\s*$")
 _UNKNOWN_PROPERTY_NAMES = {"", "不明", "なし", "N/A", "n/a"}
+
+# claude visionの回答の末尾に付けさせる `タイトル: ○○` 行（TASK-20260827-003・検索用に拾う）
+_TITLE_LINE_RE = re.compile(r"\n?タイトル[:：]\s*(.*?)\s*$")
+_UNKNOWN_TITLES = {"", "不明", "なし", "N/A", "n/a"}
 
 
 def _split_property_name(text: str) -> tuple[str, str | None]:
@@ -304,13 +370,29 @@ def _split_property_name(text: str) -> tuple[str, str | None]:
     return cleaned, name
 
 
-def read_chatwork_image(room_id, file_id: int, name: str) -> str:
+def _split_title(text: str) -> tuple[str, str | None]:
+    """解析結果の末尾から `タイトル: ○○` 行を切り離す。無ければそのまま返す。"""
+    m = _TITLE_LINE_RE.search(text or "")
+    if not m:
+        return text, None
+    name = m.group(1).strip()
+    cleaned = (text[:m.start()]).rstrip()
+    if name in _UNKNOWN_TITLES:
+        return cleaned, None
+    return cleaned, name
+
+
+def read_chatwork_image(room_id, file_id: int, name: str, message_id=None) -> str:
     """Chatwork の画像添付（写真・スクリーンショット等）を claude vision で読む（TASK-20260827-001）。
 
     LINEの `read_line_image` と同じ `_analyze_image` を使う。結果は `chatwork_images` に
     キャッシュし、同じ添付が会話コンテキストへ何度出てきても二度と解析し直さない
     （`transcribe_chatwork_audio` と同じキャッシュの考え方）。失敗しても例外は投げない
     （QA/TODO抽出を止めないため）。
+
+    `message_id` が分かれば、その前後に投稿された同じ会話のメッセージ（場所・案件名の説明文等）
+    も vision プロンプトに渡し、画像単体では分からない具体的なタイトルを付けさせる
+    （TASK-20260827-003）。
     """
     cached = _image_cache_get(room_id, file_id)
     if cached:
@@ -331,11 +413,14 @@ def read_chatwork_image(room_id, file_id: int, name: str) -> str:
         img_name = "image" + ext
         dest = os.path.join(tmp, img_name)
         _download(url, dest)
-        text = _analyze_image(tmp, img_name, ask_property=True)
+        context_text = _surrounding_message_context(room_id, message_id)
+        text = _analyze_image(tmp, img_name, ask_property=True, context_text=context_text)
         if text is None:
             return _describe(name, "", "画像認識(claude vision)に失敗しました")
+        text, title = _split_title(text)
         description, property_name = _split_property_name(text)
-        _image_cache_put(room_id, file_id, name, description, _room_name(room_id), property_name)
+        _image_cache_put(room_id, file_id, name, description, _room_name(room_id),
+                          property_name, title)
         return _describe(name, description)
     except ValueError:
         return _describe(name, "", f"{MAX_BYTES // 1024 // 1024}MB を超えるので読みませんでした")
@@ -370,12 +455,17 @@ def read_line_file(message_id: str, name: str) -> str:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def _analyze_image(tmp_dir: str, filename: str, ask_property: bool = False) -> str | None:
+def _analyze_image(tmp_dir: str, filename: str, ask_property: bool = False,
+                    context_text: str | None = None) -> str | None:
     """claude vision で画像1枚の内容を読む（`knowledge.ocr_pdf` / `streetview_tools` と同じ作法:
     一時ファイルを --add-dir + Read ツールで見せる）。
 
     `ask_property=True` のとき、末尾に `物件名: ○○` の1行を追加させる
     （Chatwork画像の検索用。TASK-20260827-002・`_split_property_name` で切り離して保存する）。
+
+    `context_text` が渡された場合（画像投稿の前後に同じ会話で投稿されたメッセージ本文）、
+    画像単体では分からない場所名・案件名をそこから拾わせ、末尾に `タイトル: ○○` の1行を
+    追加させる（TASK-20260827-003・`_split_title` で切り離して保存する）。
     """
     from services.claude_client import ClaudeError, run_claude
     prompt = (
@@ -388,9 +478,23 @@ def _analyze_image(tmp_dir: str, filename: str, ask_property: bool = False) -> s
     if ask_property:
         prompt += (
             "\n\n最後に、写っている建物・部屋が属する物件名（マンション名・ビル名など。"
-            "外観の看板・郵便受け・検針票の宛先等から分かる場合のみ）を、出力の一番最後に"
+            "外観の看板・郵便受け・検針票の宛先等から分かる場合のみ）を、"
             "`物件名: ○○` という1行だけで追加してください。分からない・写っていない場合は"
             "`物件名: 不明` としてください。"
+        )
+        context_block = (
+            f"\n\n参考: この画像の前後に同じ会話で投稿されたメッセージ\n{context_text}"
+            if context_text else ""
+        )
+        prompt += (
+            "\n\nさらに、この画像に付けるタイトル（例:「花園町駅前駐輪場」のような、"
+            "具体的な場所名・案件名など内容が一目で分かる短い名前）を考え、"
+            "`タイトル: ○○` という1行を追加してください。上記の会話メッセージに場所・"
+            "物件名・案件名の説明があれば、それを最優先でタイトルに反映してください"
+            "（画像だけからは分からない情報でも、会話に書いてあれば使ってください）。"
+            "会話に手がかりが無ければ、画像から読み取れる内容から分かりやすい短い"
+            "タイトルを付けてください。それでも付けられない場合は `タイトル: 不明` として"
+            f"ください。{context_block}"
         )
     try:
         env = run_claude(prompt, model="sonnet", timeout=180, add_dir=tmp_dir, allow_read=True)

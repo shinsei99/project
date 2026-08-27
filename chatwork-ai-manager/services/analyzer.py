@@ -38,7 +38,8 @@ def _line_body(room_id, m, limit) -> str:
         if ext in attachments.AUDIO_EXTENSIONS:
             text += "\n" + attachments.transcribe_chatwork_audio(room_id, file_id, name)
         elif ext in attachments.IMAGE_EXTENSIONS:
-            text += "\n" + attachments.read_chatwork_image(room_id, file_id, name)
+            text += "\n" + attachments.read_chatwork_image(
+                room_id, file_id, name, message_id=m["message_id"])
     return text
 
 

@@ -25,21 +25,29 @@ def _row(r):
         "filename": r["filename"],
         "room_name": r["room_name"],
         "property_name": r["property_name"],
+        "title": r["title"],
         "description": (r["description"] or "")[:200],
         "posted_at": r["created_at"],
     }
 
 
 def chatwork_image_search(keyword=None, room_id=None, limit=10):
-    """過去にChatworkへ投稿され解析済みの画像を検索する（image本体はまだ取得しない）。"""
+    """過去にChatworkへ投稿され解析済みの画像を検索する（image本体はまだ取得しない）。
+
+    keyword は title（投稿前後の会話文脈から付けたタイトル。TASK-20260827-003）/
+    property_name（画像から読み取れた物件名）/ room_name / filename / description を対象にする。
+    """
     if not keyword and not room_id:
         return {"ok": False, "error": "keyword か room_id のどちらかが必要です"}
     sql = "SELECT * FROM chatwork_images WHERE 1=1"
     params = []
     if keyword:
         kw = f"%{keyword}%"
-        sql += " AND (property_name LIKE ? OR room_name LIKE ? OR filename LIKE ? OR description LIKE ?)"
-        params += [kw, kw, kw, kw]
+        sql += (
+            " AND (title LIKE ? OR property_name LIKE ? OR room_name LIKE ? "
+            "OR filename LIKE ? OR description LIKE ?)"
+        )
+        params += [kw, kw, kw, kw, kw]
     if room_id:
         sql += " AND room_id=?"
         params.append(room_id)

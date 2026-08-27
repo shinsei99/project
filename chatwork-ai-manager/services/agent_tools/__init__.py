@@ -60,8 +60,10 @@ REGISTRY = {
     # ---- Chatwork画像検索・再送信（過去に投稿された写真を探して送る。TASK-20260827-002） ----
     "chatwork_image_search": {
         "func": chatwork_image_tools.chatwork_image_search,
-        "desc": "過去にChatworkへ投稿され、claude visionで解析済みの画像を物件名/ルーム名/"
-                "ファイル名/解析結果本文のキーワードで検索する（画像本体はまだ取得しない）。"
+        "desc": "過去にChatworkへ投稿され、claude visionで解析済みの画像をタイトル/物件名/"
+                "ルーム名/ファイル名/解析結果本文のキーワードで検索する（画像本体はまだ取得しない）。"
+                "タイトルは画像投稿の前後に投稿された会話メッセージ（場所・案件名の説明文）も踏まえて"
+                "自動で付けたもの（例:「花園町駅前駐輪場」）。"
                 "「○○の外観写真を表示して」のように過去の実物写真を求められたら、まずこれで探す。"
                 "戻り値の room_id/file_id を chatwork_image_fetch に渡すと実際に送れる",
         "usage": 'chatwork_image_search {"keyword":"クリスタルコート66 外観","limit":10}',
