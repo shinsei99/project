@@ -341,6 +341,26 @@ with tab_search:
             st.text_area("本文", r["body_text"] or "(本文なし)", height=280,
                          key="body_{}".format(r["id"]))
 
+            # 返信（mailto）：押すと標準メールが新規作成で開き、宛先＝差出人・件名＝Re:・
+            # 本文＝引用（> 付き）が入る＝普通に返信する感じ。送信は本人がメールアプリで行う。
+            reply_to = r["from_addr"] or ""
+            if reply_to:
+                subj = (r["subject"] or "").strip()
+                if not subj.lower().lstrip().startswith("re:"):
+                    subj = "Re: " + subj
+                when = to_local(r["date_utc"]) or ""
+                who = r["from_name"] or reply_to
+                quoted = "\n".join(
+                    "> " + ln for ln in (r["body_text"] or "").splitlines()[:80])
+                reply_body = "\n\n----- {} {} のメール -----\n{}".format(when, who, quoted)
+                reply_body = reply_body[:1800]   # mailto の URL 長対策で頭だけ引用
+                mailto = "mailto:{}?subject={}&body={}".format(
+                    urllib.parse.quote(reply_to),
+                    urllib.parse.quote(subj),
+                    urllib.parse.quote(reply_body))
+                st.markdown('<a href="{}">↩️ 返信（メールで作成）</a>'.format(mailto),
+                            unsafe_allow_html=True)
+
             att_dir = os.path.join(_HERE, "static", "att")
             atts = db.attachments_of(conn, r["id"])
             if atts:
