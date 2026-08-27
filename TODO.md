@@ -1,3 +1,34 @@
+> ## 📱 引き継ぎ（2026-08-27 メインPC・夕）— デジタル書斎のアイコンを差し替え、1.0.1 を審査へ出した
+>
+> **後任がやることは無い。審査の結果を待つだけ。** サブPCは `git pull` のみ（配信用証明書が無いので
+> このアプリの提出作業はできない＝メインPC担当のまま）。
+>
+> | | |
+> |---|---|
+> | 何をしたか | オーナー支給の画像へアイコンを差し替え → **1.0.1 / build 2** を Archive → アップロード → **審査へ提出**（提出はオーナーが ASC の画面で実施） |
+> | いまの状態 | API で **`配信中 1.0 ／ 審査中のもの 1.0.1 … 審査待ち`**。build 2 は `VALID` |
+> | 結果の見方 | `python3 appstore_api.py --review com.shinsei.shosai` |
+> | 通ったら | `CLAUDE.md` と下の索引表の digital-shosai 行を「**1.0.1 が配信中**」へ書き換える |
+> | 注意 | **アイコンが App Store と端末で新しくなるのは配信されてから。** 審査中は旧アイコンのままで正常 |
+> | 出し直すとき | **必ず build 3 へ**（`./ios-build-guard.sh digital-shosai --bump`）。Archive〜アップロードは **GUI 不要**で、`digital-shosai/HANDOFF-APPSTORE.md` 冒頭の3コマンドで通る |
+>
+> **今回分かって記録に残したこと**（次のiOSアプリでも効く）
+>
+> - **支給されたアイコン画像は白背景に角丸アイコンが乗った形**のことがある。そのまま渡すと
+>   iOS の角丸マスクで**角が白く欠ける**。`digital-shosai/icon-src/make_icon.py` が
+>   「本体を切り出す → 1024へ → 角の外を地色で塗る」まで面倒を見る（他アプリでも流用可）
+> - **Organizer を開かなくても提出用ビルドは上げられる**（`xcodebuild -exportArchive` →
+>   `xcrun altool --validate-app` → `--upload-app`）。ただし **`altool` は `--apiKey` にパスを取らず**
+>   `~/.appstoreconnect/private_keys/` などしか見ない。このMacの鍵は `~/.appstore/` にあるので
+>   **同じものをそこへコピー済み**（新しい鍵は発行していない）
+> - **Archive 内のアイコンPNGは PIL で開けない**（Xcode が CgBI 形式に最適化するため）。
+>   確認は `xcrun -sdk iphoneos pngcrush -revert-iphone-optimizations` で戻してから
+>
+> **ついでに直した記載の誤り**: `CLAUDE.md` で「デジタル書斎＝審査待ち」「photo-remake 1.1.0＝審査待ち」
+> となっていたが、API で見ると**どちらも既に審査を通っていた**（デジタル書斎 1.0／photo-remake 1.1.0 が配信中）。
+>
+> ---
+>
 > ## 💻 サブPCへ引き継ぎ（2026-08-27 メインPC）— 開発エージェントが**完了と同時に常駐を再起動**するようになった
 >
 > **やることは `git pull` だけです。** サブPCは常駐0本（役割分担どおり）なので、再起動もポート確認も要りません。
