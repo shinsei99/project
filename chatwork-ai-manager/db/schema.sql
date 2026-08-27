@@ -452,11 +452,16 @@ CREATE TABLE IF NOT EXISTS audio_transcripts (
 -- Chatwork画像添付（写真・スクリーンショット等）のclaude vision解析結果キャッシュ（TASK-20260827-001）。
 -- audio_transcriptsと同じ考え方: 同じ添付が会話コンテキストに何度も登場しても
 -- 二度とclaude visionへ問い合わせない。成功時のみ保存する。
+-- room_name/property_nameはTASK-20260827-002で追加（過去画像のキーワード検索用。
+-- property_nameはclaude visionの解析結果から拾えた物件名らしき語、room_nameは投稿ルーム名
+-- ＝物件名を拾えなかった場合の代替検索キー）。
 CREATE TABLE IF NOT EXISTS chatwork_images (
-    room_id     INTEGER NOT NULL,
-    file_id     INTEGER NOT NULL,
-    filename    TEXT,
-    description TEXT,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    room_id       INTEGER NOT NULL,
+    file_id       INTEGER NOT NULL,
+    filename      TEXT,
+    description   TEXT,
+    room_name     TEXT,
+    property_name TEXT,
+    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (room_id, file_id)
 );

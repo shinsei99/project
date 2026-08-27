@@ -268,16 +268,40 @@ def _image_cache_get(room_id, file_id):
     return rows[0] if rows else None
 
 
-def _image_cache_put(room_id, file_id, filename, description):
+def _image_cache_put(room_id, file_id, filename, description, room_name=None, property_name=None):
     from db.connection import get_conn
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO chatwork_images (room_id, file_id, filename, description) "
-            "VALUES (?, ?, ?, ?) "
+            "INSERT INTO chatwork_images (room_id, file_id, filename, description, room_name, property_name) "
+            "VALUES (?, ?, ?, ?, ?, ?) "
             "ON CONFLICT(room_id, file_id) DO UPDATE SET filename=excluded.filename, "
-            "description=excluded.description",
-            (room_id, file_id, filename, description),
+            "description=excluded.description, room_name=excluded.room_name, "
+            "property_name=excluded.property_name",
+            (room_id, file_id, filename, description, room_name, property_name),
         )
+
+
+def _room_name(room_id) -> str | None:
+    from db.connection import query_one
+    row = query_one("SELECT name FROM rooms WHERE room_id=?", (room_id,))
+    return row["name"] if row else None
+
+
+# claude visionの回答の末尾に付けさせる `物件名: ○○` 行（TASK-20260827-002・検索用に拾う）
+_PROPERTY_LINE_RE = re.compile(r"\n?物件名[:：]\s*(.*?)\s*$")
+_UNKNOWN_PROPERTY_NAMES = {"", "不明", "なし", "N/A", "n/a"}
+
+
+def _split_property_name(text: str) -> tuple[str, str | None]:
+    """解析結果の末尾から `物件名: ○○` 行を切り離す。無ければそのまま返す。"""
+    m = _PROPERTY_LINE_RE.search(text or "")
+    if not m:
+        return text, None
+    name = m.group(1).strip()
+    cleaned = (text[:m.start()]).rstrip()
+    if name in _UNKNOWN_PROPERTY_NAMES:
+        return cleaned, None
+    return cleaned, name
 
 
 def read_chatwork_image(room_id, file_id: int, name: str) -> str:
@@ -307,11 +331,12 @@ def read_chatwork_image(room_id, file_id: int, name: str) -> str:
         img_name = "image" + ext
         dest = os.path.join(tmp, img_name)
         _download(url, dest)
-        text = _analyze_image(tmp, img_name)
+        text = _analyze_image(tmp, img_name, ask_property=True)
         if text is None:
             return _describe(name, "", "画像認識(claude vision)に失敗しました")
-        _image_cache_put(room_id, file_id, name, text)
-        return _describe(name, text)
+        description, property_name = _split_property_name(text)
+        _image_cache_put(room_id, file_id, name, description, _room_name(room_id), property_name)
+        return _describe(name, description)
     except ValueError:
         return _describe(name, "", f"{MAX_BYTES // 1024 // 1024}MB を超えるので読みませんでした")
     except ChatworkError as e:
@@ -345,9 +370,13 @@ def read_line_file(message_id: str, name: str) -> str:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
-def _analyze_image(tmp_dir: str, filename: str) -> str | None:
+def _analyze_image(tmp_dir: str, filename: str, ask_property: bool = False) -> str | None:
     """claude vision で画像1枚の内容を読む（`knowledge.ocr_pdf` / `streetview_tools` と同じ作法:
-    一時ファイルを --add-dir + Read ツールで見せる）。"""
+    一時ファイルを --add-dir + Read ツールで見せる）。
+
+    `ask_property=True` のとき、末尾に `物件名: ○○` の1行を追加させる
+    （Chatwork画像の検索用。TASK-20260827-002・`_split_property_name` で切り離して保存する）。
+    """
     from services.claude_client import ClaudeError, run_claude
     prompt = (
         f"次の画像ファイル（ディレクトリ {tmp_dir} 内の {filename}）を Read ツールで開いて見てください。"
@@ -356,6 +385,13 @@ def _analyze_image(tmp_dir: str, filename: str) -> str | None:
         "チャット画面など）も添えてください。判読できない場合は「判読できませんでした」と正直に"
         "書いてください。"
     )
+    if ask_property:
+        prompt += (
+            "\n\n最後に、写っている建物・部屋が属する物件名（マンション名・ビル名など。"
+            "外観の看板・郵便受け・検針票の宛先等から分かる場合のみ）を、出力の一番最後に"
+            "`物件名: ○○` という1行だけで追加してください。分からない・写っていない場合は"
+            "`物件名: 不明` としてください。"
+        )
     try:
         env = run_claude(prompt, model="sonnet", timeout=180, add_dir=tmp_dir, allow_read=True)
     except ClaudeError:

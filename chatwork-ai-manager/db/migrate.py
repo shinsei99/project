@@ -119,6 +119,9 @@ def migrate() -> None:
         _ensure_column(conn, "messages", "process_error", "TEXT")
         # 物件×担当者マスタ（管理物件台帳の「担当」列。TASK-20260826-003）
         _ensure_column(conn, "properties", "assignee_name", "TEXT")
+        # Chatwork画像の検索用（物件名/ルーム名。TASK-20260827-002）
+        _ensure_column(conn, "chatwork_images", "room_name", "TEXT")
+        _ensure_column(conn, "chatwork_images", "property_name", "TEXT")
         for key, value in DEFAULT_SETTINGS.items():
             conn.execute(
                 "INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)",

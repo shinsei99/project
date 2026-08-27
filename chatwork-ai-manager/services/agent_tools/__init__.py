@@ -9,6 +9,7 @@ REGISTRY は「実装済みToolの唯一の真実」。System Prompt はこれ�
 """
 from services.agent_tools import (
     address_tools,
+    chatwork_image_tools,
     chatwork_tools,
     dev_tools,
     file_tools,
@@ -55,6 +56,22 @@ REGISTRY = {
         "func": chatwork_tools.chatwork_post_message,
         "desc": "AI専用アカウントからChatworkへ投稿（post_modeにより自動送信/確認待ち。AI投稿と分かる接頭辞が付く）",
         "usage": 'chatwork_post_message {"room_id":12345678,"body":"...","reason":"依頼","to_account_ids":"87654321"}',
+    },
+    # ---- Chatwork画像検索・再送信（過去に投稿された写真を探して送る。TASK-20260827-002） ----
+    "chatwork_image_search": {
+        "func": chatwork_image_tools.chatwork_image_search,
+        "desc": "過去にChatworkへ投稿され、claude visionで解析済みの画像を物件名/ルーム名/"
+                "ファイル名/解析結果本文のキーワードで検索する（画像本体はまだ取得しない）。"
+                "「○○の外観写真を表示して」のように過去の実物写真を求められたら、まずこれで探す。"
+                "戻り値の room_id/file_id を chatwork_image_fetch に渡すと実際に送れる",
+        "usage": 'chatwork_image_search {"keyword":"クリスタルコート66 外観","limit":10}',
+    },
+    "chatwork_image_fetch": {
+        "func": chatwork_image_tools.chatwork_image_fetch,
+        "desc": "chatwork_image_search でヒットした画像をChatworkから再取得し、送信用の"
+                "image_token を発行する（streetview_lookupと同じ流れ）。実際に送るには"
+                "戻り値の image_token を chatwork_send_web_image / line_send_web_image に渡す",
+        "usage": 'chatwork_image_fetch {"room_id":12345678,"file_id":987}',
     },
     # ---- ファイル送付（社内資料をChatworkへ添付） ----
     "chatwork_send_file": {
