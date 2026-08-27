@@ -385,6 +385,27 @@ def find_property(name_or_keyword: str):
     return addr[0] if addr else None
 
 
+def match_property_in_text(text: str):
+    """自由文の中に管理物件マスターの物件名が部分一致で含まれていれば、その物件（正式名称）を返す。
+
+    `find_property` はキーワード1つに対して物件を特定する用途（キーワードが物件名に含まれる/
+    物件名がキーワードに含まれる、どちらも見る）。こちらは逆方向 —— **物件名を知らない自由文
+    （vision解析結果・前後の会話文など）の中に、マスター側の正式名称がそのまま出現していないか**
+    を全件走査する（TASK-20260827-005・chatwork画像のタイトル正規化用）。
+    表記ゆれ吸収のため NFKC 正規化して比較。複数の物件名がヒットした場合は、より具体的な
+    （文字数の長い）名前を正式名称として優先する（例:「クリスタルコート66」が
+    「クリスタルコート」より先にヒットする状況を避ける）。
+    """
+    t = unicodedata.normalize("NFKC", text or "")
+    if not t:
+        return None
+    rows = [_row(r) for r in query("SELECT * FROM properties WHERE active=1")]
+    candidates = [r for r in rows if r["name"] and unicodedata.normalize("NFKC", r["name"]) in t]
+    if not candidates:
+        return None
+    return sorted(candidates, key=lambda r: len(r["name"]), reverse=True)[0]
+
+
 def nearby(lat, lon, radius_m=1000, exclude_property_id=None, limit=50, **filters):
     """指定地点から半径内の物件を近い順で返す（距離つき）。"""
     out = []

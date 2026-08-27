@@ -108,11 +108,22 @@ def chatwork_image_search(keyword=None, room_id=None, limit=10):
     params = []
     if keyword:
         kw = f"%{keyword}%"
-        sql += (
-            " AND (title LIKE ? OR property_name LIKE ? OR room_name LIKE ? "
-            "OR filename LIKE ? OR description LIKE ?)"
-        )
-        params += [kw, kw, kw, kw, kw]
+        or_terms = [
+            "title LIKE ?", "property_name LIKE ?", "room_name LIKE ?",
+            "filename LIKE ?", "description LIKE ?",
+        ]
+        kw_params = [kw, kw, kw, kw, kw]
+        # keywordが管理物件マスター（properties・108件）の物件名/住所に解決できる場合、
+        # その正式名称でも検索する（TASK-20260827-005・表記ゆれ対策。例:
+        # 画像は正式名称「クリスタルコート66」で保存されているが、キーワードが
+        # 住所や表記違いでも正式名称に解決できれば拾えるようにする）
+        from services import gis
+        matched = gis.find_property(keyword)
+        if matched and matched["name"] not in keyword:
+            or_terms.append("property_name LIKE ?")
+            kw_params.append(f"%{matched['name']}%")
+        sql += " AND (" + " OR ".join(or_terms) + ")"
+        params += kw_params
     if room_id:
         sql += " AND room_id=?"
         params.append(room_id)

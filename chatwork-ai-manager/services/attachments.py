@@ -382,6 +382,22 @@ def _split_title(text: str) -> tuple[str, str | None]:
     return cleaned, name
 
 
+def _resolve_master_property_name(context_text, description, property_name, title) -> str | None:
+    """vision解析結果・前後の会話文の中に管理物件マスター（properties・108件）の正式名称が
+    含まれていれば、それを返す（TASK-20260827-005）。
+
+    見つかれば `gis_property_search` 等の検索結果と表記が一致する正式名称を優先的に使い、
+    見つからなければ None を返して呼び出し側が今まで通りの自由記述（vision推定のproperty_name/
+    タイトル）にフォールバックする（例:「花園町駅前駐輪場」のようなマスターに無い固有名称）。
+    """
+    combined = "\n".join(filter(None, [context_text, description, property_name, title]))
+    if not combined:
+        return None
+    from services import gis
+    matched = gis.match_property_in_text(combined)
+    return matched["name"] if matched else None
+
+
 def read_chatwork_image(room_id, file_id: int, name: str, message_id=None) -> str:
     """Chatwork の画像添付（写真・スクリーンショット等）を claude vision で読む（TASK-20260827-001）。
 
@@ -419,6 +435,8 @@ def read_chatwork_image(room_id, file_id: int, name: str, message_id=None) -> st
             return _describe(name, "", "画像認識(claude vision)に失敗しました")
         text, title = _split_title(text)
         description, property_name = _split_property_name(text)
+        property_name = _resolve_master_property_name(
+            context_text, description, property_name, title) or property_name
         _image_cache_put(room_id, file_id, name, description, _room_name(room_id),
                           property_name, title)
         return _describe(name, description)
