@@ -77,6 +77,62 @@ def _filter_by_lang(conn, ids: set, lang: str) -> set:
             out.add(r[0])
     return out or ids          # 1件も残らないなら絞りを諦める（何も出ないより良い）
 
+def detect_period(query: str, today=None):
+    """質問文から期間を読み取る（**LLMを使わない**）。戻り値 (date_from, date_to)。
+
+    ★なぜLLMに頼らないか: `ai_query.parse_query` は claude CLI を呼ぶので
+      **60秒で落ちることがある**（実測）。落ちると期間の絞り込みが丸ごと効かなくなり、
+      5万通から探すことになって目当てのメールが圏外まで沈む。
+      「今月」「先月」「8月」程度は決まりきった言い回しなので、ここで確実に取る。
+      LLMの結果は sender 等でなお有用なので、併用する（こちらを優先）。
+    """
+    import datetime as _dt
+    import re as _re
+    q = query or ""
+    d = today or _dt.date.today()
+    first = d.replace(day=1)
+
+    def _mrange(y, m):
+        f = _dt.date(y, m, 1)
+        t = _dt.date(y + (m == 12), 1 if m == 12 else m + 1, 1) - _dt.timedelta(days=1)
+        return f.isoformat(), t.isoformat()
+
+    if "今月" in q:
+        return first.isoformat(), d.isoformat()
+    if "先月" in q or "前月" in q:
+        last = first - _dt.timedelta(days=1)
+        return _mrange(last.year, last.month)
+    if "今週" in q:
+        return (d - _dt.timedelta(days=d.weekday())).isoformat(), d.isoformat()
+    if "先週" in q:
+        mon = d - _dt.timedelta(days=d.weekday() + 7)
+        return mon.isoformat(), (mon + _dt.timedelta(days=6)).isoformat()
+    if "今日" in q or "本日" in q:
+        return d.isoformat(), d.isoformat()
+    if "昨日" in q:
+        y = d - _dt.timedelta(days=1)
+        return y.isoformat(), y.isoformat()
+    if "今年" in q:
+        return _dt.date(d.year, 1, 1).isoformat(), d.isoformat()
+    if "去年" in q or "昨年" in q:
+        return _dt.date(d.year - 1, 1, 1).isoformat(), _dt.date(d.year - 1, 12, 31).isoformat()
+    m = _re.search(r"(20\d{2})\s*年\s*(\d{1,2})\s*月", q)
+    if m:
+        return _mrange(int(m.group(1)), int(m.group(2)))
+    m = _re.search(r"(?<!\d)(\d{1,2})\s*月(?!\d)", q)          # 「8月」＝直近のその月
+    if m:
+        mm = int(m.group(1))
+        if 1 <= mm <= 12:
+            y = d.year if mm <= d.month else d.year - 1
+            return _mrange(y, mm)
+    m = _re.search(r"(?:直近|過去|ここ)\s*(\d{1,3})\s*(日|週間|か月|ヶ月|カ月|年)", q)
+    if m:
+        n = int(m.group(1)); unit = m.group(2)
+        days = {"日": 1, "週間": 7, "か月": 30, "ヶ月": 30, "カ月": 30, "年": 365}[unit] * n
+        return (d - _dt.timedelta(days=days)).isoformat(), d.isoformat()
+    return "", ""
+
+
 def _ids_in_period(conn, date_from: str = "", date_to: str = "") -> set:
     """期間で絞った message_id の集合。指定が無ければ None（＝絞らない）。"""
     if not date_from and not date_to:

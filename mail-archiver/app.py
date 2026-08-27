@@ -229,16 +229,23 @@ with tab_search:
                         # ★「今月のもの」「先月」「8月」等の期間指定を先に読み取って絞る（2026-08-27）。
                         #   絞らないと5万通の中に埋もれ、目当てのメールが上位800にすら入らない
                         #   （英語メールで実際に発生）。日付の読み取りは既存の ai_query.parse_query を使う。
-                        d_from = d_to = ""
+                        # ★期間は先に**LLMを使わず**読む（2026-08-27）。
+                        #   ai_query.parse_query は claude CLI を呼ぶので60秒で落ちることがあり、
+                        #   落ちると絞り込みが丸ごと効かず5万通から探すことになる。
+                        #   「今月」「先月」「8月」等はここで確実に取れる。
+                        d_from, d_to = semantic.detect_period(nl2)
                         must = []
                         boost = []
                         try:
                             f = ai_query.parse_query(nl2)
-                            d_from, d_to = f.get("date_from") or "", f.get("date_to") or ""
+                            if not d_from and not d_to:      # 自前で取れなかったときだけLLMの結果を使う
+                                d_from = f.get("date_from") or ""
+                                d_to = f.get("date_to") or ""
                             must = f.get("keywords_all") or []
                             boost = f.get("keywords_any") or []
-                        except Exception:
-                            pass
+                        except Exception as e:  # noqa: BLE001
+                            st.caption("⚠️ 条件の自動解析に失敗（期間の絞り込みだけ効いています）: "
+                                       "{}".format(str(e)[:60]))
                         if d_from or d_to:
                             st.caption("🗓 期間で絞り込みました: {} 〜 {}".format(d_from or "指定なし",
                                                                         d_to or "指定なし"))
