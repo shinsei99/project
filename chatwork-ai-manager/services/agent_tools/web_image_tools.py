@@ -55,4 +55,14 @@ def line_send_web_image(image_token, message=None, user_id=None):
         return {"ok": False, "error": "LINEへの画像送信に失敗しました"}
     if message:
         line_client.push(target, message, label="web_image")
-    return {"ok": True, "sent": True}
+    # ★何番目に何を送ったかを覚える（2026-08-27）。
+    #   これが無いと、次に利用者が「③」と答えたときに別の写真を指してしまう。
+    n = None
+    try:
+        from services import image_sendlog
+        src = web_image_store.source_of(image_token)
+        n = image_sendlog.record(target, src.get("room_id"), src.get("file_id"), src.get("title"))
+    except Exception:
+        pass
+    return {"ok": True, "sent": True, "番号": n,
+            "hint": "利用者にはこの番号で伝えること（次の発言で番号を解決できる）"}

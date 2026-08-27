@@ -55,3 +55,36 @@ def path_for(token: str):
         return None
     path = os.path.join(STORE_DIR, token)
     return path if os.path.isfile(path) else None
+
+
+# ── token がどの写真か（room_id/file_id）を覚えておく（2026-08-27）──
+# 送信時に「何番目に何を送ったか」を記録するために要る。画像本体と同じTTLで消える。
+def _meta_path(token: str):
+    p = path_for(token)
+    return (p + ".json") if p else None
+
+
+def remember_source(token: str, room_id=None, file_id=None, title=None) -> None:
+    import json
+    mp = _meta_path(token)
+    if not mp:
+        return
+    try:
+        with open(mp, "w", encoding="utf-8") as f:
+            json.dump({"room_id": str(room_id) if room_id is not None else None,
+                       "file_id": str(file_id) if file_id is not None else None,
+                       "title": title}, f, ensure_ascii=False)
+    except Exception:
+        pass
+
+
+def source_of(token: str) -> dict:
+    import json
+    mp = _meta_path(token)
+    if not mp:
+        return {}
+    try:
+        with open(mp, encoding="utf-8") as f:
+            return json.load(f) or {}
+    except Exception:
+        return {}

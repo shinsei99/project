@@ -293,6 +293,10 @@ def _room_name(room_id) -> str | None:
     return row["name"] if row else None
 
 
+# LINEで受け取った写真を chatwork_images に入れるときの room_id（2026-08-27）。
+# Chatworkのroom_idは数値なので、文字列 'line' と衝突しない。
+LINE_ROOM_KEY = "line"
+
 # 前後メッセージの文脈として渡す件数・文字数（TASK-20260827-003）
 _CONTEXT_MSG_COUNT = 4
 _CONTEXT_LINE_MAX = 200
@@ -524,6 +528,25 @@ def read_line_file(message_id: str, name: str) -> str:
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def _make_flipped_copy(tmp_dir: str, filename: str) -> str | None:
+    """原本を180度回転した複製を作り、そのファイル名を返す（失敗したら None）。
+
+    macOS 標準の `sips` を使う（Pillow を足したくないため）。
+    向きが分からない写真を vision に読ませるとき、原本と一緒に見せて選ばせる。
+    """
+    import subprocess
+    src = os.path.join(tmp_dir, filename)
+    stem, ext = os.path.splitext(filename)
+    out_name = f"{stem}__flipped{ext or '.jpg'}"
+    out = os.path.join(tmp_dir, out_name)
+    try:
+        subprocess.run(["/usr/bin/sips", "--rotate", "180", src, "--out", out],
+                       check=True, capture_output=True, timeout=60)
+    except Exception:
+        return None
+    return out_name if os.path.exists(out) else None
+
+
 def _analyze_image(tmp_dir: str, filename: str, ask_property: bool = False,
                     context_text: str | None = None) -> str | None:
     """claude vision で画像1枚の内容を読む（`knowledge.ocr_pdf` / `streetview_tools` と同じ作法:
@@ -538,9 +561,22 @@ def _analyze_image(tmp_dir: str, filename: str, ask_property: bool = False,
     （TASK-20260827-003・`_split_title` で切り離して保存する）。
     """
     from services.claude_client import ClaudeError, run_claude
+    # ★上下反転した複製も一緒に見せる（2026-08-27）。
+    #   Chatworkに上がった巡回写真は **EXIFの回転情報が空（sipsで <nil>）なのにピクセルが逆さま**
+    #   だった（Chatwork側が回転情報を捨てているとみられる）。実測で12件中6件の説明に
+    #   「上下反転」と書かれており、看板の文字が読めず物件名を判定できていなかった。
+    #   EXIFが無い以上プログラムからは向きを決められないので、両方を見せて選ばせる。
+    flipped = _make_flipped_copy(tmp_dir, filename)
+    files_note = (
+        f"{filename}（原本）と {flipped}（原本を180度回転したもの）の2つ"
+        if flipped else filename
+    )
     prompt = (
-        f"次の画像ファイル（ディレクトリ {tmp_dir} 内の {filename}）を Read ツールで開いて見てください。"
-        "写っている内容を具体的に説明し、書かれている文字（見出し・数値・氏名・日付など）があれば"
+        f"次の画像ファイル（ディレクトリ {tmp_dir} 内の {files_note}）を Read ツールで開いて見てください。"
+        + ("**この2つは同じ写真で、向きだけが違います。天地が正しいほうだけを見て答えてください**"
+           "（撮影時に上下逆さまで保存されていることがあるため）。回転の話は説明に書かないでください。"
+           if flipped else "")
+        + "写っている内容を具体的に説明し、書かれている文字（見出し・数値・氏名・日付など）があれば"
         "そのまま書き起こしてください。書類やスクリーンショットならその種類（請求書・契約書・"
         "チャット画面など）も添えてください。判読できない場合は「判読できませんでした」と正直に"
         "書いてください。"
@@ -593,10 +629,24 @@ def read_line_image(message_id: str) -> str:
         ext = _IMAGE_EXT_BY_MIME.get(ctype, ".jpg")
         img_name = "image" + ext
         os.rename(dest, os.path.join(tmp, img_name))
-        text = _analyze_image(tmp, img_name)
+        text = _analyze_image(tmp, img_name, ask_property=True)
         if text is None:
             return _describe("画像", "", "画像認識(claude vision)に失敗しました")
-        return _describe("画像", text)
+        # ★DBへ登録する（2026-08-27）。以前は解析結果を文字列で返すだけで保存しておらず、
+        #   「この写真は◯◯です」と言われてもタイトルを付け替える対象が存在しなかった
+        #   （Chatwork側は保存しているのにLINE側だけ抜けていた）。room_id は 'line' 固定。
+        body, title = _split_title(text)
+        body, prop = _split_property_name(body)
+        try:
+            _image_cache_put(LINE_ROOM_KEY, str(message_id), img_name, body,
+                             room_name="LINE", property_name=prop, title=title)
+        except Exception:
+            pass          # 保存に失敗しても回答は返す
+        return _describe("画像", body) + (
+            f"\n（この写真は room_id=\"{LINE_ROOM_KEY}\" file_id=\"{message_id}\" として登録済み。"
+            "利用者が『この写真は◯◯です』と名前を教えてきたら "
+            "chatwork_image_set_title でこの room_id/file_id のタイトルを直すこと）"
+        )
     except ValueError:
         return _describe("画像", "", f"{MAX_BYTES // 1024 // 1024}MB を超えるので読みませんでした")
     except Exception as e:

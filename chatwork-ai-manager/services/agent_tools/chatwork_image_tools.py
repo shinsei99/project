@@ -244,8 +244,22 @@ def chatwork_image_fetch(room_id, file_id):
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
+    # どの image_token がどの写真かを覚えておく（送信時に番号を記録するため。2026-08-27）
+    try:
+        from services import web_image_store
+        web_image_store.remember_source(token, room_id=room_id, file_id=file_id,
+                                        title=_title_of(room_id, file_id))
+    except Exception:
+        pass
     return {
         "ok": True,
         "image_token": token,
         "hint": "この image_token を chatwork_send_web_image / line_send_web_image に渡すと実際に送れます",
     }
+
+
+def _title_of(room_id, file_id):
+    from db.connection import query_one
+    r = query_one("SELECT title FROM chatwork_images WHERE room_id=? AND file_id=?",
+                  (str(room_id), str(file_id)))
+    return r["title"] if r else None

@@ -145,6 +145,22 @@ def _chat_context(room_id, limit=None):
     return "\n".join(out)
 
 
+def _sent_images_context(channel, line_user_id, room_id) -> str:
+    """「①②③」で写真を指せるように、直近に送った写真の対応をそのまま渡す。
+
+    これが無いと毎回DBを引き直すことになり、間にタイトルを直すと同じ番号が
+    別の写真を指す（2026-08-27に実際に起きた事故。services/image_sendlog.py 参照）。
+    """
+    try:
+        from services import image_sendlog
+        target = line_user_id if channel == "line" else (str(room_id) if room_id else None)
+        if not target:
+            return "（対象なし）"
+        return image_sendlog.context_text(target)
+    except Exception:
+        return "（取得できませんでした）"
+
+
 def _line_history(user_id, limit=8) -> str:
     """LINEの直近のやり取りを会話履歴として返す。
 
@@ -414,6 +430,9 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork", line_u
 {asker_line}{room_line}
 ## {'このLINEでの直近のやり取り（同じ相手との続きの会話）' if channel == 'line' else '直近のChatwork会話'}
 {_line_history(line_user_id) if channel == 'line' else _chat_context(room_id)}
+
+## 直近に送った写真（番号の対応）
+{_sent_images_context(channel, line_user_id, room_id)}
 
 ## 現在の未完了TODO
 {_open_tasks_context(room_id)}
