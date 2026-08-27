@@ -1,23 +1,27 @@
 #!/bin/bash
-# 週に一度、新しいネタから記事を1本書いて、公開の予約まで入れる。
+# 毎日1本、新しいネタから記事を書いて、公開の予約まで入れる。
 #
-#   ./scripts/weekly-write.sh          1本書いて、guard を通れば予約に入れる
-#   ./scripts/weekly-write.sh --dry    書くところまで。予約には入れない
+#   ./scripts/daily-write.sh          1本書いて、guard を通れば予約に入れる
+#   ./scripts/daily-write.sh --dry    書くところまで。予約には入れない
 #
 # 流れ:
-#   ① scan          … 前回以降に SESSION_LOG へ書かれたネタを拾う
+#   ① scan          … まだ書いていないネタを拾う（書いたものは .neta_used.txt で除外）
 #   ② claude -p     … その中から1つ選び、根拠を実物で確認して3媒体の原稿を書く
 #   ③ guard         … ★個人情報・固有名詞・寿命を縮める語を機械で止める
 #   ④ zenn-schedule … 通ったものだけ、毎日22:30の予約に入る
 #
-# ★③を通らなければ、その週は何も出ない。それが安全側。ログを見て人が直す。
+# ★③を通らなければ、その日は何も出ない。それが安全側。ログを見て人が直す。
+#
+# **なぜ毎日か**（2026-08-27 に週次から変更）: Zenn も note も「毎日1本」出す設定なので、
+# 書くのが週1本だと予約が尽きて出せなくなる。書く速さと出す速さを揃えると、
+# 予約の残りが一定（25日ぶん）に保たれて途切れない。
 set -u
 cd "$(dirname "$0")/.."
 DRY=""
 [ "${1:-}" = "--dry" ] && DRY="1"
 
 echo "=================================================="
-echo "  $(date '+%Y-%m-%d %H:%M')  weekly-write"
+echo "  $(date '+%Y-%m-%d %H:%M')  daily-write"
 echo "=================================================="
 
 # ① 新しいネタ
@@ -30,7 +34,8 @@ fi
 
 # ② 書かせる。**破壊的な操作はさせない**ので、許可するツールを絞る
 BEFORE="$(ls content/works/*.json | wc -l | tr -d ' ')"
-claude -p "$(cat <<PROMPT
+BEFORE_ART="$(ls ../articles/*.md 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.md$//' | sort)"
+OUT="$(claude -p "$(cat <<PROMPT
 あなたは ~/ai-tools-base の「制作記録」を書く担当です。**1本だけ**書いてください。
 
 ## 選ぶ
@@ -58,15 +63,42 @@ $NETA
 - **固有名詞を書かない**（会社名・物件名・人名・住所・電話番号）。すべて一般化する
 - 数値は**実測値だけ**。例示の電話番号を使うときは 03-5555-xxxx 帯にする
 - 書き終えたら、drafts/NETA.md にその行があれば消す
+- **既にある記事と同じ話を書かない。** content/works/ を見て、同じ症状・同じ原因の記録が
+  既にあるなら、そのネタは選ばずに別のものにする
 
-最後に、作った3つのファイル名だけを1行ずつ出力してください。
+最後に次の4行だけを出力してください（他は書かない）。
+  1〜3行目: 作った3つのファイルのパス
+  4行目: NETA: <選んだネタの1行をそのまま貼る>
 PROMPT
-)" --allowedTools "Read,Grep,Glob,Write,Edit,Bash(git log:*),Bash(git show:*),Bash(ls:*),Bash(cat:*),Bash(sed:*),Bash(grep:*),Bash(wc:*)" 2>&1 | tail -25
+)" --allowedTools "Read,Grep,Glob,Write,Edit,Bash(git log:*),Bash(git show:*),Bash(ls:*),Bash(cat:*),Bash(sed:*),Bash(grep:*),Bash(wc:*)" 2>&1)"
+echo "$OUT" | tail -25
 
 AFTER="$(ls content/works/*.json | wc -l | tr -d ' ')"
 if [ "$BEFORE" = "$AFTER" ]; then
-  echo "→ 記事が増えていない。今週は見送り"
+  echo "→ 記事が増えていない。今日は見送り"
   exit 0
+fi
+
+# ★書いた記事を drafts/zenn_order.txt の末尾へ足す。
+# Zenn の予約も note の投稿順も、この並びを見て「載っていないものは名前順で後ろ」に回す。
+# **載せないと、Zennは書いた順・noteはアルファベット順**になり、同じ日に別の記事が出る
+# （noteの本文にはZennのURLが埋めてあるので、噛み合わないとリンク先がまだ無い状態になる）。
+AFTER_ART="$(ls ../articles/*.md 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.md$//' | sort)"
+NEW_ART="$(comm -13 <(echo "$BEFORE_ART") <(echo "$AFTER_ART"))"
+for s in $NEW_ART; do
+  if ! grep -qx "$s" drafts/zenn_order.txt 2>/dev/null; then
+    echo "$s" >> drafts/zenn_order.txt
+    echo "zenn_order.txt の末尾に足した: $s"
+  fi
+done
+
+# 書いたネタを記録する。**これが無いと同じネタを毎日書く**（日次にした以上ここが要）
+CHOSEN="$(echo "$OUT" | grep '^NETA: ' | tail -1 | sed 's/^NETA: //')"
+if [ -n "$CHOSEN" ]; then
+  /usr/bin/python3 scripts/neta_scan.py --used "$CHOSEN"
+else
+  echo "★選んだネタを報告してこなかった。重複よけが効かないので、ログを見て"
+  echo "  ./publish.sh scan --used \"<書いたネタの1行>\" を人が入れること"
 fi
 
 # ③ 関門
@@ -84,7 +116,7 @@ else
   echo "--- 予約に入れる ---"
   /usr/bin/python3 scripts/zenn_schedule.py --write
   ( cd .. && git add -A articles ai-tools-base && \
-    git commit -q -m "週次: 記事を1本足して予約に入れた（自動）" && git push -q origin main ) \
+    git commit -q -m "日次: 記事を1本足して予約に入れた（自動）" && git push -q origin main ) \
     && echo "push した"
 fi
 echo "=== 終わり $(date '+%H:%M') ==="

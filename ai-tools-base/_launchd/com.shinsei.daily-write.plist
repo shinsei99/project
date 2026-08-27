@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- 毎日1本、新しいネタから記事を書いて予約まで入れる（メインPCのみ）。
+     毎日 8:07（:00 や :30 を避ける）。ログは /tmp/daily-write.log
+
+     2026-08-27 に週次から日次へ変更。Zenn も note も「毎日1本」出す設定なので、
+     書くのが週1本だと予約が尽きて出せなくなる。書く速さと出す速さを揃える。
+
+     入れ方: cp して launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shinsei.daily-write.plist
+     外し方: launchctl bootout gui/$(id -u)/com.shinsei.daily-write
+     ★先に drafts/.pii-blocklist.txt を埋めておくこと（社名・物件名・人名）。 -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.shinsei.daily-write</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>-lc</string>
+    <string>/Users/apple/ai-tools-base/scripts/daily-write.sh</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>8</integer>
+    <key>Minute</key><integer>7</integer>
+  </dict>
+  <key>StandardOutPath</key><string>/tmp/daily-write.log</string>
+  <key>StandardErrorPath</key><string>/tmp/daily-write.err</string>
+  <key>RunAtLoad</key><false/>
+</dict>
+</plist>
