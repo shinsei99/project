@@ -23,7 +23,12 @@ REPO = ROOT.parent
 STATE = ROOT / "drafts" / ".neta_scan.json"
 DATE = re.compile(r"^##\s*(\d{4}-\d{2}-\d{2})")
 HEAD = re.compile(r"^###\s*発生したエラーと解決策")
-ITEM = re.compile(r"^\s*[-*]\s+(?:\*\*)?(?:症状|症例)")
+# エラー節の**先頭の箇条書き**を1件のネタとみなす。
+# 以前は「症状」で始まる行だけを拾っていたが、実際のログでその形は3割しかなく
+# 7割を取りこぼしていた（2026-08-27 実測 99/293行）。書き方は揃わないので拾う側を広げる。
+# ぶら下がりの子項目（字下げ）は details なので拾わない。
+ITEM = re.compile(r"^[-*]\s+\S")
+LABEL = re.compile(r"^(?:\*\*)?(?:症状|症例)(?:\*\*)?[:：]?\s*")
 
 
 def entries() -> list[dict]:
@@ -44,9 +49,9 @@ def entries() -> list[dict]:
                 in_sec = False
                 continue
             if in_sec and ITEM.match(line):
-                text = re.sub(r"^\s*[-*]\s+", "", line)
-                text = re.sub(r"\*\*", "", text)
-                text = re.sub(r"^(症状|症例)[:：]?\s*", "", text).strip()
+                text = re.sub(r"^[-*]\s+", "", line)
+                text = LABEL.sub("", text)
+                text = re.sub(r"\*\*", "", text).strip()
                 if len(text) > 8:
                     out.append({"app": app, "date": date, "text": text[:110]})
     return out
