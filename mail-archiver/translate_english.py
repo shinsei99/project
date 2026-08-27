@@ -47,6 +47,12 @@ CLAUDE_BIN = shutil.which("claude") or "/opt/homebrew/bin/claude"
 MODEL = "claude-sonnet(cli)"
 BODY_CHARS = 900           # 渡す本文の長さ。要約するので冒頭で足りる
 BATCH = 5                  # 1回のclaude呼び出しで訳す通数
+# ★1回の実行で訳す上限（2026-08-27夜の反省）。
+#   1,384通を一気に流したら **67分で定額枠を使い切り、445通で力尽きて939通が全滅**した。
+#   さらに枠切れ後も188回むだにclaudeを叩き続けた。小分けにすれば数晩で終わり、
+#   同じ晩に動く他のジョブ（OCR・業務QA）から枠を奪わない。
+DEFAULT_LIMIT = 150
+ABORT_AFTER_FAILS = 3      # バッチが連続でこの回数こけたら、その回は諦める（枠切れとみなす）
 
 _CJK = re.compile(r"[぀-ヿ一-鿿]")
 _LATIN = re.compile(r"[A-Za-z]")
@@ -131,7 +137,8 @@ def translate_batch(rows) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--limit", type=int, default=0)
+    ap.add_argument("--limit", type=int, default=DEFAULT_LIMIT,
+                    help="1回に訳す上限（既定 %d。0で全部）" % DEFAULT_LIMIT)
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--stats", action="store_true")
     ap.add_argument("--fts-backfill", action="store_true",
@@ -162,15 +169,21 @@ def main() -> int:
 
     rows = pending(conn, args.limit)
     print("これから訳す: %d 通（1回 %d 通ずつ）" % (len(rows), BATCH), flush=True)
-    ok = ng = 0
+    ok = ng = fail_streak = 0
     t0 = time.time()
     for i in range(0, len(rows), BATCH):
         chunk = rows[i:i + BATCH]
         try:
             got = translate_batch(chunk)
+            fail_streak = 0
         except Exception as e:
             ng += len(chunk)
+            fail_streak += 1
             print("  失敗（%d通）: %s" % (len(chunk), str(e)[:120]), flush=True)
+            if fail_streak >= ABORT_AFTER_FAILS:
+                print("  ★claude が連続 %d 回こけた（定額枠切れの可能性）。今回はここで終える。"
+                      "訳せていない分は次回そのまま続きから拾う。" % fail_streak, flush=True)
+                break
             continue
         for r in chunk:
             pair = got.get(r["id"])

@@ -27,7 +27,8 @@ rc=$?
 #   全文検索でも日本語の語で英文メールが引っかかるようになる。
 #   ★ここを飛ばすと、その日に届いた英語メールだけ日本語で探せない状態になる。
 echo "----- $(date '+%Y-%m-%d %H:%M:%S') 英語メールの日本語訳（新着分） -----" >> "$LOG"
-/usr/bin/python3 translate_english.py >> "$LOG" 2>&1
+# 1晩150通まで（既定）。一気に流すと定額枠を使い切り、同じ晩のOCR・業務QAを巻き添えにする
+/usr/bin/python3 translate_english.py --limit "${TRANSLATE_MAX:-150}" >> "$LOG" 2>&1
 
 # --- 新着ぶんの意味検索ベクトルを作る（無い分だけ・.venv-embed で実行）---
 # 重い torch は閲覧UIに載せず、この専用venvだけが持つ。初回は全件で時間がかかるが、

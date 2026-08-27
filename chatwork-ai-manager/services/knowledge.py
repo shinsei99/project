@@ -211,6 +211,14 @@ def _render_pdf_images(path, out_dir, max_pages=15, dpi=150):
     return out
 
 
+class OcrUnavailable(Exception):
+    """OCRの土台（claude）が使えなかった。**書類に文字が無いのとは別物**。
+
+    これを「文字が無い」と同じ扱いにすると、定額枠が切れていた日に当たった書類が
+    見送りリストへ入り、**二度とOCRされなくなる**（2026-08-28に実際に発生）。
+    """
+
+
 def ocr_pdf(path, max_pages=15) -> list:
     """スキャン画像PDFを claude vision で文字起こし。戻り値: [(text, 'P{n}(OCR)'), ...]。"""
     import re
@@ -231,8 +239,12 @@ def ocr_pdf(path, max_pages=15) -> list:
         )
         try:
             env = run_claude(prompt, model="sonnet", timeout=600, add_dir=tmp, allow_read=True)
-        except ClaudeError:
-            return []
+        except ClaudeError as e:
+            # ★空リストで返さない（2026-08-28）。
+            #   claude 側の失敗（定額枠切れ・接続不良）を「この書類には文字が無い」と
+            #   区別できず、呼び出し側が**見送りリストに登録して永久にスキップ**していた。
+            #   2026-08-28 01:00 の夜間OCRで実際に5件がそうなった。
+            raise OcrUnavailable(str(e)) from e
         text = (env.get("result") or "").strip()
     if not text:
         return []

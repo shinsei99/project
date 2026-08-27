@@ -32,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from db.migrate import migrate  # noqa: E402
 from services import config, knowledge  # noqa: E402
+from services.knowledge import OcrUnavailable  # noqa: E402
 from services.settings import set_state  # noqa: E402
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -40,7 +41,10 @@ APP_DIR = os.path.dirname(os.path.abspath(__file__))
 # つまり記録しないと**毎晩まったく同じファイルを再OCRし続ける**（定額枠の無駄）。
 SKIP_PATH = os.path.join(APP_DIR, "logs", "ocr_skiplist.json")
 SKIP_MAX_TRIES = 2          # 同じ内容で2回ダメなら以後は飛ばす（mtimeが変われば再挑戦）
-ABORT_AFTER_FAILS = 5       # 連続失敗がこの数に達したら中断（CLIの枠切れ・環境異常とみなす）
+# ★「文字が取れなかった」は中断の判定に数えない（2026-08-28）。
+#   数えていたため、同じ業者の点検報告書が5件続いただけで **その晩の作業が21秒で全部止まった**。
+#   中断すべきなのは claude 自体が落ちているとき（OcrUnavailable）だけ。
+ABORT_AFTER_BACKEND_FAILS = 3   # claude が連続でこの回数こければ、その晩は諦める
 
 
 def _load_skiplist() -> dict:
@@ -134,8 +138,8 @@ def main():
                 text_skip += 1
                 continue                      # 取込済み＝進捗に数えない
             if r.get("skipped"):
+                # 本当に文字が無い。見送りに記録するが、**中断の判定には数えない**
                 empty += 1
-                streak += 1
                 _record_skip(skips, p, mtime, str(r.get("reason") or "テキスト抽出なし"))
                 print(f"  [{i}/{len(pdfs)}] 画像認識なし: {rel}", flush=True)
             else:
@@ -145,6 +149,12 @@ def main():
                 skips.pop(p, None)            # 取れたので記録から外す
                 tag = "OCR" if str(r.get("mime", "")).endswith("-ocr") else "text"
                 print(f"  [{i}/{len(pdfs)}] {tag} {r.get('chunks')}ch: {rel}", flush=True)
+        except OcrUnavailable as e:
+            # claude 側が落ちている。**見送りリストには入れない**（この書類のせいではない）
+            failed += 1
+            streak += 1
+            print(f"  [{i}/{len(pdfs)}] claudeが応答せず（この書類は見送りに入れない）: {rel}: "
+                  f"{str(e)[:80]}", flush=True)
         except Exception as e:
             failed += 1
             streak += 1
@@ -155,8 +165,9 @@ def main():
         if done and done % 25 == 0:
             set_state("ocr_progress", f"{i}/{len(pdfs)} (OCR {ocr_ok})")
             _save_skiplist(skips)             # 途中で落ちても記録を残す
-        if streak >= ABORT_AFTER_FAILS:
-            stopped = f"連続失敗 {streak} 件（claude CLI の定額枠切れ・環境異常の可能性）"
+        if streak >= ABORT_AFTER_BACKEND_FAILS:
+            stopped = (f"claude が連続 {streak} 回こけた（定額枠切れ・環境異常の可能性）。"
+                       "この晩は諦める。★書類側の問題ではないので見送りには入れていない")
             break
         if args.max_new and done >= args.max_new:
             stopped = f"上限 {args.max_new} 件に到達"

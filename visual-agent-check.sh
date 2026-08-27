@@ -103,7 +103,7 @@ fi
 
 if [ "$want_mcp" = 1 ]; then
   echo "== 3. 入口A を実際に動かす（初回はダウンロードで1分ほどかかる） =="
-  out=$(claude -p "http://127.0.0.1:$PORT/index.html を開き、ボタンを押して見出しの文字が変わることを確認し、変化後の見出しの文字だけを1行で答えてください。" \
+  out=$("${CLAUDE_BIN:-/opt/homebrew/bin/claude}" -p "http://127.0.0.1:$PORT/index.html を開き、ボタンを押して見出しの文字が変わることを確認し、変化後の見出しの文字だけを1行で答えてください。" \
     --output-format json --dangerously-skip-permissions --model sonnet \
     --mcp-config "$HOME/.mcp.json" --strict-mcp-config 2>/dev/null \
     | python3 -c "import json,sys;print(json.load(sys.stdin).get('result',''))" 2>/dev/null)

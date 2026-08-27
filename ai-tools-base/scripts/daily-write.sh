@@ -38,10 +38,21 @@ if echo "$NETA" | grep -q "新しいものは無い"; then
   exit 0
 fi
 
+# ★claude は絶対パスで呼ぶ（2026-08-28）。
+#   このMacには claude が2つある:
+#     /usr/local/bin/claude    … 6月のnpm版。**native binary 未導入で壊れている**
+#     /opt/homebrew/bin/claude … Homebrew版。正常（2.1.226）
+#   PATH は /usr/local/bin が先なので、裸で `claude` と書くと**壊れたほうを掴む**。
+#   毎晩22:45にここで失敗し、ネタ収集まではできているのに記事が1本も書けていなかった。
+CLAUDE_BIN="${CLAUDE_BIN:-/opt/homebrew/bin/claude}"
+if [ ! -x "$CLAUDE_BIN" ]; then
+  CLAUDE_BIN="$(command -v claude)" || { echo "claude が見つかりません"; exit 1; }
+fi
+
 # ② 書かせる。**破壊的な操作はさせない**ので、許可するツールを絞る
 BEFORE="$(ls content/works/*.json | wc -l | tr -d ' ')"
 BEFORE_ART="$(ls ../articles/*.md 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.md$//' | sort)"
-OUT="$(claude -p "$(cat <<PROMPT
+OUT="$("$CLAUDE_BIN" -p "$(cat <<PROMPT
 あなたは ~/ai-tools-base の「制作記録」を書く担当です。**1本だけ**書いてください。
 
 ## 選ぶ
