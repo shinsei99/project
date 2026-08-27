@@ -17,6 +17,7 @@ import streamlit as st
 import ai_query
 import config
 import db
+import semantic
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ICON_180 = os.path.join(_HERE, "assets", "appicon-180.png")
@@ -182,19 +183,52 @@ with tab_search:
         m3.metric("サーバーから削除済", "{:,} 通".format(s["deleted"]), human_size(s["deleted_bytes"]))
         m4.metric("添付ファイル", "{:,} 件".format(s["attachments"]), human_size(s["attachment_bytes"]))
 
-    mode = st.radio("検索のしかた", ["単純検索", "AI検索（自然文）"],
+    mode = st.radio("検索のしかた", ["単純検索", "AI検索（キーワード変換）", "意味検索（ベクトル）"],
                     horizontal=True, label_visibility="collapsed")
 
     q = ""
     fts_expr = ""
     ai = st.session_state.get("ai_result")
+    sem_ids = None
+    sim_map = {}
 
     if mode == "単純検索":
         st.session_state.pop("ai_result", None)
+        st.session_state.pop("sem", None)
         ai = None
         q = st.text_input("キーワード（件名・本文・宛先を横断。3文字以上が速い）", "")
+    elif mode == "意味検索（ベクトル）":
+        st.session_state.pop("ai_result", None)
+        ai = None
+        cnt = db.embedding_count(conn, semantic.MODEL_NAME)
+        if cnt < s["messages"]:
+            st.caption("🧠 ベクトル作成中：{:,} / {:,} 通（増えるほど取りこぼしが減ります）".format(
+                cnt, s["messages"]))
+        nl2 = st.text_input("やりたいことを日本語で（意味で探す。語が違っても拾う）", key="sem_nl")
+        cg, cc = st.columns([1, 1])
+        if cg.button("🧠 意味で検索", width="stretch") and nl2.strip():
+            if not semantic.available():
+                st.error("埋め込み環境（.venv-embed）が未整備です。")
+            elif cnt == 0:
+                st.warning("まだベクトルが1件も作られていません。作成が進んでから試してください。")
+            else:
+                with st.spinner("意味で探しています…"):
+                    try:
+                        ids, sm = semantic.search(conn, nl2, top=800)
+                        st.session_state["sem"] = {"ids": ids, "sim": sm, "q": nl2}
+                    except Exception as e:  # noqa: BLE001
+                        st.error("意味検索に失敗: {}".format(e))
+        if cc.button("クリア", width="stretch", key="sem_clear"):
+            st.session_state.pop("sem", None)
+        sem = st.session_state.get("sem")
+        if sem:
+            sem_ids = sem["ids"]
+            sim_map = sem["sim"]
+            st.info("**意味検索**：「{}」に意味が近い順（アカウント・期間の絞り込みは後がけ）。".format(
+                sem["q"]))
     else:
-        nl = st.text_input("やりたいことを日本語で（例：1年以内で水道局と質疑調整したメール）", "")
+        st.session_state.pop("sem", None)
+        nl = st.text_input("やりたいことを日本語で（例：1年以内で水道局と質疑調整したメール）")
         c_go, c_clear = st.columns([1, 1])
         if c_go.button("🔎 AIで検索", width="stretch") and nl.strip():
             with st.spinner("AIが条件に変換中…"):
@@ -234,11 +268,32 @@ with tab_search:
 
     page = st.number_input("ページ", min_value=1, value=1, step=1)
 
-    rows, total = db.search(conn, q=q, sender=sender, folder_id=folder_id,
-                            account_id=account_id, date_from=date_from, date_to=date_to,
-                            state=state, has_attach=has_attach, direction=direction,
-                            fts_expr=fts_expr,
-                            limit=PAGE_SIZE, offset=(int(page) - 1) * PAGE_SIZE)
+    if sem_ids is not None:
+        # 意味検索：ベクトルで並べた順を保ったまま、アカウント・期間・添付だけ後がけで絞る
+        by_id = {r["id"]: r for r in db.messages_by_ids(conn, sem_ids)}
+        ordered = [by_id[i] for i in sem_ids if i in by_id]
+
+        def _passes(r) -> bool:
+            if account_id and r["account_id"] != account_id:
+                return False
+            if date_from and (r["date_utc"] or "") < date_from:
+                return False
+            if date_to and (r["date_utc"] or "") > date_to:
+                return False
+            if has_attach and not r["has_attachments"]:
+                return False
+            return True
+
+        ordered = [r for r in ordered if _passes(r)]
+        total = len(ordered)
+        off = (int(page) - 1) * PAGE_SIZE
+        rows = ordered[off:off + PAGE_SIZE]
+    else:
+        rows, total = db.search(conn, q=q, sender=sender, folder_id=folder_id,
+                                account_id=account_id, date_from=date_from, date_to=date_to,
+                                state=state, has_attach=has_attach, direction=direction,
+                                fts_expr=fts_expr,
+                                limit=PAGE_SIZE, offset=(int(page) - 1) * PAGE_SIZE)
     st.write("**{:,} 件**該当（{} 〜 {} 件目を表示）".format(
         total, (int(page) - 1) * PAGE_SIZE + 1 if total else 0,
         min(int(page) * PAGE_SIZE, total)))
@@ -257,8 +312,11 @@ with tab_search:
         if not title:
             head = " ".join((r["body_text"] or "").split())[:60]
             title = "（件名なし）{}".format(head) if head else "（件名なし）"
-        label = "{} {} — {} ｜ {} ｜ {}{}".format(
-            badge, to_local(r["date_utc"]) or "(日付不明)",
+        sim_prefix = ""
+        if sim_map:
+            sim_prefix = "🧠{}% ".format(int(round(sim_map.get(r["id"], 0.0) * 100)))
+        label = "{}{} {} — {} ｜ {} ｜ {}{}".format(
+            sim_prefix, badge, to_local(r["date_utc"]) or "(日付不明)",
             title[:70],
             r["from_addr"] or r["from_name"] or "",
             r["folder_name"], " 📎" if r["has_attachments"] else "")

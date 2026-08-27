@@ -18,6 +18,21 @@
   呼ぶと SIGSEGV する既知バグ [[feedback_claude_subprocess]] を避けるため。/usr/bin/python3 に
   streamlit 1.50 がグローバルで入っている（このMacの /usr/bin/python3 は CLT/Xcode の 3.9）。
   plist は run.sh を呼ぶだけなので `kickstart -k` で反映。
+- **意味検索（ベクトル）を追加**。語が違っても文意で拾う（例「水道局とやりとり」で検針業務メールが上位）。
+  - **ローカル埋め込み**（`intfloat/multilingual-e5-small`・384次元）。**メールは外に一切出さない**。
+  - **重い torch は閲覧UIに載せない**設計：専用 `.venv-embed`（arm64）だけが sentence-transformers を持つ。
+    文書の一括ベクトル化は `embed_backfill.py`、質問1本のベクトル化は `embed_cli.py` を
+    system-python から subprocess 呼び出し（`semantic.py`）。類似度計算は numpy で全件コサイン。
+  - `db.py` に `embeddings` テーブル＋ヘルパー、`app.py` に「意味検索（ベクトル）」モード
+    （結果に🧠xx%の類似度、アカウント・期間は後がけ）。
+  - **初回バックフィル**：全55,496通を約25分でベクトル化（37通/秒）。`sync-daily.sh` に
+    「新着ぶんの追加ベクトル化」を組み込み＝毎日積み上がる。
+  - **依存の罠**：最初 `pip install` が **x86_64 の torch/scipy を引いて dlopen で落ちた**
+    （python自体は arm64 なのに）。system側は整合が崩れたので、**専用venvにクリーン導入**して隔離した
+    （arm64・sentence-transformers を素で入れれば依存は整合する）。system python の壊れた
+    ML パッケージは触っていない（閲覧UIは numpy しか使わない）。
+  - **精度メモ**：small モデルは類似度が 0.85 前後に詰まり、識別が弱い（請求書メール等が紛れる）。
+    上げるなら base（768次元）へ変更 or 上位を Claude に読ませて再ランク（未実装）。
 
 ### 次回への引き継ぎ事項
 

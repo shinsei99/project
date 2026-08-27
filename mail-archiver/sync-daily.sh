@@ -20,6 +20,14 @@ echo "===== $(date '+%Y-%m-%d %H:%M:%S') 自動取り込み開始 =====" >> "$LO
 .venv/bin/python3 sync.py --all-accounts --sync >> "$LOG" 2>&1
 rc=$?
 
+# --- 新着ぶんの意味検索ベクトルを作る（無い分だけ・.venv-embed で実行）---
+# 重い torch は閲覧UIに載せず、この専用venvだけが持つ。初回は全件で時間がかかるが、
+# 以後は毎日の新着ぶんだけなので数十秒で終わる。
+if [ -x .venv-embed/bin/python ]; then
+  echo "----- $(date '+%Y-%m-%d %H:%M:%S') 意味検索ベクトルの追加 -----" >> "$LOG"
+  .venv-embed/bin/python embed_backfill.py >> "$LOG" 2>&1
+fi
+
 # --- 保存期間の適用（メール日付が1年より前をサーバーから削除）---
 # ★戻せない操作。オーナーの明示指示で自動化（2026-08-26）。
 #   ・判定は「メール日付が365日より前」だけ（取り込みからの据置日数は使わない）

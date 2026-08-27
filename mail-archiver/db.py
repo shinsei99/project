@@ -115,6 +115,16 @@ CREATE INDEX IF NOT EXISTS idx_delete_log_at ON delete_log(at DESC);
 CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
   subject, addrs, body, tokenize='trigram'
 );
+
+-- 意味検索用のベクトル。1メール1行（モデルを変えたら作り直す前提で model も持つ）。
+-- vec は float32 を正規化して並べた生バイト（コサイン=内積で引ける）。
+CREATE TABLE IF NOT EXISTS embeddings (
+  message_id INTEGER PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE,
+  model      TEXT NOT NULL,
+  dim        INTEGER NOT NULL,
+  vec        BLOB NOT NULL,
+  made_at    TEXT NOT NULL
+);
 """
 
 
@@ -438,3 +448,60 @@ def stats(conn: sqlite3.Connection) -> Dict[str, Any]:
         "deleted": deleted["n"], "deleted_bytes": deleted["bytes"],
         "attachments": att["n"], "attachment_bytes": att["bytes"],
     }
+
+
+# ---------------------------------------------------------------- 意味検索ベクトル
+
+def messages_missing_embedding(conn: sqlite3.Connection, model: str,
+                               limit: int = 1000) -> List[sqlite3.Row]:
+    """まだこのモデルのベクトルが無いメールを返す（件名・本文つき）。"""
+    return conn.execute(
+        "SELECT m.id, m.subject, m.body_text FROM messages m "
+        "LEFT JOIN embeddings e ON e.message_id = m.id AND e.model = ? "
+        "WHERE e.message_id IS NULL ORDER BY m.id LIMIT ?",
+        (model, limit),
+    ).fetchall()
+
+
+def store_embeddings(conn: sqlite3.Connection, model: str, dim: int,
+                     items: List[Tuple[int, bytes]]) -> None:
+    """items = [(message_id, vec_bytes), ...] をまとめて保存（既存は置き換え）。"""
+    now = utcnow()
+    conn.executemany(
+        "INSERT INTO embeddings(message_id, model, dim, vec, made_at) "
+        "VALUES(?,?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET "
+        "model=excluded.model, dim=excluded.dim, vec=excluded.vec, made_at=excluded.made_at",
+        [(mid, model, dim, vec, now) for mid, vec in items],
+    )
+    conn.commit()
+
+
+def embedding_count(conn: sqlite3.Connection, model: str) -> int:
+    return conn.execute(
+        "SELECT COUNT(*) AS n FROM embeddings WHERE model=?", (model,)
+    ).fetchone()["n"]
+
+
+def load_all_embeddings(conn: sqlite3.Connection, model: str) -> Tuple[List[int], List[bytes]]:
+    """このモデルの全ベクトルを (message_idの列, vecバイトの列) で返す。"""
+    ids: List[int] = []
+    vecs: List[bytes] = []
+    for row in conn.execute(
+            "SELECT message_id, vec FROM embeddings WHERE model=? ORDER BY message_id",
+            (model,)):
+        ids.append(row["message_id"])
+        vecs.append(row["vec"])
+    return ids, vecs
+
+
+def messages_by_ids(conn: sqlite3.Connection, ids: List[int]) -> List[sqlite3.Row]:
+    """id のリストで本文つきに引き直す（順序は呼び出し側で並べ替える）。"""
+    if not ids:
+        return []
+    marks = ",".join("?" for _ in ids)
+    return conn.execute(
+        "SELECT m.*, fo.name AS folder_name, a.name AS account_name "
+        "FROM messages m JOIN folders fo ON fo.id=m.folder_id "
+        "JOIN accounts a ON a.id=m.account_id WHERE m.id IN ({})".format(marks),
+        ids,
+    ).fetchall()
