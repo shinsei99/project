@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KeyTag鍵管理 — サーバー連携の仕様と参照実装</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 0;
+    font-family: -apple-system, "Hiragino Sans", "Yu Gothic", sans-serif;
+    line-height: 1.9; color: #1c1c1e; background: #f5f5f7;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 32px 20px 64px; }
+  header { text-align: center; padding: 16px 0 8px; }
+  h1 { font-size: 1.5rem; margin: 8px 0 4px; }
+  .lead { color: #8e8e93; font-size: .9rem; margin: 0; }
+  h2 { font-size: 1.1rem; margin: 30px 0 6px; }
+  h3 { font-size: .98rem; margin: 18px 0 4px; }
+  .card { background: #fff; border-radius: 14px; padding: 18px 20px; margin: 12px 0; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  a { color: #2563eb; }
+  p { margin: 8px 0; }
+  ol, ul { margin: 8px 0; padding-left: 1.3em; }
+  li { margin: 4px 0; }
+  code { background: rgba(120,120,128,.12); padding: 2px 6px; border-radius: 5px; font-size: .9em; }
+  pre { background: rgba(120,120,128,.12); padding: 12px 14px; border-radius: 10px; overflow-x: auto; font-size: .85rem; line-height: 1.6; }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; font-size: .9rem; display: block; overflow-x: auto; }
+  th, td { border-bottom: 1px solid rgba(120,120,128,.25); padding: 7px 10px; text-align: left; vertical-align: top; }
+  th { font-weight: 600; white-space: nowrap; }
+  .note { color: #8e8e93; font-size: .88rem; }
+  .dl { display: inline-block; background: #2563eb; color: #fff; text-decoration: none;
+        padding: 10px 18px; border-radius: 10px; font-weight: 600; margin: 6px 8px 6px 0; }
+  footer { text-align: center; color: #8e8e93; font-size: .85rem; margin-top: 40px; }
+  .back { display: inline-block; margin-top: 24px; color: #2563eb; text-decoration: none; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #f2f2f7; background: #000; }
+    .card { background: #1c1c1e; box-shadow: none; }
+    .dl { background: #0a84ff; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>サーバー連携の仕様と参照実装</h1>
+    <p class="lead">KeyTag鍵管理 — Server integration: open API &amp; reference implementation</p>
+  </header>
+
+  <div class="card">
+    <p><strong>KeyTag鍵管理は、鍵の台帳を端末の中だけで持つのが既定です。サーバーは要りません。</strong></p>
+    <p>そのうえで「複数人で同じ台帳を見たい」場合に限り、<strong>お使いのサーバー</strong>へ接続できます。
+    接続先はアプリの「設定 &gt; サーバー連携」で入力する方式で、特定のサービスへの加入は不要です。
+    <strong>このページの仕様どおりのサーバーを立てれば、どなたでもご自身の環境でお使いいただけます。</strong></p>
+    <p>
+      <a class="dl" href="./keytag-server.py" download>参照実装をダウンロード（keytag-server.py）</a>
+    </p>
+    <p class="note">Python 3 の標準ライブラリだけで動きます（<code>http.server</code> と <code>sqlite3</code>）。
+    追加インストールは不要です。<code>python3 keytag-server.py</code> で起動します。</p>
+    <p class="note" lang="en">KeyTag stores its key ledger on the device by default; no server is required.
+    For teams that need a shared ledger, the app can connect to <em>your own</em> server.
+    The protocol is documented on this page and a single-file reference implementation
+    (Python 3 standard library only) is provided above. No sign-up or vendor service is involved.</p>
+  </div>
+
+  <h2>全体の流れ</h2>
+  <div class="card">
+<pre><code>① ペアリング   アプリに「サーバーURL」と「6桁コード」を入れる
+                 → POST /api/pair        → Bearer トークンを受け取る
+
+② 鍵を登録     アプリで「タグに書き込む」を押す
+                 → POST /api/register    → サーバーが URL を発行
+                 → その URL を NFC タグに書き込む
+
+③ かざす       タグをかざす（URL から token を取り出す）
+                 → GET  /api/asset       → いま誰が借りているかが返る
+
+④ 貸出／返却   → POST /api/checkout ／ POST /api/return</code></pre>
+    <ul>
+      <li>認証は <code>Authorization: Bearer &lt;トークン&gt;</code> ヘッダのみ（<code>/api/pair</code> を除く）</li>
+      <li>本文・応答とも JSON（UTF-8）</li>
+      <li>応答は必ず <code>{"ok": true, …}</code> または <code>{"ok": false, "error": "…"}</code></li>
+      <li><code>ok:false</code> の <code>error</code> はそのまま画面に出ます。利用者に見せてよい文言を返してください</li>
+      <li>アプリは WebView から呼ぶため <strong>CORS を許可</strong>してください
+        （<code>Access-Control-Allow-Origin</code>、<code>Allow-Headers: Authorization, Content-Type</code>、<code>OPTIONS</code> への応答）</li>
+    </ul>
+    <p class="note"><strong>サーバーに繋がらないときは、アプリが自動で端末内の台帳に切り替えます。</strong>
+    現場を止めないための作りなので、サーバーが落ちても操作は続けられます。</p>
+  </div>
+
+  <h2>タグに書く URL の形</h2>
+  <div class="card">
+    <pre><code>https://&lt;あなたのサーバー&gt;/t/&lt;token&gt;</code></pre>
+    <p><code>token</code> は <code>[a-z0-9]{8,32}</code>。アプリはこの形にだけ反応します
+    （それ以外の URL が書かれたタグは「ただのURL」として扱われます）。</p>
+    <p><strong>この URL はブラウザで開いても意味のあるページを返してください。</strong>
+    アプリを入れていない人がタグをかざしたときに、鍵の状態が読めるようにするためです。</p>
+  </div>
+
+  <h2>エンドポイント</h2>
+
+  <div class="card">
+    <h3>1. <code>POST /api/pair</code> — 端末をつなぐ</h3>
+    <p>6桁コードを Bearer トークンに引き換えます。<strong>認証不要</strong>（これだけ）。</p>
+    <table>
+      <tr><th>要求</th><td><code>{"code": "123456"}</code></td></tr>
+      <tr><th>応答</th><td><code>{"ok": true, "token": "…", "organization": "サンプル商事"}</code></td></tr>
+      <tr><th>失敗</th><td><code>{"ok": false, "error": "コードが違います"}</code></td></tr>
+    </table>
+    <p class="note"><code>organization</code> はアプリの設定画面に「✅ ◯◯ と連携中」と表示されます。
+    コードは使い切り・有効期限つきにしてください（参照実装は30分）。</p>
+
+    <h3>2. <code>GET /api/ping</code> — つながっているか確かめる</h3>
+    <table>
+      <tr><th>応答</th><td><code>{"ok": true, "organization": "サンプル商事", "user": "デモ端末"}</code></td></tr>
+    </table>
+
+    <h3>3. <code>POST /api/register</code> — 鍵を1件登録し、タグに書く URL を返す</h3>
+    <p>アプリが「タグに書き込む」の<strong>直前</strong>に呼びます。</p>
+    <table>
+      <tr><th>要求</th><td><code>{"property_name":"サンプルマンション", "name":"101号室 玄関", "box_position":"A-3", "item_number":["10001","10003"], "item_qty":["1","3"]}</code></td></tr>
+      <tr><th>応答</th><td><code>{"ok": true, "url": "https://…/t/16988f8dc0f55215"}</code></td></tr>
+    </table>
+    <p class="note"><code>item_number</code> と <code>item_qty</code> は同じ長さの配列（鍵番号ごとの本数）。
+    応答に <code>url</code> が無い場合、アプリはサーバー無しの内容だけをタグに書きます（失敗しても書き込みは続行）。</p>
+
+    <h3>4. <code>GET /api/asset?token=&lt;token&gt;</code> — かざした鍵の状態</h3>
+    <table>
+      <tr><th>登録あり</th><td><code>{"ok": true, "found": true, "asset": {…}, "borrowers": [...], "dues": [...]}</code></td></tr>
+      <tr><th>登録なし</th><td><code>{"ok": true, "found": false}</code></td></tr>
+    </table>
+    <p><strong><code>asset</code></strong>（そのまま画面に出ます）</p>
+    <table>
+      <tr><th>キー</th><th>例</th><th>意味</th></tr>
+      <tr><td><code>property_name</code></td><td>サンプルマンション</td><td>物件名</td></tr>
+      <tr><td><code>name</code></td><td>101号室 玄関</td><td>鍵の名称</td></tr>
+      <tr><td><code>label</code></td><td>サンプルマンション / 101号室 玄関</td><td>一覧用の表示名</td></tr>
+      <tr><td><code>item_numbers</code></td><td>10001 / 10003 ×3</td><td>鍵番号（表示用の文字列）</td></tr>
+      <tr><td><code>total_keys</code></td><td>4</td><td>合計本数。2本以上だと返却時に本数確認を促す</td></tr>
+      <tr><td><code>box</code> / <code>box_name</code></td><td>A-3 / </td><td>保管場所</td></tr>
+      <tr><td><code>status</code></td><td>in_stock / checked_out</td><td>状態</td></tr>
+      <tr><td><code>status_label</code></td><td>保管中 / 貸出中</td><td>画面に出す文字</td></tr>
+      <tr><td><code>borrower</code></td><td>{"name","company","kind","phone"} または null</td><td>貸出中のときだけ</td></tr>
+      <tr><td><code>checked_out_at</code> / <code>due_at</code></td><td>2026/08/28 09:25</td><td>整形済みの文字列（ISO ではない）</td></tr>
+      <tr><td><code>elapsed</code></td><td>2時間15分</td><td>貸出からの経過</td></tr>
+      <tr><td><code>is_overdue</code></td><td>true / false</td><td>返却期限超過</td></tr>
+    </table>
+    <p><strong><code>borrowers</code></strong> — 貸出先の候補。
+    <code>[{"id","name","company","kind","open_count"}]</code>。
+    <code>open_count</code> は「その人がいま借りている件数」。よく使う人を上に並べてください。</p>
+    <p><strong><code>dues</code></strong> — 返却予定の選択肢。
+    <code>[{"label":"今日 18:00","value":"2026-08-28T18:00:00+09:00"}]</code>。
+    <strong>サーバー側で作る</strong>ので、会社の運用に合わせて変えられます。</p>
+
+    <h3>5. <code>POST /api/checkout</code> — 貸出</h3>
+    <table>
+      <tr><th>要求</th><td><code>{"token":"…", "borrower_id":"B1234", "new_name":"", "new_kind":"vendor", "new_company":"", "new_phone":"", "due_at":"2026-08-28T18:00:00+09:00"}</code></td></tr>
+      <tr><th>応答</th><td><code>{"ok": true, "asset": {…}}</code></td></tr>
+      <tr><th>失敗</th><td><code>{"ok": false, "error": "この鍵はすでに貸出中です"}</code></td></tr>
+    </table>
+    <ul>
+      <li><code>borrower_id</code> が空なら <code>new_name</code> で新しい貸出先を作ります（どちらか必須）</li>
+      <li><code>new_kind</code> は <code>vendor</code> / <code>customer</code> / <code>employee</code> / <code>other</code></li>
+      <li><strong>二重貸出はサーバー側で止めてください。</strong>2台の端末が同時に押しても壊れないようにするためです</li>
+    </ul>
+
+    <h3>6. <code>POST /api/return</code> — 返却</h3>
+    <table>
+      <tr><th>要求</th><td><code>{"token": "…"}</code></td></tr>
+      <tr><th>応答</th><td><code>{"ok": true, "asset": {…}}</code></td></tr>
+      <tr><th>失敗</th><td><code>{"ok": false, "error": "この鍵は貸出中ではありません"}</code></td></tr>
+    </table>
+    <p class="note">返却後、アプリは <code>GET /api/asset</code> を呼び直して貸出先の候補を取り直します。</p>
+  </div>
+
+  <h2>参照実装を動かす</h2>
+  <div class="card">
+<pre><code>python3 keytag-server.py
+# ─────────────────────────────────────────
+#  サーバーURL     : http://192.168.1.20:8765
+#  ペアリングコード : 090190   （30分で失効）
+#  台帳を見る       : http://192.168.1.20:8765/
+# ─────────────────────────────────────────</code></pre>
+    <ol>
+      <li>iPhone とサーバーを<strong>同じネットワーク</strong>に置きます</li>
+      <li>アプリの「設定 &gt; サーバー連携」に <strong>URL</strong> と <strong>6桁コード</strong>を入れて［連携する］</li>
+      <li>「タグに書き込む」で鍵を作ります → タグにサーバーの URL が書かれます</li>
+      <li>かざすと、貸出・返却が<strong>サーバー側</strong>に記録されます</li>
+      <li>ブラウザで <code>http://&lt;サーバー&gt;/</code> を開くと、<strong>台帳が一覧で見えます</strong>。
+        別の端末からかざしても同じ内容になります</li>
+    </ol>
+    <p class="note"><strong>参照実装は社内LAN・VPN の内側で動かしてください。</strong>
+    認証は最小限です。インターネットに出す場合は HTTPS と、組織に合わせた認証を足してください。</p>
+  </div>
+
+  <a class="back" href="./">← サポートページに戻る</a>
+
+  <footer>
+    <p>KeyTag鍵管理 — SHINSEI PROPERTY MANAGEMENT.K.K.</p>
+  </footer>
+</div>
+</body>
+</html>

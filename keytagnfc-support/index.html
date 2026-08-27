@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KeyTagNFC サポート</title>
+<title>KeyTag鍵管理 サポート</title>
 <style>
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
@@ -37,8 +37,8 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>KeyTagNFC サポート</h1>
-    <p class="lead">NFCタグをかざして、鍵の貸出管理</p>
+    <h1>KeyTag鍵管理 サポート</h1>
+    <p class="lead">鍵にタグを貼り、かざして貸出管理</p>
   </header>
 
   <div class="card">
@@ -148,6 +148,20 @@
     なお、タグ自体に鍵の情報が書かれているため、新しい端末でもかざせば内容を読み取れます。</p>
   </div>
 
+  <h2>複数人で同じ台帳を共有する（任意）</h2>
+  <div class="card">
+    <p>このアプリは<strong>単体で完結します</strong>（サーバーは要りません）。
+    そのうえで、複数人で同じ台帳を見たい場合は<strong>お使いのサーバー</strong>へ接続できます。
+    貸出・返却の記録が端末ではなくサーバーに保存され、他の端末やパソコンからも同じ台帳を見られます。
+    二重貸出はサーバー側で止まるので、2人が同時に操作しても記録が壊れません。</p>
+    <p>接続先はご自身で指定します。<strong>特定のサービスへの加入は必要ありません。</strong>
+    接続仕様は公開しており、<strong>参照実装（1ファイル・追加インストール不要）</strong>も配布しています。</p>
+    <p><a href="./api.html">サーバー連携の仕様と参照実装 →</a></p>
+    <p class="note" lang="en">Optional: the app can connect to <em>your own</em> server so that a team
+    shares one ledger. The protocol is documented and a single-file reference implementation
+    (Python 3 standard library only) is provided. No sign-up or vendor service is involved.</p>
+  </div>
+
   <h2>お問い合わせ</h2>
   <div class="card">
     <p>ご質問・ご要望・不具合のご報告は、下記メールまでお気軽にご連絡ください。</p>
@@ -156,7 +170,7 @@
 
   <a class="back" href="./privacy.html">プライバシーポリシー →</a>
 
-  <footer>© 2026 新誠プロパティマネジメント</footer>
+  <footer>© 2026 SHINSEI PROPERTY MANAGEMENT.K.K.</footer>
 </div>
 </body>
 </html>
