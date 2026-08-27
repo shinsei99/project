@@ -37,6 +37,19 @@ def render():
         st.success("保存しました（次回サイクルから反映）")
 
     st.divider()
+    st.subheader("業務記録リマインド（終業前確認に同居・2026-08-27追加）")
+    st.caption("その日、本人がChatworkに投稿した発言数（業務日報が本文生成に使う数え方と同じ）が"
+               "既定3件未満の社員へ、18:30の業務日報自動生成より前に入力・報告を促す。")
+    rec_enabled = st.checkbox("業務記録リマインドを有効にする",
+                              value=S.get_setting("daily_record_reminder_enabled", "1") == "1")
+    rec_min = st.number_input("最低件数の目安", min_value=1, max_value=20,
+                              value=int(S.get_setting("daily_record_min_count", "3") or 3))
+    if st.button("業務記録リマインド設定を保存"):
+        S.set_setting("daily_record_reminder_enabled", "1" if rec_enabled else "0")
+        S.set_setting("daily_record_min_count", str(int(rec_min)))
+        st.success("保存しました（次回サイクルから反映）")
+
+    st.divider()
     st.subheader("期限リマインド・週次棚卸し（2026-08-17追加・2026-08-24タイミング変更）")
     st.caption("期限リマインドは、期限日の前日にこの時刻で送る事前リマインド（既定はcarryover_1000と同じ10:30）。"
                "前日が休業日（年間休暇スケジュールのオレンジ）の場合は前倒しせず当日この時刻に送る。"

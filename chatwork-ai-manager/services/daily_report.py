@@ -114,6 +114,16 @@ def sync_from_chatwork() -> dict:
     return {"new": got, "error": None}
 
 
+def own_message_count(date_str: str, account_id: int) -> int:
+    """その日、本人が実際に投稿した発言数（監視ルーム＋AIとのダイレクトチャット）。
+
+    日報本文の生成では使わず件数だけ知りたい場面（18:00の業務記録リマインド・
+    Stage 16）向けの薄いラッパー。generate() 内の `own` と同じ数え方に揃える。
+    """
+    msgs = day_messages(date_str, account_id=account_id)
+    return len([m for m in msgs if m["account_id"] == account_id])
+
+
 # --- TODO の動き ---------------------------------------------------------------
 def person_tasks(date_str: str, person: str, account_id=None) -> dict:
     """その人に紐づく TODO。当日動いたもの／未完了で残っているものに分ける。"""

@@ -11,6 +11,13 @@
 週次棚卸し（絞り込みなしで未完了TODO全件を報告。上記の日次催促とは別物）:
   weekly_report_fri (金曜18:00) / weekly_report_mon (月曜10:30)
 
+closing_1800 にはさらに、業務記録リマインド（Stage 16・TASK-20260827-006）を同居させている:
+  その日、本人がChatworkに投稿した発言数（services/daily_report.own_message_count。18:30に
+  自動生成する業務日報が実際に使っている「本人の発言」の数え方をそのまま流用＝二重管理にしない）が
+  既定3件未満の社員へ、18:30の自動生成より前に「本日の業務内容を入力・報告してください」と
+  個別に知らせる。TODO確認（Claudeの優先度判断）とは別の、単純な閾値判定（Pythonで完結）。
+  設定 daily_record_reminder_enabled（既定1）/ daily_record_min_count（既定3）。
+
 方針:
   - **会社の休業日（年間休暇スケジュールのオレンジ）は投稿する定時ジョブを全て止める**（オーナー指示 2026-08-22）。
     carryover/closing/due_reminder/週次棚卸し/業務日報が対象。claim だけして「休業日」と記録し、その日は再試行しない。
@@ -133,6 +140,52 @@ def _candidates(kind, today):
     return out
 
 
+# ---- 業務記録リマインド（closing_1800 に同居・Stage 16・TASK-20260827-006）----
+# 「日報とみなす基準」は、業務日報（daily_report.py）が実際に本文生成へ使っている
+# 「その日、本人がChatworkに投稿した発言数」をそのまま流用する（監視ルーム＋AIとの
+# ダイレクトチャット。daily_report.generate() の `own` と同じ数え方）。
+# 新しい「日報」の定義を作ると18:30の自動生成と数字がズレるため、二重管理にしない。
+
+
+def _daily_record_reminder_enabled() -> bool:
+    return settings.get_setting("daily_record_reminder_enabled", "1") == "1"
+
+
+def _daily_record_min_count() -> int:
+    try:
+        return int(settings.get_setting("daily_record_min_count", "3"))
+    except (TypeError, ValueError):
+        return 3
+
+
+def _send_daily_record_reminders(client, today) -> int:
+    """本日の発言数が閾値未満の社員へ、業務記録の入力・確認を促す。送った人数を返す。"""
+    if not _daily_record_reminder_enabled():
+        return 0
+    from services import daily_report as DR
+    min_count = _daily_record_min_count()
+    sent = 0
+    for p in DR.roster():
+        room_id = p.get("room_id")
+        if not room_id:
+            continue
+        count = DR.own_message_count(today, p["account_id"])
+        if count >= min_count:
+            continue
+        header = mention(p["account_id"], p["name"])
+        body = (f"{header}\n【本日の業務記録のご確認】\n"
+                f"本日のChatworkでの報告がまだ{count}件です（目安{min_count}件）。\n"
+                "本日対応した業務内容を入力・報告してください。18:30に自動で業務日報を作成します。")
+        dedup = f"sched:daily_record_reminder:{room_id}:{p['account_id']}:{today}"
+        ob = outbox.enqueue(room_id, body, kind="progress_check",
+                            reason=f"業務記録件数不足({count}/{min_count}件)",
+                            to_account_ids=str(p["account_id"]), dedup_key=dedup)
+        if ob:
+            outbox.process_auto(client)
+            sent += 1
+    return sent
+
+
 def _decide_prompt(job_type, label, tasks, today):
     lines = []
     for t in tasks:
@@ -192,10 +245,25 @@ def run_job(client, job_type, now=None):
         _finish(job_type, today, res)
         return {"job": job_type, "claimed": True, **res}
 
+    # 業務記録リマインド（closing_1800限定）。TODOの有無に関わらず判定するので、
+    # 「対象TODOなし」の早期returnより前でやる。失敗してもTODO確認自体は止めない。
+    daily_record_reminders = 0
+    daily_record_error = None
+    if job_type == "closing_1800":
+        try:
+            daily_record_reminders = _send_daily_record_reminders(client, today)
+        except Exception as e:
+            daily_record_error = f"{type(e).__name__}: {e}"
+
     tasks = _candidates(kind, today)
     if not tasks:
-        _finish(job_type, today, {"candidates": 0, "contacted": 0})
-        return {"job": job_type, "claimed": True, "candidates": 0, "contacted": 0}
+        result = {"candidates": 0, "contacted": 0}
+        if job_type == "closing_1800":
+            result["daily_record_reminders"] = daily_record_reminders
+            if daily_record_error:
+                result["daily_record_error"] = daily_record_error
+        _finish(job_type, today, result)
+        return {"job": job_type, "claimed": True, **result}
 
     # Claude に「誰に何を送るか」を判断させる（1コール）
     from services.claude_client import ClaudeError, run_json
@@ -280,6 +348,10 @@ def run_job(client, job_type, now=None):
         contacted += 1
 
     result = {"candidates": len(tasks), "contacted": contacted}
+    if job_type == "closing_1800":
+        result["daily_record_reminders"] = daily_record_reminders
+        if daily_record_error:
+            result["daily_record_error"] = daily_record_error
     _finish(job_type, today, result)
     return {"job": job_type, "claimed": True, **result}
 
