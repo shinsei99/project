@@ -7,18 +7,47 @@
 > |---|---|
 > | ★① 本体サイトを本番へ | ✅ `./publish.sh site` → READY。**公開41本すべてが本番にある**ことを1本ずつHTTPで確認、`/novel` も200。※`pokecard-dex`/`psa-collection`/`swim-tracker` の404は **`visibility: "internal"` の意図的な非公開**でデプロイ漏れではない |
 > | ★③ note 自動投稿の常駐 | ✅ `com.shinsei.note-daily`（毎日22:35）を設置。`--login` 実施 → `~/.note-profile` 作成 → **`--check` が「OK（エディタを開けている）」**。**今夜22:35に1本目** |
-> | ★③-b 週次の自動執筆の常駐 | ✅ `com.shinsei.weekly-write`（日曜8:07）を設置。**次回は 8/30(日)** |
+> | ★③-b 自動執筆の常駐 | ✅ **週次 → 日次に変更**（オーナー判断）。`com.shinsei.daily-write`（**毎日22:45**）。**初回は今夜** |
 > | `.pii-blocklist.txt`（③-bの前提） | ✅ メインPCで作成。`parking-map/serve.py` と `gyomu-manual/業務マニュアル.html` から拾い直し **会社11・物件28・地番1・人29＝69語**。`guard` で**85本すべて通過＝誤検知0**。**ありふれた姓（佐藤・中村・鈴木・青木）は意図的に外した**（技術記事で誤爆すると記事が理由なく止まるため）。**サブPCの実物51件とは中身が一致していない**ので、厳密に揃えるならファイルを手で運ぶ |
 > | ★④ note の下書き2本の削除 | ✅ オーナー削除済み（サブPCの SESSION_LOG に記載あり） |
 >
 > **★② note 22本の出し方は「③の自動投稿」で決着**（プレミアム加入はしない）。
 > 22:35に1本ずつ、`drafts/zenn_order.txt` の順で **9/17まで**。
 >
-> **★人の手で見てほしいこと（明朝）**
+> ### ★3媒体を毎日1本ずつ、全部自動にした（2026-08-27 メインPC・**夜にまとめた**）
 >
-> 1. **`/tmp/note-daily.log` と `./publish.sh status`** … 今夜の1本目（`deploy-not-reflected`）が
->    出たか。**画面ありで動くので Mac がスリープ・ログアウト中だと動かない**
-> 2. note を1本出したら、**URLを `content/works/<slug>.json` の `links` に追記 → `./publish.sh site`**
+> ```
+> 22:30  Zenn が自動公開（Zenn側＝GitHub連携。pushさえ済んでいればMacが寝ていても出る）
+> 22:35  note-daily   … 同じ記事を note へ投稿
+> 22:45  daily-write  … ①ネタを拾う ②1本書く（本体JSON＋Zenn原稿＋note原稿）
+>                       ③guard ④予約＋zenn_order.txt へ追記 ④-b links ⑤本番反映
+> ```
+>
+> **朝と夜の2回だったのを夜1回に寄せた。** Macが起きていないといけない窓が1つで済み、
+> その晩に出た Zenn / note のURLをそのまま `links` に入れて本番へ出せる。
+> **朝には寄せられない**（Zennの公開時刻22:30は一度きりで変更できず、noteはその後）。
+>
+> | 期間 | 中身 |
+> |---|---|
+> | 8/27〜9/20（25日） | サブPCが書いた25本の予約。**何があっても出る** |
+> | 9/21〜 | **毎晩の daily-write が約25日先の予約を1本ずつ作り足す**。前もって存在しない |
+>
+> **★人の手で見てほしいこと（明朝これだけ）**
+>
+> ```bash
+> tail -40 /tmp/note-daily.log      # 22:35 note が1本出たか（1本目は deploy-not-reflected）
+> tail -60 /tmp/daily-write.log     # 22:45 記事が1本増えて 2026-09-21 の予約が入ったか
+> cd ~/ai-tools-base && ./publish.sh status
+> ```
+>
+> - **両方ともMacがスリープ・ログアウト中は動かない**（noteは画面ありのChrome、執筆は `claude -p`）
+> - `daily-write` が止まった日は**9/21以降の予約が1日ぶん抜ける**（既存の25本は無事）
+> - ログに `★guard で止まった` が出ていたら、その晩は**わざと何も出していない**。原稿を見て直す
+> - **`~/Library/LaunchAgents/com.shinsei.weekly-write.plist` を消してください。**
+>   ロード解除済みで動かないが、紛らわしい（こちらでは `rm` が許可されず消せなかった）
+>
+> **★サブPCでは絶対に常駐させない。** `note-daily` の投稿済み記録は端末ごと（gitignore）なので
+> 2台で動かすと同じ記事が2回出る。`daily-write` も2台だと同じ朝に2本書いてgitでぶつかる。
 >
 > 詳細は `ai-tools-base/SESSION_LOG.md` の 2026-08-27（メインPC）の節。
 >
