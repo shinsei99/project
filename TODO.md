@@ -184,6 +184,35 @@
 > 入れるだけ**で、フッターも詳細ページも作品ページへ直接飛ぶ（前作は本作と関連しないので載せていない）。
 >
 > 詳しくは `ai-tools-base/SESSION_LOG.md` の 2026-08-27 の節。
+> ## 💻 サブPCへ引き継ぎ（2026-08-27 メインPC）— KeyTagNFC は**再提出まで完了**。やることは `git pull` だけ
+>
+> **KeyTagNFC の差し戻し対応は終わりました。以下は報告で、依頼はありません。**
+> **機密ファイルの受け渡しもなし**（Dropboxの一時置き場は作っていない）。
+>
+> ```bash
+> cd ~ && git pull
+> ```
+>
+> | 結果 | |
+> |---|---|
+> | 審査 | **`WAITING_FOR_REVIEW`（build 3）**。`python3 appstore_api.py --review com.shinsei99.keytag` で追える |
+> | デモ動画 | **公開済み** https://shinsei99.github.io/project/keytagnfc-support/ （1分59秒・720p/H.264・20MB・英語字幕＋日本語ナレーション） |
+> | NFCの実機確認 | **済み**。動画の中でタグへの書き込みと読み取りが成功している＝8/26のNFC修正が実機で効いている証拠 |
+>
+> **★訂正: 「メインPCに ffmpeg が無い」は誤りでした。** `agent-platform/.venv` の
+> **imageio-ffmpeg 同梱バイナリ（ffmpeg 7.1・libass/libfreetype/libx264 入り）**があり、
+> 日本語字幕の焼き込みまでできます。**サブPCへ動画を渡す必要はありませんでした。**
+> 今後、動画処理はどちらのPCでもできると考えてください。
+>
+> **サブPCで知っておくとよいこと**（詳細は `keyline/SESSION_LOG.md` の 2026-08-27）
+>
+> - 動画を作り直す手順は **`keyline/keytag/build-demo-video.py`**（git入り）。ただし
+>   **元動画 `~/Pictures/GX010219.MP4`（628MB）はメインPCにしかない**（git管理外）
+> - **GoPro HERO9 は MTP 接続なので `/Volumes` にマウントされない**。取り込みはイメージキャプチャ.app。
+>   **`GX`＝本編 / `GL`＝低解像度プロキシ**で、番号が最大のものを選ぶ（カードの日付は壊れていて当てにならない）
+> - **`.gitignore` は行末コメントに対応していない**（`#` は行頭のみ）。今回それでパターンが
+>   無効になっていた。追加したら **`git check-ignore -v <path>` で必ず確かめること**
+>
 > ## 🖥 メインPCで受領・実施した（2026-08-26 メインPC）— サブPCへの返信
 >
 > **サブPCの44コミットを受領。機械でできるものはすべて完了。残りは人にしかできない1件（KeyTagの動画撮影）。**
@@ -208,8 +237,10 @@
 >
 > **★人の手が要る（残り）**
 >
-> 1. **KeyTagNFC のデモ動画撮影と Resolution Center への返信**（下のブロックがそのまま台本）。
->    **メインPCに ffmpeg が無い**ので、720p/H.264 への変換はサブPC（`imageio-ffmpeg` 導入済み）へ渡すのが早い
+> 1. ~~**KeyTagNFC のデモ動画撮影と Resolution Center への返信**~~
+>    → **2026-08-27 に完了。build 3 で再提出し `WAITING_FOR_REVIEW`。動画も公開済み。**
+>    （※ここに書いていた「メインPCに ffmpeg が無い」は**誤り**。`agent-platform/.venv` の
+>    imageio-ffmpeg 同梱バイナリ 7.1 が使え、字幕の焼き込みまでメインPCで完結した）
 >    - **2026-08-26: 実機に入れる準備は完了。**TestFlight の内部テストグループ「社内テスト」を作り、
 >      `s.washimi@icloud.com` を招待済み（`INVITED`）。**審査に出した build 2 そのもの**が入る。
 >      iPhone で App Store から **TestFlight** を入れ → 招待メールの `View in TestFlight` →

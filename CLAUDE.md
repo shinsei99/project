@@ -247,7 +247,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | ✅ | — |
 | AI業務マネージャー（Chatwork/LINE常駐AIエージェント） | chatwork-ai-manager | 8540(画面)/8530(LINE) | ✅（画面0.0.0.0） | LINE(ngrok) |
 | 事業計画案ジェネレーター（投資収支→Excel） | business-plan-generator | 8533 | ✅ | — |
-| KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | iOSアプリ **KeyTag**（掲載名 KeyTagNFC）は **Guideline 2.1 で差し戻し**（2026-08-25レビュー・レビュー機は iPad Air M3＝NFC非搭載。**NFCのデモ動画の提出を求められている**。リジェクトではないので build 上げ直しは不要。詳細と撮影台本は `keyline/SESSION_LOG.md` 冒頭） |
+| KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | iOSアプリ **KeyTag**（掲載名 KeyTagNFC）は **1.0 / build 3 で再提出＝審査待ち**（2026-08-27 に `WAITING_FOR_REVIEW` を API で確認）。Guideline 2.1 の差し戻し（NFCのデモ動画の要求）に、**デモ動画をサポートページに公開して回答**した→ https://shinsei99.github.io/project/keytagnfc-support/ 。あわせて実機で判明した **NFCの不具合2件を build 3 で修正**（build 2 はまっさらなタグを読めず、タグに書けなかった）。詳細は `keyline/SESSION_LOG.md` 冒頭 |
 
 ### ツール（16本）※社内LAN共有なし
 

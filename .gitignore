@@ -399,6 +399,8 @@ keyline/keytag/package-lock.json
 #   すべて作り直せるものなので追跡しない
 keyline/keytag/build/
 keyline/keytag/build-sim/
+# デモ動画の生成物（元動画628MB・完成品20MB。完成品は gh-pages にある）
+keyline/keytag/.demo-build/
 keyline/keytag/DerivedData/
 keyline/data/
 keyline/.secret_key

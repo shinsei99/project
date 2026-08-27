@@ -1,3 +1,80 @@
+## 2026-08-27（メインPC）— デモ動画を作って公開し、**build 3 で再提出まで完了**
+
+### 完了したこと
+
+- **再提出まで到達。`WAITING_FOR_REVIEW` / build 3（VALID）を API で確認した。**
+
+**① 実機での検証は「動画そのもの」で済んだ**
+
+オーナーが TestFlight の build 3 で撮影。動画の中で **タグへの書き込みが成功し、読み取りも通っている**。
+build 2 ではこの2つは必ず失敗する（`stopScanning` が `currentTag` を null にするため書き込みは
+`No active NFC session or tag`、まっさらなタグは `Failed to read NDEF message`）。
+**＝ 8/26 のNFC修正が実機で効いていることの証拠**。`RELEASE.md` の
+「実機が手に入ったら確認すること」の主要項目は、これで消化した。
+
+**② GoPro からの取り込み（はまった点）**
+
+- **HERO9 は MTP 接続なので `/Volumes` にマウントされない**（`ioreg -p IOUSB -l | grep "USB Product Name"`
+  では見える）。取り込みは **イメージキャプチャ.app** を使う。カードリーダーでもよい
+- 最初に入ったのは **`GL010203.LRV`＝低解像度プロキシで、しかも別件の私的な映像**だった。
+  GoProは連番で、**`GX`＝本編 / `GL`＝プロキシ**。**番号が最大のものを選ぶ**。
+  カードの日付が壊れている（`4月12日 2262年` と出た）ので**日付順の並べ替えは当てにならない**
+- 本編は **`GX010219.MP4`（1分57秒・2704×1520・HEVC・628MB）**。メインPCの `~/Pictures/` にある
+
+**③ 動画の仕上げ — このMacだけで完結した**
+
+**★`TODO.md` の「メインPCに ffmpeg が無いのでサブPCへ渡すのが早い」は誤りだった。**
+`agent-platform/.venv` の **imageio-ffmpeg 同梱バイナリ（ffmpeg 7.1）**があり、
+**libass / libfreetype / libharfbuzz / libx264 入り**なので日本語字幕の焼き込みまでできる。
+gTTS・moviepy も同じ venv にある。**サブPCへ渡す必要はなかった**ので TODO を訂正した。
+
+| 項目 | 内容 |
+|---|---|
+| 完成品 | 1分59秒 / 1280×720 / H.264 / **20.0MB** / faststart |
+| 字幕 | **英語＝画面上・日本語＝画面下**（下に4行まとめるとiPhoneが隠れるため分けた）。Hiragino Sans W6 |
+| 音声 | **元音声は不使用**（`-map 0:v:0`。事務所の会話が入る恐れがあるため）＋ gTTS の日本語ナレーション13カット |
+| 手順 | `keyline/keytag/build-demo-video.py`（新規・git入り）。出力は `.demo-build/`（gitignore） |
+
+ffmpeg が無いと思っていた間に書いた **`scratchpad/vidinfo.swift`**（AVFoundation で尺・解像度・
+コーデックを読み、フレームを切り出す）も有効だった。**Xcode があれば `swift` 一発で動く**ので、
+ffmpeg が無いMacで動画を調べるときに使える。
+
+**④ 公開とApp Store Connect**
+
+- gh-pages の `keytagnfc-support/` に動画とポスターを追加し、**イントロ直後**に埋め込んだ
+  （審査員がすぐ見つけられる位置）。英語の説明文も併記。コミット `93c7eb1c`
+- 公開URLを実測: ページ 200 / **`keytag-nfc-demo.mp4` 200・21,008,539バイト・`video/mp4`** /
+  ポスター 200。**GitHub Pages への反映に45秒かかった**（push直後は404が返る）
+- **バージョン 1.0 には build 2 がひも付いたままだった**ので、API で build 3 に差し替えた
+  （`PATCH /v1/appStoreVersions/{id}/relationships/build` → 204）。
+  **これで状態が `REJECTED` → `PREPARE_FOR_SUBMISSION` に変わった**（＝画面の赤い警告も消える）
+- **App Review Information の Notes**（`PATCH /v1/appStoreReviewDetails/{id}`）に
+  動画URL・iPhone専用の説明・デモアカウント不要を記載（1,444文字）
+- オーナーが Resolution Center へ返信し、**審査に提出 → `WAITING_FOR_REVIEW`**
+
+### 発生したエラーと解決策
+
+- 症状: `.gitignore` に `keyline/keytag/.demo-build/   # コメント` と書いたら効かなかった
+  （`git check-ignore -v` が `!keyline/**` を返した）。
+  → 原因: **`.gitignore` は行末コメントに対応していない**。`#` は行頭のみ。
+  パターンが `…/.demo-build/   # デモ動画…` という文字列そのものになっていた。
+  → 直し方: コメントは前の行に独立させる。**`git check-ignore -v` で必ず確かめる**
+  （直下の `.gitignore` は1行目から `*` で全無視 → `!` で個別許可する方式なので、
+  ここを間違えるとファイルが黙って git に入らない）。
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **審査結果待ち。** `python3 appstore_api.py --review com.shinsei99.keytag` で追う。
+  今回は「情報が足りない」への回答なので、通れば次は配信。
+- **元動画 `~/Pictures/GX010219.MP4`（628MB）はメインPCにしかない**（git管理外）。
+  動画を作り直すときはこれが要る。消さないこと。
+- **`~/Pictures/GL010203.LRV` は別件の私的な映像**（イメージキャプチャで誤って取り込んだもの）。
+  不要なら消してよい。
+- 動画は **public リポジトリの gh-pages にある**＝誰でも落とせる。中身はダミーデータのみで
+  確認済みだが、**force push しない方針なので履歴から実質消せない**ことは意識しておく。
+- 未消化: 動画の最後の3秒がホーム画面に戻っている（内容の誤りではない。気になるなら
+  112.5秒で切って静止させれば直る）。
+
 ## 2026-08-26（メインPC）— 実機で「Failed to read NDEF message」→ **原因はバグ2件**。修正した
 
 ### 完了したこと
