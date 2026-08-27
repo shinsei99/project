@@ -1,3 +1,47 @@
+> ## 💻 サブPCへ引き継ぎ（2026-08-27 メインPC）— 開発エージェントが**完了と同時に常駐を再起動**するようになった
+>
+> **やることは `git pull` だけです。** サブPCは常駐0本（役割分担どおり）なので、再起動もポート確認も要りません。
+> **機密ファイルの受け渡しもなし**（Dropboxの一時置き場は作っていません）。
+>
+> ```bash
+> cd ~ && git pull      # 1a154ae9 が入っていればOK
+> ```
+>
+> ### 何が変わったか
+>
+> オーナー依頼「開発を実施すると反映に再起動が必要なので、**開発完了と同時に再起動もかけて**ほしい」。
+> 開発エージェントは稼働中サービスを触らない設計なので、直しても launchd の常駐は古いコードを
+> 抱えたままだった（psa-collection / brain-dump で実際に「pull したのに反映されていない」が起きていた）。
+> 新規 `chatwork-ai-manager/services/dev_restart.py` が、完了報告と同時に**触ったアプリの常駐だけ**を
+> 入れ替える。結果は完了報告の末尾に「🔄 反映（常駐の再起動）」として LINE/Chatwork に届く。
+>
+> | | |
+> |---|---|
+> | 対象の決め方 | `project_dir` ＋ **そのタスクのコミットが触ったトップレベルフォルダ**（着手時のHEADを `dev_task_events` に残して `git diff base..HEAD`） |
+> | 触らないもの | 定時ジョブ（`kickstart` はその場でジョブを走らせる＝note の自動投稿が余計に出る）／未ロードのラベル／ngrok／Workspace直下 |
+> | ビルド | Next.js(`next start`)・Vite(`vite preview`) は再起動前に `npm run build`（配信物がビルド済みのため） |
+> | 再起動の仕方 | plist が変わっていれば `bootout`→`bootstrap`、そうでなければ `kickstart -k`。その後ポートへHTTPして起動を確認 |
+> | worker 自身 | 完了報告を送ってから、切り離した子プロセスで再起動（先に落とすと報告が届かない） |
+> | 設定 | `dev_restart_enabled` / `dev_restart_wait_sec` / `dev_restart_build_timeout_sec` / `dev_restart_exclude`（管理画面「システム設定」にもある） |
+>
+> 実測: psa-collection `kickstart` 2.4秒・`bootout→bootstrap` 3.1秒（8527 HTTP 200）／
+> brain-dump は `npm run build` 込みで 29.5秒（3002 HTTP 200）。
+> **メインPCの worker(40332→86160) と管理画面(8540) は再起動済み＝本番反映済み。**
+>
+> ### サブPCで知っておくとよいこと
+>
+> - **サブPCには launchd 常駐が無いので、開発が終わっても再起動対象がありません**（＝報告に「🔄 反映」は
+>   出ない）。これは異常ではなく役割分担どおり。動作を見たいならメインPCで見ること
+> - **`dev_tasks` にテスト用の行を作らないこと。** メインPCでは常駐 worker が即座に拾って
+>   **本物の開発エージェント（`--dangerously-skip-permissions`）が起動します**（今回それをやって
+>   30秒で `kill -9`。実害なし）。試すなら `dev_agent_enabled=0` にするか `dev_restart` の関数を直接呼ぶ
+> - **はまり所は `chatwork-ai-manager/README.md` に書いてあります**（`CLAUDE.md` / `TODO.md` /
+>   `SESSION_LOG.md` は識別子を含むため gitignore ＝ サブPCには渡りません）。要点だけ:
+>   `kickstart -k` は plist を読み直さない／`ps -o command=,ppid=` は command を最後に置かないと切られる／
+>   `com.shinsei.note-daily.plist` は XMLコメント内の `--login` のせいで `plistlib` が落ちる（`plutil` で読み直す）
+> - **残っている確認は1件だけ（メイン担当）**: 本物の LINE/Chatwork 依頼で、完了報告の末尾に
+>   「🔄 反映」が付き実際に入れ替わっているか。次に開発を頼んだときに見る
+>
 > ## 🖥 メインPCで受領・実施した（2026-08-27 メインPC）— サブPCへの返信：**①③③-b は完了**
 >
 > **サブPCの引き継ぎ（下のブロック）のうち、機械でできるものはすべて完了。** git は受領時点で同期済み
