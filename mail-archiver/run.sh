@@ -14,5 +14,8 @@ if ! /usr/bin/python3 -c "import streamlit" 2>/dev/null; then
   exit 1
 fi
 
+# スマホのホーム画面アイコン用に index.html の head を自己修復（冪等・Streamlit更新後も効く）
+/usr/bin/python3 patch_streamlit_icon.py || true
+
 exec /usr/bin/python3 -m streamlit run app.py \
   --server.port 8535 --server.address 127.0.0.1 --server.headless true
