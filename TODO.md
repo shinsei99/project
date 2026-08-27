@@ -4,7 +4,7 @@
 > サブPCは `git pull` のみ（機密ファイルの受け渡しは無し。Dropboxの一時置き場も作っていない）。
 >
 > ```bash
-> cd ~ && git pull      # 6835ce4a が入っていればOK
+> cd ~ && git pull      # 引き継ぎ本文が TODO.md 先頭に見えていればOK
 > ```
 >
 > ### やったこと（4コミット・すべて push 済み）
