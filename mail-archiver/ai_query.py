@@ -117,6 +117,81 @@ def parse_query(query: str, today: str = "") -> Dict[str, Any]:
     }
 
 
+_RERANK_PROMPT = """あなたはメール検索の審査員です。ユーザーの要望に**本当に合致する**メールだけを選び、
+関連度の高い順に並べてください。件名だけでなく本文の中身で判断すること。
+
+ユーザーの要望: {query}
+
+候補（id / 件名 / 本文の冒頭）:
+{items}
+
+出力は**JSON配列だけ**（前後に文章を付けない）。要望に関連しないものは含めない。
+各要素: {{"id": <整数>, "score": <0-100の合致度>, "reason": "<なぜ合うかを日本語で一言>"}}
+関連が全く無ければ [] を返す。
+"""
+
+
+def rerank(query, candidates, timeout: int = 90):
+    """candidates=[(id, subject, snippet), ...] を Claude に読ませ、関連順に並べ直す。
+
+    戻り値: [{"id": int, "score": int, "reason": str}, ...]（関連しないものは落ちる）。
+    失敗時は RuntimeError。
+    """
+    lines = []
+    for cid, subj, snip in candidates:
+        subj = " ".join((subj or "").split())[:120]
+        snip = " ".join((snip or "").split())[:300]
+        lines.append("- id={}\n  件名: {}\n  本文: {}".format(cid, subj or "(なし)", snip))
+    prompt = _RERANK_PROMPT.format(query=query.strip(), items="\n".join(lines))
+    cmd = [CLAUDE_BIN, "-p", prompt, "--output-format", "json",
+           "--dangerously-skip-permissions", "--model", "sonnet"]
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+    except FileNotFoundError:
+        raise RuntimeError("`claude` コマンドが見つかりません。")
+    except subprocess.TimeoutExpired:
+        raise RuntimeError("再ランクが{}秒を超えたため中断しました。".format(timeout))
+    if proc.returncode != 0:
+        raise RuntimeError("claude が失敗しました（code {}）".format(proc.returncode))
+    outer = json.loads(proc.stdout)
+    if outer.get("is_error"):
+        raise RuntimeError("Claude がエラーを返しました。")
+    text = _extract_json_array(outer.get("result", ""))
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        raise RuntimeError("再ランクの返答をJSONとして読めませんでした。")
+    out = []
+    for d in data if isinstance(data, list) else []:
+        try:
+            out.append({"id": int(d["id"]),
+                        "score": int(d.get("score", 0)),
+                        "reason": str(d.get("reason", "")).strip()})
+        except (KeyError, ValueError, TypeError):
+            continue
+    return out
+
+
+def _extract_json_array(s: str) -> str:
+    """散文やフェンスが混じっても JSON 配列 [...] 本体を取り出す。"""
+    s = (s or "").strip()
+    m = re.search(r"```(?:json)?\s*(\[.*\])\s*```", s, re.DOTALL)
+    if m:
+        return m.group(1)
+    start = s.find("[")
+    if start == -1:
+        return s
+    depth = 0
+    for i in range(start, len(s)):
+        if s[i] == "[":
+            depth += 1
+        elif s[i] == "]":
+            depth -= 1
+            if depth == 0:
+                return s[start:i + 1]
+    return s[start:]
+
+
 def build_fts_expr(keywords_all, keywords_any) -> str:
     """FTS5 の MATCH 式を組む: "水道局" AND ("質疑" OR "協議" OR ...)。"""
     def q(term: str) -> str:

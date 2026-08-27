@@ -191,6 +191,7 @@ with tab_search:
     ai = st.session_state.get("ai_result")
     sem_ids = None
     sim_map = {}
+    reason_map = {}
 
     if mode == "単純検索":
         st.session_state.pop("ai_result", None)
@@ -205,6 +206,8 @@ with tab_search:
             st.caption("🧠 ベクトル作成中：{:,} / {:,} 通（増えるほど取りこぼしが減ります）".format(
                 cnt, s["messages"]))
         nl2 = st.text_input("やりたいことを日本語で（意味で探す。語が違っても拾う）", key="sem_nl")
+        rerank_on = st.checkbox("🤖 Claudeで精査（上位を実際に読んで関連順に並べ替え・理由つき）",
+                                value=True)
         cg, cc = st.columns([1, 1])
         if cg.button("🧠 意味で検索", width="stretch") and nl2.strip():
             if not semantic.available():
@@ -215,17 +218,44 @@ with tab_search:
                 with st.spinner("意味で探しています…"):
                     try:
                         ids, sm = semantic.search(conn, nl2, top=800)
-                        st.session_state["sem"] = {"ids": ids, "sim": sm, "q": nl2}
+                        sem = {"ids": ids, "sim": sm, "q": nl2,
+                               "rerank": None, "reasons": {}}
+                        if rerank_on and ids:
+                            # ベクトル上位40通を Claude に読ませて関連順へ
+                            top = ids[:40]
+                            cand_rows = {r["id"]: r for r in db.messages_by_ids(conn, top)}
+                            cands = [(i, (cand_rows[i]["subject"] if i in cand_rows else ""),
+                                      (cand_rows[i]["body_text"] if i in cand_rows else ""))
+                                     for i in top if i in cand_rows]
+                            with st.spinner("Claudeが上位を読んで精査中…"):
+                                try:
+                                    ranked = ai_query.rerank(nl2, cands)
+                                    sem["rerank"] = [d["id"] for d in ranked]
+                                    sem["reasons"] = {d["id"]: d.get("reason", "") for d in ranked}
+                                    sem["sim"] = {**sm,
+                                                  **{d["id"]: d["score"] / 100.0 for d in ranked}}
+                                except Exception as e:  # noqa: BLE001
+                                    st.warning("Claude精査に失敗（ベクトル順で表示）: {}".format(e))
+                        st.session_state["sem"] = sem
                     except Exception as e:  # noqa: BLE001
                         st.error("意味検索に失敗: {}".format(e))
         if cc.button("クリア", width="stretch", key="sem_clear"):
             st.session_state.pop("sem", None)
         sem = st.session_state.get("sem")
         if sem:
-            sem_ids = sem["ids"]
             sim_map = sem["sim"]
-            st.info("**意味検索**：「{}」に意味が近い順（アカウント・期間の絞り込みは後がけ）。".format(
-                sem["q"]))
+            reason_map = sem.get("reasons") or {}
+            if sem.get("rerank") is not None:
+                # Claudeが選んだ順を先頭に、残りはベクトル順で後ろへ
+                picked = sem["rerank"]
+                rest = [i for i in sem["ids"] if i not in set(picked)]
+                sem_ids = picked + rest
+                st.info("**意味検索＋Claude精査**：「{}」。上位はClaudeが読んで選んだ関連順（理由つき）、"
+                        "以降はベクトル順。".format(sem["q"]))
+            else:
+                sem_ids = sem["ids"]
+                st.info("**意味検索**：「{}」に意味が近い順（アカウント・期間の絞り込みは後がけ）。".format(
+                    sem["q"]))
     else:
         st.session_state.pop("sem", None)
         nl = st.text_input("やりたいことを日本語で（例：1年以内で水道局と質疑調整したメール）")
@@ -321,6 +351,8 @@ with tab_search:
             r["from_addr"] or r["from_name"] or "",
             r["folder_name"], " 📎" if r["has_attachments"] else "")
         with st.expander(label):
+            if reason_map.get(r["id"]):
+                st.success("🤖 Claudeの見立て：{}".format(reason_map[r["id"]]))
             m1, m2 = st.columns([3, 1])
             with m1:
                 st.markdown("**件名**: {}".format(r["subject"] or "(なし)"))
