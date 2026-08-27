@@ -62,6 +62,13 @@ DEFAULT_SETTINGS = {
     # 既定は管理者=鷲見慎一(7426045)。社員が勝手にコードを書かせないための制限。
     "dev_allowed_account_ids": "7426045",
     "dev_max_attempts": "3",            # 再起動復元での再実行上限
+    # 開発完了と同時に、触ったアプリの launchd 常駐を入れ替える（services/dev_restart.py）。
+    # 常駐は起動時のコードを抱えたままなので、再起動しないと直しても画面に出ないため。
+    "dev_restart_enabled": "1",          # 0 で自動再起動をしない（報告だけ）
+    "dev_restart_wait_sec": "60",        # 再起動後、応答が返るまで待つ上限（秒）
+    "dev_restart_build_timeout_sec": "900",  # Next.js/Vite の npm run build の上限（秒）
+    # 触らないラベル（csv）。ngrok は自作コードではなく、落とすとLINEのwebhook URLが切れる
+    "dev_restart_exclude": "com.shinsei.chatwork-ai-manager-ngrok",
     # ---- 業務月報（TASK-20260825-001。TASK-20260826-002でLINE起点に変更）----
     # 入力源・トリガー＝オーナーがLINEで「月報開始」〜「月報終了」の間に送った内容。
     # Chatworkの資料アップロードでは今後いっさい作らない（services/scheduler.py参照）。

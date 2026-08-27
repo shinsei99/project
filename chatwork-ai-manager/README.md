@@ -175,7 +175,52 @@ LINE/Chatwork → 既存Agent(qa) ─┬─ 業務 → 既存Tool層（変更な
   LINEは既存の userId 許可制をそのまま使う。
 - 管理画面の「🛠 開発タスク」で一覧・実行ログ・質問への回答・タスク直接投入ができる。
 - 関連設定（システム設定）: `dev_agent_enabled` / `dev_model` / `dev_timeout_sec` /
-  `dev_workspace`（既定 `/Users/apple`）/ `dev_mcp_config` / `dev_allowed_account_ids` / `dev_max_attempts`。
+  `dev_workspace`（既定 `/Users/apple`）/ `dev_mcp_config` / `dev_allowed_account_ids` / `dev_max_attempts` /
+  `dev_restart_*`（下記）。
+
+### 開発が終わったら、その場で常駐に反映する（2026-08-27 追加）
+
+**launchd の常駐は起動時のコードを抱えたまま**なので、直しても再起動するまで画面に出ない
+（実例: psa-collection は `pokecard-dex/app.py` をモジュールとして読み込むので図鑑を直しても
+古いまま／brain-dump は `next start` でビルド済みを配信しているので `npm run build` が要る）。
+これを人が覚えている前提にしないために、**完了報告と同時に自動で入れ替える**ようにした。
+
+```
+claude が完了 → COMPLETED を記録 → dev_restart.after_task()
+                                      ├ 対象を決める（project_dir ＋ このタスクのコミットが触ったフォルダ）
+                                      ├ Next.js / Vite なら npm run build
+                                      ├ kickstart -k（plistが変わっていれば bootout→bootstrap）
+                                      └ ポートへHTTP（既定60秒まで待つ）
+                → 完了報告の末尾に「🔄 反映（常駐の再起動）」を付けて LINE/Chatwork へ
+                → 最後に自分自身（worker）を切り離した子プロセスで再起動
+```
+
+**触らないもの（意図的）**
+
+| 対象 | 理由 |
+|---|---|
+| 定時ジョブ（`StartCalendarInterval` / `StartInterval`） | `kickstart` は**その場でジョブを実行する**。note の自動投稿などが余計に1本出てしまう |
+| 未ロードのラベル（例 pokecard-dex） | 「常駐させない」と人が決めたものを勝手に立ち上げない |
+| `dev_restart_exclude`（既定 ngrok） | 自作コードではない。落とすとLINEのwebhook URLが切れる |
+| Workspace 直下そのもの（`/Users/apple`） | 対象にすると全常駐が引っかかる。トップレベルのフォルダ単位でのみ判定する |
+
+**はまり所（2026-08-27 実測）**
+
+- `launchctl kickstart -k` は**ロード済みの定義で再起動するだけ**で plist を読み直さない。
+  そこで「plist の更新時刻 > 現プロセスの起動時刻」なら `bootout` → `bootstrap` に切り替える
+  （プロセスの起動時刻は `ps -o etime=` から逆算。macOS の ps に `etimes` は無い）。
+- **worker 自身の再起動は同期的にできない**（自分を殺すと完了報告ごと消える）。報告を送ってから
+  `start_new_session=True` の子で `sleep 5` 後に実行する（launchd のプロセスグループから外さないと
+  bootout の道連れで再起動コマンドごと死ぬ）。自分かどうかは **launchd が持つジョブの pid が
+  自分の親子系統にいるか**で判定する（plist は `run_worker.sh`、実プロセスは `Python worker.py` で
+  文字列が一致しないため）。
+- **plist を Python の `plistlib` だけで読むと取りこぼす。** `com.shinsei.note-daily.plist` は
+  先頭のXMLコメントに `--login` と書いてあり、XMLはコメント内に `--` を置けないので expat が落ちる
+  （launchd と `plutil` は読める）。落ちたら `plutil -convert xml1` で読み直す。
+- `ps -o command=,ppid=` は **command を最後に置かないと途中で切られる**（`ppid=,command=` が正）。
+- **テストで `dev_tasks` に行を作ってはいけない（メインPC）。** worker が常駐しているので、
+  作った瞬間に本物の開発エージェント（`--dangerously-skip-permissions`）が起動する。
+  試すなら `dev_agent_enabled=0` にするか、`dev_restart` の関数を直接呼ぶ。
 
 ## GIS / 地図（管理物件の位置情報）※2026-08-17 追加
 「この物件の近くに自社物件ある？」「管理物件を地図にして」「どのエリアに集中してる？」に答える。

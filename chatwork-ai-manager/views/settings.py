@@ -99,6 +99,18 @@ def render():
         S.get_setting("dev_allowed_account_ids", ""))
     st.caption("⚠️ 開発エージェントはWorkspace内のファイルを書き換えます。"
                "社員が誰でも依頼できる状態にしないこと。")
+    dev_rs = st.checkbox(
+        "開発完了と同時に、触ったアプリの常駐（launchd）を自動で再起動する",
+        value=S.get_setting("dev_restart_enabled", "1") == "1")
+    st.caption("常駐は起動時のコードを抱えたままなので、再起動しないと直しても画面に出ません。"
+               "対象は project_dir と、このタスクのコミットが触ったフォルダだけ。"
+               "定時ジョブ（note投稿など）と未ロードのラベルは触りません。"
+               "Next.js/Vite は再起動の前に `npm run build` も回します。")
+    cr = st.columns(2)
+    dev_rw = cr[0].text_input("再起動後に応答を待つ上限(秒)", S.get_setting("dev_restart_wait_sec", "60"))
+    dev_rx = cr[1].text_input("再起動しないラベル（カンマ区切り）",
+                              S.get_setting("dev_restart_exclude",
+                                            "com.shinsei.chatwork-ai-manager-ngrok"))
     if st.button("開発設定を保存"):
         S.set_setting("dev_agent_enabled", "1" if dev_on else "0")
         S.set_setting("dev_model", dev_model)
@@ -107,6 +119,9 @@ def render():
         S.set_setting("dev_workspace", dev_ws)
         S.set_setting("dev_mcp_config", dev_mcp)
         S.set_setting("dev_allowed_account_ids", dev_ids)
+        S.set_setting("dev_restart_enabled", "1" if dev_rs else "0")
+        S.set_setting("dev_restart_wait_sec", dev_rw)
+        S.set_setting("dev_restart_exclude", dev_rx)
         st.success("保存しました（次の開発タスクから反映）")
 
     st.divider()

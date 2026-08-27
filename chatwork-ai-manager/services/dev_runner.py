@@ -21,6 +21,7 @@ import os
 import threading
 import uuid
 
+from services import dev_restart
 from services import dev_tasks as DT
 from services import notify, settings
 from services.claude_client import ClaudeError, ClaudeSessionError, run_dev_agent
@@ -95,6 +96,12 @@ phase は PLANNING / RUNNING / TESTING のいずれか。対象プロジェク�
 DNS/ドメイン変更・App Store/Google Play 公開・GitHubへのpush・APIキーの新規発行・
 不可逆操作・重大な仕様判断・既存データを壊す可能性のある操作。
 **稼働中の社内サービス（launchd常駐・worker・LINE webhook・ngrok）の停止や再起動もしない。**
+作業中に落とすと社内の利用者が困るため。**あなたが `launchctl` を叩く必要はない**:
+完了報告を出した直後に、システムが**あなたが触ったアプリの常駐だけ**を自動で入れ替える
+（`chatwork-ai-manager/services/dev_restart.py`。Next.js/Vite は `npm run build` も自動）。
+対象は「進捗ツールで報告した `project_dir`」と「あなたのコミットが触ったフォルダ」なので、
+**成果は必ずコミットするか `project_dir` を報告すること**（どちらも無いと反映されない）。
+再起動以外に反映の手順が要る場合（データ再取込・キャッシュ削除など）は報告文に書く。
 
 # 逆に、いちいち聞かないこと（自分で決める）
 UI配置・色・余白・一般的な技術選択・ファイル名・コンポーネント構成・軽微な仕様・
@@ -154,6 +161,37 @@ def _finish_interrupt(task_id: str, text: str, task: dict, session_id):
                         f"（この返信にそのまま答えてください）")
 
 
+def _base_ref(task_id: str, workspace: str):
+    """このタスクに着手した時点の HEAD。何を触ったかを後で git から割り出すために使う。
+
+    再開（INTERRUPT への回答後・worker再起動後）でも**最初の値**を使う。上書きすると
+    再開前に入れたコミットが差分から消え、そのアプリの常駐が再起動されずに終わる。
+    """
+    for ev in reversed(DT.events(task_id, limit=300)):        # 古い順に見る
+        if ev.get("event_type") == "base_ref" and (ev.get("note") or "").strip():
+            return ev["note"].strip()
+    head = dev_restart.git_head(workspace)
+    if head:
+        DT.add_event(task_id, "base_ref", head)
+    return head
+
+
+def _reflect(task_id: str, base_ref):
+    """開発の成果を、動いている常駐サービスへ反映する（launchd の再起動）。
+
+    ここで失敗しても完了報告は必ず出す（「作ったのに何も返ってこない」を作らない）。
+    """
+    try:
+        info = dev_restart.after_task(DT.get(task_id), base_ref=base_ref)
+    except Exception as e:
+        msg = f"⚠️ 反映（常駐の再起動）に失敗しました: {type(e).__name__}: {e}"
+        DT.add_event(task_id, "restart", msg)
+        return {"text": msg}
+    if info.get("text"):
+        DT.add_event(task_id, "restart", info["text"])
+    return info
+
+
 def _run(task_id: str):
     """1タスクを最後まで走らせる（別スレッド）。"""
     global _running_task_id
@@ -166,6 +204,7 @@ def _run(task_id: str):
         task = DT.get(task_id)
         notify.notify(task, "🔧 開発を開始しました。完了したらお知らせします。",
                       dedup_key=f"dev_start:{task_id}:{task.get('attempts')}")
+        base_ref = _base_ref(task_id, workspace)
 
         # セッションIDは**起動前に**決めてDBへ保存する。こうしておくと、実行中にworkerごと
         # 落ちても「同じセッションの続き」として再開できる（最初からやり直さない）。
@@ -206,8 +245,14 @@ def _run(task_id: str):
             _finish_interrupt(task_id, text, task, session_id)
             return
         DT.set_status(task_id, DT.COMPLETED, note="完了", result=text, session_id=session_id)
-        notify.notify(task, f"✅ 完了しました。\n\n{text}",
-                      dedup_key=f"dev_done:{task_id}")
+        # 直したコードを、動いている常駐へ入れ替える（再起動しないと画面に出ないため）
+        info = _reflect(task_id, base_ref)
+        body = f"✅ 完了しました。\n\n{text}"
+        if info.get("text"):
+            body += f"\n\n{info['text']}"
+        notify.notify(task, body, dedup_key=f"dev_done:{task_id}")
+        # 自分自身（worker）の再起動だけは、報告を送り終えてから発火させる
+        dev_restart.run_deferred(info)
     except ClaudeError as e:
         _fail(task_id, task, f"{e}")
     except Exception as e:
