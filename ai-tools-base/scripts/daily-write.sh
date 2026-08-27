@@ -8,7 +8,7 @@
 #   ① scan          … まだ書いていないネタを拾う（書いたものは .neta_used.txt で除外）
 #   ② claude -p     … その中から1つ選び、根拠を実物で確認して3媒体の原稿を書く
 #   ③ guard         … ★個人情報・固有名詞・寿命を縮める語を機械で止める
-#   ④ zenn-schedule … 通ったものだけ、毎日22:30の予約に入る
+#   ④ 待機場所へ   … 通ったものだけ drafts/zenn_pending/ へ。Zennへは 22:00 に1本ずつ
 #   ④-b links       … 昨夜までに公開された Zenn / note のURLを本体の links へ入れる
 #   ⑤ site          … 本体サイトを本番へ（Zennはpushで出るが、本体は vercel --prod が要る）
 #
@@ -121,17 +121,39 @@ fi
 # ③ 関門
 echo "--- guard ---"
 if ! /usr/bin/python3 scripts/guard.py; then
-  echo "★guard で止まった。**公開しない**。原稿を直してから ./publish.sh zenn-schedule --write"
+  echo "★guard で止まった。**公開しない**。原稿を直すこと（待機場所にも入らない）"
   exit 1
 fi
 
-# ④ 予約（既に予約済み・公開済みのものには触らない）
+# ④ 書いた記事は **待機場所へ置く**（2026-08-28 に予約投稿をやめた）。
+#   Zenn は「直近24時間の投稿数（**予約中を含む**）」でレート制限をかける。
+#   25本まとめて予約したら24本が丸ごとデプロイされなかった（実際に発生）。
+#   いまは 22:00 の zenn-daily.sh が待機場所から1本ずつ出す。
 if [ -n "$DRY" ]; then
-  echo "--- dry: 予約には入れない ---"
-  /usr/bin/python3 scripts/zenn_schedule.py
+  echo "--- dry: 待機場所には入れない ---"
 else
-  echo "--- 予約に入れる ---"
-  /usr/bin/python3 scripts/zenn_schedule.py --write
+  echo "--- 待機場所へ入れる（Zennへは 22:00 に1本ずつ出る） ---"
+  /usr/bin/python3 - <<'PYMOVE'
+import pathlib, re, json, urllib.request
+REPO = pathlib.Path(".."); PEND = pathlib.Path("drafts/zenn_pending")
+PEND.mkdir(parents=True, exist_ok=True)
+try:
+    with urllib.request.urlopen(
+            "https://zenn.dev/api/articles?username=shinsei99&order=latest", timeout=10) as r:
+        live = {a["slug"] for a in json.load(r).get("articles", [])}
+except Exception:
+    live = None            # 取れなければ何も動かさない（安全側）
+if live is not None:
+    n = 0
+    for f in sorted((REPO / "articles").glob("*.md")):
+        if f.stem in live:
+            continue       # 公開済みは articles/ に置いたまま
+        t = re.sub(r"^published_at:.*\n", "", f.read_text(encoding="utf-8"), flags=re.M)
+        (PEND / f.name).write_text(t, encoding="utf-8")
+        f.unlink(); n += 1
+    print("  待機場所へ移した: %d 本 / 待機中 %d 本"
+          % (n, len(list(PEND.glob('*.md')))))
+PYMOVE
 
   # 昨夜までに公開された Zenn / note のURLを本体の links へ入れる。
   # **本体・Zenn・note の3点で1本**なので、ここが埋まるまでが1本（validate の転載⚠️が消える）。
@@ -140,7 +162,7 @@ else
   /usr/bin/python3 scripts/links_sync.py --write
 
   ( cd .. && git add -A articles ai-tools-base && \
-    git commit -q -m "日次: 記事を1本足して予約に入れた（自動）" && git push -q origin main ) \
+    git commit -q -m "日次: 記事を1本足して待機場所へ入れた（自動）" && git push -q origin main ) \
     && echo "push した"
 
   # ⑤ 本体サイトを本番へ。**Zennはpushで出るが、本体は vercel --prod が要る**ので
