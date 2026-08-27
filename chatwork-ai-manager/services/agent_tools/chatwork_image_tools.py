@@ -246,7 +246,6 @@ def chatwork_image_fetch(room_id, file_id):
         shutil.rmtree(tmp, ignore_errors=True)
     # どの image_token がどの写真かを覚えておく（送信時に番号を記録するため。2026-08-27）
     try:
-        from services import web_image_store
         web_image_store.remember_source(token, room_id=room_id, file_id=file_id,
                                         title=_title_of(room_id, file_id))
     except Exception:
