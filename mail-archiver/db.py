@@ -463,6 +463,57 @@ def messages_missing_embedding(conn: sqlite3.Connection, model: str,
     ).fetchall()
 
 
+def messages_retranslated(conn: sqlite3.Connection, model: str,
+                          limit: int = 1000) -> List[sqlite3.Row]:
+    """訳文が付いた（or 訳し直された）のに、ベクトルがまだ原文のままのメールを返す。
+
+    `translations.made_at` がベクトルの `made_at` より新しいものが対象。
+    ベクトルが無いものも拾う（訳文で作れば良いので、原文で作り直す必要はない）。
+
+    ★時刻の書式が2種類ある（`embeddings` は `2026-08-27T13:07:33Z`、`translations` は
+      SQLite の `datetime('now')` で `2026-08-27 13:07:33`）。文字列比較すると
+      10文字目が ' '(0x20) と 'T'(0x54) で必ず訳文のほうが小さくなり、**新しくても
+      拾えない**。どちらも `YYYY-MM-DDTHH:MM:SS` へ揃えてから比べる（両方ともUTC）。
+    """
+    if not conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='translations'"
+    ).fetchone():
+        return []
+    return conn.execute(
+        "SELECT t.message_id AS id, t.subject_ja, t.body_ja FROM translations t "
+        "LEFT JOIN embeddings e ON e.message_id = t.message_id AND e.model = ? "
+        "WHERE (t.subject_ja <> '' OR t.body_ja <> '') "
+        "  AND (e.message_id IS NULL OR "
+        "       replace(rtrim(t.made_at,'Z'),' ','T') > replace(rtrim(e.made_at,'Z'),' ','T')) "
+        "ORDER BY t.message_id LIMIT ?",
+        (model, limit),
+    ).fetchall()
+
+
+def fts_apply_translation(conn: sqlite3.Connection, message_id: int) -> bool:
+    """訳文を全文検索(FTS)の索引に足す（2026-08-27）。
+
+    ベクトル検索だけでなく**キーワード検索でも**日本語で英文メールを引けるようにする。
+    `messages_fts` は content 指定の無い独立したFTS5表なので、その行を入れ直す。
+    原文は消さず、件名・本文の後ろに訳文を**足す**（原語の語でも引き続き引ける）。
+    """
+    row = conn.execute(
+        "SELECT m.subject, m.from_name, m.from_addr, m.to_addrs, m.cc_addrs, "
+        "       COALESCE(m.body_text,'') AS body, t.subject_ja, t.body_ja "
+        "FROM messages m JOIN translations t ON t.message_id = m.id WHERE m.id = ?",
+        (message_id,)).fetchone()
+    if not row:
+        return False
+    addrs = " ".join(filter(None, [row["from_name"] or "", row["from_addr"] or "",
+                                   row["to_addrs"] or "", row["cc_addrs"] or ""]))
+    subject = " ".join(filter(None, [row["subject"] or "", row["subject_ja"] or ""]))
+    body = "\n".join(filter(None, [row["body"] or "", row["body_ja"] or ""]))
+    conn.execute("DELETE FROM messages_fts WHERE rowid = ?", (message_id,))
+    conn.execute("INSERT INTO messages_fts(rowid, subject, addrs, body) VALUES(?,?,?,?)",
+                 (message_id, subject, addrs, body))
+    return True
+
+
 def store_embeddings(conn: sqlite3.Connection, model: str, dim: int,
                      items: List[Tuple[int, bytes]]) -> None:
     """items = [(message_id, vec_bytes), ...] をまとめて保存（既存は置き換え）。"""

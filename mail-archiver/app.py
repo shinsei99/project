@@ -226,7 +226,25 @@ with tab_search:
             else:
                 with st.spinner("意味で探しています…"):
                     try:
-                        ids, sm = semantic.search(conn, nl2, top=800)
+                        # ★「今月のもの」「先月」「8月」等の期間指定を先に読み取って絞る（2026-08-27）。
+                        #   絞らないと5万通の中に埋もれ、目当てのメールが上位800にすら入らない
+                        #   （英語メールで実際に発生）。日付の読み取りは既存の ai_query.parse_query を使う。
+                        d_from = d_to = ""
+                        must = []
+                        try:
+                            f = ai_query.parse_query(nl2)
+                            d_from, d_to = f.get("date_from") or "", f.get("date_to") or ""
+                            must = f.get("keywords_all") or []
+                        except Exception:
+                            pass
+                        if d_from or d_to:
+                            st.caption("🗓 期間で絞り込みました: {} 〜 {}".format(d_from or "指定なし",
+                                                                        d_to or "指定なし"))
+                        if must:
+                            st.caption("🔑 この語を含むものに絞りました: {}".format(" / ".join(must)))
+                        ids, sm = semantic.search(conn, nl2, top=800,
+                                                  date_from=d_from, date_to=d_to,
+                                                  must_terms=must)
                         sem = {"ids": ids, "sim": sm, "q": nl2,
                                "rerank": None, "reasons": {}}
                         if rerank_on and ids:
