@@ -1,3 +1,30 @@
+## 2026-08-27（メインPC）— サブPCの引き継ぎを受領。自動化2本を常駐に入れた
+
+### 完了したこと
+- **`drafts/.pii-blocklist.txt` をメインPCで作成**（gitignoreなのでサブPCからは渡らない）。
+  出所は `parking-map/serve.py` と `gyomu-manual/業務マニュアル.html`。
+  **会社11・物件28・地番1・人29＝69語**。`./publish.sh guard` で **85本すべて問題なし＝誤検知0**
+  - **ありふれた姓（佐藤・中村・鈴木・青木）は意図的に外した**。技術記事の例示文で誤爆すると
+    記事が理由なく止まるため（8/27にサブPCで一般語を入れて記事4本が止まった件と同じ失敗を避ける）
+  - サブPCの実物は51件なので**中身は一致していない**。厳密に揃えるならファイルを手で運ぶ
+- **本体サイトを本番へ反映**（`./publish.sh site`）。`ai-tools-base-d8p29cszx` が READY。
+  **公開41本すべてが本番にある**ことを1本ずつ HTTP で確認、`/novel` も 200
+- **weekly-write を常駐に入れた**（`com.shinsei.weekly-write`・日曜8:07）。次回は 8/30(日)
+- **note-daily を常駐に入れた**（`com.shinsei.note-daily`・毎日22:35）。
+  `--login` で `~/.note-profile` を作り、`--check` が **「OK（エディタを開けている）」**
+
+### 発生したエラーと解決策
+- **本番反映後も3本が404のまま**（`pokecard-dex` / `psa-collection` / `swim-tracker`）→
+  原因: **`visibility: "internal"` の意図的な非公開**。デプロイ漏れではない。
+  以後、未反映の確認は `visibility` を見てから判断すること
+- **macOS の zsh に `timeout` が無い**（`command not found`）。検証コマンドに使わない
+
+### 次回への引き継ぎ事項・未解決の課題
+- **今夜22:35に note の1本目**（`deploy-not-reflected`）。**翌朝 `/tmp/note-daily.log` と
+  `./publish.sh status` を見ること**。画面ありで動くので、スリープ・ログアウト中は動かない
+- **note を1本出したら、URLを `content/works/<slug>.json` の `links` に追記 → `./publish.sh site`**
+- **サブPCの launchd には入れない**（投稿記録は端末ごと。2台で動かすと同じ記事が2本出る）
+
 ## 2026-08-27（続き・サブPC）— 投稿と執筆を自動化した
 
 ### 完了したこと
