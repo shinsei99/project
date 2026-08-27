@@ -264,11 +264,13 @@ def search(conn: sqlite3.Connection, q: str = "", sender: str = "",
            folder_id: Optional[int] = None, account_id: Optional[int] = None,
            date_from: str = "", date_to: str = "",
            state: str = "all", has_attach: bool = False,
-           direction: str = "all",
+           direction: str = "all", fts_expr: str = "",
            limit: int = 200, offset: int = 0) -> Tuple[List[sqlite3.Row], int]:
     """全文検索＋絞り込み。戻り値は (行, 総件数)。
 
     q は3文字以上なら FTS5(trigram)、2文字以下なら LIKE を使う（trigramは3文字未満を索引できない）。
+    fts_expr を渡すと、q の代わりに**生の FTS5 MATCH 式**をそのまま使う
+    （AI検索が組み立てる `"水道局" AND ("質疑" OR "協議")` のような式を通すため）。
     """
     where: List[str] = []
     params: List[Any] = []
@@ -276,7 +278,12 @@ def search(conn: sqlite3.Connection, q: str = "", sender: str = "",
     order = "m.date_utc DESC"
 
     q = (q or "").strip()
-    if q:
+    fts_expr = (fts_expr or "").strip()
+    if fts_expr:
+        join = "JOIN messages_fts f ON f.rowid = m.id"
+        where.append("messages_fts MATCH ?")
+        params.append(fts_expr)
+    elif q:
         if len(q) >= 3:
             join = "JOIN messages_fts f ON f.rowid = m.id"
             where.append("messages_fts MATCH ?")

@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta, timezone
 
 import streamlit as st
 
+import ai_query
 import config
 import db
 
@@ -93,7 +94,7 @@ def _check_password() -> bool:
         return True
     st.title("📥 メールアーカイバ")
     pw = st.text_input("パスワード", type="password")
-    if st.button("ログイン", use_container_width=True):
+    if st.button("ログイン", width="stretch"):
         if hmac.compare_digest(str(pw), str(expected)):
             st.session_state["authed"] = True
             st.rerun()
@@ -181,12 +182,62 @@ with tab_search:
         m3.metric("サーバーから削除済", "{:,} 通".format(s["deleted"]), human_size(s["deleted_bytes"]))
         m4.metric("添付ファイル", "{:,} 件".format(s["attachments"]), human_size(s["attachment_bytes"]))
 
-    q = st.text_input("キーワード（件名・本文・宛先を横断。3文字以上が速い）", "")
+    mode = st.radio("検索のしかた", ["単純検索", "AI検索（自然文）"],
+                    horizontal=True, label_visibility="collapsed")
+
+    q = ""
+    fts_expr = ""
+    ai = st.session_state.get("ai_result")
+
+    if mode == "単純検索":
+        st.session_state.pop("ai_result", None)
+        ai = None
+        q = st.text_input("キーワード（件名・本文・宛先を横断。3文字以上が速い）", "")
+    else:
+        nl = st.text_input("やりたいことを日本語で（例：1年以内で水道局と質疑調整したメール）", "")
+        c_go, c_clear = st.columns([1, 1])
+        if c_go.button("🔎 AIで検索", width="stretch") and nl.strip():
+            with st.spinner("AIが条件に変換中…"):
+                try:
+                    ai = ai_query.parse_query(nl)
+                    ai["_expr"] = ai_query.build_fts_expr(ai["keywords_all"], ai["keywords_any"])
+                    st.session_state["ai_result"] = ai
+                except Exception as e:  # noqa: BLE001
+                    st.error("AI検索に失敗: {}".format(e))
+                    ai = None
+        if c_clear.button("条件をクリア", width="stretch"):
+            st.session_state.pop("ai_result", None)
+            ai = None
+
+        if ai:
+            # AIが決めた条件を、サイドバーの絞り込みより優先して使う
+            fts_expr = ai.get("_expr", "")
+            if ai.get("date_from"):
+                date_from = ai["date_from"] + "T00:00:00Z"
+            if ai.get("date_to"):
+                date_to = ai["date_to"] + "T23:59:59Z"
+            if ai.get("direction") in ("received", "sent"):
+                direction = ai["direction"]
+            if ai.get("sender"):
+                sender = ai["sender"]
+            _all = "・".join(ai["keywords_all"]) or "（なし）"
+            _any = " / ".join(ai["keywords_any"]) or "（なし）"
+            _term = ai.get("date_from") or "指定なし"
+            if ai.get("date_to"):
+                _term += " 〜 " + ai["date_to"]
+            elif ai.get("date_from"):
+                _term += " 以降"
+            st.info("**AIの解釈**：{}\n\n必須語 **{}** ／ どれか **{}** ／ 期間 **{}** ／ "
+                    "種別 **{}**".format(
+                        ai.get("explain", ""), _all, _any, _term,
+                        {"all": "すべて", "received": "受信", "sent": "送信"}[direction]))
+
     page = st.number_input("ページ", min_value=1, value=1, step=1)
 
     rows, total = db.search(conn, q=q, sender=sender, folder_id=folder_id,
                             account_id=account_id, date_from=date_from, date_to=date_to,
                             state=state, has_attach=has_attach, direction=direction,
+                            fts_expr=fts_expr,
                             limit=PAGE_SIZE, offset=(int(page) - 1) * PAGE_SIZE)
     st.write("**{:,} 件**該当（{} 〜 {} 件目を表示）".format(
         total, (int(page) - 1) * PAGE_SIZE + 1 if total else 0,
@@ -287,6 +338,6 @@ with tab_archive:
             [{"日時": to_local(l["at"]), "結果": l["mode"], "フォルダ": l["folder"],
               "uid": l["uid"], "件名": (l["subject"] or "")[:50],
               "サイズ": human_size(l["size_bytes"]), "理由": l["reason"] or ""} for l in logs],
-            use_container_width=True, hide_index=True)
+            width="stretch", hide_index=True)
     else:
         st.info("まだ削除（dry-run 含む）を実行していません。")

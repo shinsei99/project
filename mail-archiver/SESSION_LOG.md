@@ -1,5 +1,31 @@
 # SESSION_LOG — メールアーカイバ（mail-archiver）
 
+## 2026-08-27（メインPC）
+
+### 完了したこと
+
+- **初回の自動削除が昨夜02:16に成功**（launchd の2時ジョブ）。daikyocorp から
+  **44,660通・21.4GB を削除**（見送り0）。サーバー残存 54,214→9,566通 / 26.4→5.1GB。
+  他アカウントは対象0・shinichi-washimi は「取り込みのみ」で削除対象外（設計どおり）。
+- **AI検索（自然文）を追加**。検索欄に「単純検索／AI検索」の切替。自然文を入れると
+  `claude` CLI が検索条件JSON（keywords_all/any・期間・種別）に変換 → 既存の検索に流す。
+  解釈内容を画面に表示してから結果を出す（ブラックボックスにしない）。
+  - 新規 `ai_query.py`（claude 呼び出し＋JSON抽出＋FTS式組み立て）。
+    claude は指示に反し前置き文＋```json で返すことがあるので、フェンス／最初の`{`〜対応`}`で頑健に抽出。
+  - `db.search` に `fts_expr`（生のFTS5 MATCH式）を追加。AIは `"水道局" AND ("質疑" OR "協議" …)` を渡す。
+  - 実機検証（常駐→ブラウザ）: 「1年以内で水道局と質疑調整したメール」→ 解釈表示＋72件ヒット。**クラッシュなし**。
+- **常駐を `/usr/bin/python3 -m streamlit` 起動に変更**（`run.sh`）。venv Python 経由で claude を
+  呼ぶと SIGSEGV する既知バグ [[feedback_claude_subprocess]] を避けるため。/usr/bin/python3 に
+  streamlit 1.50 がグローバルで入っている（このMacの /usr/bin/python3 は CLT/Xcode の 3.9）。
+  plist は run.sh を呼ぶだけなので `kickstart -k` で反映。
+
+### 次回への引き継ぎ事項
+
+- **AI検索は claude CLI に依存**。launchd 最小PATHでも拾えるよう `ai_query.CLAUDE_BIN` は
+  `shutil.which` → `/opt/homebrew/bin/claude` の絶対パス解決。サブPCで動かすなら claude が要る。
+- 同義語展開は claude の出力次第でばらつく（`どれか`が空になる回もある）。実害は無いが、
+  精度を上げたいなら埋め込みベクトルの意味検索が次段（規模大・未着手）。
+
 ## 2026-08-26（メインPC）
 
 ### 完了したこと
