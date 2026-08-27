@@ -109,9 +109,21 @@ if not _check_password():
 
 
 @st.cache_resource
+def _init_schema_once():
+    # スキーマ作成は1回だけ（毎回だと無駄な書き込みになる）
+    c = db.connect(config.DB_PATH)
+    db.init_schema(c)
+    c.close()
+    return True
+
+
 def get_conn():
+    # ★接続はキャッシュせず毎回開く。長生きの接続を使い回すと、裏で動く
+    #   embed_backfill.py の大量書き込み（WAL）中に「file is not a database」で落ちる
+    #   ことがある（2026-08-27 実際に発生）。接続を都度開けば裏の書き込みと衝突しない。
+    _init_schema_once()
     conn = db.connect(config.DB_PATH)
-    db.init_schema(conn)
+    conn.execute("PRAGMA busy_timeout=30000")
     return conn
 
 
