@@ -115,9 +115,47 @@ def _ids_with_terms(conn, terms) -> set:
     return out
 
 
+# 加点の対象から外す語（どのメールにも出るので手がかりにならない）
+_STOP = {"メール", "今月", "先月", "今週", "先週", "今日", "昨日", "今年", "去年",
+         "感じ", "内容", "件名", "こと", "もの", "とき", "ため", "場合", "以下",
+         "検索", "探し", "教え", "確認", "送られ", "届い", "きた", "した", "する"}
+
+
+def query_content_terms(query: str) -> list:
+    """質問文そのものから、手がかりになる日本語の語を拾う（2026-08-27）。
+
+    `ai_query` の `keywords_any` は**英語の同義語しか返さないことがある**
+    （「発送したって感じのメール」→ shipped / shipping）。
+    質問が日本語なのに加点する語が英語だけだと、日本語の訳文や本文には当たらない。
+    実測でこれが原因で目当てのメールが1位→10位に落ちた。
+    LLMに頼らずここで拾えば、タイムアウトしても効き続ける。
+    """
+    import re as _re
+    out = []
+    for t in _re.findall(r"[一-鿿ァ-ヶー]{2,}", query or ""):
+        if t in _STOP or any(sw in t for sw in ("メール", "ください", "ますか")):
+            continue
+        out.append(t)
+    return out[:6]
+
+
+def _ids_with_any(conn, terms) -> set:
+    """指定の語を**どれか1つでも**含む message_id（件名・本文・訳文を見る）。加点用。"""
+    out = set()
+    for t in terms:
+        like = "%" + t + "%"
+        out |= {r[0] for r in conn.execute(
+            "SELECT m.id FROM messages m LEFT JOIN translations tr ON tr.message_id=m.id "
+            "WHERE m.subject LIKE ? OR m.body_text LIKE ? "
+            "OR tr.subject_ja LIKE ? OR tr.body_ja LIKE ?",
+            (like, like, like, like))}
+    return out
+
+
 def search(conn, query: str, top: int = 800,
            date_from: str = "", date_to: str = "",
-           must_terms=None, lang: str = "") -> Tuple[List[int], Dict[int, float]]:
+           must_terms=None, lang: str = "",
+           boost_terms=None) -> Tuple[List[int], Dict[int, float]]:
     """意味が近い順の message_id 列と、id→類似度(0..1) を返す。
 
     `date_from` / `date_to` を渡すと**その期間の中だけ**で順位を付ける（2026-08-27）。
@@ -146,6 +184,18 @@ def search(conn, query: str, top: int = 800,
             sims = np.where(mask, sims, -1.0)   # 期間外は最下位へ落とす
             top = min(top, int(mask.sum()))
         # 期間内が1通も無いときは絞り込みを諦める（何も出ないより全期間で出す）
+
+    # 「発送」「shipped」等の**動作を表す語**を含むものを少し持ち上げる（2026-08-27）。
+    # ai_query が keywords_any として抜き出しているのに使っておらず、
+    # 「PSA」を含むだけの無関係な日本語メールが上位を埋めていた（実測で目当ては5〜7位）。
+    # 絞り込み(must_terms)は"含まないと落とす"ので強すぎる。こちらは加点にとどめる。
+    bt = [t.strip() for t in (boost_terms or []) if t and t.strip()]
+    bt += [t for t in query_content_terms(query) if t not in bt]   # 質問文の日本語も加点対象に
+    if bt:
+        hit = _ids_with_any(conn, bt)
+        if hit:
+            bonus = np.array([0.04 if mid in hit else 0.0 for mid in ids], dtype=np.float32)
+            sims = sims + bonus
 
     order = np.argsort(-sims)[:top]
     ordered_ids = [ids[int(i)] for i in order]

@@ -231,10 +231,12 @@ with tab_search:
                         #   （英語メールで実際に発生）。日付の読み取りは既存の ai_query.parse_query を使う。
                         d_from = d_to = ""
                         must = []
+                        boost = []
                         try:
                             f = ai_query.parse_query(nl2)
                             d_from, d_to = f.get("date_from") or "", f.get("date_to") or ""
                             must = f.get("keywords_all") or []
+                            boost = f.get("keywords_any") or []
                         except Exception:
                             pass
                         if d_from or d_to:
@@ -244,12 +246,14 @@ with tab_search:
                             st.caption("🔑 この語を含むものに絞りました: {}".format(" / ".join(must)))
                         ids, sm = semantic.search(conn, nl2, top=800,
                                                   date_from=d_from, date_to=d_to,
-                                                  must_terms=must)
+                                                  must_terms=must, boost_terms=boost)
                         sem = {"ids": ids, "sim": sm, "q": nl2,
                                "rerank": None, "reasons": {}}
                         if rerank_on and ids:
                             # ベクトル上位40通を Claude に読ませて関連順へ
-                            top = ids[:40]
+                            # 絞り込みで候補が少ないときは全部読ませる。
+                            # 40件で切ると、順位が下のほうにある正解を精査が見られない
+                            top = ids[:max(40, min(len(ids), 60))] if len(ids) <= 60 else ids[:40]
                             cand_rows = {r["id"]: r for r in db.messages_by_ids(conn, top)}
                             cands = [(i, (cand_rows[i]["subject"] if i in cand_rows else ""),
                                       (cand_rows[i]["body_text"] if i in cand_rows else ""))
