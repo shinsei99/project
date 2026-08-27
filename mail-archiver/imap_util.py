@@ -271,10 +271,25 @@ def _part_text(part: Message) -> str:
         return ""
     if payload is None:
         return ""
+    # ★ISO-2022-JP はエスケープ列（\x1b$B … \x1b(B）を含む。実データには本文末に1バイト崩れが
+    #   あって iso-2022-jp の strict が全体で落ちるものがあり、その場合 utf-8 strict が
+    #   「ASCIIとして通ってしまい」エスケープ列が残って化ける（2026-08-27 スペック社メールで発覚）。
+    #   ESC を見たら iso-2022-jp を replace で確実にデコードする（崩れ1文字は � になるだけ）。
+    if b"\x1b$" in payload or b"\x1b(" in payload:
+        try:
+            return payload.decode("iso-2022-jp", "replace")
+        except Exception:
+            pass
     charset = part.get_content_charset() or "utf-8"
     for cs in (charset, "utf-8", "cp932", "iso-2022-jp", "euc-jp", "latin-1"):
         try:
             return payload.decode(cs, "strict")
+        except Exception:
+            continue
+    # strict で全滅：宣言 charset を優先して replace（他codecへ落として化けさせない）
+    for cs in (charset, "cp932", "iso-2022-jp", "euc-jp"):
+        try:
+            return payload.decode(cs, "replace")
         except Exception:
             continue
     return payload.decode("utf-8", "replace")
