@@ -268,7 +268,6 @@ body.ed-light #rot-display{color:rgba(80,50,10,.8);}
 body.ed-light #rot-preview-card{background:rgba(240,230,200,.8);border-color:rgba(100,70,20,.3);}
 body.ed-light .rot-btn{border-color:rgba(0,0,0,.14);background:rgba(0,0,0,.05);color:#6a4020;}
 body.ed-light #deco-picker{border-top-color:rgba(0,0,0,.09);}
-body.ed-light #memo-charcount{color:rgba(80,50,10,.5);}
 body.ed-light #todo-title-in{color:#1e1008;border-bottom-color:rgba(0,0,0,.09);}
 body.ed-light #todo-title-in::placeholder{color:rgba(60,40,10,.4);}
 body.ed-light #todo-editor{background:#fefcf7;}
@@ -439,8 +438,28 @@ body.ed-light .theme-btn.active{border-color:#a07030;background:rgba(160,112,48,
 .sh-head h3{font-size:14px;color:var(--gold);letter-spacing:.5px;}
 .sh-foot{display:flex;gap:10px;padding:10px 14px;
   border-top:1px solid rgba(255,255,255,.07);flex-shrink:0;}
-/* スクラップ編集のフッターは画面下固定ではなく、編集内容の末尾に流し込む */
-.sh-foot.in-scroll{flex:0 0 auto;margin-top:12px;padding-bottom:14px;border-top:none;}
+
+/* ── スクラップ編集のヘッダー ──
+   1行に「タイトル＋字数 / 道具3つ / キャンセル / 完了」を詰める。
+   幅が足りない端末ではタイトルが縮んで…になるだけで、ボタンは必ず残る。 */
+.sh-head.memo-head{gap:5px;padding:10px 10px 9px;}
+.memo-head .mh-ttl{font-size:13px;letter-spacing:0;}
+/* タイトルだけを縮ませ、字数は必ず出す。1つの要素にまとめると、
+   iPhone幅では字数のほうが先に「3,0…」と切れてしまう（実測 402px）。 */
+.memo-head h3{flex:1 1 auto;min-width:0;display:flex;align-items:baseline;gap:7px;}
+.memo-head .mh-ttl{flex:0 1 auto;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;}
+.memo-head #memo-charcount{flex:0 0 auto;font-size:11px;font-weight:400;
+  color:rgba(200,170,100,.55);letter-spacing:0;white-space:nowrap;}
+.memo-head .mh-tools{flex:0 0 auto;display:flex;align-items:center;gap:0;}
+.memo-head .deco-toggle,.memo-head #movepage-btn{font-size:16px;padding:5px 4px;}
+.mh-btn{flex:0 0 auto;border:none;cursor:pointer;border-radius:999px;
+  font-family:inherit;font-size:12px;line-height:1;padding:8px 12px;white-space:nowrap;}
+.mh-cancel{background:rgba(255,255,255,.09);color:#a08060;padding:8px 10px;}
+.mh-done{background:var(--blue);color:#fff;font-weight:700;padding:8px 15px;}
+.mh-btn:active{opacity:.7;}
+body.ed-light .mh-cancel{background:rgba(0,0,0,.07);color:#6a4020;}
+body.ed-light .memo-head #memo-charcount{color:rgba(80,50,10,.5);}
 .sh-btn{flex:1;padding:12px;border:none;border-radius:12px;
   font-size:14px;font-family:'Georgia',serif;cursor:pointer;}
 .sh-btn.cancel{background:rgba(255,255,255,.08);color:#a08060;}
@@ -448,7 +467,7 @@ body.ed-light .theme-btn.active{border-color:#a07030;background:rgba(160,112,48,
 .sh-btn.danger{background:var(--red);color:#fff;}
 
 /* ── MEMO EDITOR ── */
-#memo-editor{flex:1;min-height:0;overflow-y:auto;padding:10px 14px 6px;-webkit-overflow-scrolling:touch;
+#memo-editor{flex:1;min-height:0;overflow-y:auto;padding:10px 14px 26px;-webkit-overflow-scrolling:touch;
   display:flex;flex-direction:column;}
 .block-wrap{position:relative;margin-bottom:8px;background:rgba(255,255,255,.04);border-radius:10px;overflow:hidden;}
 .block-wrap.text-block{flex:1 0 auto;display:flex;flex-direction:column;margin-bottom:0;}
@@ -497,7 +516,6 @@ body.ed-light .img-vis-btn.hidden{background:rgba(180,60,60,.1);border-color:rgb
 .url-field input{flex:1;background:rgba(255,255,255,.06);border:none;
   border-radius:8px;padding:8px 10px;color:#f0e0c0;font-size:13px;outline:none;}
 .url-field input::placeholder{color:rgba(200,170,120,.35);}
-#memo-charcount{text-align:right;font-size:11px;color:rgba(160,130,90,.6);padding:0 16px 4px;}
 /* ── ROTATION CONTROL ── */
 #rot-strip{display:flex;align-items:center;gap:3px;padding:10px 14px 10px;border-top:1px solid rgba(255,255,255,.07);}
 #rot-preview{margin-left:6px;width:32px;height:40px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -611,7 +629,6 @@ body.ed-light #movepage-btn:active,body.ed-light #movepage-btn.on{color:#7a4010;
 body.ed-light #movepage-drop{background:#f0e8d8;border-color:rgba(100,60,10,.18);}
 body.ed-light .movepage-item{color:#5a3a10;}
 body.ed-light .movepage-item:hover{background:rgba(100,60,10,.1);}
-#memo-charcount{text-align:right;font-size:11px;color:rgba(200,170,100,.45);padding:2px 16px 0;flex-shrink:0;}
 
 /* ── TOAST ── */
 #toast{position:fixed;bottom:calc(var(--safe-b) + 80px);left:50%;
@@ -698,9 +715,13 @@ body.ed-light .movepage-item:hover{background:rgba(100,60,10,.1);}
   <div class="sh-ov" onclick="closeMemo()"></div>
   <div class="sh-box">
     <div class="sh-handle"></div>
-    <div class="sh-head">
-      <h3><i class="fas fa-paste"></i> スクラップ編集</h3>
-      <div style="display:flex;align-items:center;gap:2px;">
+    <!-- 完了／キャンセルはヘッダーに置く（2026-08-27）。
+         長文を入れるとテキスト欄が数千pxに伸びるため、末尾に置いていた頃は
+         「完了」まで指が届かず、枠外タップ＝保存せずに閉じる、を踏みやすかった。
+         ヘッダーなら常に届くうえ、縦の表示領域を1pxも減らさない。 -->
+    <div class="sh-head memo-head">
+      <h3 id="memo-title"><span class="mh-ttl">スクラップ編集</span><span id="memo-charcount"></span></h3>
+      <div class="mh-tools">
         <button class="deco-toggle" onclick="document.getElementById('fi-block').click()" title="写真を挿入"><i class="fas fa-image"></i></button>
         <div id="movepage-wrap">
           <button id="movepage-btn" onclick="toggleMovePageDrop()" title="ページ移動"><i class="fas fa-share"></i></button>
@@ -708,6 +729,8 @@ body.ed-light .movepage-item:hover{background:rgba(100,60,10,.1);}
         </div>
         <button class="deco-toggle" id="deco-toggle-btn" onclick="toggleDecoPanel()" title="デコ設定"><i class="fas fa-palette"></i></button>
       </div>
+      <button class="mh-btn mh-cancel" onclick="closeMemo()">キャンセル</button>
+      <button class="mh-btn mh-done" onclick="saveMemo()">完了</button>
     </div>
     <div id="deco-panel">
       <div id="deco-picker">
@@ -734,7 +757,6 @@ body.ed-light .movepage-item:hover{background:rgba(100,60,10,.1);}
         <div id="rot-preview"><div id="rot-preview-card"></div></div>
       </div>
     </div>
-    <div id="memo-charcount"></div>
     <div id="memo-editor"></div>
     <input type="file" id="fi-block" accept="image/*" style="display:none" onchange="addImageBlock(event)">
     <input type="hidden" id="memo-url-input" value="">
@@ -1977,30 +1999,15 @@ function renderBlocks() {
   if (!editEl) return;
   const ed=document.getElementById('memo-editor'); ed.innerHTML='';
   (editEl.blocks||[]).forEach(b=>ed.appendChild(makeBlockDOM(b)));
-  ed.appendChild(makeMemoFootDOM());
   updateCharCount();
 }
 
-// キャンセル／完了は画面下に固定せず、編集内容の一番下（スクロール末尾）に置く
-function makeMemoFootDOM() {
-  const foot=document.createElement('div');
-  foot.className='sh-foot in-scroll'; foot.id='memo-foot';
-  const cancel=document.createElement('button');
-  cancel.className='sh-btn cancel'; cancel.textContent='キャンセル';
-  cancel.addEventListener('click',closeMemo);
-  const ok=document.createElement('button');
-  ok.className='sh-btn ok'; ok.textContent='完了';
-  ok.addEventListener('click',saveMemo);
-  foot.appendChild(cancel); foot.appendChild(ok);
-  return foot;
-}
-
-// ブロック追加は必ずフッターの手前へ入れる
+/* 2026-08-27: 末尾のフッターは廃止し、完了／キャンセルをヘッダーへ移した。
+   理由: 長文を入れるとテキスト欄が数千pxに伸びる（実測 7,091字＝9,620px）。
+   末尾にあると「完了」まで数画面ぶんスクロールしないと届かず、届かずに枠外を
+   タップすると closeMemo() ＝保存せずに閉じる、を踏みやすかった。 */
 function edAppendBlock(dom) {
-  const ed=document.getElementById('memo-editor');
-  const foot=document.getElementById('memo-foot');
-  if (foot && foot.parentElement===ed) ed.insertBefore(dom,foot);
-  else ed.appendChild(dom);
+  document.getElementById('memo-editor').appendChild(dom);
 }
 
 function makeBlockDOM(b) {
@@ -2140,7 +2147,7 @@ function autoSize(ta) { ta.style.height='auto'; ta.style.height=ta.scrollHeight+
 function updateCharCount() {
   const tot=[...document.querySelectorAll('#memo-editor .block-textarea')].reduce((s,ta)=>s+ta.value.length,0);
   const el=document.getElementById('memo-charcount');
-  if (el) el.textContent=tot>0?`${tot}字`:'';
+  if (el) el.textContent=tot>0?`${tot.toLocaleString()}字`:'';
 }
 
 // ══════════════════════════════════════════
@@ -2817,5 +2824,6 @@ migrateImagesToIDB().then(n=>{ if(n){ renderPage(); toast('写真 '+n+' 枚を�
   else document.addEventListener('DOMContentLoaded', hideKbBar);
 })();
 </script>
+
 </body>
 </html>
