@@ -1,9 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- 毎日1本、新しいネタから記事を書いて予約まで入れる（メインPCのみ）。
-     毎日 8:07（:00 や :30 を避ける）。ログは /tmp/daily-write.log
+<!-- 毎日1本、新しいネタから記事を書いて予約・本番反映まで入れる（メインPCのみ）。
+     毎日 22:45。ログは /tmp/daily-write.log
 
      2026-08-27 に週次から日次へ変更。Zenn も note も「毎日1本」出す設定なので、
      書くのが週1本だと予約が尽きて出せなくなる。書く速さと出す速さを揃える。
+
+     ★同じ日のうちに 8:07 → 22:45 へ移した。夜へ寄せる理由は3つ:
+       1. **Macが起きていないといけない窓が1つで済む**（朝と夜の2回だったのが夜だけ）
+       2. 22:30 Zenn公開 → 22:35 note投稿 の**直後**なので、その晩のURLを links へ入れて
+          そのまま本番反映できる（朝だと約10時間ずれていた）
+       3. 朝へ寄せることはできない。**Zennの公開時刻22:30は一度きりで変更できず**、
+          note はその後に出す必要があるため
+     順番は 22:30 Zenn → 22:35 note → 22:45 執筆。10分空けているのは Zenn の公開が
+     公開APIに出るまでの間を見るため（間に合わなくても links は毎晩やり直すので次の晩に入る）。
 
      入れ方: cp して launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shinsei.daily-write.plist
      外し方: launchctl bootout gui/$(id -u)/com.shinsei.daily-write
@@ -19,8 +28,8 @@
   </array>
   <key>StartCalendarInterval</key>
   <dict>
-    <key>Hour</key><integer>8</integer>
-    <key>Minute</key><integer>7</integer>
+    <key>Hour</key><integer>22</integer>
+    <key>Minute</key><integer>45</integer>
   </dict>
   <key>StandardOutPath</key><string>/tmp/daily-write.log</string>
   <key>StandardErrorPath</key><string>/tmp/daily-write.err</string>
