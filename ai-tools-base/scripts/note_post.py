@@ -218,6 +218,23 @@ def post(name: str, headless: bool = False, dry: bool = False) -> str | None:
         return url
 
 
+def _zenn_live() -> set:
+    """Zennで実際に公開済みの slug を取る（公開APIなのでログイン不要）。
+
+    取れなかったときは空集合を返し、呼び出し側は従来どおり順番で出す
+    （Zennの一時的な不調でnoteまで止めない）。
+    """
+    import json as _json
+    import urllib.request as _u
+    url = "https://zenn.dev/api/articles?username=shinsei99&order=latest"
+    try:
+        with _u.urlopen(url, timeout=10) as r:
+            return {a["slug"] for a in _json.load(r).get("articles", [])}
+    except Exception as e:
+        print("  （Zennの公開状況を取れなかった: %s）" % e)
+        return set()
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("name", nargs="?")
@@ -247,6 +264,29 @@ def main() -> None:
         if not rest:
             print("出すものが無い")
             return
+
+        # ★Zennで公開済みのものだけ出す（2026-08-28）。
+        #   note は zenn_order.txt の順番だけを見ていたため、**Zennが止まっていても
+        #   note だけ進んでしまう**。2026-08-27にZennのデプロイが
+        #   ファイル名エラーで全部止まった際、Zenn 11本／note 12本とズレた。
+        #   ここでZennの公開APIと突き合わせれば、Zennが詰まればnoteも待つ＝構造的にズレない。
+        #   ※Zennに載せない記事（note専用）は order にも無く extra 側で拾われるので、
+        #     Zennに存在しない＝待たせる、にはしない（下の allow_solo）。
+        live = _zenn_live()
+        if live:
+            order_set = set(order)
+            ready = [x for x in rest if (x in live) or (x not in order_set)]
+            waiting = [x for x in rest if x not in ready]
+            if waiting and not ready:
+                print("Zennでまだ公開されていないので今夜は見送る: %s" % waiting[0])
+                print("  （Zennのデプロイが通っているか確認すること）")
+                return
+            if waiting:
+                print("Zenn未公開のため後回し: %s" % " / ".join(waiting[:3]))
+            rest = ready
+        else:
+            print("  （Zennの公開状況を確認できなかったので、順番どおり出す）")
+
         name = rest[0]
     if not name:
         ap.error("原稿名 か --next が要る")
