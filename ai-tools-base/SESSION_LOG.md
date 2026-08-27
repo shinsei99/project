@@ -17,6 +17,14 @@
   理由: Zenn も note も「毎日1本」出す設定なので、**書くのが週1本だと 9/20 で予約が尽きる**。
   書く速さと出す速さを揃えると、予約の残りが25日ぶんで一定に保たれて途切れない。
   8/27〜9/20 の25日で25本書けば、そのまま **9/21〜10/15 の在庫**になる
+- **日次の流れに ④-b と ⑤ を足した**（オーナー判断）。
+  - **④-b `./publish.sh links`（新規 `scripts/links_sync.py`）** … 公開済みの Zenn / note のURLを
+    本体の `links` へ入れる。**入れるのは実際に公開されたものだけ**（Zennは公開APIに出たもの＝
+    予約中は入らない。載せると詳細ページからリンク切れへ飛ぶため）。毎晩1本出るので手作業にできない
+  - **⑤ `./publish.sh site`** … Zennはpushで出るが**本体は `vercel --prod` が要る**。
+    入れないと本体だけ毎日置いていかれる。**guard を通った日だけ走る**
+  - launchd 相当の環境で `node` / `npm` / `npx` / `vercel whoami`（team `brain-dump`）／
+    `npm run validate` が通ることを実測済み
 - **`./publish.sh scan` の取りこぼしを直した（99件 → 256件）**。下の「発生したエラー」に詳細
   - launchd 相当の環境（`env -i HOME=… /bin/bash -lc`）で `claude` / `neta_scan` / `guard` が
     動くことまで確認した。**`claude` は `/usr/local/bin` にあり path_helper が通すので PATH は問題ない**

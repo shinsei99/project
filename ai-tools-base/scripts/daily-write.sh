@@ -9,6 +9,8 @@
 #   ② claude -p     … その中から1つ選び、根拠を実物で確認して3媒体の原稿を書く
 #   ③ guard         … ★個人情報・固有名詞・寿命を縮める語を機械で止める
 #   ④ zenn-schedule … 通ったものだけ、毎日22:30の予約に入る
+#   ④-b links       … 昨夜までに公開された Zenn / note のURLを本体の links へ入れる
+#   ⑤ site          … 本体サイトを本番へ（Zennはpushで出るが、本体は vercel --prod が要る）
 #
 # ★③を通らなければ、その日は何も出ない。それが安全側。ログを見て人が直す。
 #
@@ -115,8 +117,21 @@ if [ -n "$DRY" ]; then
 else
   echo "--- 予約に入れる ---"
   /usr/bin/python3 scripts/zenn_schedule.py --write
+
+  # 昨夜までに公開された Zenn / note のURLを本体の links へ入れる。
+  # **本体・Zenn・note の3点で1本**なので、ここが埋まるまでが1本（validate の転載⚠️が消える）。
+  # 毎晩1本出るようになった以上、手で足すと毎日の作業になるため機械にした。
+  echo "--- 転載URLを links へ ---"
+  /usr/bin/python3 scripts/links_sync.py --write
+
   ( cd .. && git add -A articles ai-tools-base && \
     git commit -q -m "日次: 記事を1本足して予約に入れた（自動）" && git push -q origin main ) \
     && echo "push した"
+
+  # ⑤ 本体サイトを本番へ。**Zennはpushで出るが、本体は vercel --prod が要る**ので
+  #    ここに入れないと本体だけ毎日置いていかれる（2026-08-27 オーナー判断で自動化）。
+  #    ③の guard を通ったときだけここに来る＝落ちた日はデプロイもしない。
+  echo "--- 本体サイトを本番へ ---"
+  ./publish.sh site || echo "★デプロイに失敗した。記事は push 済みなので ./publish.sh site を人が叩くこと"
 fi
 echo "=== 終わり $(date '+%H:%M') ==="

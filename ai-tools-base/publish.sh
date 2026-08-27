@@ -60,6 +60,11 @@ case "${1:-status}" in
     /usr/bin/python3 scripts/neta_scan.py "${@:2}"
     ;;
 
+  links)
+    # 公開済みの Zenn / note のURLを本体の links へ入れる（既定はドライラン）
+    /usr/bin/python3 scripts/links_sync.py "${@:2}"
+    ;;
+
   zenn-schedule)
     # ★Zenn の公開日時は一度きりで変更できない。ドライランで日付を見てから --write。
     #   書き込むのはローカルだけで、push は ./publish.sh zenn（人の操作）に任せる。
