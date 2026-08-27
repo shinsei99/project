@@ -366,20 +366,10 @@ with tab_search:
                             u=url, n=a["filename"], s=human_size(a["size_bytes"])),
                         unsafe_allow_html=True)
 
+            # 原本(.eml)を開くリンクは廃止（生ヘッダ/DKIM が出るだけで実用性が無い。
+            # 本文・差出人・添付は上に表示済み）。原本ファイルはディスクに保持している。
             raw_abs = os.path.join(config.DATA_DIR, r["raw_path"])
-            if os.path.exists(raw_abs):
-                # 原本(.eml)もブラウザで開く（.eml のDLはスマホでメールアプリに渡らないので、
-                # .txt にして text/plain で表示＝原本ソースがその場で読めて「戻る」で戻れる）。
-                sha = (r["raw_sha256"] or "")[:8] or str(r["uid"])
-                eml_name = "{}_{}.eml.txt".format(r["id"], sha)
-                eml_dst = os.path.join(att_dir, eml_name)
-                if not os.path.exists(eml_dst):
-                    os.makedirs(att_dir, exist_ok=True)
-                    shutil.copy2(raw_abs, eml_dst)
-                eml_url = "/app/static/att/" + urllib.parse.quote(eml_name)
-                st.markdown('<a href="{}">✉️ 原本(.eml)を開く</a>'.format(eml_url),
-                            unsafe_allow_html=True)
-            else:
+            if not os.path.exists(raw_abs):
                 st.error("原本 .eml が見つかりません。サーバーからは絶対に消さないこと。")
 
 # ------------------------------------------------------------------ アーカイブ状況
