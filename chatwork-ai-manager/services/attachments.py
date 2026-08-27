@@ -10,10 +10,11 @@
 - 落とすのは一時ディレクトリ。**読み終わったら必ず消す**（個人情報を残さない）。
 - 大きいファイルは落とさない・長い本文は切る（定額枠とタイムアウトを守るため）。
 
-画像（LINEの写真・スクリーンショット等）は別ルート（`read_line_image`）で扱う。
-テキスト抽出器ではなく claude vision（`services/knowledge.ocr_pdf` / `streetview_tools` と
-同じ作法: 一時ファイルへ保存 → `--add-dir` + `Read` ツールで見せる）で内容を読む
-（TASK-20260825-006）。
+画像（LINEの写真・スクリーンショット・Chatworkの添付画像等）は別ルート
+（`read_line_image` / `read_chatwork_image`）で扱う。テキスト抽出器ではなく claude vision
+（`services/knowledge.ocr_pdf` / `streetview_tools` と同じ作法: 一時ファイルへ保存 →
+`--add-dir` + `Read` ツールで見せる）で内容を読む（LINE: TASK-20260825-006、
+Chatwork: TASK-20260827-001）。
 """
 from __future__ import annotations
 
@@ -46,6 +47,12 @@ _AUDIO_MIME_BY_EXT = {
     ".caf": "audio/x-caf",
 }
 AUDIO_EXTENSIONS = frozenset(_AUDIO_MIME_BY_EXT)
+
+# Chatwork添付画像（写真・スクリーンショット等）の拡張子（TASK-20260827-001）。
+# ChatworkのファイルAPIはContent-Typeでなく拡張子で判定する（LINEは逆にContent-Type頼み）
+IMAGE_EXTENSIONS = frozenset({
+    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".heic", ".heif", ".tif", ".tiff",
+})
 
 # Chatwork のファイル投稿は本文に `[download:123]名前.xlsx (12.3 KB)[/download]` が入る
 _DOWNLOAD_RE = re.compile(r"\[download:(\d+)\]([^\[]*?)(?:\s*\([^)]*\))?\[/download\]")
@@ -133,10 +140,16 @@ def read_chatwork_files(room_id, refs: list[tuple[int, str]]) -> str:
     parts = []
     try:
         for file_id, name in refs:
-            if os.path.splitext(name)[1].lower() in _AUDIO_MIME_BY_EXT:
+            ext0 = os.path.splitext(name)[1].lower()
+            if ext0 in _AUDIO_MIME_BY_EXT:
                 # 音声は専用ルート（Gemini文字起こし→Claude要約・キャッシュ有）。
                 # get_file/downloadも中で行うのでここでは呼ばない（二重取得を避ける）
                 parts.append(transcribe_chatwork_audio(room_id, file_id, name))
+                continue
+            if ext0 in IMAGE_EXTENSIONS:
+                # 画像は専用ルート（claude vision・キャッシュ有）。
+                # get_file/downloadも中で行うのでここでは呼ばない（二重取得を避ける）
+                parts.append(read_chatwork_image(room_id, file_id, name))
                 continue
             try:
                 info = cw.get_file(room_id, file_id)
@@ -239,6 +252,66 @@ def transcribe_chatwork_audio(room_id, file_id: int, name: str) -> str:
             summary = "（要約に失敗しました）"
         _audio_cache_put(room_id, file_id, name, transcript, summary)
         return _describe(name, f"▼文字起こし\n{transcript}\n\n▼要約\n{summary}")
+    except ValueError:
+        return _describe(name, "", f"{MAX_BYTES // 1024 // 1024}MB を超えるので読みませんでした")
+    except ChatworkError as e:
+        return _describe(name, "", f"取得に失敗: {e}")
+    except Exception as e:
+        return _describe(name, "", f"読み取りに失敗: {type(e).__name__}")
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
+def _image_cache_get(room_id, file_id):
+    from db.connection import query
+    rows = query("SELECT * FROM chatwork_images WHERE room_id=? AND file_id=?", (room_id, file_id))
+    return rows[0] if rows else None
+
+
+def _image_cache_put(room_id, file_id, filename, description):
+    from db.connection import get_conn
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO chatwork_images (room_id, file_id, filename, description) "
+            "VALUES (?, ?, ?, ?) "
+            "ON CONFLICT(room_id, file_id) DO UPDATE SET filename=excluded.filename, "
+            "description=excluded.description",
+            (room_id, file_id, filename, description),
+        )
+
+
+def read_chatwork_image(room_id, file_id: int, name: str) -> str:
+    """Chatwork の画像添付（写真・スクリーンショット等）を claude vision で読む（TASK-20260827-001）。
+
+    LINEの `read_line_image` と同じ `_analyze_image` を使う。結果は `chatwork_images` に
+    キャッシュし、同じ添付が会話コンテキストへ何度出てきても二度と解析し直さない
+    （`transcribe_chatwork_audio` と同じキャッシュの考え方）。失敗しても例外は投げない
+    （QA/TODO抽出を止めないため）。
+    """
+    cached = _image_cache_get(room_id, file_id)
+    if cached:
+        if not cached["description"]:
+            return _describe(name, "", "画像認識(claude vision)に失敗しました")
+        return _describe(name, cached["description"])
+
+    from services.chatwork import ChatworkClient, ChatworkError
+    tmp = tempfile.mkdtemp(prefix="cwai-img-")
+    try:
+        cw = ChatworkClient()
+        info = cw.get_file(room_id, file_id)
+        url = info.get("download_url")
+        name = name or info.get("filename") or f"image-{file_id}"
+        if not url:
+            return _describe(name, "", "ダウンロードURLを取得できませんでした")
+        ext = os.path.splitext(name)[1].lower() or ".jpg"
+        img_name = "image" + ext
+        dest = os.path.join(tmp, img_name)
+        _download(url, dest)
+        text = _analyze_image(tmp, img_name)
+        if text is None:
+            return _describe(name, "", "画像認識(claude vision)に失敗しました")
+        _image_cache_put(room_id, file_id, name, text)
+        return _describe(name, text)
     except ValueError:
         return _describe(name, "", f"{MAX_BYTES // 1024 // 1024}MB を超えるので読みませんでした")
     except ChatworkError as e:

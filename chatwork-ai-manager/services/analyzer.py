@@ -23,17 +23,22 @@ LOW_CONF = ("推測", "不明")
 
 
 def _line_body(room_id, m, limit) -> str:
-    """会話ラインに載せる本文。音声添付があれば文字起こしを足す（TASK-20260826-004）。
+    """会話ラインに載せる本文。音声・画像添付があれば内容を足す（TASK-20260826-004 / TASK-20260827-001）。
 
     従来ファイル添付（Excel/PDF等）はQ&A時のみ内容を読み、TODO抽出には載せない設計だが、
-    音声は「文字起こし・要約もTODO抽出と同様に活用」というオーナー要望のため例外的に対応する。
-    transcribe_chatwork_audio はキャッシュ済みなら即返るので、直近文脈に繰り返し出てきても軽い。
+    音声・画像は「文字起こし/読み取り結果もTODO抽出と同様に活用」というオーナー要望のため
+    例外的に対応する（設備の型番・破損箇所・検針メーター等をTODOに反映できるように）。
+    transcribe_chatwork_audio / read_chatwork_image はキャッシュ済みなら即返るので、
+    直近文脈に繰り返し出てきても軽い。
     """
     body = m["body"] or ""
     text = body[:limit]
     for file_id, name in attachments.chatwork_file_refs(body):
-        if os.path.splitext(name)[1].lower() in attachments.AUDIO_EXTENSIONS:
+        ext = os.path.splitext(name)[1].lower()
+        if ext in attachments.AUDIO_EXTENSIONS:
             text += "\n" + attachments.transcribe_chatwork_audio(room_id, file_id, name)
+        elif ext in attachments.IMAGE_EXTENSIONS:
+            text += "\n" + attachments.read_chatwork_image(room_id, file_id, name)
     return text
 
 
