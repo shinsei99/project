@@ -162,7 +162,13 @@ python3 import_from_mail.py --mailbox "Sent Messages" --limit 20
 **公開URLは作らない。** Tailscale は自分のApple ID/Googleアカウントで繋いだ端末どうしだけが
 繋がる私設ネットワークなので、メールの中身を外に晒さずにスマホから開ける。
 
-> **⚠️ スマホから開けなくなったら、まず Mac mini の Tailscale が動いているかを見る**（2026-08-27に実際に発生）。
+> **✅ 2026-08-28: 自動で起こすようにした。** `com.shinsei.tailscale-keepalive`（Mac起動時＋5分ごと）が
+> 止まっていたら `open -a Tailscale` する。実体は `_launchd/tailscale-keepalive.sh`、
+> ログは `~/Library/Logs/com.shinsei.tailscale-keepalive.log`（起こしたときだけ書く）。
+> **Tailscale.app は自動起動の設定に一切入っていなかった**（launchd登録もログイン項目も無し）ため、
+> 手で起こしたときしか動かず、2026-08-28 の午前中だけで2回落ちた。
+>
+> **⚠️ それでも開けないときは、まず Mac mini の Tailscale が動いているかを見る**（2026-08-27に実際に発生）。
 >
 > ```bash
 > /Applications/Tailscale.app/Contents/MacOS/Tailscale status        # → "Tailscale is stopped." なら止まっている
