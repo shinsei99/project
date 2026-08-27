@@ -447,4 +447,10 @@ ai-tools-base/drafts/.note_posted.json
 
 # 外に出してはいけない語のリスト（社名・物件名・氏名を書くので、これ自体が機密）
 ai-tools-base/drafts/.pii-blocklist.txt
-ai-tools-base/drafts/.neta_scan.json
+
+# ※ ai-tools-base/drafts/.neta_scan.json は**わざとgitに入れている**。
+#    中身は「ここまでのネタは片付けた」という一本の線（since）で、機密でも端末ごとの
+#    事情でもない。両PCで同じでないと、片方だけ書き終えたネタを候補に出す。
+#    2026-08-27 まで、この直上の機密ブロックに紛れて ignore 指定されていたが、
+#    ルールより先にコミットされていたため**効いていなかった**（記述と実態がずれていた）。
+#    同じ理由で drafts/.neta_used.txt（書き終えたネタ）も git 管理。
