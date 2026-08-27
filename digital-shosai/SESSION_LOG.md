@@ -4,7 +4,7 @@
 
 ---
 
-## 2026-08-27（メインPC）— アイコンを差し替え、1.0.1 / build 2 をアップロードまで
+## 2026-08-27（メインPC）— アイコンを差し替え、1.0.1 / build 2 を審査へ提出まで
 
 ### 完了したこと
 
@@ -46,6 +46,8 @@ xcrun altool --upload-app   -f build/export/App.ipa -t ios \
   **`manageAppVersionAndBuildNumber=false`**（true だと Xcode が版数を勝手に書き換える）
 - **受理を確認**: `python3 appstore_api.py com.shinsei.shosai` で **`build 2 … VALID`**
   （アップロードの**約1分後**に処理完了。build 1 も VALID のまま並ぶ）
+- **オーナーが App Store Connect の画面で 1.0.1 を審査へ提出**（「このバージョンの最新情報」は
+  `アプリアイコンを新しくしました。`）。API でも確認: **`配信中 1.0 ／ 審査中のもの 1.0.1 … 審査待ち`**
 
 ### 発生したエラーと解決策
 
@@ -66,12 +68,19 @@ xcrun altool --upload-app   -f build/export/App.ipa -t ios \
 
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **★オーナーが手で行う: App Store Connect で 1.0.1 を作り、build 2 を選んで審査へ提出**
-  （ビルドのアップロードまでは機械で済んでいる）。
-  「このバージョンの新機能」には「アプリアイコンを新しくしました。」で足りる
-- 状態を見るのは `python3 appstore_api.py com.shinsei.shosai`（ビルド一覧）と
-  `python3 appstore_api.py --review com.shinsei.shosai`（審査状況）
-- **実機（iPhone）で1度通すのは依然として未了**
+**このアプリで今やることは無い。審査の結果を待つだけ。**
+
+- **1.0.1 / build 2 は審査待ち**（2026-08-27 提出）。見るときは
+  `python3 appstore_api.py --review com.shinsei.shosai`（審査状況）と
+  `python3 appstore_api.py com.shinsei.shosai`（ビルド一覧）。
+  **通ったら `CLAUDE.md` と直下 `TODO.md` を「1.0.1 が配信中」へ書き換える**
+- **アイコンが App Store のページと端末で新しくなるのは、1.0.1 が配信されてから**。
+  審査中はまだ旧アイコンが出る（不具合ではない）
+- **もし差し戻されたら**: アイコンだけの変更なので中身の指摘は考えにくいが、
+  出し直すときは**必ず build 3 へ**（`./ios-build-guard.sh digital-shosai --bump`）。
+  Archive → アップロードは `HANDOFF-APPSTORE.md` 冒頭の3コマンドでGUIなしに通る
+- **実機（iPhone）で1度通すのは依然として未了**（シミュレータのみ。手順は `HANDOFF-APPSTORE.md`）
+- **PWA化（manifest / service worker）も未着手**。アプリ版には必須ではない
 
 ---
 

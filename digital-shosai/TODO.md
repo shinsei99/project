@@ -101,7 +101,10 @@ Mac があることを前提にしない（Macのフォルダ一括指定は将�
       （`~/Library/Developer/Xcode/Archives/2026-08-27/デジタル書斎 2026-08-27 1.0.1-build2.xcarchive`）
 - [x] **App Store Connect へアップロード済み**（Organizer を使わず `xcodebuild -exportArchive` →
       `xcrun altool --upload-app`。`UPLOAD SUCCEEDED`・Delivery UUID `79457332-…`）
-- [ ] **★オーナー: App Store Connect で 1.0.1 を作り、build 2 を選んで審査へ提出**
+- [x] **1.0.1 / build 2 を審査へ提出**（2026-08-27・オーナーが ASC の画面で実施。
+      「このバージョンの最新情報」は `アプリアイコンを新しくしました。`）
+- [ ] **審査結果を待つ**（`python3 appstore_api.py --review com.shinsei.shosai`）。
+      通ったら `CLAUDE.md` と直下 `TODO.md` を「1.0.1 が配信中」へ書き換える
 
 ## App Store 提出（メインPCの担当）
 

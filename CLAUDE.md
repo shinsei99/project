@@ -254,7 +254,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
 | 送付書ジェネレーター（**オーナー個人専用**・差出人4プロファイル／社内には配らない） | soufu-generator | 8518 | — |
-| デジタル書斎 | digital-shosai | 3001 | App Store ✅（**1.0 build1 が配信中**・2026-08-27 に API で確認）。**アイコンを差し替えた 1.0.1 build2 をアップロード済み（ASC で VALID）＝オーナーが ASC で審査提出するだけ**（2026-08-27） |
+| デジタル書斎 | digital-shosai | 3001 | App Store ✅（**1.0 build1 が配信中**・2026-08-27 に API で確認）。**アイコンを差し替えた 1.0.1 build2 を 2026-08-27 に提出＝審査待ち**（API で `審査待ち` を確認。通るまでは旧アイコンが出る） |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
 | スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（**1.0.4 build8 が配信中**。2026-08-24 に API で確認。build7は提出せず） |
 | 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅（**1.0 build1 が配信中**・2026-08-24 に API で確認） |
