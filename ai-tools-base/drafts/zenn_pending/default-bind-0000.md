@@ -4,7 +4,6 @@ emoji: "🔓"
 type: "tech"
 topics: ["streamlit", "nextjs", "security", "運用", "claudecode"]
 published: true
-published_at: 2026-09-06 22:30
 ---
 
 社内向けのアプリを30本ほど、事務所のMacで常時起動させています。

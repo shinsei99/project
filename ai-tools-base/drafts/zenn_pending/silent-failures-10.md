@@ -4,7 +4,6 @@ emoji: "🔇"
 type: "tech"
 topics: ["python", "運用", "設計", "claudecode"]
 published: true
-published_at: 2026-09-18 22:30
 ---
 
 不動産会社で、社内向けの業務ツールを30本ほど作って、事務所のMacで常時起動させています。

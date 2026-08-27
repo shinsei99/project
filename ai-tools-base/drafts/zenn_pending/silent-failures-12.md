@@ -4,7 +4,6 @@ emoji: "📎"
 type: "tech"
 topics: ["python", "運用", "設計", "claudecode"]
 published: true
-published_at: 2026-09-19 22:30
 ---
 
 [前編](https://zenn.dev/shinsei99/articles/silent-failures-10) の続きです。

@@ -4,7 +4,6 @@ emoji: "🗂️"
 type: "tech"
 topics: ["python", "pythondocx", "pymupdf", "ocr", "claudecode"]
 published: true
-published_at: 2026-09-05 22:30
 ---
 
 不動産の書類は、**古い形式のまま渡ってきます**。

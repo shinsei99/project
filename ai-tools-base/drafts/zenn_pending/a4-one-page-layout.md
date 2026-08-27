@@ -4,7 +4,6 @@ emoji: "🖨️"
 type: "tech"
 topics: ["python", "openpyxl", "excel", "claudecode"]
 published: true
-published_at: 2026-09-03 22:30
 ---
 
 退去時の原状回復費用の精算書を、自動で作っています。

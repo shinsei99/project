@@ -4,7 +4,6 @@ emoji: "0️⃣"
 type: "tech"
 topics: ["python", "cli", "運用", "claudecode"]
 published: true
-published_at: 2026-09-09 22:30
 ---
 
 不動産の公式書式（Word・Excel）を200本ほど扱うツールを作っています。

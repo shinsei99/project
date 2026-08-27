@@ -4,7 +4,6 @@ emoji: "🔤"
 type: "tech"
 topics: ["python", "unicode", "正規表現", "claudecode"]
 published: true
-published_at: 2026-09-08 22:30
 ---
 
 日本語の業務データを扱っていると、**見た目が同じなのに一致しない**という形の不具合が定期的に出ます。

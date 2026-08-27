@@ -4,7 +4,6 @@ emoji: "🖼️"
 type: "tech"
 topics: ["python", "openpyxl", "excel", "claudecode"]
 published: true
-published_at: 2026-08-30 22:30
 ---
 
 他社の物件資料（マイソク）に自社の帯を付けて刷り直すツールを使っています。

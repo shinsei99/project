@@ -4,7 +4,6 @@ emoji: "🚦"
 type: "tech"
 topics: ["python", "設計", "運用", "claudecode"]
 published: true
-published_at: 2026-09-15 22:30
 ---
 
 業務チャットに常駐しているAIが、未完了タスクの催促を自動で送ります。

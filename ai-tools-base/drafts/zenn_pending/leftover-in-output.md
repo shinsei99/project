@@ -4,7 +4,6 @@ emoji: "🧻"
 type: "tech"
 topics: ["python", "openpyxl", "正規表現", "claudecode"]
 published: true
-published_at: 2026-09-07 22:30
 ---
 
 書類を自動生成するツールで、**出力に前の案件の内容が残る**事故を2通り踏みました。

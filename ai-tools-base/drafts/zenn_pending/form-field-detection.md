@@ -4,7 +4,6 @@ emoji: "📋"
 type: "tech"
 topics: ["python", "openpyxl", "ocr", "claudecode"]
 published: true
-published_at: 2026-08-28 22:30
 ---
 
 不動産の重要事項説明書などの公式書式（Excel・Word で200本ほど）に、

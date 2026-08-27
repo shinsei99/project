@@ -4,7 +4,6 @@ emoji: "📵"
 type: "tech"
 topics: ["line", "python", "運用", "claudecode"]
 published: true
-published_at: 2026-08-29 22:30
 ---
 
 業務チャットに常駐して質問に答えるAIを動かしています。窓口の一つが LINE です。

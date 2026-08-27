@@ -4,7 +4,6 @@ emoji: "🏷️"
 type: "tech"
 topics: ["生成ai", "python", "json", "claudecode"]
 published: true
-published_at: 2026-09-13 22:30
 ---
 
 AIに一式を書かせたあと、`pip install -r requirements.txt` がこう落ちました。

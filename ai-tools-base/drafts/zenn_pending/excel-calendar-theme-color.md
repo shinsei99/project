@@ -4,7 +4,6 @@ emoji: "📅"
 type: "tech"
 topics: ["python", "openpyxl", "excel", "claudecode"]
 published: true
-published_at: 2026-09-20 22:30
 ---
 
 社内のチャットに常駐しているAIが、日報を作ったり、未完了の仕事を催促したりします。
