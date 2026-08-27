@@ -117,7 +117,7 @@ def _auth_headers():
     return {"Content-Type": "application/json", "Authorization": f"Bearer {token}"}
 
 
-def _post(url: str, payload: dict, label: str = "") -> bool:
+def _post(url: str, payload: dict, label: str = "", want_body: bool = False):
     """LINEへ送信する。失敗しても例外は投げないが、**理由は必ず残す**。
 
     label は呼び出し元の名前（'qa_answer' など）。どの経路が枠を食っているかを
@@ -126,14 +126,19 @@ def _post(url: str, payload: dict, label: str = "") -> bool:
     headers = _auth_headers()
     if headers is None:
         _record_error("no_token", body="line_channel_access_token が未設定")
-        return False
+        return None if want_body else False
     data = json.dumps(payload).encode("utf-8")
     req = urllib.request.Request(url, data=data, method="POST", headers=headers)
     n = len(payload.get("messages") or [])
     try:
         with urllib.request.urlopen(req, timeout=20) as resp:
             ok = resp.status == 200
+            raw = b""
             if ok:
+                try:
+                    raw = resp.read()
+                except Exception:
+                    raw = b""
                 _clear_error()
                 if url == PUSH_URL:
                     # 送信通数の内訳を数えられるようにする（メッセージ単位＝課金単位）
@@ -141,6 +146,11 @@ def _post(url: str, payload: dict, label: str = "") -> bool:
                     _clear_quota_exhausted()
             else:
                 _record_error("bad_status", status=resp.status, body=str(resp.status))
+            if want_body:
+                try:
+                    return json.loads(raw.decode("utf-8")) if ok and raw else ({} if ok else None)
+                except Exception:
+                    return {} if ok else None
             return ok
     except urllib.error.HTTPError as e:
         body = ""
@@ -213,9 +223,22 @@ def push(user_id: str, text: str, label: str = "") -> bool:
                  label=label or "push")
 
 
-def push_image(user_id: str, image_url: str, label: str = "") -> bool:
+def push_image(user_id: str, image_url: str, label: str = "", with_id: bool = False):
     """画像メッセージをpushする。image_url はHTTPS・LINE側から到達可能な公開URLが必要
-    （originalContentUrl/previewImageUrlとも同じURLを使う。JPEG/PNG・10MBまで）。"""
-    return _post(PUSH_URL, {"to": user_id, "messages": [
+    （originalContentUrl/previewImageUrlとも同じURLを使う。JPEG/PNG・10MBまで）。
+
+    `with_id=True` のとき **(成功したか, 送ったメッセージのID)** を返す。
+    利用者がLINEの「リプライ」でその写真を引用したとき、webhookに届く
+    `quotedMessageId` と突き合わせて「どの写真の話か」を特定するために要る
+    （2026-08-27。これが無いと、写真を引用して「◯◯です」と言われても分からない）。
+    """
+    payload = {"to": user_id, "messages": [
         {"type": "image", "originalContentUrl": image_url, "previewImageUrl": image_url},
-    ]}, label=label or "push_image")
+    ]}
+    if not with_id:
+        return _post(PUSH_URL, payload, label=label or "push_image")
+    body = _post(PUSH_URL, payload, label=label or "push_image", want_body=True)
+    if body is None:
+        return False, None
+    sent = (body or {}).get("sentMessages") or []
+    return True, (sent[0].get("id") if sent else None)

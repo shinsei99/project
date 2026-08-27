@@ -37,7 +37,7 @@ def _load(target: str) -> dict:
         return {}
 
 
-def record(target: str, room_id, file_id, title=None, now=None) -> int:
+def record(target: str, room_id, file_id, title=None, now=None, line_message_id=None) -> int:
     """1枚送ったことを記録し、そのひと組の中での番号（1始まり）を返す。"""
     now = now or time.time()
     data = _load(target)
@@ -50,6 +50,7 @@ def record(target: str, room_id, file_id, title=None, now=None) -> int:
         "file_id": str(file_id) if file_id is not None else None,
         "title": title,
         "at": int(now),
+        "line_message_id": str(line_message_id) if line_message_id else None,
     })
     items = items[-MAX_KEEP:]
     set_state(_key(target), json.dumps({"last_at": now, "items": items}, ensure_ascii=False))
@@ -86,4 +87,20 @@ def resolve(target: str, ordinal: int):
     for it in recent(target):
         if int(it["n"]) == int(ordinal):
             return it["room_id"], it["file_id"]
+    return None
+
+
+def by_line_message_id(target: str, message_id: str):
+    """LINEの引用（quotedMessageId）から、その写真の (room_id, file_id, title) を引く。
+
+    利用者がLINEの「リプライ」で写真を引用して「◯◯です」と言うのが一番自然なので、
+    番号を言われなくてもここで確実に特定できる。直近のひと組に限らず全部の記録から探す
+    （少し前に送った写真に返信されることがあるため）。
+    """
+    if not message_id:
+        return None
+    data = _load(target)
+    for it in reversed(data.get("items") or []):
+        if it.get("line_message_id") and str(it["line_message_id"]) == str(message_id):
+            return it["room_id"], it["file_id"], it.get("title")
     return None

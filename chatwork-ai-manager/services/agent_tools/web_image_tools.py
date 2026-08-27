@@ -50,7 +50,7 @@ def line_send_web_image(image_token, message=None, user_id=None):
     if not domain:
         return {"ok": False, "error": "ngrok_domain が未設定のため画像を公開できません"}
     url = f"https://{domain}/line/web_image/{os.path.basename(path)}"
-    ok = line_client.push_image(target, url)
+    ok, sent_id = line_client.push_image(target, url, with_id=True)
     if not ok:
         return {"ok": False, "error": "LINEへの画像送信に失敗しました"}
     if message:
@@ -61,7 +61,8 @@ def line_send_web_image(image_token, message=None, user_id=None):
     try:
         from services import image_sendlog
         src = web_image_store.source_of(image_token)
-        n = image_sendlog.record(target, src.get("room_id"), src.get("file_id"), src.get("title"))
+        n = image_sendlog.record(target, src.get("room_id"), src.get("file_id"),
+                                 src.get("title"), line_message_id=sent_id)
     except Exception:
         pass
     return {"ok": True, "sent": True, "番号": n,

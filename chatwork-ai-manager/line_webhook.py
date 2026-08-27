@@ -184,6 +184,29 @@ def _handle_event(ev):
         attach_note = attachments.read_line_image(msg.get("id"))
         text = attachments.with_attachments(text, attach_note)
 
+    # ── LINEの「リプライ（引用）」を読む（2026-08-27）──
+    #   利用者が写真を引用して「これは◯◯です」と言うのが一番自然な直し方なのに、
+    #   `quotedMessageId` を見ていなかったため**どの写真の話か分からず**、
+    #   毎回「番号で答えてください」と聞き返していた（オーナー報告）。
+    #   送信時に控えたメッセージIDと突き合わせて、対象を確定して渡す。
+    quoted = msg.get("quotedMessageId")
+    if quoted:
+        try:
+            from services import image_sendlog
+            hit = image_sendlog.by_line_message_id(user_id, quoted)
+        except Exception:
+            hit = None
+        if hit:
+            rid, fid, title = hit
+            text += (f"\n\n（★利用者はこの発言で、あなたが送った写真を引用している。"
+                     f"対象は room_id=\"{rid}\" file_id=\"{fid}\"（現在のタイトル: {title or 'なし'}）。"
+                     "『これは◯◯です』のように名前を告げられたら、"
+                     "番号を聞き返さずこの写真のタイトルを chatwork_image_set_title で直すこと）")
+            _log_line(user_id, text, note=f"引用を解決: {rid}/{fid}")
+        else:
+            text += ("\n\n（★利用者は何かを引用して返信しているが、"
+                     "こちらの記録には無い写真だった。どれを指しているか確認すること）")
+
     # ── claudeが既に詰まっていると分かっている場合は、呼ばずに預かる ──
     # 詰まりは全プロセス共通（Keychainのトークン）なので、2人目以降は待つだけ無駄。
     # ここで即答することで「90秒すら待たせない」（2026-08-19の障害対応・Stage 8）。
