@@ -10,6 +10,8 @@ from __future__ import annotations
 import base64
 import hmac
 import os
+import shutil
+import urllib.parse
 from datetime import date, datetime, timedelta, timezone
 
 import streamlit as st
@@ -341,16 +343,30 @@ with tab_search:
             atts = db.attachments_of(conn, r["id"])
             if atts:
                 st.markdown("**添付**")
+                att_dir = os.path.join(_HERE, "static", "att")
                 for a in atts:
                     ap = os.path.join(config.DATA_DIR, a["path"])
-                    if os.path.exists(ap):
-                        with open(ap, "rb") as fp:
-                            st.download_button(
-                                "⬇ {} ({})".format(a["filename"], human_size(a["size_bytes"])),
-                                fp.read(), file_name=a["filename"],
-                                key="att_{}".format(a["id"]))
-                    else:
+                    if not os.path.exists(ap):
                         st.warning("添付が見つかりません: {}".format(a["filename"]))
+                        continue
+                    # ブラウザで直接開けるように静的配信フォルダへコピー（127.0.0.1/タネット内のみ）。
+                    # download_button はスマホSafariでPDFを開けないため、新しいタブで開くリンクにする。
+                    ext = os.path.splitext(a["filename"])[1] or ""
+                    safe = "{}_{}{}".format(a["id"], a["sha256"][:8], ext)
+                    dst = os.path.join(att_dir, safe)
+                    if not os.path.exists(dst):
+                        os.makedirs(att_dir, exist_ok=True)
+                        shutil.copy2(ap, dst)
+                    url = "/app/static/att/" + urllib.parse.quote(safe)
+                    st.markdown(
+                        '<a href="{u}" target="_blank" rel="noopener">📄 {n} を開く（新しいタブ）</a>'
+                        '　<span style="color:#888">{s}</span>'.format(
+                            u=url, n=a["filename"], s=human_size(a["size_bytes"])),
+                        unsafe_allow_html=True)
+                    with open(ap, "rb") as fp:
+                        st.download_button(
+                            "⬇ 保存", fp.read(), file_name=a["filename"],
+                            key="att_{}".format(a["id"]))
 
             raw_abs = os.path.join(config.DATA_DIR, r["raw_path"])
             if os.path.exists(raw_abs):

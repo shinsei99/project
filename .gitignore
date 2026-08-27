@@ -458,3 +458,6 @@ ai-tools-base/drafts/.pii-blocklist.txt
 #    同じ理由で drafts/.neta_used.txt（書き終えたネタ）も git 管理。
 
 mail-archiver/.venv-embed/
+
+# 添付を開くための一時コピー（個人情報。絶対に追跡しない）
+mail-archiver/static/att/
