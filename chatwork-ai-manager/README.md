@@ -658,6 +658,53 @@ claim だけして「休業日」と記録し、その日は再試行しない�
 - 日次増分リフレッシュ: 既定 07:00 に worker が更新分のみ再取込（`scheduled_runs`で1日1回）。
 - **⚠️ CloudStorage(Dropbox)取込はTCC権限が必要**。launchd常時起動で取込するには `/bin/bash` にフルディスクアクセスを付与。
   未付与ならターミナルから取込（検索・Q&AはローカルDBのみで常時起動でも動く）。
+  **2026-08-27 実測: このMacでは付与済みで、launchd 経由でも Dropbox を読めている。**
+
+### OCRの夜間自動取込（2026-08-27 追加・メインPCのみ）
+
+手で38時間流すのをやめ、**毎晩 00:30 に少しずつ**進める。
+
+| | |
+|---|---|
+| plist | `com.shinsei.chatwork-ai-manager-ocr`（毎日 **01:00**・`RunAtLoad` なし・単発） |
+| 実体 | `run_ocr_nightly.sh` → `ocr_ingest.py --max-new 300 --max-minutes 180` |
+| 止まる条件 | **300件** または **3時間**の早い方（＝遅くとも 04:00 には終わる） |
+| ログ | `~/Library/Logs/com.shinsei.chatwork-ai-manager-ocr.log` |
+| 進捗 | 管理画面の `ocr_progress`（`set_state`）にも出る |
+| 手で流す | `./run_ocr_nightly.sh` ／ `OCR_MAX_NEW=20 ./run_ocr_nightly.sh` |
+
+**`--limit` と `--max-new` は別物。** `--limit N` は「対象リストの先頭N件」を切り出すだけなので、
+毎晩流すと**同じ先頭を舐めて終わり**で前に進まない。`--max-new N` は取込済みを飛ばしながら進み、
+**新しく処理できた件数**がNに達したら止まる。夜間バッチでは必ず後者を使う。
+
+**必ず `/bin/bash` 経由で起動すること。** plist から `/usr/bin/python3` を直接叩くと
+TCCの責任プロセスが python になり、**Dropbox が読めなくなる**。
+
+**「OCRしても文字が取れなかった」ファイルは `logs/ocr_skiplist.json` に記録する。**
+`knowledge.ingest_file()` はこの場合 DB に何も書かないので、記録しないと**毎晩まったく同じ
+ファイルを再OCRし続ける**（定額枠の無駄）。同じ内容で2回ダメなら以後は飛ばし、
+ファイルが差し替わった（mtime変化）ら再挑戦する。全部やり直すなら `--retry-skipped`。
+
+**連続5件失敗したらその晩は中断する**（claude CLI の定額枠切れ・環境異常の可能性が高いため、
+残りを無駄に叩かない）。
+
+**02:00 の `com.shinsei.mail-archiver-sync` と16分ほど重なる**が、あちらは IMAP＋SQLite、
+こちらは claude CLI＋PDF描画で**取り合う資源が無い**（2026-08-27 実測。あちらは claude CLI を使わない）。
+
+**新規PDFも継続して拾う。** 毎晩フォルダ全体を歩き直す（`os.walk`・再帰・約4.4秒）ので、
+新しいファイルも新しいサブフォルダも自動で対象になる。中身が差し替わった（mtime変化）ファイルも
+再取込して version+1 になる。
+ただし **07:00 の日次リフレッシュ（`run_knowledge_refresh`）は `ocr_fallback` を付けずに呼んでいる**ので、
+**スキャン書類を拾えるのはこの夜間ジョブだけ**。ここを止めると画像PDFは永久に索引に入らない。
+
+**止めるときは子ごと。** `caffeinate -i python` の形なので、bash や caffeinate を倒しても
+python が孤児として走り続ける（2026-08-27 に実測）。スクリプト側は `set -m` ＋
+`kill -TERM -"$CHILD"` でプロセスグループごと倒すようにしてある。手で止めるなら
+`pkill -f ocr_ingest.py` まで確認すること。
+
+> ⚠️ OCR は `run_claude`＝**claude CLI（MAX定額）**を使う。API課金ではないが**定額枠を消費する**。
+> 翌朝の業務QAや開発エージェントに影響しうるので、時刻を前倒しするときは注意。
+> **実測: OCRが必要な1件あたり約2分**（15ページを1枚ずつ読むため）。テキスト層のPDFは1〜2秒。
 
 ## バックグラウンド処理・定期処理
 - worker.py が常時ループ: 新着取得→質問応答→TODO解析→定時処理→（post_modeに従い）投稿。
