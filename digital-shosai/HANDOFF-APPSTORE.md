@@ -8,6 +8,25 @@
 
 ---
 
+## 0. 追記（2026-08-27 メインPC）— **1.0 は配信中。いまは 1.0.1 のアップロード待ち**
+
+- **1.0 / build 1 は審査を通って配信中**（`python3 appstore_api.py --review com.shinsei.shosai`）
+- **アイコンをオーナー支給の画像に差し替え**、**1.0.1 / build 2** で **Archive まで済ませた**
+
+```
+~/Library/Developer/Xcode/Archives/2026-08-27/デジタル書斎 2026-08-27 1.0.1-build2.xcarchive
+```
+
+**残り（オーナーが手で行う）**: Xcode → Window → Organizer → 上のアーカイブを選ぶ →
+Distribute App → App Store Connect → Upload → App Store Connect で 1.0.1 を作って build 2 を選び、
+「このバージョンの新機能」に `アプリアイコンを新しくしました。` と書いて審査へ提出。
+
+**アイコンの作り直し方は `icon-src/make_icon.py` の冒頭に書いた。**
+支給画像は白背景に角丸アイコンが乗った形なので、**そのまま渡すとホーム画面で角が白く欠ける**。
+スクリプトが「本体を切り出す → 1024へ → 角の外を地色で塗る」まで面倒を見る。
+
+---
+
 ## 1. いまの状態（2026-08-19 メインPCで実測）
 
 | | 状態 |

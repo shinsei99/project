@@ -3,65 +3,60 @@
 
     ../../agent-platform/.venv/bin/python make_icon.py
 
-App Store のアイコンは**透明を含められない**ので、背景を必ず塗る。
-角丸は iOS が自動で付けるため、こちらでは四角のまま出す。
-図案: 開いた本＋そこから立ち上がる検索の光（本文を検索する道具、という意味）。
-色はアプリ本体の画面と揃える（濃紺 #0f172a ／ 空色 #38bdf8）。
+2026-08-27 にオーナー支給の画像（`source_2026-08-27.png`）へ差し替えた。
+それ以前は PIL で図案を描いていた（開いた本＋空色の虫めがね）。旧版のコードは
+git 履歴にある（`git log -p icon-src/make_icon.py`）。
+
+支給画像の扱い（ここを外すとホーム画面で角が白く欠ける）
+----------------------------------------------------------
+支給画像は **白背景の上に角丸の正方形アイコンが乗った状態**（1254×1254・周囲に白い余白）。
+iOS は自分で角丸マスクを掛けるので、**アイコンは角まで塗った四角**で渡さなければならない。
+そのため次の順で整える。
+
+1. 角丸正方形の本体だけを切り出す（白余白と落ち影を落とす）
+2. 1024×1024 に縮める
+3. **角丸の外側（＝白が残る部分）をアイコンの地色で塗り潰す**
+   iOS のマスク半径（1024 なら約 229px）よりわずかに大きい半径で塗るので、
+   マスク後に地色が見えるのは輪郭のごく細い部分だけ
+
+App Store のアイコンは**透明を含められない**ので、必ず RGB（アルファ無し）で保存する。
 """
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
+import numpy as np
 
+SRC = "source_2026-08-27.png"
 S = 1024
-BG = (15, 23, 42)        # slate-900：本体画面と同じ濃紺
-PAGE = (241, 245, 249)   # slate-100：紙
-PAGE_SHADE = (203, 213, 225)
-ACCENT = (56, 189, 248)  # sky-400：検索・アクセント
-LINE = (100, 116, 139)   # slate-500：本文の行
+CORNER_RADIUS = 239   # 支給画像の角丸を 1024 に換算した値（iOS の約229より少し大きい）
 
-img = Image.new("RGB", (S, S), BG)
-d = ImageDraw.Draw(img)
+img = Image.open(SRC).convert("RGB")
 
-# 開いた本（左右のページ）。中央でわずかに山を作る
-# 余白を詰めて中央に大きく置く（iOSのアイコンは画面いっぱいに使うのが定石）
-cx, top, bottom = S // 2, int(S * 0.34), int(S * 0.82)
-left, right = int(S * 0.09), int(S * 0.91)
-spine_lift = int(S * 0.045)
+# --- 1. 角丸正方形の本体だけを切り出す -------------------------------------
+# 白でない（＝暗い）画素が縦横に長く連なる範囲を本体とみなす。
+# しきい値の 600 は「1254px の半分近く連なっていれば本体の辺」という意味で、
+# 落ち影のような薄く短い帯を拾わないために置いている。
+arr = np.asarray(img).astype(int)
+dark = arr.mean(axis=2) < 200
+cols = np.where(dark.sum(axis=0) > 600)[0]
+rows = np.where(dark.sum(axis=1) > 600)[0]
+x0, x1 = int(cols.min()), int(cols.max())
+y0, y1 = int(rows.min()), int(rows.max())
+# 落ち影のぶん縦横がわずかにずれるので、短い方の辺に合わせて正方形にする
+side = min(x1 - x0 + 1, y1 - y0 + 1)
+body = img.crop((x0, y0, x0 + side, y0 + side)).resize((S, S), Image.LANCZOS)
 
-for sign, x_out in ((-1, left), (1, right)):
-    d.polygon(
-        [
-            (cx, top + spine_lift),
-            (x_out, top),
-            (x_out, bottom - spine_lift),
-            (cx, bottom),
-        ],
-        fill=PAGE if sign < 0 else PAGE_SHADE,
-    )
+# --- 2. 角の外側をアイコンの地色で塗る --------------------------------------
+# 地色は「辺の内側 40px の帯」の中央値（濃紺）。角の白は帯に入らないので混ざらない。
+b = np.asarray(body).astype(int)
+band = np.concatenate([b[40:80, :, :].reshape(-1, 3), b[-80:-40, :, :].reshape(-1, 3)])
+bg = tuple(int(v) for v in np.median(band, axis=0))
 
-# 本文の行（左ページに数本、右ページに数本）
-for i in range(7):
-    y = top + spine_lift + int(S * 0.055) * (i + 1)
-    d.line([(left + int(S * 0.045), y + int(S * 0.012)), (cx - int(S * 0.03), y)], fill=LINE, width=9)
-    d.line([(cx + int(S * 0.03), y), (right - int(S * 0.045), y + int(S * 0.012))], fill=LINE, width=9)
+mask = Image.new("L", (S, S), 0)
+ImageDraw.Draw(mask).rounded_rectangle([0, 0, S - 1, S - 1], radius=CORNER_RADIUS, fill=255)
+mask = mask.filter(ImageFilter.GaussianBlur(1.2))   # 角のジャギを消す
+icon = Image.composite(body, Image.new("RGB", (S, S), bg), mask)
 
-# 綴じ目
-d.line([(cx, top + spine_lift), (cx, bottom)], fill=(148, 163, 184), width=7)
-
-# 検索の光（虫めがね）を本の上に重ねる
-r = int(S * 0.175)
-gx, gy = int(S * 0.62), int(S * 0.36)
-d.ellipse([gx - r, gy - r, gx + r, gy + r], outline=ACCENT, width=int(S * 0.035))
-d.line(
-    [(gx + int(r * 0.74), gy + int(r * 0.74)), (gx + int(r * 1.45), gy + int(r * 1.45))],
-    fill=ACCENT,
-    width=int(S * 0.045),
-)
-# 虫めがねの中だけ本文を透かす（ガラスの内側を少し明るくする）
-d.ellipse([gx - r + 22, gy - r + 22, gx + r - 22, gy + r - 22], fill=(23, 37, 63))
-
-img.save("icon_1024.png")
-
-# iOS 用の各サイズ（Xcode は 1024 だけでも良いが、確認用に主要サイズも出す）
+icon.save("icon_1024.png")
 for size in (180, 152, 120, 76, 60):
-    img.resize((size, size), Image.LANCZOS).save(f"icon_{size}.png")
+    icon.resize((size, size), Image.LANCZOS).save(f"icon_{size}.png")
 
-print("icon_1024.png ほかを書き出した")
+print(f"icon_1024.png ほかを書き出した（地色 {bg} ・切り出し {side}px 四方）")

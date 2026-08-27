@@ -4,6 +4,47 @@
 
 ---
 
+## 2026-08-27（メインPC）— アイコンを差し替え、1.0.1 / build 2 を Archive まで
+
+### 完了したこと
+
+- **1.0 は審査を通って「配信中」になっていた**（`appstore_api.py --review` で実測）。
+  8/24時点の「審査待ち」から変わっていたので、`CLAUDE.md` と `TODO.md` の記載を直した。
+  ついでに photo-remake も 1.1.0 が配信中になっていたので同じく直した
+- **アイコンをオーナー支給の画像に差し替えた**（開いた本＋銀色の虫めがね・濃紺の地）。
+  原本は `icon-src/source_2026-08-27.png` として git に入れた（1254×1254）
+- `icon-src/make_icon.py` を「図案を描く」から「**支給画像を整える**」形に書き換え。
+  出力は従来どおり `icon_1024/180/152/120/76/60.png`（RGB・アルファ無し）
+- `ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png` を差し替え
+- **`MARKETING_VERSION` 1.0.0 → 1.0.1 ／ `CURRENT_PROJECT_VERSION` 1 → 2**
+  （`./ios-build-guard.sh digital-shosai --bump` ＋ 表示バージョンは手で）
+- `npm run build` → `npx cap sync ios` → **Archive 成功**。Organizer に出るよう
+  `~/Library/Developer/Xcode/Archives/2026-08-27/デジタル書斎 2026-08-27 1.0.1-build2.xcarchive`（22MB）へ配置
+- **Archive の中身を目で確認**: `Info.plist` が 1.0.1 / build 2 / `com.shinsei.shosai`、
+  `AppIcon60x60@2x.png`（iPhone）と `AppIcon76x76@2x~ipad.png`（iPad）が**新しい絵になっている**
+
+### 発生したエラーと解決策
+
+- **支給画像をそのまま使うと、ホーム画面で角が白く欠ける** → 原因: 支給画像は
+  「白背景の上に角丸の正方形アイコンが乗った」状態（周囲に約26pxの白余白）。iOS は自分で
+  角丸マスクを掛けるので、渡す画像は**角まで塗った四角**でなければならない →
+  直し方: `make_icon.py` で ①角丸正方形の本体だけ切り出し（暗い画素が縦横に600px以上連なる範囲）
+  ②1024へ縮小 ③**角丸の外側を地色 `(23,32,45)` で塗り潰す**（半径239px＝iOSの約229pxより少し大きい）。
+  iOSマスクを掛けた状態を画像で並べて目視し、白い縁が出ないことを確認した
+- **Archive 内のアイコンPNGが PIL で開けない**（`broken data stream`） → 原因: Xcode が
+  iOS向けにPNGを最適化する（CgBI形式）ため → 直し方:
+  `xcrun -sdk iphoneos pngcrush -revert-iphone-optimizations` で戻してから見る
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **★オーナーが手で行う: Xcode の Organizer から Distribute App → App Store Connect → Upload、
+  そのあと App Store Connect で 1.0.1 を審査へ提出**（オーナー判断で提出は手動にした）。
+  「このバージョンの新機能」には「アプリアイコンを新しくしました。」で足りる
+- アップロード後は `python3 appstore_api.py --review com.shinsei.shosai` で状態を見る
+- **実機（iPhone）で1度通すのは依然として未了**
+
+---
+
 ## 2026-08-24（メインPC）— 審査状況を API で確認（変化なし・待ち）
 
 ### 完了したこと

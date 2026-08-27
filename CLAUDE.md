@@ -254,13 +254,13 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
 | 送付書ジェネレーター（**オーナー個人専用**・差出人4プロファイル／社内には配らない） | soufu-generator | 8518 | — |
-| デジタル書斎 | digital-shosai | 3001 | App Store **審査待ち**（1.0/build1・2026-08-19提出。2026-08-24 に API で確認＝まだ審査に入っていない） |
+| デジタル書斎 | digital-shosai | 3001 | App Store ✅（**1.0 build1 が配信中**・2026-08-27 に API で確認）。**アイコンを差し替えた 1.0.1 build2 を Archive 済み＝オーナーが Organizer から Upload → 提出する段階**（2026-08-27） |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
 | スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（**1.0.4 build8 が配信中**。2026-08-24 に API で確認。build7は提出せず） |
 | 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅（**1.0 build1 が配信中**・2026-08-24 に API で確認） |
 | ママカウンター | mom-counter | — | GitHub Pages / App Store ✅（**1.0 build4 が配信中**・2026-08-24 に API で確認。「v1.0.1」は誤記だった） |
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
-| フォトリメイク | photo-remake | — | iOS App Store ✅（**1.0.2 build3 が配信中**）＋**1.1.0 build4 を 2026-08-26 に提出＝審査待ち**（図形13種。API で `WAITING_FOR_REVIEW` を確認） |
+| フォトリメイク | photo-remake | — | iOS App Store ✅（**1.1.0 build4 が配信中**・2026-08-27 に API で確認。図形13種。8/26提出→審査通過） |
 | 買取DMジェネレーター | kaitori-dm-maker | 8526 | — |
 | PSAカード管理 | psa-collection | 8527 | — |
 | パシャカロ！（撮るだけカロリー記録） | pasha-calo | 3003 | Vercel（pasha-calo.vercel.app） |
