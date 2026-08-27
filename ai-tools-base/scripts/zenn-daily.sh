@@ -31,6 +31,50 @@ DRY=""
 PEND="drafts/zenn_pending"
 [ -d "$PEND" ] || { echo "待機場所が無い: $PEND"; exit 0; }
 
+# ★前に出した1本がまだ公開されていないなら、次を出さない（2026-08-28）。
+#   これが無いと、レート制限で弾かれた記事が articles/ に溜まり続け、毎晩1本ずつ
+#   「未公開の記事」が増えて、結局また24本まとめてデプロイしようとする状態に戻る。
+#   ＝せっかく1本ずつにした意味が無くなる。
+STUCK="$(/usr/bin/python3 - <<'PYCHK'
+import json, pathlib, urllib.request
+# ★ページ送りを最後までたどる。1ページ目だけ見ると、公開が増えたとき
+#   「2ページ目にある古い記事」が未公開に見えて毎晩止まってしまう。
+live, url = set(), "https://zenn.dev/api/articles?username=shinsei99&order=latest"
+try:
+    for _ in range(20):                       # 保険（無限ページ送りを踏まない）
+        with urllib.request.urlopen(url, timeout=10) as r:
+            d = json.load(r)
+        live |= {a["slug"] for a in d.get("articles", [])}
+        nxt = d.get("next_page")
+        if not nxt:
+            break
+        url = "https://zenn.dev/api/articles?username=shinsei99&order=latest&page=%s" % nxt
+except Exception:
+    print("")            # Zennを見に行けないときは止めない（従来どおり出す）
+    raise SystemExit
+stuck = [f.stem for f in sorted(pathlib.Path("../articles").glob("*.md")) if f.stem not in live]
+print(" ".join(stuck))
+PYCHK
+)"
+if [ -n "$STUCK" ]; then
+  echo "$(date '+%F %T') 前に出した記事がまだZennで公開されていない: $STUCK"
+  echo "  次の1本は出さない（未公開を積み増さない）。"
+  # ★Zennは上限で弾いた記事を**自動では再試行しない**（ai-tools-base/CLAUDE.md）。
+  #   待っているだけでは永久に公開されないので、空コミットを push してデプロイを促す。
+  #   上限が解けていればこれで公開される。解けていなければまた弾かれるだけで害は無い。
+  if [ -z "$DRY" ]; then
+    if ( cd .. && git pull -q --rebase origin main \
+         && git commit -q --allow-empty -m "Zenn: 未公開分の再デプロイを促す（$STUCK）" \
+         && git push -q origin main ); then
+      echo "  空コミットを push した（再デプロイを促した）。上限が解けていれば公開される。"
+    else
+      echo "  ★空コミットの push に失敗した。"
+    fi
+  fi
+  echo "  デプロイの状況: https://zenn.dev/dashboard/deploys"
+  exit 0
+fi
+
 NEXT="$(/usr/bin/python3 - <<'PY'
 import pathlib
 pend = pathlib.Path("drafts/zenn_pending")
