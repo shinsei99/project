@@ -30,7 +30,7 @@
 | 21 | sqlite-transaction | 60,61,64 | 不動産 | 📝 | executescript の暗黙COMMIT／時刻だけでは順序が決まらない（小説12話） |
 | 23 | chrome-download-limit | 47 | 不動産 | 📝 | 自動ダウンロードの制限は自動では回避しない |
 | 24 | env-differs-in-production | 2,6 | 不動産 | 📝 | 本番だけ違うものが動く（固定パス／常駐のPython） |
-| 25 | a4-one-page | 21 | 不動産 | 📝 | 帳票をA4一枚に収め続ける（🔍コードから） |
+| 25 | a4-one-page-layout | 21 | 不動産 | 📝 | 帳票をA4一枚に収め続ける（🔍コードから） |
 | 26 | ios-capacitor-traps | 43,44,45,46 | ツール | 📝 | キーボードでWebViewが縮む／sync漏れ／SPM／ビルド番号 |
 | 27 | streamlit-execution-model | 62,63,65,66 | ツール | 📝 | 実行モデルで踏む4つ（※28を統合） |
 | 29 | external-data-quirks | 58,59 | ツール | 📝 | GETは200で空／平均が空で最安だけ入る |

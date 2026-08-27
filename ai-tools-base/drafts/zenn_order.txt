@@ -9,7 +9,7 @@ excel-image-aspect
 japanese-no-word-boundary
 launchd-cannot-read-cloud
 model-lifetime
-a4-one-page
+a4-one-page-layout
 kana-name-matching
 legacy-office-convert
 silent-failures-10

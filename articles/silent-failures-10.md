@@ -71,7 +71,7 @@ https://zenn.dev/shinsei99/articles/model-lifetime
 画面で見やすくても、**印刷して列が切れていたら使えません**。
 `fitToPage` を立てないと `fitToWidth` が効かない、という詰まりどころも含めて書きました。
 
-https://zenn.dev/shinsei99/articles/a4-one-page
+https://zenn.dev/shinsei99/articles/a4-one-page-layout
 
 ## 9. 例外は出ない。一致率だけが落ちる
 

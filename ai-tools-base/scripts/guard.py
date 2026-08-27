@@ -76,8 +76,28 @@ def blocklist() -> list[str]:
             if l.strip() and not l.startswith("#")]
 
 
+# Zenn のファイル名（＝slug）の決まり。半角英数字・ハイフン・アンダースコアの12〜50文字。
+# ★1本でも違反があると **Zenn はデプロイ全体を中断する**（2026-08-28に実際に起きた）。
+#   `a4-one-page`（11文字）が1本混ざっていただけで、予約投稿25本が丸ごと届かず、
+#   Zennへの公開が1日以上止まっていた。しかも Zenn側の画面を見るまで気づけない
+#   （手元では push も成功し、note と本体サイトは普通に出ていた）。
+SLUG_RE = re.compile(r"^[a-z0-9_-]{12,50}$")
+
+
+def check_slug(path: Path) -> list[str]:
+    """記事のファイル名が Zenn の決まりに合っているか。articles/ の .md だけ見る。"""
+    if path.suffix != ".md" or path.parent.name != "articles":
+        return []
+    slug = path.stem
+    if SLUG_RE.match(slug):
+        return []
+    return [f"[Zennのslug] 「{slug}」({len(slug)}文字) は不正。"
+            "半角英数字・ハイフン・アンダースコアの12〜50文字にすること。"
+            "★1本でもあるとZennのデプロイ全体が止まる"]
+
+
 def check(path: Path, text: str, words: list[str]) -> list[str]:
-    bad = []
+    bad = check_slug(path)
     for label, pat in PII:
         for m in pat.finditer(text):
             if "番号" in label and EXAMPLE_TEL.search(m.group(0)):
@@ -100,9 +120,16 @@ def check(path: Path, text: str, words: list[str]) -> list[str]:
 
 def targets(only: str | None) -> list[Path]:
     out = []
+    # ★slug検査は published の値に関係なく全記事に効かせる（2026-08-28）。
+    #   以前は「published: false のものだけ」を対象にしていたため、
+    #   予約中・公開済みのファイル名が不正でも気づけなかった。
+    #   Zenn は1本でも不正なファイル名があると**デプロイ全体を中断する**ので、
+    #   すでに published: true になっている記事こそ見ないといけない。
     for f in sorted((REPO / "articles").glob("*.md")):
         if "published: false" in f.read_text(encoding="utf-8"):
             out.append(f)
+        elif not SLUG_RE.match(f.stem):
+            out.append(f)          # 中身は通っている前提。ファイル名だけ引っかかる
     for f in sorted((ROOT / "drafts" / "note").glob("*.md")):
         out.append(f)
     for f in sorted((ROOT / "content" / "works").glob("*.json")):
