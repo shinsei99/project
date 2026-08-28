@@ -16,6 +16,11 @@ export const IMAGE_CANDIDATES: { mime: string; quality?: number }[] = [
   { mime: "image/png" },
 ];
 
+// 端末内OCR（`nativeOcr.ts`）に渡すページ画像のスケール。
+// 読書用の 2.0 より大きくする。**元のスキャンが300dpiでも、そこから小さく描き直すと
+// 読み取り精度が落ちる**ため。3.0 で A4 が約1490×2180px（Macでの実測に近い大きさ）。
+export const OCR_RENDER_SCALE = 3.0;
+
 // 検索結果の最大件数
 export const SEARCH_LIMIT = 200;
 
@@ -40,3 +45,12 @@ export const READER_DEFAULTS = { fontSize: 18, lineHeight: 1.9, serif: true };
 export const READABLE_QUALITY = 0.857;
 // ページ単位で「文字が崩れている」と見なすひらがな率
 export const PAGE_GARBLED_HIRAGANA = 0.15;
+
+// 「読み取り直したほうがよい本」と見なす、組み直したページの割合。
+//
+// **ひらがな率だけでは足りない**（2026-08-28 に自炊本10冊で実測して分かった）。
+// 縦書きページを1文字ずつ拾った壊れたテキスト層は、1行1文字なので**ひらがな率はむしろ高く出る**。
+// 実例: ある本は読み取り直して文章として読めるようになったのに、ひらがな率は 23.2% → 22.8% で
+// ほとんど動かなかった。**組み直しが多かった本＝もとのテキスト層が壊れている本**なので、
+// こちらも見て判断する。
+export const REBUILT_HEAVY = 0.5;

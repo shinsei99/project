@@ -2,6 +2,30 @@
 
 port 3001 / ツール分類（社内LAN共有なし・`127.0.0.1`）。**完全オンデバイス**（キー・`.env` は不要）。
 
+## いま着手していること（2026-08-28・メインPC）— 崩れたOCRを端末内で読み取り直す
+
+**複数ファイルを触り、App Store の配信物に入る**ので様式で書く。
+
+| | |
+|---|---|
+| **目的** | 自炊本のテキスト層が壊れていると、本文表示も検索も使えない。**端末の中だけで**読み取り直せるようにする |
+| **実装内容** | ① ローカルCapacitorプラグイン `plugins/document-ocr`（Swift・Apple Vision の `RecognizeDocumentsRequest`）② `src/lib/nativeOcr.ts`（可否判定と呼び出し）③ `pdfClient.ts` の行組み立てを再利用できるよう切り出す ④ `db.replaceIndex()`（本文の入れ替え）⑤ `/library` に「読み取り直す」ボタン |
+| **完了条件** | iOS 26以降の実機・シミュレータで、ひらがな率が閾値未満の本を読み取り直すと `quality` が上がり、検索に出るようになる。**それ以外の環境ではボタンを出さない**（Web版・iOS 25以下） |
+| **検証方法** | `npm run lint` / `npm run build` / `npx cap sync` ＋ iOS 26 シミュレータで1冊通す ＋ `./va.sh check` でUI崩れ |
+| **状態** | **確認待ち**（実装・ビルド検証は完了。**iOS 26実機で1冊読み取り直す確認だけ残っている**） |
+| **関連ファイル** | `plugins/document-ocr/**` `src/lib/nativeOcr.ts` `src/lib/pdfClient.ts` `src/lib/db.ts` `src/app/library/page.tsx` `src/lib/constants.ts` |
+
+**なぜ Vision なのか（2026-08-28 に実測して決めた）**
+
+- **縦書きの日本語を読めるのは `RecognizeDocumentsRequest`（iOS/macOS 26〜）だけ**だった。
+  従来の `VNRecognizeTextRequest` は縦書きページで**114ページ中の1ページから15文字**しか取れない
+- **AIサービスではない。** OSに入っている機能で、通信なし・課金なし・データは端末から出ない
+- **Web版には入れない。** ブラウザから Vision は呼べず、代替の `tesseract.js` は
+  1ページ数秒かかるため502ページの本では現実的でない（下の「未OCRのPDFの救済」は方針を差し替える）
+
+- [ ] `ios/` は **gitignore なのでプラグインを `ios/App/App/` に置かない**。
+      npm のローカルパッケージにして `cap sync` で入る形にする（`cap add ios` で作り直しても残る）
+
 ## いま着手していること（2026-08-17）
 
 - [x] **広告と本棚スロット制限を撤去**（バナー／インタースティシャル／動画リワード、`profile` ストア、
@@ -123,7 +147,10 @@ Mac があることを前提にしない（Macのフォルダ一括指定は将�
       テキストのみにするか、警告を出す
 - [ ] PWA化（manifest＋service worker）。静的書き出しなのでオフライン起動・ホーム画面追加が安い。
       **iPhone運用の前提**（ホーム画面から起動すると保存の扱いが良くなる）
-- [ ] 未OCRのPDFの救済（`tesseract.js` でブラウザ内OCR。1ページ数秒かかるので明示的なオプトイン）
+- [x] ~~未OCRのPDFの救済（`tesseract.js` でブラウザ内OCR）~~ → **方針を差し替えた**（2026-08-28）。
+      Apple Vision の端末内OCR（`plugins/document-ocr`・iOS 26以降）にした。`tesseract.js` は
+      **縦書きの精度が未検証なうえ1ページ数秒**かかり、502ページの本では見合わない。
+      **Web版には入れない**（ブラウザから Vision は呼べない）
 - [ ] Capacitor で iOS アプリ化（`out/` をそのまま使う）。**配信用証明書はメインPCにしかない**
 
 ## 決めたこと
