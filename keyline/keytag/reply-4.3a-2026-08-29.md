@@ -27,6 +27,11 @@
 
 ## 送る文面（英語・そのままコピー）
 
+> **★「削除しました」の1文は、実際に削除してから送ること。**
+> まだ消していない状態で書くと、確認されたときに食い違う。
+> 削除しない方針に変えた場合は、その1文（`We have also deleted …` と
+> 「未配信だったアプリ1本…」）を消して送る。
+
 ```
 Hello,
 
@@ -47,7 +52,9 @@ We recognize how our recent activity may look from the outside:
 - Our store descriptions and support pages followed the same in-house format.
 
 We have stopped submitting. Four additional apps that were already prepared have been
-withheld, and we will not submit anything new while this is unresolved.
+withheld, and we will not submit anything new while this is unresolved. We have also deleted
+one of our unreleased apps ("にゃんこのアイス屋さん") from App Store Connect rather than
+resubmit it.
 
 Our question: if the concern is our portfolio as a whole rather than this specific app,
 please tell us which apps are considered duplicative. We will consolidate or remove them.
@@ -85,7 +92,8 @@ WebView ラッパー Capacitor を除く）。
 ・ストアの説明文やサポートページも、社内の同じ書式に従っていました
 
 提出はすでに止めました。用意済みだった4本も出さずに保留し、この件が解決するまで
-新規の提出は行いません。
+新規の提出は行いません。未配信だったアプリ1本（にゃんこのアイス屋さん）も、再提出せず
+App Store Connect から削除しました。
 
 おうかがいしたいこと: もし懸念がこのアプリ単体ではなく、私たちのアプリ全体に
 あるのでしたら、どのアプリが重複していると見なされているか教えてください。

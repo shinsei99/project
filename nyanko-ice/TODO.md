@@ -1,5 +1,24 @@
 # にゃんこアイス — TODO
 
+## 🛑 App 記録を削除する（2026-08-29 オーナー判断）
+
+**2026-08-29、1.0 が Guideline 4.3(a)（スパム）でリジェクトされた**（KeyTag・スクラップメモと
+同時・同一の定型文）。**アカウント全体の出し方を見られている**と判断し、このアプリは
+**再提出せず、App 記録ごと削除する**（未配信なので画面から削除できる）。
+
+| | |
+|---|---|
+| 削除は誰が | **オーナーが画面で**（API は `apps` の DELETE を許可していない） |
+| 手順 | ASC →「マイApp」→ にゃんこのアイス屋さん →「App情報」→ 下部「Appを削除」 |
+| 消えるもの | App 記録・登録済みビルド（1.0 build2）・アプリ名の予約 |
+| 残るもの | バンドルID `com.daikyo.nyankoice`／ストア文言 `store-text.md`／スクショ `screenshots/`／**Web版の公開** |
+| 出し直すとき | **build 3 から**（`./ios-build-guard.sh nyanko-ice --bump`）。ただし**提出停止が解けてから** |
+| 確認 | `python3 ../appstore_api.py com.daikyo.nyankoice` が「見つかりません」になれば削除済み |
+
+**★Web版（https://shinsei99.github.io/project/nyanko-ice/）は消さないこと。** App Store とは別で、
+`deploy.yml` の `DEPLOY_FOLDERS` に入っている。
+
+
 ## 進行中: 見た目・魅力アップ（2026-08-27 着手）
 
 **目的**: App Store 未提出のうちに、第一印象を「かわいいアイス屋ゲーム」に引き上げる。
