@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#e3c79b">
+<title>にゃんこ大脱出 🐱</title>
+<!-- タブのアイコン。外部ファイルにすると 404 が Console に残り、
+     本物のエラーが埋もれるので data URI で埋め込んでいる -->
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%23f3e3c4%22/><path d=%22M12 27 L15 8 L30 18 Z%22 fill=%22%23fdf3e2%22 stroke=%22%233a2e26%22 stroke-width=%224%22 stroke-linejoin=%22round%22/><path d=%22M52 27 L49 8 L34 18 Z%22 fill=%22%23fdf3e2%22 stroke=%22%233a2e26%22 stroke-width=%224%22 stroke-linejoin=%22round%22/><path d=%22M16 23 L18 13 L25 19 Z%22 fill=%22%23f0a9a0%22/><path d=%22M48 23 L46 13 L39 19 Z%22 fill=%22%23f0a9a0%22/><ellipse cx=%2232%22 cy=%2237%22 rx=%2223%22 ry=%2220%22 fill=%22%23fdf3e2%22 stroke=%22%233a2e26%22 stroke-width=%224%22/><path d=%22M22 19 q10 3 12 12 q-9 5 -16 -1 z%22 fill=%22%23e8a33d%22/><ellipse cx=%2224%22 cy=%2235%22 rx=%223.6%22 ry=%224.4%22 fill=%22%233a2e26%22/><ellipse cx=%2241%22 cy=%2235%22 rx=%223.6%22 ry=%224.4%22 fill=%22%233a2e26%22/><circle cx=%2225.2%22 cy=%2233.4%22 r=%221.3%22 fill=%22%23fff%22/><circle cx=%2242.2%22 cy=%2233.4%22 r=%221.3%22 fill=%22%23fff%22/><path d=%22M29 43 h6 l-3 3.4 z%22 fill=%22%23e58a86%22/><path d=%22M32 46.4 q-3.4 3.4 -6.6 1 M32 46.4 q3.4 3.4 6.6 1%22 stroke=%22%233a2e26%22 stroke-width=%222.4%22 fill=%22none%22 stroke-linecap=%22round%22/><path d=%22M6 34 l11 2 M6 43 l11 -1 M58 34 l-11 2 M58 43 l-11 -1%22 stroke=%22%233a2e26%22 stroke-width=%222.4%22 stroke-linecap=%22round%22/></svg>">
+<style>
+  /* 書体は Zen Maru Gothic（SIL OFL・商用可／埋め込み可／再配布可）。
+     画面に出る文字だけに絞って同梱してある（tools/fetch-font.py）。
+     ★文言を足したら必ず流し直すこと。忘れると増やした字が □ になる。 */
+  @font-face{
+    font-family:'Zen Maru Gothic'; font-style:normal; font-weight:500;
+    src:url('assets/fonts/ZenMaruGothic-500.woff2') format('woff2'); font-display:swap;
+  }
+  @font-face{
+    font-family:'Zen Maru Gothic'; font-style:normal; font-weight:900;
+    src:url('assets/fonts/ZenMaruGothic-900.woff2') format('woff2'); font-display:swap;
+  }
+
+  :root{
+    --ink:#3a2e26; --paper:#fffdf5; --wall1:#f0e3cd; --wall2:#e6d4b6;
+    --accent:#c85a3a; --accent2:#5a8f6b; --gold:#e0a83c;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;height:100%;}
+  body{
+    font-family:'Zen Maru Gothic',"Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
+    font-weight:500; color:var(--ink);
+    /* ページの地は「部屋のかべ」。腰壁の線を1本入れるだけで室内に見える */
+    background:
+      linear-gradient(180deg, rgba(0,0,0,0) 0 62%, rgba(120,90,60,.10) 62% 63%, rgba(0,0,0,0) 63%),
+      repeating-linear-gradient(90deg, transparent 0 46px, rgba(120,90,60,.045) 46px 48px),
+      linear-gradient(170deg,var(--wall1),var(--wall2));
+    background-attachment:fixed;
+    min-height:100%;
+    display:flex;flex-direction:column;align-items:center;
+    padding:8px 10px 26px;
+  }
+
+  .wrap{width:100%;max-width:760px;display:flex;flex-direction:column;align-items:center;}
+
+  .topbar{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .logo{font-weight:900;font-size:clamp(17px,4.4vw,24px);letter-spacing:.04em;
+    text-shadow:2px 2px 0 #fff;display:flex;align-items:center;gap:7px;}
+  .iconc{display:block;image-rendering:auto;}
+  .iconbtn{
+    background:var(--paper);border:3px solid var(--ink);border-radius:12px;
+    width:42px;height:38px;font-size:16px;line-height:1;padding:0;
+    box-shadow:2px 3px 0 rgba(0,0,0,.25);
+  }
+
+  .hud{
+    width:100%;display:flex;justify-content:center;align-items:center;gap:6px;
+    margin:6px 0 5px;flex-wrap:wrap;
+  }
+  .badge{
+    background:var(--paper);border:3px solid var(--ink);border-radius:13px;
+    padding:4px 11px;font-weight:900;font-size:13px;
+    box-shadow:2px 3px 0 rgba(0,0,0,.22);
+    display:flex;align-items:center;gap:5px;white-space:nowrap;
+  }
+  .badge.turn-cat{color:var(--accent2);} .badge.turn-robot{color:var(--accent);}
+  .badge .num{font-size:15px;}
+
+  .board-wrap{
+    width:100%;position:relative;
+    background:var(--paper);
+    border:5px solid var(--ink);border-radius:22px;
+    box-shadow:5px 7px 0 rgba(0,0,0,.28);
+    padding:9px;
+  }
+  canvas#board{display:block;width:100%;aspect-ratio:3/2;border-radius:14px;touch-action:manipulation;}
+
+  /* ステージ名のカットイン（読み込み直後に一度だけ流れる） */
+  .cutin{
+    position:absolute;left:0;right:0;top:44%;pointer-events:none;text-align:center;
+    font-weight:900;font-size:clamp(20px,5.4vw,32px);color:#fff;opacity:0;
+    text-shadow:0 3px 0 rgba(58,46,38,.9),0 0 18px rgba(58,46,38,.6);
+  }
+  .cutin.play{animation:cut 1.5s ease-out;}
+  @keyframes cut{
+    0%{opacity:0;transform:translateX(-40px) scale(.9)}
+    18%{opacity:1;transform:translateX(0) scale(1)}
+    72%{opacity:1;transform:translateX(0) scale(1)}
+    100%{opacity:0;transform:translateX(34px) scale(1.02)}
+  }
+
+  .msg{
+    width:100%;min-height:24px;margin-top:8px;text-align:center;
+    font-weight:900;font-size:15px;line-height:1.35;
+  }
+  .controls{margin-top:8px;display:flex;gap:9px;flex-wrap:wrap;justify-content:center;}
+  button{
+    font-family:inherit;font-weight:900;font-size:15px;cursor:pointer;
+    background:var(--accent);color:#fff;border:3px solid var(--ink);
+    border-radius:14px;padding:9px 18px;box-shadow:2px 3px 0 rgba(0,0,0,.3);
+  }
+  button.ghost{background:var(--paper);color:var(--ink);}
+  button:active{transform:translate(1px,2px);box-shadow:1px 1px 0 rgba(0,0,0,.3);}
+  button:disabled{opacity:.45;cursor:default;}
+
+  .legend{
+    width:100%;margin-top:13px;background:var(--paper);
+    border:3px dashed var(--ink);border-radius:14px;padding:8px 12px;font-size:13px;
+  }
+  .legend summary{font-weight:900;cursor:pointer;list-style:none;}
+  .legend summary::-webkit-details-marker{display:none;}
+  .legend summary::before{content:'▸ ';}
+  .legend[open] summary::before{content:'▾ ';}
+  .legend .items{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:4px 12px;margin-top:7px;}
+  .legend .it{display:flex;align-items:center;gap:7px;line-height:1.3;}
+  .legend .dashkey{
+    display:inline-block;flex:none;width:26px;height:26px;margin:0 4px;
+    border:3px dashed var(--accent);border-radius:50%;
+  }
+
+  /* ===== 全画面（タイトル・ステージ選択・結果） ===== */
+  .screen{
+    position:fixed;inset:0;z-index:60;display:none;
+    align-items:center;justify-content:center;padding:16px;
+    background:rgba(58,46,38,.62);backdrop-filter:blur(2px);
+  }
+  .screen.show{display:flex;}
+  .card{
+    background:var(--paper);border:5px solid var(--ink);border-radius:24px;
+    padding:20px 18px;text-align:center;max-width:440px;width:100%;
+    box-shadow:6px 8px 0 rgba(0,0,0,.35);animation:pop .28s;
+    max-height:92vh;overflow:auto;
+  }
+  @keyframes pop{0%{transform:scale(.72);opacity:0}100%{transform:scale(1);opacity:1}}
+  .card h2{margin:6px 0 4px;font-size:23px;font-weight:900;}
+  .card p{margin:6px 0 14px;font-size:14.5px;line-height:1.6;}
+  .card .btns{display:flex;flex-direction:column;gap:9px;align-items:center;}
+  .card .btns button{width:min(280px,100%);}
+  .titlelogo{font-weight:900;font-size:clamp(26px,7.2vw,38px);letter-spacing:.03em;margin:2px 0 0;
+    color:var(--ink);text-shadow:3px 3px 0 var(--gold);}
+  .titlesub{font-size:13px;opacity:.75;margin:4px 0 6px;}
+
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:6px 0 14px;}
+  .grid button{
+    padding:7px 0;font-size:15px;border-radius:12px;background:var(--paper);color:var(--ink);
+    box-shadow:2px 2px 0 rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;gap:1px;
+  }
+  .grid button.cleared{background:var(--accent2);color:#fff;}
+  .grid button .best{font-size:9.5px;font-weight:500;opacity:.9;}
+  .hint{font-size:12px;opacity:.72;line-height:1.5;}
+
+  /* スマホでは盤面をできるだけ大きく。マスが小さいと指で押しにくい
+     （タップ判定はマスの半径より広く取ってあるが、見えている大きさも効く） */
+  @media (max-width:460px){
+    body{padding:6px 6px 18px;}
+    .board-wrap{padding:6px;border-radius:17px;border-width:4px;}
+    .badge{font-size:12px;padding:3px 9px;}
+    .msg{font-size:14px;margin-top:6px;}
+    .controls button{padding:8px 14px;font-size:14px;}
+    .legend{font-size:12px;}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="logo"><canvas class="iconc" data-icon="cat" width="30" height="30"></canvas>にゃんこ大脱出</div>
+      <button class="iconbtn" id="mute" title="音のオン・オフ" aria-pressed="false">🔊</button>
+    </div>
+
+    <div class="hud">
+      <span class="badge"><span class="num" id="stageBadge">Stage 1 / 20</span></span>
+      <span class="badge" id="stageName">最初の一歩</span>
+      <span class="badge" id="turnBadge"><canvas class="iconc" data-icon="cat" width="22" height="22"></canvas>きみのターン</span>
+      <span class="badge" id="moveBadge">0手</span>
+    </div>
+
+    <div class="board-wrap">
+      <canvas id="board" width="900" height="600"></canvas>
+      <div class="cutin" id="cutin"></div>
+    </div>
+
+    <div class="msg" id="msg">となりのマスをタップして、うごこう！</div>
+
+    <div class="controls">
+      <button class="ghost" id="resetBtn">やり直す</button>
+      <button class="ghost" id="selBtn">ステージをえらぶ</button>
+    </div>
+
+    <details class="legend" id="legend">
+      <summary>あそびかた・アイコンの意味</summary>
+      <div class="items">
+        <div class="it"><canvas class="iconc" data-icon="cat" width="34" height="34"></canvas>ねこ（きみ）。となりのマスへ1つずつ</div>
+        <div class="it"><canvas class="iconc" data-icon="robot" width="34" height="34"></canvas>おそうじロボット。まっすぐ近づいてくる</div>
+        <div class="it"><canvas class="iconc" data-icon="tower" width="34" height="34"></canvas>キャットタワー。ここに着けばクリア</div>
+        <div class="it"><canvas class="iconc" data-icon="sofa" width="34" height="34"></canvas>ソファ。ロボットは通れない安全地帯</div>
+        <div class="it"><canvas class="iconc" data-icon="yarn" width="34" height="34"></canvas>毛糸玉。ロボットが乗ると1ターン止まる</div>
+        <div class="it"><canvas class="iconc" data-icon="fish" width="34" height="34"></canvas>おさかな。ねこがもう1マスうごける</div>
+        <div class="it"><canvas class="iconc" data-icon="trap" width="34" height="34"></canvas>落とし穴。ロボットだけ落ちて退場</div>
+        <div class="it"><canvas class="iconc" data-icon="catdoor" width="34" height="34"></canvas>ねこのぬけ道。ねこだけ通れる（ロボットは回り道）</div>
+        <div class="it"><canvas class="iconc" data-icon="sw" width="34" height="34"></canvas>スイッチ。ふむとドアが開く（一度きり）</div>
+        <div class="it"><canvas class="iconc" data-icon="gate" width="34" height="34"></canvas>ドア。スイッチを踏むまで通れない</div>
+        <div class="it"><span class="dashkey"></span>赤い点線のマスは「つぎにロボットが来られる所」</div>
+      </div>
+    </details>
+  </div>
+
+  <!-- タイトル -->
+  <div class="screen show" id="titleScreen">
+    <div class="card">
+      <canvas id="titleArt" width="380" height="150" style="width:100%;max-width:340px;height:auto"></canvas>
+      <h1 class="titlelogo">にゃんこ大脱出</h1>
+      <div class="titlesub">おじいちゃんの家から、キャットタワーをめざそう！<br>ぜんぶで20ステージ</div>
+      <div class="btns">
+        <button id="playBtn">あそぶ</button>
+        <button class="ghost" id="selBtn2">ステージをえらぶ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ステージ選択 -->
+  <div class="screen" id="selScreen">
+    <div class="card">
+      <h2>ステージをえらぶ</h2>
+      <div class="grid" id="stageGrid"></div>
+      <p class="hint">緑はクリア済み。<b>★★★は最短手数ぴったりでクリア</b>／★★は+2手まで。</p>
+      <div class="btns"><button class="ghost" id="selClose">とじる</button></div>
+    </div>
+  </div>
+
+  <!-- 結果（クリア／つかまった） -->
+  <div class="screen" id="overlay">
+    <div class="card">
+      <canvas id="ovArt" width="150" height="120" style="width:130px;height:104px"></canvas>
+      <h2 id="ovTitle">ステージクリア！</h2>
+      <p id="ovText"></p>
+      <div class="btns">
+        <button id="ovBtn">次のステージへ</button>
+        <button class="ghost" id="ovSub">ステージをえらぶ</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/* =========================================================================
+   にゃんこ大脱出
+   - 盤面は canvas に手で描いている（外部の画像素材は1枚も使っていない）
+   - 音も WebAudio の合成音（音のファイルは同梱していない）
+   - ルールは 2026-07 版のまま。触ったのは見た目・手触り・保存まわり
+   ========================================================================= */
+
+/* ===================== ステージデータ ===================== */
+/* 座標は 0〜100（横=x, 縦=y）。cat=スタート, goal=ゴール, robots=敵 */
+const STAGES = [
+  { name:"最初の一歩", opt:3, cat:1, goal:5, robots:[0], sofa:[4], yarn:[], fish:[],
+    nodes:[[5,50],[22,50],[40,50],[56,32],[56,68],[85,50]],
+    edges:[[0,1],[1,2],[2,3],[2,4],[3,5],[4,5]] },
+
+  { name:"二択の迷路", opt:4, cat:1, goal:7, robots:[0], sofa:[5], yarn:[], fish:[],
+    nodes:[[5,50],[18,50],[32,50],[48,26],[64,26],[48,74],[64,74],[85,50]],
+    edges:[[0,1],[1,2],[2,3],[2,5],[3,4],[5,6],[4,7],[6,7]] },
+
+  { name:"ロボットの習性", opt:6, cat:0, goal:7, robots:[8], sofa:[3], yarn:[], fish:[],
+    nodes:[[8,50],[24,28],[24,72],[44,50],[62,28],[62,72],[80,50],[93,50],[62,50]],
+    edges:[[0,1],[0,2],[1,3],[2,3],[3,4],[3,5],[1,4],[2,5],[4,6],[5,6],[6,7],[8,4],[8,5],[8,6]] },
+
+  { name:"散らかった部屋", opt:6, cat:1, goal:8, robots:[0], sofa:[], yarn:[9,4], fish:[],
+    nodes:[[5,50],[18,50],[34,50],[50,28],[50,72],[68,28],[68,72],[82,50],[94,50],[50,50]],
+    edges:[[0,1],[1,2],[2,3],[2,4],[3,9],[4,9],[9,5],[9,6],[5,7],[6,7],[7,8]] },
+
+  { name:"おやつでダッシュ", opt:6, cat:1, goal:10, robots:[0], sofa:[], yarn:[], fish:[2],
+    nodes:[[5,50],[16,50],[30,50],[44,30],[44,70],[60,30],[60,70],[74,50],[86,30],[86,70],[96,50]],
+    edges:[[0,1],[1,2],[2,3],[2,4],[3,5],[4,6],[5,7],[6,7],[7,8],[7,9],[8,10],[9,10]] },
+
+  { name:"ロボット2台の恐怖", opt:6, cat:2, goal:11, robots:[0,1], sofa:[7], yarn:[], fish:[],
+    nodes:[[4,35],[4,65],[16,50],[30,35],[30,65],[44,50],[58,32],[58,68],[72,50],[86,35],[86,65],[95,50]],
+    edges:[[0,2],[1,2],[2,3],[2,4],[3,5],[4,5],[5,6],[5,7],[6,8],[7,8],[8,9],[8,10],[9,11],[10,11]] },
+
+  { name:"障害物レース", opt:5, cat:1, goal:11, robots:[0], sofa:[4], yarn:[5,6], fish:[],
+    nodes:[[5,50],[16,50],[30,32],[30,68],[46,50],[46,18],[46,82],[62,32],[62,68],[78,50],[90,28],[93,62]],
+    edges:[[0,1],[1,2],[1,3],[2,5],[3,6],[5,7],[6,8],[2,4],[3,4],[4,7],[4,8],[7,9],[8,9],[9,11],[9,10],[10,11]] },
+
+  { name:"キャットウォーク", opt:4, cat:1, goal:12, robots:[0], sofa:[7], yarn:[], fish:[4],
+    nodes:[[10,25],[10,50],[10,75],[30,25],[30,50],[30,75],[50,25],[50,50],[50,75],[70,25],[70,50],[70,75],[92,50]],
+    edges:[[0,3],[3,6],[6,9],[9,12],[1,4],[4,7],[7,10],[10,12],[2,5],[5,8],[8,11],[11,12],
+           [0,1],[1,2],[3,4],[4,5],[6,7],[7,8],[9,10],[10,11]] },
+
+  { name:"挟み撃ち", opt:4, cat:2, goal:10, robots:[0,1], sofa:[6], yarn:[], fish:[3],
+    nodes:[[30,15],[30,85],[30,50],[46,50],[46,25],[46,75],[62,50],[62,25],[62,75],[78,50],[92,50],[16,50],[16,25],[16,75]],
+    edges:[[2,3],[2,11],[11,12],[11,13],[12,0],[13,1],[2,4],[2,5],[0,4],[1,5],[3,7],[3,8],[3,6],[4,7],[5,8],[7,9],[8,9],[6,9],[9,10]] },
+
+  { name:"最後の牙城", opt:6, cat:2, goal:14, robots:[0,1], sofa:[8], yarn:[6,7], fish:[3,11],
+    nodes:[[8,25],[8,75],[8,50],[24,50],[24,20],[24,80],[40,35],[40,65],[56,50],[56,20],[56,80],[72,35],[72,65],[88,50],[96,50]],
+    edges:[[0,4],[1,5],[2,3],[2,4],[2,5],[4,6],[5,7],[3,6],[3,7],[6,8],[7,8],[6,9],[7,10],[8,9],[8,10],[9,11],[10,12],[11,13],[12,13],[13,14],[3,8]] },
+
+  { name:"毛糸まみれの廊下", opt:6, cat:2, goal:11, robots:[0,1], sofa:[], yarn:[5,6,7], fish:[], trap:[],
+    nodes:[[4,38],[4,62],[14,50],[26,35],[26,65],[40,50],[54,32],[54,68],[68,50],[80,35],[80,65],[90,50],[40,20],[40,80]],
+    edges:[[0,2],[1,2],[2,3],[2,4],[3,5],[4,5],[3,12],[4,13],[12,6],[13,7],[5,6],[5,7],[6,8],[7,8],[8,9],[8,10],[9,11],[10,11]] },
+  { name:"さかな街道", opt:6, cat:2, goal:10, robots:[0,1], sofa:[6], yarn:[], fish:[3,7], trap:[],
+    nodes:[[4,40],[4,60],[14,50],[26,50],[40,32],[40,68],[54,50],[68,32],[68,68],[82,50],[92,50],[26,22],[26,78],[54,18]],
+    edges:[[0,2],[1,2],[2,3],[3,4],[3,5],[3,11],[3,12],[11,4],[12,5],[4,6],[5,6],[6,7],[6,8],[7,9],[8,9],[9,10],[6,13],[13,7]] },
+  { name:"落とし穴の間", opt:6, cat:2, goal:11, robots:[0,1], sofa:[8], yarn:[], fish:[], trap:[5],
+    nodes:[[4,38],[4,62],[14,50],[26,35],[26,65],[40,50],[54,35],[54,65],[68,50],[80,35],[80,65],[90,50],[40,20],[40,80],[54,50]],
+    edges:[[0,2],[1,2],[2,3],[2,4],[3,5],[4,5],[3,12],[4,13],[12,6],[13,7],[5,14],[14,6],[14,7],[6,8],[7,8],[8,9],[8,10],[9,11],[10,11]] },
+  { name:"3台の追跡", opt:6, cat:3, goal:12, robots:[0,1,2], sofa:[], yarn:[], fish:[], trap:[6],
+    nodes:[[4,30],[4,50],[4,70],[14,50],[26,35],[26,65],[40,50],[54,35],[54,65],[68,50],[80,35],[80,65],[90,50],[40,22],[40,78]],
+    edges:[[0,3],[1,3],[2,3],[3,4],[3,5],[4,6],[5,6],[4,13],[5,14],[13,7],[14,8],[6,7],[6,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12]] },
+  { name:"3台とおやつ", opt:6, cat:3, goal:11, robots:[0,1,2], sofa:[7], yarn:[], fish:[4,10], trap:[],
+    nodes:[[4,30],[4,50],[4,70],[14,50],[26,50],[40,35],[40,65],[54,50],[68,35],[68,65],[80,50],[90,50],[54,20],[54,80]],
+    edges:[[0,3],[1,3],[2,3],[3,4],[4,5],[4,6],[5,7],[6,7],[5,12],[6,13],[12,8],[13,9],[7,8],[7,9],[8,10],[9,10],[10,11]] },
+  { name:"毛糸と落とし穴", opt:6, cat:3, goal:12, robots:[0,1,2], sofa:[], yarn:[6], fish:[], trap:[7,8],
+    nodes:[[4,30],[4,50],[4,70],[14,50],[26,35],[26,65],[40,50],[54,35],[54,65],[68,50],[80,35],[80,65],[90,50],[40,20],[40,80],[68,20]],
+    edges:[[0,3],[1,3],[2,3],[3,4],[3,5],[4,6],[5,6],[4,13],[5,14],[13,7],[14,8],[6,7],[6,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[9,15],[15,10]] },
+  { name:"迷宮の3台", opt:7, cat:3, goal:13, robots:[0,1,2], sofa:[7], yarn:[8], fish:[6], trap:[9],
+    nodes:[[4,25],[4,50],[4,75],[13,50],[24,32],[24,68],[36,50],[48,30],[48,70],[60,50],[72,32],[72,68],[84,50],[92,50],[36,20],[36,80],[60,22],[60,78]],
+    edges:[[0,3],[1,3],[2,3],[3,4],[3,5],[4,6],[5,6],[4,14],[5,15],[14,7],[15,8],[6,7],[6,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[12,13],[7,16],[8,17],[16,10],[17,11]] },
+  { name:"終盤の猛攻", opt:7, cat:3, goal:14, robots:[0,1,5], sofa:[9], yarn:[6], fish:[4,11], trap:[7,8],
+    nodes:[[4,28],[4,50],[4,72],[14,50],[26,50],[38,33],[38,67],[52,33],[52,67],[64,50],[76,33],[76,67],[86,50],[92,30],[95,60],[38,15],[38,85]],
+    edges:[[0,3],[1,3],[2,3],[3,4],[4,5],[4,6],[5,7],[6,8],[5,15],[6,16],[15,7],[16,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[12,13],[12,14],[13,14]] },
+  { name:"大脱走", opt:7, cat:3, goal:14, robots:[0,1,7], sofa:[9], yarn:[5,6], fish:[4,12], trap:[10],
+    nodes:[[4,28],[4,50],[4,72],[14,50],[26,50],[40,33],[40,67],[54,33],[54,67],[66,50],[78,33],[78,67],[88,50],[95,50],[93,25],[40,15],[40,85],[66,20],[66,80]],
+    edges:[[0,3],[1,3],[2,3],[3,4],[4,5],[4,6],[5,7],[6,8],[5,15],[6,16],[15,7],[16,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[12,13],[12,14],[9,17],[9,18],[17,10],[18,11]] },
+  { name:"最後の牙城・改", opt:9, cat:3, goal:16, robots:[0,1,5], sofa:[9], yarn:[6], fish:[4,12], trap:[7,8],
+    nodes:[[4,28],[4,50],[4,72],[13,50],[24,50],[36,33],[36,67],[50,33],[50,67],[62,50],[74,33],[74,67],[84,50],[90,32],[90,68],[95,50],[97,50],[36,15],[36,85],[62,20],[62,80]],
+    edges:[[0,3],[1,3],[2,3],[3,4],[4,5],[4,6],[5,7],[6,8],[5,17],[6,18],[17,7],[18,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[12,13],[12,14],[13,15],[14,15],[15,16],[9,19],[9,20],[19,10],[20,11]] },
+
+  /* ===== ここから21面〜30面（2026-08-28 追加） =====
+     tools/gen-stages.js が作り、tools/analyze-stages.js で採点して選んだ面。
+     ねらいは「1〜20面より長くて、一手が重い」こと（実測: 最短8.5手・勝ち筋率55%。
+     1〜20面は 5.8手・64.5%）。新ギミック（ぬけ道 / スイッチとドア）はここだけに出る。
+     ★opt は最短手数。★3の判定に使うので、面を触ったら --opt で貼り直すこと。 */
+  { name:"ねこの ぬけ道", opt:6, cat:0, goal:13, robots:[2,3],
+    sofa:[11], yarn:[], fish:[7], trap:[], catOnly:[[7,10]],
+    nodes:[[5,50],[20,22],[20,50],[20,78],[35,22],[35,50],[35,78],[50,22],[50,50],[50,78],[65,34],[65,66],[80,50],[95,50]],
+    edges:[[10,11],[0,1],[0,2],[0,3],[1,4],[2,5],[3,6],[4,7],[5,8],[5,9],[6,9],[7,10],[8,11],[9,11],[10,12],[11,12],[12,13]] },
+  { name:"スイッチと ドア", opt:7, cat:0, goal:14, robots:[2,3],
+    sofa:[], yarn:[2], fish:[], trap:[], sw:[8], doors:[[9,10]],
+    nodes:[[5,50],[18,22],[18,50],[18,78],[31,34],[31,66],[44,22],[44,50],[44,78],[56,50],[69,50],[82,22],[82,50],[82,78],[95,50]],
+    edges:[[11,12],[12,13],[0,1],[0,2],[0,3],[1,4],[2,4],[2,5],[3,5],[4,6],[5,6],[5,7],[5,8],[6,9],[7,9],[8,9],[9,10],[10,11],[10,12],[10,13],[11,14],[12,14],[13,14]] },
+  { name:"ぬけ道づたいに", opt:8, cat:0, goal:19, robots:[1,5,2],
+    sofa:[7], yarn:[14], fish:[12], trap:[], catOnly:[[16,18],[6,9]],
+    nodes:[[5,22],[5,50],[5,78],[16,22],[16,50],[16,78],[28,22],[28,50],[28,78],[39,34],[39,66],[50,22],[50,50],[50,78],[61,34],[61,66],[73,34],[73,66],[84,50],[95,50]],
+    edges:[[0,1],[9,10],[0,3],[0,4],[1,5],[2,5],[3,6],[4,7],[5,7],[5,8],[6,9],[7,9],[8,9],[8,10],[9,11],[9,12],[10,12],[10,13],[11,14],[12,15],[13,15],[14,16],[14,17],[15,17],[16,18],[17,18],[18,19]] },
+  { name:"とびらの むこう", opt:8, cat:2, goal:17, robots:[1,3,0],
+    sofa:[3], yarn:[], fish:[10], trap:[6], sw:[12], doors:[[14,15],[15,16]],
+    nodes:[[5,22],[5,50],[5,78],[16,34],[16,66],[28,22],[28,50],[28,78],[39,22],[39,50],[39,78],[50,22],[50,50],[50,78],[61,50],[73,50],[84,50],[95,50]],
+    edges:[[0,1],[5,6],[8,9],[11,12],[12,13],[0,3],[1,3],[2,3],[2,4],[3,5],[4,5],[4,6],[4,7],[5,8],[5,9],[6,9],[6,10],[7,10],[8,11],[8,12],[9,13],[10,13],[11,14],[12,14],[13,14],[14,15],[15,16],[16,17]] },
+  { name:"あなだらけの 廊下", opt:9, cat:2, goal:21, robots:[0,1,3],
+    sofa:[], yarn:[20,3], fish:[4], trap:[9,13],
+    nodes:[[5,22],[5,50],[5,78],[15,34],[15,66],[25,22],[25,50],[25,78],[35,22],[35,50],[35,78],[45,22],[45,50],[45,78],[55,22],[55,50],[55,78],[65,50],[75,34],[75,66],[85,50],[95,50]],
+    edges:[[0,1],[3,4],[5,6],[9,10],[12,13],[0,3],[1,3],[2,3],[2,4],[3,5],[4,5],[4,6],[4,7],[5,8],[6,8],[7,8],[7,9],[7,10],[8,11],[9,11],[10,11],[10,12],[10,13],[11,14],[12,15],[13,15],[13,16],[14,17],[15,17],[16,17],[17,18],[17,19],[18,20],[19,20],[20,21]] },
+  { name:"ぬけ道と 落とし穴", opt:9, cat:2, goal:22, robots:[3,0,5],
+    sofa:[5], yarn:[13], fish:[], trap:[7,11], catOnly:[[7,8],[10,13]],
+    nodes:[[5,22],[5,50],[5,78],[15,22],[15,50],[15,78],[25,34],[25,66],[35,50],[45,22],[45,50],[45,78],[55,22],[55,50],[55,78],[65,22],[65,50],[65,78],[75,50],[85,22],[85,50],[85,78],[95,50]],
+    edges:[[9,10],[12,13],[16,17],[0,3],[1,4],[2,4],[2,5],[3,6],[4,7],[5,7],[6,8],[7,8],[8,9],[8,10],[8,11],[9,12],[9,13],[10,13],[10,14],[11,14],[12,15],[13,16],[13,17],[14,17],[15,18],[16,18],[17,18],[18,19],[18,20],[18,21],[19,22],[20,22],[21,22]] },
+  { name:"スイッチを さがせ", opt:9, cat:0, goal:17, robots:[3,1,4],
+    sofa:[8], yarn:[6], fish:[11], trap:[2], sw:[7], doors:[[15,16]], catOnly:[[5,6]],
+    nodes:[[5,34],[5,66],[15,22],[15,50],[15,78],[25,34],[25,66],[35,22],[35,50],[35,78],[45,50],[55,34],[55,66],[65,34],[65,66],[75,50],[85,50],[95,50]],
+    edges:[[5,6],[7,8],[13,14],[0,2],[0,3],[1,4],[2,5],[3,5],[3,6],[4,6],[5,7],[6,8],[6,9],[7,10],[8,10],[9,10],[10,11],[10,12],[11,13],[11,14],[12,14],[13,15],[14,15],[15,16],[16,17]] },
+  { name:"ぬけ道の めいろ", opt:9, cat:0, goal:21, robots:[2,3,1],
+    sofa:[6], yarn:[3], fish:[11], trap:[5], catOnly:[[10,13],[14,17],[5,8]],
+    nodes:[[5,50],[15,22],[15,50],[15,78],[25,22],[25,50],[25,78],[35,34],[35,66],[45,34],[45,66],[55,22],[55,50],[55,78],[65,22],[65,50],[65,78],[75,22],[75,50],[75,78],[85,50],[95,50]],
+    edges:[[12,13],[14,15],[17,18],[0,1],[0,2],[0,3],[1,4],[2,4],[2,5],[3,6],[4,7],[5,8],[6,8],[7,9],[8,9],[8,10],[9,11],[10,12],[10,13],[11,14],[12,14],[13,15],[13,16],[14,17],[15,18],[16,19],[17,20],[18,20],[19,20],[20,21]] },
+  { name:"おうちじゅう 大さわぎ", opt:10, cat:0, goal:17, robots:[2,3,1],
+    sofa:[15], yarn:[2], fish:[7], trap:[6,9], sw:[8], doors:[[11,12]], catOnly:[[7,8],[12,13]],
+    nodes:[[5,50],[15,22],[15,50],[15,78],[25,22],[25,50],[25,78],[35,34],[35,66],[45,34],[45,66],[55,50],[65,50],[75,34],[75,66],[85,34],[85,66],[95,50]],
+    edges:[[5,6],[7,8],[15,16],[0,1],[0,2],[0,3],[1,4],[2,5],[2,6],[3,6],[4,7],[5,8],[6,8],[7,9],[7,10],[8,10],[9,11],[10,11],[11,12],[12,13],[12,14],[13,15],[14,16],[15,17],[16,17]] },
+  { name:"にゃんこ 大脱出", opt:10, cat:1, goal:19, robots:[3,2,4],
+    sofa:[5], yarn:[4,10], fish:[15], trap:[17], sw:[13], doors:[[17,18]], catOnly:[[16,17]],
+    nodes:[[5,34],[5,66],[15,22],[15,50],[15,78],[25,34],[25,66],[35,22],[35,50],[35,78],[45,22],[45,50],[45,78],[55,22],[55,50],[55,78],[65,50],[75,50],[85,50],[95,50]],
+    edges:[[0,1],[7,8],[11,12],[13,14],[14,15],[0,2],[1,3],[1,4],[2,5],[3,5],[4,6],[5,7],[5,8],[6,9],[7,10],[8,11],[9,12],[10,13],[11,13],[11,14],[11,15],[12,15],[13,16],[14,16],[15,16],[16,17],[17,18],[18,19]] },
+];
+
+/* ===================== 画面の座標 =====================
+   canvas は 900×600 の固定座標で描き、CSS 側で幅に合わせて伸ばす。
+   マスの座標（0〜100）は、外周に余白を残して写す。余白が無いと
+   端のマスのタイルとキャットタワーが切れる。 */
+const W = 900, H = 600, PADX = 44, PADY = 52;
+const NX = i => PADX + S.nodes[i][0] / 100 * (W - PADX * 2);
+const NY = i => PADY + S.nodes[i][1] / 100 * (H - PADY * 2);
+const R  = 27;                    // マス（座布団）の半径
+
+/* ===================== ゲーム状態 ===================== */
+let stageIdx = 0;
+let S = null;                     // 現在ステージ（コピー）
+let adj = [];                     // ねこが通れる道
+let radj = [];                    // ロボットが通れる道（ぬけ道を抜いたもの）
+let swLeft = new Set();           // まだ踏んでいないスイッチ
+let doorsOpen = false;            // スイッチを踏んだか（ドアは開きっぱなし）
+let cat = { node:0, x:0, y:0, dir:1, hop:0, blink:0, blinkT:1.6, anim:null };
+let robots = [];
+let fishLeft = new Set(), yarnLeft = new Set(), trapLeft = new Set();
+let turn = 'cat', busy = false, over = false, cleared = false;
+let moves = 0;
+let timers = [], parts = [], shakeT = 0, shakeP = 0;
+let started = false;              // タイトルを抜けたか
+let clock = 0;
+
+const canvas = document.getElementById('board');
+const ctx = canvas.getContext('2d');
+
+/* ===================== セーブ ===================== */
+const SAVE_KEY = 'neko_escape_v2';
+let save = { cleared:0, best:{} };   // cleared = クリア済みステージ数
+try {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (raw) save = Object.assign(save, JSON.parse(raw));
+} catch(e){}
+function persist(){ try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch(e){} }
+
+/* ★の数。3=最短手数でクリア／2=最短+2手以内／1=クリア／0=未クリア。
+   ★各ステージの `opt`（最短手数）は人が数えた値ではなく、
+   `tools/analyze-stages.js` が総当たりで出した値を貼ってある。
+   ステージを足したり道を変えたら、必ず流し直して貼り直すこと（★3が取れなくなる）。 */
+function starsFor(i){
+  const b = save.best[i];
+  if (!b) return 0;
+  const opt = STAGES[i].opt;
+  if (!opt) return 1;
+  return b <= opt ? 3 : (b <= opt + 2 ? 2 : 1);
+}
+const starText = n => '★'.repeat(n) + '☆'.repeat(3 - n);
+
+/* ===================== 音 =====================
+   ★音のファイルは1つも同梱していない。ぜんぶ WebAudio の合成音。
+     容量が増えず、素材のライセンスを持ち込まずに済むため。
+   録音した素材に差し替えたいとき（耳で確かめられる人がやること）:
+     1. assets/audio/ に step.mp3 fish.mp3 … を置く（名前は SFX_FILES のとおり）
+     2. 下の USE_FILES を true にする  ← コードの変更はこれだけ
+     3. 見つからないファイルは、そのキーだけ合成音のまま鳴る（落ちない）
+   ★持ち込んでよい素材は「商用可 かつ 再配布可」のものだけ。 */
+const USE_FILES = false;
+const AUDIO_DIR = 'assets/audio/';
+const SFX_FILES = {
+  step:'step.mp3', fish:'fish.mp3', yarn:'yarn.mp3', trap:'trap.mp3', robot:'robot.mp3',
+  caught:'caught.mp3', clear:'clear.mp3', allclear:'allclear.mp3', ui:'ui.mp3', door:'door.mp3',
+};
+let audio = null, masterGain = null, sfxGain = null, musGain = null;
+const buffers = {};
+let soundOn = true;
+try { soundOn = localStorage.getItem('neko_escape_sound') !== 'off'; } catch(e){}
+
+// iOS は「画面を触るまで」音を出せないので、最初の操作で作る
+function initAudio(){
+  if (audio){ if (audio.state === 'suspended') audio.resume(); return; }
+  try { audio = new (window.AudioContext || window.webkitAudioContext)(); }
+  catch(e){ return; }
+  masterGain = audio.createGain(); masterGain.gain.value = soundOn ? 1 : 0;
+  masterGain.connect(audio.destination);
+  sfxGain = audio.createGain(); sfxGain.gain.value = 0.9; sfxGain.connect(masterGain);
+  musGain = audio.createGain(); musGain.gain.value = 0.26; musGain.connect(masterGain);
+  if (USE_FILES) loadSfxFiles();
+  startMusic();
+}
+function loadSfxFiles(){
+  for (const key in SFX_FILES){
+    fetch(AUDIO_DIR + SFX_FILES[key])
+      .then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('404')))
+      .then(b => audio.decodeAudioData(b))
+      .then(buf => { buffers[key] = buf; })
+      .catch(()=>{});
+  }
+}
+function setSound(on){
+  soundOn = on;
+  try { localStorage.setItem('neko_escape_sound', on ? 'on' : 'off'); } catch(e){}
+  if (masterGain) masterGain.gain.setTargetAtTime(on ? 1 : 0, audio.currentTime, 0.02);
+  const b = document.getElementById('mute');
+  b.textContent = on ? '🔊' : '🔇';
+  b.setAttribute('aria-pressed', String(!on));
+}
+// 1音。立ち上がりと減衰を付けないと「ピー」と鳴りっぱなしに聞こえる
+function voice(freq, when, dur, type, gain, dest, slideTo){
+  if (!audio) return;
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.type = type || 'sine';
+  o.frequency.setValueAtTime(freq, when);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, when + dur);
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(gain, when + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  o.connect(g); g.connect(dest || sfxGain);
+  o.start(when); o.stop(when + dur + 0.02);
+}
+function noise(when, dur, gain, hz){
+  if (!audio) return;
+  const len = Math.max(1, Math.floor(audio.sampleRate * dur));
+  const buf = audio.createBuffer(1, len, audio.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i=0;i<len;i++) d[i] = (Math.random()*2-1) * (1 - i/len);
+  const src = audio.createBufferSource(); src.buffer = buf;
+  const f = audio.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = hz || 1200;
+  const g = audio.createGain(); g.gain.value = gain;
+  src.connect(f); f.connect(g); g.connect(sfxGain);
+  src.start(when);
+}
+function sfx(name){
+  if (!audio || !soundOn) return;
+  if (buffers[name]){
+    const s = audio.createBufferSource(); s.buffer = buffers[name];
+    s.connect(sfxGain); s.start(); return;
+  }
+  const t = audio.currentTime;
+  const seq = (notes, step, dur, type, gain) =>
+    notes.forEach((f,i)=>voice(f, t + i*step, dur, type, gain));
+  switch(name){
+    case 'step':     voice(520,t,0.10,'sine',0.16,null,760); noise(t,0.05,0.03,900); break;
+    case 'fish':     seq([880,1174.7,1568], 0.055, 0.26,'triangle',0.15); break;
+    case 'yarn':     voice(300,t,0.28,'sawtooth',0.10,null,120);
+                     voice(180,t+0.10,0.24,'square',0.05,null,90); break;
+    case 'trap':     voice(520,t,0.42,'sine',0.14,null,90);
+                     noise(t+0.34,0.16,0.10,300); break;
+    case 'robot':    voice(150,t,0.09,'square',0.05); noise(t,0.06,0.025,600); break;
+    case 'caught':   voice(330,t,0.42,'sawtooth',0.13,null,110);
+                     voice(220,t+0.14,0.52,'square',0.07,null,80); break;
+    case 'clear':    seq([784,1046.5,1318.5,1568], 0.11, 0.46,'triangle',0.16); break;
+    case 'allclear': seq([523.3,659.3,784,1046.5,1318.5,1568,2093], 0.12, 0.55,'triangle',0.16); break;
+    case 'ui':       voice(660,t,0.07,'triangle',0.13,null,900); break;
+    // スイッチ→ドア。「カチッ」のあとに戸が滑る音（ノイズ）を重ねる
+    case 'door':     voice(880,t,0.06,'square',0.10);
+                     seq([659.3,880,1174.7], 0.07, 0.24,'triangle',0.13);
+                     noise(t+0.10,0.22,0.05,700); break;
+  }
+}
+/* BGM。ハ長調のペンタトニック（ド・レ・ミ・ソ・ラ）だけを使う。
+   どの順に鳴らしても濁らないので、短いループでも耳障りになりにくい。
+   追いかけっこなので、にゃんこアイスより少し速く、ベースを歩かせている。 */
+const MUSIC = {
+  step:0, next:0, timer:null, bpm:112,
+  mel : [ 0, 7, 4, 7,  9, 7, 4, 2,  0, 4, 7, 9,  7, 4, 2, 0,
+         -3, 2, 4, 2,  0,-3, 0, 2,  4, 7, 9,12,  9, 7, 4, 0],
+  bass: [0,-5, -3,-5,  0,-5, 2,-3],
+};
+function startMusic(){
+  if (!audio || MUSIC.timer) return;
+  MUSIC.next = audio.currentTime + 0.15;
+  MUSIC.timer = setInterval(musicTick, 90);
+}
+// 先読みして予約する方式。setInterval で直接鳴らすとタイミングがぶれる
+function musicTick(){
+  if (!audio) return;
+  const eighth = 60 / MUSIC.bpm / 2;
+  if (MUSIC.next < audio.currentTime) MUSIC.next = audio.currentTime + 0.05;
+  while (MUSIC.next < audio.currentTime + 0.3){
+    const t = MUSIC.next, s = MUSIC.step;
+    voice(523.25 * Math.pow(2, MUSIC.mel[s % MUSIC.mel.length]/12),
+          t, eighth*1.5, 'triangle', 0.05, musGain);
+    if (s % 2 === 0){
+      voice(130.81 * Math.pow(2, MUSIC.bass[(s>>1) % MUSIC.bass.length]/12),
+            t, eighth*1.7, 'sine', 0.07, musGain);
+    }
+    MUSIC.next += eighth; MUSIC.step++;
+  }
+}
+document.addEventListener('visibilitychange', ()=>{
+  if (!audio) return;
+  if (document.hidden) audio.suspend(); else audio.resume();
+});
+
+/* ===================== 描画の下ごしらえ ===================== */
+const INK = '#3a2e26';
+function rr(g,x,y,w,h,r){            // 角丸の矩形（ctx.roundRect が無い環境でも動くように自前）
+  const m = Math.min(r, w/2, h/2);
+  g.beginPath();
+  g.moveTo(x+m,y); g.lineTo(x+w-m,y); g.quadraticCurveTo(x+w,y,x+w,y+m);
+  g.lineTo(x+w,y+h-m); g.quadraticCurveTo(x+w,y+h,x+w-m,y+h);
+  g.lineTo(x+m,y+h); g.quadraticCurveTo(x,y+h,x,y+h-m);
+  g.lineTo(x,y+m); g.quadraticCurveTo(x,y,x+m,y); g.closePath();
+}
+function ell(g,x,y,rx,ry){ g.beginPath(); g.ellipse(x,y,rx,ry,0,0,Math.PI*2); g.closePath(); }
+function fillStroke(g, fill, lw){
+  if (fill){ g.fillStyle = fill; g.fill(); }
+  if (lw){ g.lineWidth = lw; g.strokeStyle = INK; g.stroke(); }
+}
+function shadowEll(g,x,y,rx,ry,a){
+  g.save(); g.globalAlpha = a===undefined ? 0.22 : a; g.fillStyle = '#000';
+  ell(g,x,y,rx,ry); g.fill(); g.restore();
+}
+// 木目などの「ばらつき」。毎フレーム変わると床がちらつくので、位置から決める
+function rnd(i){ const s = Math.sin(i*127.1+311.7)*43758.5453; return s - Math.floor(s); }
+
+/* ---- 床（毎フレーム描くと重いので、1枚に焼いて使い回す） ---- */
+let floorCache = null;
+function buildFloor(){
+  const c = document.createElement('canvas');
+  c.width = W; c.height = H;
+  const g = c.getContext('2d');
+
+  // 床板（横向きの板を張った、おじいちゃんの家のフローリング）
+  const base = g.createLinearGradient(0,0,0,H);
+  base.addColorStop(0,'#efdcbb'); base.addColorStop(1,'#e0c295');
+  g.fillStyle = base; g.fillRect(0,0,W,H);
+  const plank = 66;
+  for (let y = 0; y < H; y += plank){
+    g.fillStyle = 'rgba(255,255,255,' + (0.05 + rnd(y)*0.06) + ')';
+    g.fillRect(0, y+2, W, plank-6);
+    g.strokeStyle = 'rgba(140,105,66,.35)'; g.lineWidth = 2;
+    g.beginPath(); g.moveTo(0,y+.5); g.lineTo(W,y+.5); g.stroke();
+    // 板の継ぎ目（縦）と木目
+    for (let k = 0; k < 4; k++){
+      const x = (rnd(y+k*7)*W + k*230) % W;
+      g.strokeStyle = 'rgba(140,105,66,.28)'; g.lineWidth = 2;
+      g.beginPath(); g.moveTo(x, y); g.lineTo(x, y+plank); g.stroke();
+    }
+    for (let k = 0; k < 6; k++){
+      const yy = y + 8 + rnd(y*3+k)*(plank-16);
+      g.strokeStyle = 'rgba(150,112,70,.14)'; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(0,yy);
+      g.bezierCurveTo(W*0.3, yy - 5, W*0.7, yy + 5, W, yy); g.stroke();
+    }
+  }
+
+  // ラグ（部屋の真ん中に敷いた楕円のじゅうたん）。道とマスの下地になって画面が締まる
+  g.save();
+  ell(g, W/2, H/2 + 6, W*0.44, H*0.39);
+  g.fillStyle = 'rgba(198,222,206,.55)'; g.fill();
+  g.lineWidth = 10; g.strokeStyle = 'rgba(150,183,162,.55)'; g.stroke();
+  g.lineWidth = 3;  g.strokeStyle = 'rgba(255,255,255,.5)'; g.stroke();
+  g.clip();
+  for (let i = 0; i < 90; i++){          // 毛足の点々
+    const x = rnd(i)*W, y = rnd(i+50)*H;
+    g.fillStyle = 'rgba(255,255,255,.35)';
+    g.beginPath(); g.arc(x,y,2.2,0,Math.PI*2); g.fill();
+  }
+  g.restore();
+
+  // 幅木（部屋のいちばん奥の壁ぎわ）
+  g.fillStyle = '#c9a877'; g.fillRect(0,0,W,26);
+  g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(0,20,W,4);
+  g.strokeStyle = 'rgba(90,66,40,.5)'; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(0,26.5); g.lineTo(W,26.5); g.stroke();
+
+  // 窓からの光（左上から差し込む帯）。斜めに2本入れるだけで室内の空気が出る
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (const b of [[-60,150],[120,110]]){
+    const grd = g.createLinearGradient(b[0], 0, b[0]+420, H);
+    grd.addColorStop(0,'rgba(255,248,214,.34)');
+    grd.addColorStop(1,'rgba(255,248,214,0)');
+    g.fillStyle = grd;
+    g.beginPath();
+    g.moveTo(b[0],26); g.lineTo(b[0]+b[1],26); g.lineTo(b[0]+b[1]+300,H); g.lineTo(b[0]+300,H);
+    g.closePath(); g.fill();
+  }
+  g.restore();
+
+  // 四隅を落として、部屋の奥行きを出す
+  const vig = g.createRadialGradient(W/2,H/2,H*0.35, W/2,H/2,H*0.92);
+  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(60,40,20,.30)');
+  g.fillStyle = vig; g.fillRect(0,0,W,H);
+
+  floorCache = c;
+}
+
+/* ===================== 絵（ぜんぶ手描き） =====================
+   どの関数も (g, x, y, s) を取る。x,y は「足元」。s は大きさの倍率。
+   HUD と凡例の小さいアイコンでも同じ関数を使うので、絵柄が食い違わない。 */
+
+function drawCat(g,x,y,s,o){
+  o = o || {};
+  const dir = o.dir || 1, t = o.t || 0;
+  g.save(); g.translate(x,y); g.scale(s*dir, s);
+  const sq = o.squash || 0;                       // 着地のつぶれ
+  g.scale(1 + sq*0.18, 1 - sq*0.18);
+
+  // しっぽ（ゆらゆら）
+  const sw = Math.sin(t*2.4) * 7;
+  g.lineCap = 'round';
+  g.beginPath(); g.moveTo(-12,-14);
+  g.quadraticCurveTo(-30,-20 + sw*0.4, -26,-42 + sw);
+  g.lineWidth = 11; g.strokeStyle = INK; g.stroke();
+  g.lineWidth = 6.5; g.strokeStyle = '#fdf3e2'; g.stroke();
+
+  // からだ
+  ell(g,0,-17,17,15); fillStroke(g,'#fdf3e2',3.2);
+  // 前足
+  ell(g,-8,-5,6.5,4.5); fillStroke(g,'#fdf3e2',3);
+  ell(g, 8,-5,6.5,4.5); fillStroke(g,'#fdf3e2',3);
+  // 体のぶち（キジトラ）
+  g.save(); ell(g,0,-17,17,15); g.clip();
+  g.fillStyle = '#e8a33d';
+  ell(g,7,-26,11,8); g.fill();
+  ell(g,-9,-14,7,5); g.fill();
+  g.restore();
+
+  // あたま
+  ell(g,0,-40,15.5,14); fillStroke(g,'#fdf3e2',3.2);
+  // 耳
+  for (const ex of [-1,1]){
+    g.beginPath();
+    g.moveTo(ex*5,-50); g.lineTo(ex*13,-58); g.lineTo(ex*14,-46); g.closePath();
+    fillStroke(g,'#fdf3e2',3);
+    g.beginPath();
+    g.moveTo(ex*7,-50.5); g.lineTo(ex*11.5,-55); g.lineTo(ex*12,-48); g.closePath();
+    g.fillStyle = '#f0a9a0'; g.fill();
+  }
+  // 頭のぶち
+  g.save(); ell(g,0,-40,15.5,14); g.clip();
+  g.fillStyle = '#e8a33d';
+  ell(g,-8,-50,9,7); g.fill();
+  g.restore();
+
+  // 顔
+  const blink = o.blink ? 1 : 0;
+  g.fillStyle = INK;
+  for (const ex of [-1,1]){
+    if (o.dizzy){                                  // つかまったとき（×_×）
+      g.lineWidth = 2.6; g.strokeStyle = INK; g.lineCap='round';
+      g.beginPath(); g.moveTo(ex*6-3,-45); g.lineTo(ex*6+3,-39);
+      g.moveTo(ex*6+3,-45); g.lineTo(ex*6-3,-39); g.stroke();
+    } else if (blink){
+      g.lineWidth = 2.4; g.strokeStyle = INK; g.lineCap='round';
+      g.beginPath(); g.moveTo(ex*6-3.4,-42); g.quadraticCurveTo(ex*6,-39.4,ex*6+3.4,-42); g.stroke();
+    } else {
+      ell(g,ex*6,-42,2.9,3.4); g.fill();
+      g.fillStyle='#fff'; ell(g,ex*6+1,-43.4,1.1,1.2); g.fill(); g.fillStyle=INK;
+    }
+  }
+  g.beginPath();                                    // 鼻
+  g.moveTo(-2.6,-35.6); g.lineTo(2.6,-35.6); g.lineTo(0,-33.2); g.closePath();
+  g.fillStyle = '#e58a86'; g.fill();
+  g.lineWidth = 1.8; g.strokeStyle = INK; g.lineCap='round';
+  g.beginPath();                                    // 口
+  g.moveTo(0,-33); g.quadraticCurveTo(-3,-30.6,-5.6,-32.6);
+  g.moveTo(0,-33); g.quadraticCurveTo( 3,-30.6, 5.6,-32.6); g.stroke();
+  g.lineWidth = 1.5;                                // ひげ
+  for (const ex of [-1,1]) for (let k=0;k<2;k++){
+    g.beginPath(); g.moveTo(ex*11,-38+k*4); g.lineTo(ex*23,-41+k*6); g.stroke();
+  }
+  g.restore();
+}
+
+function drawRobot(g,x,y,s,o){
+  o = o || {};
+  const t = o.t || 0, stun = o.stun, tilt = o.tilt || 0;
+  g.save(); g.translate(x,y);
+  const f = o.fall ? (1 - o.fall) : 1;              // 落とし穴に吸い込まれる
+  g.scale(s*f, s*f);
+  g.rotate(tilt + (o.fall ? o.fall*0.8 : 0));
+
+  // ブラシ（下でくるくる回る）
+  g.save(); g.translate(0,-6); g.rotate(t*6);
+  for (let k=0;k<6;k++){
+    g.rotate(Math.PI/3);
+    g.strokeStyle = '#d8b98a'; g.lineWidth = 3; g.lineCap='round';
+    g.beginPath(); g.moveTo(0,0); g.lineTo(20,0); g.stroke();
+  }
+  g.restore();
+
+  // 本体（お掃除ロボの円盤）
+  ell(g,0,-16,25,17);
+  const gr = g.createLinearGradient(0,-33,0,0);
+  gr.addColorStop(0,'#a7b7c4'); gr.addColorStop(1,'#5f6e7b');
+  fillStroke(g,gr,3.2);
+  ell(g,0,-22,19,11.5); fillStroke(g,'#cddae4',2.6);   // 天板
+  // バンパーの帯
+  g.save(); ell(g,0,-16,25,17); g.clip();
+  g.fillStyle = 'rgba(58,46,38,.22)'; g.fillRect(-26,-8,52,10);
+  g.restore();
+
+  // 目
+  if (stun){
+    g.strokeStyle = '#e2544a'; g.lineWidth = 3; g.lineCap='round';
+    for (const ex of [-1,1]){
+      g.beginPath(); g.moveTo(ex*8-4,-26); g.lineTo(ex*8+4,-20);
+      g.moveTo(ex*8+4,-26); g.lineTo(ex*8-4,-20); g.stroke();
+    }
+  } else {
+    for (const ex of [-1,1]){
+      rr(g, ex*8-5, -26, 10, 6, 3);
+      g.fillStyle = '#ff6b57'; g.fill();
+      g.lineWidth = 2; g.strokeStyle = INK; g.stroke();
+      g.fillStyle = 'rgba(255,255,255,.75)';
+      rr(g, ex*8-3, -25, 4, 2, 1); g.fill();
+    }
+  }
+  // アンテナ（点滅）
+  g.strokeStyle = INK; g.lineWidth = 2.6; g.lineCap='round';
+  g.beginPath(); g.moveTo(11,-30); g.lineTo(15,-42); g.stroke();
+  g.beginPath(); g.arc(15,-44,3.4,0,Math.PI*2);
+  g.fillStyle = (Math.sin(t*7) > 0 || stun) ? '#ffd24a' : '#a3663a'; g.fill();
+  g.lineWidth = 2; g.strokeStyle = INK; g.stroke();
+
+  // 毛糸がからまっている
+  if (stun){
+    g.strokeStyle = '#e4695a'; g.lineWidth = 2.6;
+    for (let k=0;k<3;k++){
+      g.beginPath();
+      g.ellipse(0,-18, 22-k*3, 13-k*3, k*0.7 + t, 0, Math.PI*1.7);
+      g.stroke();
+    }
+  }
+  g.restore();
+}
+
+function drawTower(g,x,y,s){
+  g.save(); g.translate(x,y); g.scale(s,s);
+  ell(g,0,-3,29,10); fillStroke(g,'#c98a4b',3);         // 台座
+  g.fillStyle = 'rgba(255,255,255,.25)'; ell(g,0,-5,22,6); g.fill();
+  rr(g,-9,-52,18,50,4); fillStroke(g,'#deb98a',3);      // 支柱
+  g.strokeStyle = '#b9884f'; g.lineWidth = 2.2;         // 麻縄
+  for (let k=0;k<9;k++){
+    g.beginPath(); g.moveTo(-9,-8-k*5); g.quadraticCurveTo(0,-11-k*5,9,-8-k*5); g.stroke();
+  }
+  ell(g,0,-56,27,10); fillStroke(g,'#f3e0bc',3);        // 上の台
+  ell(g,0,-63,18,8); fillStroke(g,'#e4695a',3);         // クッション
+  g.strokeStyle = INK; g.lineWidth = 2.6; g.lineCap='round';
+  g.beginPath(); g.moveTo(16,-62); g.lineTo(16,-88); g.stroke();   // 旗ざお
+  g.beginPath(); g.moveTo(16,-88); g.lineTo(42,-81); g.lineTo(16,-74); g.closePath();
+  fillStroke(g,'#5a8f6b',2.6);
+  g.restore();
+}
+
+function drawSofa(g,x,y,s){
+  g.save(); g.translate(x,y); g.scale(s,s);
+  rr(g,-27,-42,54,24,9); fillStroke(g,'#6e9c7e',3);      // 背もたれ
+  rr(g,-33,-30,12,24,6); fillStroke(g,'#5d8a6d',3);      // 肘掛け（左）
+  rr(g, 21,-30,12,24,6); fillStroke(g,'#5d8a6d',3);      // 肘掛け（右）
+  rr(g,-24,-26,48,20,7); fillStroke(g,'#8ab897',3);      // 座面
+  g.strokeStyle = 'rgba(58,46,38,.5)'; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(0,-24); g.lineTo(0,-8); g.stroke();
+  g.restore();
+}
+
+function drawYarn(g,x,y,s,t){
+  g.save(); g.translate(x,y); g.scale(s,s);
+  g.beginPath(); g.arc(0,-15,13,0,Math.PI*2); fillStroke(g,'#e4695a',3);
+  // 巻いてある筋。細いと盤面では「ただの赤い丸」に見えるので、はっきり描く
+  g.strokeStyle = '#a83c33'; g.lineWidth = 2.8;
+  for (let k=-1;k<=1;k++){
+    g.beginPath(); g.ellipse(0,-15,11.5,5.5,k*0.9 + 0.4,0,Math.PI*2); g.stroke();
+  }
+  g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2.2;
+  g.beginPath(); g.arc(-3,-19,6,Math.PI*1.05,Math.PI*1.75); g.stroke();
+  g.strokeStyle = INK; g.lineWidth = 2.4; g.lineCap='round';   // ほどけた糸
+  g.beginPath(); g.moveTo(11,-10);
+  g.quadraticCurveTo(20,-4 + Math.sin((t||0)*2)*2, 26,-8); g.stroke();
+  g.restore();
+}
+
+function drawFish(g,x,y,s,t){
+  g.save(); g.translate(x,y + Math.sin((t||0)*2.2)*1.5); g.scale(s,s);
+  ell(g,2,-15,15,9); fillStroke(g,'#7fb6d9',3);           // 胴
+  g.save(); ell(g,2,-15,15,9); g.clip();
+  g.fillStyle = '#d9eef8'; ell(g,3,-10,14,5); g.fill();   // 腹
+  g.fillStyle = 'rgba(255,255,255,.5)'; ell(g,0,-19,9,3); g.fill();
+  g.restore();
+  g.beginPath();                                          // 尾
+  g.moveTo(-12,-15); g.lineTo(-22,-22); g.lineTo(-22,-8); g.closePath();
+  fillStroke(g,'#5f9dc4',3);
+  g.beginPath(); g.moveTo(2,-23); g.lineTo(8,-27); g.lineTo(10,-21); g.closePath();
+  fillStroke(g,'#5f9dc4',2.4);                            // 背びれ
+  g.beginPath(); g.arc(9,-17,2.2,0,Math.PI*2); g.fillStyle = INK; g.fill();
+  g.restore();
+}
+
+/* 道の上に置くもの。ang は道の向き（この向きに直交するように立てる）。
+   マスではなく「道」に付くギミックなので、ほかと描き方が違う。 */
+function drawCatDoor(g,x,y,ang,s){
+  s = s || 1;
+  g.save(); g.translate(x,y); g.rotate(ang); g.scale(s,s);
+  // ★枠は明るい木にする。濃い木にすると、中のネコ形の穴（濃い色）が沈んで
+  //   盤面では「茶色いかたまり」にしか見えなかった
+  rr(g,-10,-23,20,46,6); fillStroke(g,'#eccb9c',3);
+  g.save(); rr(g,-10,-23,20,46,6); g.clip();                // ねこの形の穴
+  g.fillStyle = '#3a2e26';
+  ell(g,0,3,7.5,8.5); g.fill();
+  g.beginPath(); g.moveTo(-7.5,-4); g.lineTo(-3,-13); g.lineTo(1,-4); g.closePath(); g.fill();
+  g.beginPath(); g.moveTo( 7.5,-4); g.lineTo( 3,-13); g.lineTo(-1,-4); g.closePath(); g.fill();
+  g.restore();
+  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(-6,-20); g.lineTo(-6,20); g.stroke();
+  g.restore();
+}
+function drawGate(g,x,y,ang,open,s){
+  s = s || 1;
+  g.save(); g.translate(x,y); g.rotate(ang); g.scale(s,s);
+  // 柱は開いていても残す（「ここに戸がある」と分かるように）
+  rr(g,-9,-34,18,9,3); fillStroke(g,'#9c7346',2.8);
+  rr(g,-9, 25,18,9,3); fillStroke(g,'#9c7346',2.8);
+  if (open){                                                 // 開いた戸は柱の内側へ引き込む
+    g.globalAlpha = 0.9;
+    rr(g,-7,-25,14,9,3); fillStroke(g,'#c99a63',2.6);
+    rr(g,-7, 16,14,9,3); fillStroke(g,'#c99a63',2.6);
+    g.globalAlpha = 1;
+    g.strokeStyle = '#5a8f6b'; g.lineWidth = 4; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(-6,-1); g.lineTo(-2,4); g.lineTo(7,-8); g.stroke();  // ✓
+  } else {
+    rr(g,-8,-26,16,52,4); fillStroke(g,'#c99a63',3);         // 閉じた戸
+    g.strokeStyle = '#8a6236'; g.lineWidth = 2.6;
+    for (let k=-2;k<=2;k++){ g.beginPath(); g.moveTo(-7,k*10); g.lineTo(7,k*10); g.stroke(); }
+    g.beginPath(); g.arc(0,0,4.4,0,Math.PI*2);               // かんぬき
+    fillStroke(g,'#e0a83c',2.6);
+  }
+  g.restore();
+}
+function drawSwitch(g,x,y,s,pressed){
+  g.save(); g.translate(x,y); g.scale(s,s);
+  ell(g,0,-6,18,10.5); fillStroke(g,'#b9b1a2',3);            // 床の板（毛糸と見分けるため灰色）
+  ell(g,0,pressed ? -8 : -13, 11.5, 7);
+  // ★ボタンは山吹色。赤にすると毛糸玉と同じ色になって、盤面で見分けが付かなかった
+  fillStroke(g, pressed ? '#5a8f6b' : '#e0a83c', 3);
+  if (!pressed){
+    g.fillStyle = 'rgba(255,255,255,.45)'; ell(g,-3,-13.5,4.5,2); g.fill();
+  } else {
+    g.strokeStyle = '#fff'; g.lineWidth = 2.6; g.lineCap = 'round';
+    g.beginPath(); g.moveTo(-4,-8); g.lineTo(-1,-5); g.lineTo(5,-11); g.stroke();
+  }
+  g.restore();
+}
+
+function drawTrap(g,x,y,s){
+  g.save(); g.translate(x,y); g.scale(s,s);
+  ell(g,0,-6,30,20);
+  const gr = g.createRadialGradient(0,-6,3,0,-6,30);
+  gr.addColorStop(0,'#100c0a'); gr.addColorStop(0.75,'#241c17'); gr.addColorStop(1,'#4a382c');
+  fillStroke(g,gr,3);
+  g.strokeStyle = 'rgba(255,240,210,.45)'; g.lineWidth = 2.4;   // 穴のふち
+  g.beginPath(); g.ellipse(0,-6,29,19,0,Math.PI*0.15,Math.PI*0.85); g.stroke();
+  g.strokeStyle = 'rgba(58,46,38,.55)'; g.lineWidth = 2;        // 割れた床板
+  for (let k=0;k<4;k++){
+    const a = 0.5 + k*1.5;
+    g.beginPath();
+    g.moveTo(Math.cos(a)*30, -6 + Math.sin(a)*20);
+    g.lineTo(Math.cos(a)*39, -6 + Math.sin(a)*26); g.stroke();
+  }
+  g.restore();
+}
+
+/* ===================== 盤面の描画 ===================== */
+function tileAt(i){ return [NX(i), NY(i)]; }
+
+function drawBoard(){
+  ctx.save();
+  if (shakeT > 0){
+    ctx.translate(Math.sin(shakeT*60)*shakeP, Math.cos(shakeT*47)*shakeP*0.7);
+  }
+  ctx.drawImage(floorCache, 0, 0);
+
+  // ---- 道（マスとマスをつなぐ廊下） ----
+  //   ふつうの道／ねこのぬけ道（細い）／ドアのある道 の3種類を描き分ける
+  const doorSet = new Set(S.doors.map(e => edgeKey(e[0],e[1])));
+  const onlyCat = new Set(S.catOnly.map(e => edgeKey(e[0],e[1])));
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const marks = [];                       // 道の上に立てるもの（線を全部描いてから重ねる）
+  for (const e of S.edges){
+    const p = tileAt(e[0]), q = tileAt(e[1]);
+    const k = edgeKey(e[0],e[1]);
+    const narrow = onlyCat.has(k);
+    ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]);
+    ctx.strokeStyle = 'rgba(58,46,38,.18)'; ctx.lineWidth = narrow ? 20 : 30; ctx.stroke();
+    ctx.strokeStyle = '#fdf3dc'; ctx.lineWidth = narrow ? 14 : 24; ctx.stroke();
+    ctx.strokeStyle = '#e0c79c'; ctx.lineWidth = 3;
+    ctx.setLineDash([9,11]); ctx.stroke(); ctx.setLineDash([]);
+    if (narrow || doorSet.has(k)){
+      const mx = (p[0]+q[0])/2, my = (p[1]+q[1])/2;
+      const ang = Math.atan2(q[1]-p[1], q[0]-p[0]);
+      marks.push({ x:mx, y:my, ang, cat:narrow });
+    }
+  }
+  // 道の上のものは、マス（直径54）に埋もれない大きさで置く
+  for (const m of marks){
+    if (m.cat) drawCatDoor(ctx, m.x, m.y, m.ang, 1.15);
+    else       drawGate(ctx, m.x, m.y, m.ang, doorsOpen, 1.15);
+  }
+
+  // ---- ロボットが次に来られるマス（あぶない所を薄く出す） ----
+  const danger = new Set();
+  if (!over && turn === 'cat'){
+    for (const r of robots){
+      if (r.stun > 0) continue;
+      for (const n of radj[r.node]) if (!S.sofa.includes(n)) danger.add(n);
+    }
+  }
+  // ---- 猫が動けるマス ----
+  const reach = new Set();
+  if (turn === 'cat' && !over && !busy) adj[cat.node].forEach(n => reach.add(n));
+
+  // ---- マス（座布団） ----
+  S.nodes.forEach((_,i)=>{
+    const [x,y] = tileAt(i);
+    if (trapLeft.has(i)){ drawTrap(ctx,x,y+6,1); return; }   // 穴は座布団を描かない
+    shadowEll(ctx, x+3, y+5, R, R*0.9, 0.18);
+    ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2);
+    fillStroke(ctx, '#fffdf6', 3.2);
+    ctx.beginPath(); ctx.arc(x,y,R-7,0,Math.PI*2);           // 座布団のステッチ
+    ctx.strokeStyle = 'rgba(58,46,38,.16)'; ctx.lineWidth = 2; ctx.stroke();
+
+    if (danger.has(i)){
+      ctx.beginPath(); ctx.arc(x,y,R+5,0,Math.PI*2);
+      ctx.setLineDash([6,7]); ctx.lineWidth = 3;
+      ctx.strokeStyle = 'rgba(200,90,58,.75)'; ctx.stroke(); ctx.setLineDash([]);
+    }
+    if (reach.has(i)){
+      const p = 0.5 + 0.5*Math.sin(clock*4);
+      ctx.beginPath(); ctx.arc(x,y,R + 3 + p*4,0,Math.PI*2);
+      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(90,143,107,' + (0.45 + p*0.4) + ')'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(x,y,R-3,0,Math.PI*2);
+      ctx.fillStyle = 'rgba(90,143,107,' + (0.08 + p*0.08) + ')'; ctx.fill();
+    }
+  });
+
+  // ---- 置いてあるもの ----
+  S.nodes.forEach((_,i)=>{
+    const [x,y] = tileAt(i);
+    // 毛糸とさかなは、盤面に置くと小さく見える（タイルの直径は 54）。1.2倍で置く
+    if (S.sofa.includes(i)) drawSofa(ctx,x,y+8,1);
+    if (yarnLeft.has(i))    drawYarn(ctx,x,y+10,1.2,clock);
+    if (fishLeft.has(i))    drawFish(ctx,x,y+10,1.2,clock);
+    if (S.sw.includes(i))   drawSwitch(ctx,x,y+8,1.1,!swLeft.has(i));
+  });
+  // ゴールのキャットタワー（猫より先に描く＝猫が手前に立つ）
+  {
+    const [x,y] = tileAt(S.goal);
+    shadowEll(ctx, x+4, y+7, 30, 10, 0.2);
+    drawTower(ctx,x,y+7,1);
+  }
+
+  // ---- ロボット ----
+  for (const r of robots){
+    if (!r.fall) shadowEll(ctx, r.x+3, r.y+8, 24, 8);
+    drawRobot(ctx, r.x, r.y+8, 1, {
+      t: clock, stun: r.stun > 0 || r.err > 0, fall: r.fall, tilt: r.tilt || 0
+    });
+  }
+
+  // ---- ねこ ----
+  {
+    let cx = cat.x, cy = cat.y;
+    if (cleared){ const [gx,gy] = tileAt(S.goal); cx = gx; cy = gy - 56; }  // タワーの上でお昼寝
+    // 跳ねている間は影を小さく薄く。★引き算だけで書くと hop が大きいとき半径が負になり
+    //   ellipse() が IndexSizeError を投げる（2026-08-28 にこれで描画ループごと止まった）
+    const hs = Math.max(0.35, 1 - cat.hop/44);
+    shadowEll(ctx, cx+3, cy+9, 17*hs, 6*hs, 0.22*hs);
+    drawCat(ctx, cx, cy + 8 - cat.hop, 1, {
+      dir: cat.dir, t: clock, blink: cat.blink > 0, squash: cat.squash || 0, dizzy: over && !cleared
+    });
+  }
+
+  // ---- 紙吹雪・ほこり ----
+  for (const p of parts){
+    ctx.save(); ctx.globalAlpha = Math.max(0, Math.min(1, p.life));
+    ctx.translate(p.x, p.y);
+    if (p.kind === 'confetti'){
+      ctx.rotate(p.rot); ctx.fillStyle = p.color; ctx.fillRect(-4,-2.5,8,5);
+    } else {
+      ctx.fillStyle = p.color; ctx.beginPath(); ctx.arc(0,0,p.r,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+/* ===================== 粒（紙吹雪・ほこり・きらきら） ===================== */
+function burst(x,y,kind,n){
+  for (let i=0;i<n;i++){
+    const a = Math.random()*Math.PI*2, sp = 60 + Math.random()*160;
+    parts.push({
+      x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - (kind==='confetti'?120:40),
+      life: 1, kind,
+      r: 2 + Math.random()*3, rot: Math.random()*6, vr: (Math.random()-0.5)*8,
+      color: kind === 'confetti'
+        ? ['#e4695a','#e0a83c','#5a8f6b','#7fb6d9','#fdf3e2'][(Math.random()*5)|0]
+        : (kind === 'sparkle' ? '#ffd85e' : 'rgba(120,95,70,.8)'),
+    });
+  }
+}
+function updateParts(dt){
+  for (const p of parts){
+    p.x += p.vx*dt; p.y += p.vy*dt;
+    p.vy += (p.kind === 'confetti' ? 420 : 260) * dt;
+    p.vx *= 0.99; p.rot += p.vr*dt;
+    p.life -= dt * (p.kind === 'confetti' ? 0.5 : 1.4);
+  }
+  parts = parts.filter(p => p.life > 0 && p.y < H + 40);
+}
+function shake(power){ shakeT = 0.42; shakeP = power; }
+
+/* ===================== 進行のタイマーと動き =====================
+   setTimeout ではなく、描画ループの中で数える。裏に回っても
+   絵と進行がずれないし、ステージをやり直したときに全部まとめて捨てられる。 */
+function after(sec, fn){ timers.push({ t:sec, fn }); }
+function tickTimers(dt){
+  if (!timers.length) return;
+  for (const tm of timers) tm.t -= dt;
+  const due = timers.filter(t => t.t <= 0);
+  timers = timers.filter(t => t.t > 0);
+  for (const d of due) d.fn();
+}
+function tween(ent, x1, y1, dur, arc, onDone){
+  ent.anim = { x0:ent.x, y0:ent.y, x1, y1, t:0, dur, arc:arc||0, onDone };
+}
+function updateAnim(ent, dt){
+  const a = ent.anim; if (!a) return;
+  a.t += dt;
+  const k = Math.min(1, a.t / a.dur);
+  const e = k < 0.5 ? 2*k*k : 1 - Math.pow(-2*k+2,2)/2;      // ease-in-out
+  ent.x = a.x0 + (a.x1 - a.x0)*e;
+  ent.y = a.y0 + (a.y1 - a.y0)*e;
+  if (ent === cat) cat.hop = Math.sin(k*Math.PI) * a.arc;     // 猫だけ弧を描いて跳ぶ
+  else ent.tilt = Math.sin(k*Math.PI) * 0.12 * (a.x1 >= a.x0 ? 1 : -1);
+  if (k >= 1){
+    ent.x = a.x1; ent.y = a.y1; ent.anim = null;
+    if (ent === cat){ cat.hop = 0; cat.squash = 1; } else ent.tilt = 0;
+    if (a.onDone) a.onDone();
+  }
+}
+
+/* ===================== ステージの読み込み ===================== */
+/* 道は2種類ある。**ねこ用（adj）とロボット用（radj）を分けて持つ**。
+   - ねこのぬけ道（catOnly）… ロボットは通れない
+   - ドア（doors）… スイッチを踏むまでは誰も通れない
+   ★ロボットの経路探索は必ず radj を使うこと（adj を使うとぬけ道を通ってくる）。 */
+const edgeKey = (a,b) => a < b ? a + '-' + b : b + '-' + a;
+function buildAdj(){
+  const doorSet = new Set((S.doors || []).map(e => edgeKey(e[0],e[1])));
+  const onlyCat = new Set((S.catOnly || []).map(e => edgeKey(e[0],e[1])));
+  adj  = S.nodes.map(()=>[]);
+  radj = S.nodes.map(()=>[]);
+  S.edges.forEach(([a,b])=>{
+    const k = edgeKey(a,b);
+    if (doorSet.has(k) && !doorsOpen) return;      // 閉じたドアは誰も通れない
+    adj[a].push(b); adj[b].push(a);
+    if (onlyCat.has(k)) return;                    // ぬけ道はロボットが通れない
+    radj[a].push(b); radj[b].push(a);
+  });
+}
+function loadStage(i){
+  stageIdx = i;
+  S = JSON.parse(JSON.stringify(STAGES[i]));
+  S.sofa = S.sofa || []; S.yarn = S.yarn || []; S.fish = S.fish || []; S.trap = S.trap || [];
+  S.sw = S.sw || []; S.doors = S.doors || []; S.catOnly = S.catOnly || [];
+  swLeft = new Set(S.sw); doorsOpen = false;
+  buildAdj();
+  cat.node = S.cat; cat.x = NX(S.cat); cat.y = NY(S.cat);
+  cat.dir = 1; cat.hop = 0; cat.anim = null; cat.squash = 0;
+  // id は「先に計算したターン」を演出で再生するときの目印（落とし穴で減るので添字は使えない）
+  robots = S.robots.map((n,k) => ({ id:k, node:n, x:NX(n), y:NY(n), stun:0, err:0, fall:0, tilt:0, anim:null }));
+  fishLeft = new Set(S.fish); yarnLeft = new Set(S.yarn); trapLeft = new Set(S.trap);
+  turn = 'cat'; over = false; cleared = false; busy = false; moves = 0;
+  timers = []; parts = []; shakeT = 0;
+
+  document.getElementById('stageBadge').textContent = 'Stage ' + (i+1) + ' / ' + STAGES.length;
+  document.getElementById('stageName').textContent = S.name;
+  updateHud();
+  setMsg('となりのマスをタップして、うごこう！');
+  cutin('Stage ' + (i+1) + '　' + S.name);
+}
+function cutin(text){
+  const el = document.getElementById('cutin');
+  el.textContent = text;
+  el.classList.remove('play'); void el.offsetWidth; el.classList.add('play');
+}
+function setMsg(t){ document.getElementById('msg').innerHTML = t; }
+function updateHud(){
+  const b = document.getElementById('turnBadge');
+  const icon = b.querySelector('canvas');
+  paintIcon(icon, turn === 'cat' ? 'cat' : 'robot');
+  b.className = 'badge ' + (turn === 'cat' ? 'turn-cat' : 'turn-robot');
+  b.lastChild.nodeValue = turn === 'cat' ? 'きみのターン' : 'ロボットのターン';
+  const opt = STAGES[stageIdx].opt;
+  document.getElementById('moveBadge').textContent =
+    moves + '手' + (opt ? '　最短 ' + opt : '');       // ★3の目標を最初から見せる
+}
+
+/* ===================== 猫の移動 ===================== */
+function onCatMove(n){
+  if (turn !== 'cat' || over || busy) return;
+  if (!adj[cat.node].includes(n)) return;
+  busy = true; moves++;
+  const tx = NX(n), ty = NY(n);
+  cat.dir = tx >= cat.x ? 1 : -1;
+  cat.node = n;
+  sfx('step');
+  updateHud();
+  tween(cat, tx, ty, 0.26, 26, ()=>{
+    busy = false;
+    if (cat.node === S.goal){ win(); return; }
+    if (fishLeft.has(cat.node)){                    // おさかな：もう1マス動ける
+      fishLeft.delete(cat.node);
+      sfx('fish'); burst(cat.x, cat.y - 20, 'sparkle', 14);
+      setMsg('おさかなゲット！ <b>もう1マスうごけるよ</b>');
+      return;
+    }
+    if (swLeft.has(cat.node)){                      // スイッチ：閉じていたドアが開く
+      swLeft.delete(cat.node);
+      doorsOpen = true; buildAdj();
+      sfx('door'); burst(cat.x, cat.y - 16, 'sparkle', 12);
+      setMsg('スイッチを ふんだ！ <b>ドアが ひらいたよ</b>');
+    }
+    startRobotTurn();
+  });
+}
+
+/* ===================== ロボットのターン ===================== */
+function bfsStep(from, to, list){
+  // ソファと 他ロボットの居るマスは進入不可。最短経路の次の1マスを返す。
+  // ★通れる道は radj（ぬけ道を除き、開いたドアを含む）。adj を使ってはいけない
+  const blocked = new Set(S.sofa);
+  (list || robots).forEach(r => { if (r.node !== from) blocked.add(r.node); });
+  if (from === to) return null;
+  const prev = new Array(S.nodes.length).fill(-2);
+  prev[from] = -1;
+  const q = [from];
+  while (q.length){
+    const cur = q.shift();
+    for (const nx of radj[cur]){
+      if (prev[nx] !== -2) continue;
+      if (nx !== to && blocked.has(nx)) continue;   // ゴール(=猫)以外はブロック回避
+      prev[nx] = cur;
+      if (nx === to){ q.length = 0; break; }
+      q.push(nx);
+    }
+  }
+  if (prev[to] === -2) return null;                 // 到達不能
+  let node = to;
+  while (prev[node] !== from) node = prev[node];
+  return node;
+}
+
+/* ロボットの1ターンを **先に全部計算してから、演出で1つずつ再生する**。
+   計算（planRobotTurn）と演出（startRobotTurn）を分けてあるのは、
+   tools/crosscheck.js から演出抜きで同じ計算を呼べるようにするため。
+   ルールが node 側（tools/engine.js）と2か所にあるので、突き合わせられないと
+   「解析器では解けるのに実機では解けない面」を配ってしまう。 */
+function planRobotTurn(){
+  const sim = robots.map(r => ({ id:r.id, node:r.node, stun:r.stun }));
+  const yarn = new Set(yarnLeft), trap = new Set(trapLeft);
+  const ev = [];
+  let idx = 0, lost = false;
+  while (idx < sim.length){
+    const r = sim[idx];
+    if (r.stun > 0){ r.stun--; ev.push({ t:'stun', id:r.id }); idx++; continue; }
+    const next = bfsStep(r.node, cat.node, sim);
+    if (next !== null){ r.node = next; ev.push({ t:'move', id:r.id, to:next }); }
+    if (yarn.has(r.node)){                            // 毛糸に乗った（捕獲判定より先）
+      yarn.delete(r.node); r.stun = 1;
+      ev.push({ t:'yarn', id:r.id, node:r.node }); idx++; continue;
+    }
+    if (r.node === cat.node){ ev.push({ t:'caught', id:r.id }); lost = true; break; }
+    if (trap.has(r.node)){                            // 落とし穴（穴は残る・添字は進めない）
+      ev.push({ t:'fall', id:r.id }); sim.splice(idx,1); continue;
+    }
+    idx++;
+  }
+  return { ev, lost };
+}
+
+// ★演出を挟まずに1ターン進める。tools/crosscheck.js だけが使う（本編は下の startRobotTurn）
+function applyRobotTurnNow(){
+  const plan = planRobotTurn();
+  for (const e of plan.ev){
+    const r = robots.find(x => x.id === e.id);
+    if (!r) continue;
+    if (e.t === 'stun') r.stun--;
+    else if (e.t === 'move'){ r.node = e.to; r.x = NX(e.to); r.y = NY(e.to); }
+    else if (e.t === 'yarn'){ yarnLeft.delete(e.node); r.stun = 1; }
+    else if (e.t === 'caught') over = true;
+    else if (e.t === 'fall') robots.splice(robots.indexOf(r), 1);
+  }
+  return plan.lost ? 'LOSE' : null;
+}
+
+function startRobotTurn(){
+  turn = 'robot'; busy = true; updateHud();
+  setMsg('ロボットが うごくよ…');
+  const plan = planRobotTurn();
+  let k = 0;
+
+  const play = ()=>{
+    if (over) return;
+    if (k >= plan.ev.length){ endRobotTurn(); return; }
+    const e = plan.ev[k++];
+    const r = robots.find(x => x.id === e.id);
+    if (!r){ play(); return; }
+    switch (e.t){
+      case 'stun':
+        r.stun--; r.err = 1; sfx('yarn');
+        setMsg('ロボット「エラー…うごけない！」');
+        after(0.6, play); break;
+      case 'move':
+        r.node = e.to; sfx('robot');
+        tween(r, NX(e.to), NY(e.to), 0.3, 0, ()=>after(0.02, play));
+        break;
+      case 'yarn':
+        yarnLeft.delete(e.node); r.stun = 1; r.err = 1;
+        sfx('yarn'); burst(r.x, r.y - 16, 'dust', 10);
+        setMsg('ロボット「エラー…毛糸が からまった！」');
+        after(0.75, play); break;
+      case 'caught':
+        over = true; sfx('caught'); shake(13);
+        burst(cat.x, cat.y - 24, 'dust', 18);
+        setMsg('つかまっちゃった…！');
+        after(0.7, lose); break;
+      case 'fall':
+        sfx('trap'); setMsg('ロボットが 落とし穴に 落ちた！');
+        r.falling = true;
+        after(0.55, ()=>{
+          const j = robots.indexOf(r);
+          if (j >= 0) robots.splice(j, 1);
+          burst(r.x, r.y - 6, 'dust', 14);
+          play();
+        });
+        break;
+    }
+  };
+  after(0.3, play);
+}
+function endRobotTurn(){
+  if (over) return;
+  turn = 'cat'; busy = false;
+  robots.forEach(r => { r.err = 0; });
+  const near = robots.some(r => adj[cat.node].includes(r.node));
+  setMsg(near ? '<b>あぶない！</b> ロボットが すぐそこ！' : 'きみのターン！ にげきろう！');
+  updateHud();
+}
+
+/* ===================== 勝敗 ===================== */
+function win(){
+  over = true; cleared = true;
+  burst(NX(S.goal), NY(S.goal) - 60, 'confetti', 46);
+  const best = save.best[stageIdx];
+  const isBest = !best || moves < best;
+  if (isBest) save.best[stageIdx] = moves;
+  if (save.cleared < stageIdx + 1) save.cleared = stageIdx + 1;
+  persist();
+  const last = stageIdx >= STAGES.length - 1;
+  sfx(last ? 'allclear' : 'clear');
+  after(0.55, ()=>{
+    if (last){
+      const got = STAGES.reduce((a,_,i)=>a + starsFor(i), 0);
+      showResult('tower', '完全脱出せいこう！',
+        starLine(isBest) + '<br>ぜんぶのステージを クリアしたよ！おめでとう！' +
+        '<br>あつめた★ <b>' + got + ' / ' + (STAGES.length*3) + '</b>',
+        'もう一度あそぶ', ()=>{ hide('overlay'); loadStage(0); });
+    } else {
+      showResult('tower', 'ステージクリア！',
+        starLine(isBest) + '<br>つぎは Stage ' + (stageIdx + 2),
+        '次のステージへ', ()=>{ hide('overlay'); loadStage(stageIdx + 1); });
+    }
+  });
+}
+/* クリア画面の1行目。★の数と、★3に足りない分を出す。
+   「あと1手で★3」と分かると、もう一度その面を触る理由になる */
+function starLine(isBest){
+  const st = starsFor(stageIdx), opt = STAGES[stageIdx].opt;
+  let s = '<b style="font-size:22px;letter-spacing:2px">' + starText(st) + '</b><br>' +
+          '<b>' + moves + '手</b>でクリア！' + (isBest ? '（自己ベスト更新）' : '');
+  if (opt && st < 3) s += '<br>最短は <b>' + opt + '手</b>。ぴったりで ★★★';
+  return s;
+}
+function lose(){
+  const lines = ['お尻を すわれそうになった！','ロボットに つかまっちゃった！',
+                 'あわや、丸のみ！','ヒゲが はさまった！'];
+  const t = lines[(cat.node + stageIdx) % lines.length];
+  showResult('robot', 'つかまっちゃった！', t + '<br>もう一度チャレンジ！',
+    'このステージを やり直す', ()=>{ hide('overlay'); loadStage(stageIdx); });
+}
+
+/* ===================== 画面（タイトル・選択・結果） ===================== */
+function show(id){ document.getElementById(id).classList.add('show'); }
+function hide(id){ document.getElementById(id).classList.remove('show'); }
+
+function showResult(art, title, text, btn, cb){
+  paintIcon(document.getElementById('ovArt'), art);
+  document.getElementById('ovTitle').textContent = title;
+  document.getElementById('ovText').innerHTML = text;
+  const b = document.getElementById('ovBtn');
+  b.textContent = btn;
+  b.onclick = ()=>{ sfx('ui'); cb(); };
+  show('overlay');
+}
+
+/* HUD・凡例・結果の小さい絵。盤面と同じ描画関数を使うので絵柄が食い違わない。
+   絵ごとに「原点からどれだけ上／下に伸びるか」を持たせて、箱いっぱいに収める。 */
+const ART = {
+  cat:   { w:50, up:62, dn:2,  f:(g,s)=>drawCat(g,0,0,s,{dir:1,t:0.5}) },
+  robot: { w:54, up:50, dn:4,  f:(g,s)=>drawRobot(g,0,0,s,{t:0.3}) },
+  tower: { w:74, up:92, dn:6,  f:(g,s)=>drawTower(g,0,0,s) },
+  sofa:  { w:68, up:44, dn:4,  f:(g,s)=>drawSofa(g,0,0,s) },
+  yarn:  { w:42, up:30, dn:2,  f:(g,s)=>drawYarn(g,0,0,s,0) },
+  fish:  { w:46, up:28, dn:4,  f:(g,s)=>drawFish(g,0,0,s,0) },
+  trap:  { w:80, up:28, dn:16, f:(g,s)=>drawTrap(g,0,0,s) },
+  // 道に付くギミックは横向きに寝かせて（ang=π/2）箱に収める
+  catdoor:{ w:46, up:24, dn:24, f:(g,s)=>drawCatDoor(g,0,0,Math.PI/2,s) },
+  gate:  { w:46, up:26, dn:26, f:(g,s)=>drawGate(g,0,0,Math.PI/2,false,s) },
+  sw:    { w:38, up:20, dn:6,  f:(g,s)=>drawSwitch(g,0,0,s,false) },
+};
+// 小さい絵ほど粗が見えるので、実画素で描いて CSS で縮める
+function ensureHiDPI(cv){
+  if (cv.dataset.cssw) return;
+  const cs = getComputedStyle(cv);
+  const w = parseFloat(cs.width) || cv.width, h = parseFloat(cs.height) || cv.height;
+  cv.dataset.cssw = w; cv.dataset.cssh = h;
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  cv.width = Math.round(w*dpr); cv.height = Math.round(h*dpr);
+}
+function paintIcon(cv, name){
+  if (!cv) return;
+  ensureHiDPI(cv);
+  const w = +cv.dataset.cssw, h = +cv.dataset.cssh;
+  const g = cv.getContext('2d');
+  g.setTransform(cv.width/w, 0, 0, cv.height/h, 0, 0);
+  g.clearRect(0,0,w,h);
+  const a = ART[name]; if (!a) return;
+  const tot = a.up + a.dn;
+  const s = Math.min(w/a.w, h/tot) * 0.94;
+  g.save();
+  g.translate(w/2, h/2 + tot*s/2 - a.dn*s);
+  a.f(g, s);
+  g.restore();
+}
+function paintAllIcons(){
+  document.querySelectorAll('canvas[data-icon]').forEach(cv => paintIcon(cv, cv.dataset.icon));
+}
+
+// タイトルの絵。ネコがロボットから逃げてタワーへ向かっている場面
+function paintTitleArt(){
+  const cv = document.getElementById('titleArt');
+  const g = cv.getContext('2d');
+  const w = cv.width, h = cv.height;
+  g.clearRect(0,0,w,h);
+  g.save();
+  const grd = g.createLinearGradient(0,0,0,h);
+  grd.addColorStop(0,'#f6e7c8'); grd.addColorStop(1,'#e5cda3');
+  g.fillStyle = grd; rr(g,0,0,w,h,16); g.fill();
+  g.lineWidth = 4; g.strokeStyle = INK; g.stroke();
+  g.save(); rr(g,0,0,w,h,16); g.clip();
+  g.strokeStyle = 'rgba(140,105,66,.25)'; g.lineWidth = 2;
+  for (let y=28;y<h;y+=26){ g.beginPath(); g.moveTo(0,y); g.lineTo(w,y); g.stroke(); }
+  const base = h - 22;
+  shadowEll(g, 316, base+4, 26, 8, 0.18); drawTower(g, 316, base, 0.85);
+  shadowEll(g, 196, base+6, 15, 5);       drawCat(g, 194, base, 0.95, {dir:1,t:0.6});
+  shadowEll(g,  84, base+6, 22, 7);       drawRobot(g, 82, base, 0.95, {t:0.3});
+  g.restore(); g.restore();
+}
+
+// ステージ選択
+function buildGrid(){
+  const grid = document.getElementById('stageGrid');
+  grid.innerHTML = '';
+  STAGES.forEach((st,i)=>{
+    const b = document.createElement('button');
+    const unlocked = i <= save.cleared;
+    const stars = starsFor(i);
+    b.innerHTML = '<span>' + (i+1) + '</span>' +
+      '<span class="best">' + (stars ? starText(stars) : (unlocked ? '　' : '🔒')) + '</span>';
+    if (save.best[i]) b.classList.add('cleared');
+    if (stars) b.title = save.best[i] + '手（最短 ' + (STAGES[i].opt || '?') + '手）';
+    b.disabled = !unlocked;
+    b.onclick = ()=>{ sfx('ui'); initAudio(); hide('selScreen'); hide('titleScreen'); hide('overlay'); started = true; loadStage(i); };
+    grid.appendChild(b);
+  });
+}
+
+/* ===================== 入力 ===================== */
+canvas.addEventListener('pointerdown', e=>{
+  initAudio();
+  if (!started || over || busy || turn !== 'cat') return;
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX - rect.left) * (W / rect.width);
+  const y = (e.clientY - rect.top)  * (H / rect.height);
+  // いちばん近いマス。指は太いので、半径より少し広く取る
+  let best = -1, bd = 1e9;
+  S.nodes.forEach((_,i)=>{
+    const dx = x - NX(i), dy = y - NY(i), d = dx*dx + dy*dy;
+    if (d < bd){ bd = d; best = i; }
+  });
+  if (best < 0 || bd > (R + 16)*(R + 16)) return;
+  if (adj[cat.node].includes(best)) onCatMove(best);
+  else if (best !== cat.node) setMsg('そこへは いけないよ。<b>となりのマス</b>をタップ！');
+});
+
+document.getElementById('mute').onclick = ()=>{ initAudio(); setSound(!soundOn); sfx('ui'); };
+document.getElementById('resetBtn').onclick = ()=>{ sfx('ui'); hide('overlay'); loadStage(stageIdx); };
+document.getElementById('selBtn').onclick  = ()=>{ sfx('ui'); buildGrid(); show('selScreen'); };
+document.getElementById('selBtn2').onclick = ()=>{ sfx('ui'); buildGrid(); show('selScreen'); };
+document.getElementById('selClose').onclick = ()=>{ sfx('ui'); hide('selScreen'); };
+document.getElementById('ovSub').onclick = ()=>{ sfx('ui'); buildGrid(); show('selScreen'); };
+document.getElementById('playBtn').onclick = ()=>{
+  initAudio(); sfx('ui');
+  hide('titleScreen'); started = true;
+  loadStage(Math.min(save.cleared, STAGES.length - 1));
+};
+
+/* ===================== ループ ===================== */
+let last = 0;
+function frame(ts){
+  // ★次のフレームは先に予約する。描画で例外が出ても輪が止まらないようにするため
+  //   （止まると進行タイマーごと死ぬ＝盤面が固まって操作を受け付けなくなる）
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, last ? (ts - last)/1000 : 0.016);
+  last = ts; clock += dt;
+
+  tickTimers(dt);
+  updateAnim(cat, dt);
+  for (const r of robots) updateAnim(r, dt);
+  for (const r of robots) if (r.falling) r.fall = Math.min(1, (r.fall || 0) + dt*2.2);
+  updateParts(dt);
+  if (shakeT > 0){ shakeT -= dt; shakeP *= 0.93; }
+  if (cat.squash) cat.squash = Math.max(0, cat.squash - dt*5);
+  // まばたき
+  cat.blinkT -= dt;
+  if (cat.blinkT <= 0){ cat.blink = 0.13; cat.blinkT = 2 + Math.random()*3; }
+  if (cat.blink > 0) cat.blink -= dt;
+
+  drawBoard();
+}
+
+/* ===================== 開始 ===================== */
+/* ?stage=13 で、そのステージをいきなり開く。
+   見た目を確かめるときに毎回20面クリアするわけにいかないので入れてある
+   （遊ぶ人には見えない。クリア済みの記録は付かない）。 */
+function stageFromUrl(){
+  const m = /[?&]stage=(\d+)/.exec(location.search);
+  if (!m) return -1;
+  const n = parseInt(m[1],10) - 1;
+  return (n >= 0 && n < STAGES.length) ? n : -1;
+}
+
+function boot(){
+  // 盤面も実画素で描く（900×600 の論理座標のまま、裏で2倍に持つ）
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  if (dpr > 1){
+    canvas.width = W*dpr; canvas.height = H*dpr;
+    ctx.scale(dpr, dpr);
+  }
+  buildFloor();
+  const forced = stageFromUrl();
+  loadStage(forced >= 0 ? forced : Math.min(save.cleared, STAGES.length - 1));
+  if (forced >= 0){ hide('titleScreen'); started = true; }
+  paintAllIcons();
+  paintTitleArt();
+  requestAnimationFrame(frame);
+}
+// 書体が届く前に描くと、あとで字だけ入れ替わって見える。届いてから絵も描き直す
+if (document.fonts && document.fonts.ready){
+  document.fonts.ready.then(()=>{ paintAllIcons(); });
+}
+boot();
+</script>
+</body>
+</html>
