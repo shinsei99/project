@@ -68,61 +68,8 @@
     box-shadow:0 2px 6px rgba(120,80,50,.18);
   }
   #mute:active{ transform:translateY(1px); }
-  /* ===== バナー広告（常時表示） ===== */
-  #banner{
-    position:relative;
-    width:min(100vw, 50vh); max-width:470px; height:56px;
-    border-radius:16px; overflow:hidden; cursor:pointer;
-    background:linear-gradient(100deg,#fff 0%,#FFF3E0 100%);
-    box-shadow:0 6px 16px rgba(150,90,60,.26), 0 0 0 3px rgba(255,255,255,.6);
-    display:flex; align-items:center; gap:10px; padding:0 12px;
-    color:var(--cocoa); font-weight:900;
-  }
-  #banner .ad-badge{
-    background:#FFC048; color:#6B4A32; font-size:9px; font-weight:900;
-    padding:2px 5px; border-radius:5px; letter-spacing:.06em;
-  }
-  #banner .ad-ico{ font-size:26px; }
-  #banner .ad-main{ font-size:14px; line-height:1.2; }
-  #banner .ad-sub{ font-size:10px; color:#A98060; font-weight:500; }
-  #banner .ad-cta{
-    margin-left:auto; background:var(--berry); color:#fff; font-size:12px; font-weight:900;
-    padding:7px 14px; border-radius:999px; white-space:nowrap;
-    box-shadow:0 3px 0 #D9527A;
-  }
-  /* ===== 全画面広告オーバーレイ（共通） ===== */
-  .ad-full{
-    position:absolute; inset:0; z-index:20;
-    background:rgba(58,36,24,.86);
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:14px; padding:24px; text-align:center; color:#fff;
-  }
-  .ad-full.hidden{ display:none; }
-  .ad-full .ad-tag{
-    position:absolute; top:12px; left:12px;
-    background:#FFC048; color:#6B4A32; font-size:10px; font-weight:900;
-    padding:3px 8px; border-radius:6px; letter-spacing:.08em;
-  }
-  .ad-card{
-    width:86%; max-width:340px; aspect-ratio:4/3; border-radius:22px;
-    background:linear-gradient(140deg,#FFB3C7,#C7A8F0,#8FD8FB);
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:8px; box-shadow:0 12px 28px rgba(60,35,20,.45), inset 0 0 0 4px rgba(255,255,255,.55);
-    color:#fff;
-  }
-  .ad-card .big{ font-size:42px; }
-  .ad-card .ttl{ font-size:20px; font-weight:900; text-shadow:0 2px 4px rgba(120,60,80,.35); }
-  .ad-card .desc{ font-size:12px; opacity:.95; }
-  .ad-full .cd{ font-size:13px; color:#FFE3B8; min-height:18px; }
-  .ad-full button{
-    font-family:inherit; border:none; cursor:pointer; font-weight:900;
-    padding:12px 28px; border-radius:999px; font-size:16px;
-  }
-  .ad-full .closebtn, .ad-full .claim{ background:var(--berry); color:#fff; box-shadow:0 5px 0 #D9527A; }
-  .ad-full .skip{ background:transparent; color:rgba(255,255,255,.55); font-size:12px; padding:6px; }
-  .ad-full .bar{ width:80%; max-width:300px; height:9px; border-radius:999px; background:rgba(255,255,255,.22); overflow:hidden; }
-  .ad-full .bar > i{ display:block; height:100%; width:0%; background:#FFC048; transition:width .3s linear; }
-  .reward-hl{ color:#FFD98A; font-weight:900; }
+  /* 2026-08-28: 広告（バナー／全画面／リワード）は全部外した。オーナー判断で広告なしで配信する。
+     戻すときは git 履歴の 942174fe 以前を見ること（AdMob の呼び出しごと消してある）。 */
 </style>
 </head>
 <body>
@@ -130,38 +77,11 @@
   <div id="wrap">
     <canvas id="game" width="500" height="760"></canvas>
 
-    <!-- インタースティシャル広告（3ステージごと） -->
-    <div id="interstitial" class="ad-full hidden">
-      <span class="ad-tag">広告 / AD</span>
-      <div class="ad-card"><div class="big">🍰</div><div class="ttl">スイーツ夢ランド</div><div class="desc">いますぐ無料でダウンロード！</div></div>
-      <div class="cd"></div>
-      <button class="closebtn">とじる ✕</button>
-    </div>
-
-    <!-- 動画リワード広告（コンテニュー時） -->
-    <div id="rewarded" class="ad-full hidden">
-      <span class="ad-tag">リワード広告 / AD</span>
-      <div class="ad-card"><div class="big">🎬</div><div class="ttl">どうがを見てふっかつ！</div><div class="desc"><span class="reward-hl">コンテニュー</span>するには動画をさいごまで視聴</div></div>
-      <div class="bar"><i></i></div>
-      <div class="cd"></div>
-      <button class="claim">▶ コンテニューする</button>
-      <button class="skip">やめて さいしょから</button>
-    </div>
   </div>
 
   <div id="bar">
     <div id="hint">コーンをタップ → 移動先をタップ（どこでもOK）</div>
     <button id="mute" type="button" aria-label="音のオン・オフ" aria-pressed="false">🔊</button>
-  </div>
-
-  <!-- バナー広告（画面下に常時表示） -->
-  <div id="banner">
-    <span class="ad-ico">🍦</span>
-    <div>
-      <div class="ad-main">ひんやりスイーツ便<span class="ad-badge" style="margin-left:6px">AD</span></div>
-      <div class="ad-sub">サンプルバナー広告（実広告SDKに差し替え）</div>
-    </div>
-    <span class="ad-cta">みる</span>
   </div>
 </div>
 
@@ -315,8 +235,6 @@ function advanceStage(){
   stage++;
   startStage();
   saveProgress();
-  // インタースティシャル広告：3ステージクリアごと（3,6,9…クリア後）
-  if ((stage-1) % 3 === 0) showInterstitial();
 }
 
 // seed はスプリンクル（粒）の並びを1個ごとに固定するためのもの。
@@ -353,104 +271,11 @@ ctx.scale(dpr,dpr);
 let audio;
 let nowT = 0;  // 経過秒（レインボーの色変化アニメ用）
 
-/* ===================== 広告 ===================== */
-/* ネイティブ(Capacitor+AdMob)では本物の広告、ブラウザではDOMモックにフォールバック */
-let adPaused = false;
-const elInter = document.getElementById('interstitial');
-const elRew   = document.getElementById('rewarded');
-const elBanner= document.getElementById('banner');
+/* 広告は 2026-08-28 に全部外した（オーナー判断で広告なしで配信）。
+   AdMob の初期化・バナー・全画面・リワード、およびブラウザ用のモックまで削除している。
+   ゲームオーバーからの「コンテニュー」は、動画視聴の代わりに無条件で行えるようにした。
+   戻すときはコミット 942174fe 以前の同ファイルを見ること。 */
 
-const Cap      = window.Capacitor;
-const AdMob    = Cap && Cap.Plugins && Cap.Plugins.AdMob;          // プラグイン（ネイティブのみ）
-const platform = (Cap && Cap.getPlatform) ? Cap.getPlatform() : 'web';
-const TESTING  = true;   // ★本番リリース時は false にする
-
-// AdMob広告ユニットID（下記はGoogle公式テストID。★本番は自分のIDに差し替え）
-const AD_IDS = {
-  // iOS: バナーは本番ID。interstitial/rewardは未取得のためテストIDのまま（取得後に差し替え）
-  ios:     { banner:'ca-app-pub-7896238888737384/4100011194', interstitial:'ca-app-pub-7896238888737384/9096765542', reward:'ca-app-pub-7896238888737384/4965948848' },
-  android: { banner:'ca-app-pub-3940256099942544/6300978111', interstitial:'ca-app-pub-3940256099942544/1033173712', reward:'ca-app-pub-3940256099942544/5224354917' },
-};
-const adId = kind => (AD_IDS[platform] || AD_IDS.android)[kind];
-
-// 起動時：ネイティブならAdMob初期化＋バナー表示。Webなら下部DOMバナーをそのまま使う
-async function initAds(){
-  if (!AdMob){ elBanner.style.display='flex'; return; }
-  try{
-    await AdMob.initialize({ initializeForTesting: TESTING });
-    elBanner.style.display='none';                              // ネイティブバナーを使う
-    await AdMob.showBanner({ adId: adId('banner'), position:'BOTTOM_CENTER', margin:0, isTesting:TESTING });
-  }catch(e){ console.warn('AdMob init failed', e); elBanner.style.display='flex'; }
-}
-
-// インタースティシャル：ネイティブはAdMob、WebはDOMモック
-function showInterstitial(onClose){
-  if (!AdMob) return showInterstitialMock(onClose);
-  adPaused = true;
-  (async()=>{
-    const finish = ()=>{ adPaused=false; if(onClose) onClose(); };
-    try{
-      // ※イベント名は @capacitor-community/admob v6 準拠。導入版に合わせ要確認
-      const sub = await AdMob.addListener('interstitialAdDismissed', ()=>{ sub && sub.remove && sub.remove(); finish(); });
-      await AdMob.prepareInterstitial({ adId: adId('interstitial'), isTesting:TESTING });
-      await AdMob.showInterstitial();
-    }catch(e){ console.warn(e); finish(); }
-  })();
-}
-
-// 動画リワード：最後まで見たら onReward、途中離脱は onSkip
-function showRewarded(onReward, onSkip){
-  if (!AdMob) return showRewardedMock(onReward, onSkip);
-  adPaused = true;
-  (async()=>{
-    let earned = false, subR, subD;
-    const cleanup = ()=>{ subR&&subR.remove&&subR.remove(); subD&&subD.remove&&subD.remove(); };
-    try{
-      subR = await AdMob.addListener('onRewardedVideoAdReward', ()=>{ earned = true; });
-      subD = await AdMob.addListener('onRewardedVideoAdDismissed', ()=>{
-        cleanup(); adPaused=false; earned ? (onReward&&onReward()) : (onSkip&&onSkip());
-      });
-      await AdMob.prepareRewardVideoAd({ adId: adId('reward'), isTesting:TESTING });
-      await AdMob.showRewardVideoAd();
-    }catch(e){ console.warn(e); cleanup(); adPaused=false; if(onSkip) onSkip(); }
-  })();
-}
-
-/* ---- 以下はブラウザ用のDOMモック（ネイティブでは未使用） ---- */
-function showInterstitialMock(onClose){
-  adPaused = true;
-  elInter.classList.remove('hidden');
-  const cd = elInter.querySelector('.cd');
-  const btn = elInter.querySelector('.closebtn');
-  let t = 5; btn.style.display='none';
-  cd.textContent = t+' 秒後にとじられます';
-  const iv = setInterval(()=>{
-    t--;
-    if (t<=0){ clearInterval(iv); cd.textContent=''; btn.style.display='inline-block'; }
-    else cd.textContent = t+' 秒後にとじられます';
-  }, 1000);
-  btn.onclick = ()=>{ elInter.classList.add('hidden'); adPaused=false; if(onClose) onClose(); };
-}
-function showRewardedMock(onReward, onSkip){
-  adPaused = true;
-  elRew.classList.remove('hidden');
-  const cd = elRew.querySelector('.cd');
-  const bar = elRew.querySelector('.bar > i');
-  const claim = elRew.querySelector('.claim');
-  const skip = elRew.querySelector('.skip');
-  const total = 5;              // プロトタイプは5秒（本番AdMob動画は約30秒）
-  let t = total; claim.style.display='none';
-  bar.style.width='0%';
-  cd.textContent = 'どうが さいせいちゅう… '+t+'s';
-  const iv = setInterval(()=>{
-    t--;
-    bar.style.width = ((total-t)/total*100)+'%';
-    if (t<=0){ clearInterval(iv); cd.textContent='✓ しちょう かんりょう！ ほうしゅうゲット'; claim.style.display='inline-block'; }
-    else cd.textContent = 'どうが さいせいちゅう… '+t+'s';
-  }, 1000);
-  claim.onclick = ()=>{ if(t>0) return; elRew.classList.add('hidden'); adPaused=false; if(onReward) onReward(); };
-  skip.onclick  = ()=>{ clearInterval(iv); elRew.classList.add('hidden'); adPaused=false; if(onSkip) onSkip(); };
-}
 /* ===================== 音 =====================
    ★いま音のファイルは1つも同梱していない。ぜんぶ WebAudio の合成音。
      容量が増えず、素材のライセンスを持ち込まずに済むため。
@@ -461,7 +286,7 @@ function showRewardedMock(onReward, onSkip){
      3. 見つからないファイルは、そのキーだけ合成音のまま鳴る（落ちない）
 
    ★持ち込んでよい素材: **商用可 かつ 再配布可** のものだけ。
-     このリポジトリは public で、GitHub Pages で配信し、AdMob 付きで App Store にも出す。
+     このリポジトリは public で、GitHub Pages で配信し、App Store にも出す（＝商用）。
      効果音ラボ（商用可・クレジット表記不要）か CC0 が安全。
      クレジット表記が要る素材（魔王魂など）は、アプリ内に表記欄を作らない限り使わない。 */
 const USE_FILES = false;
@@ -562,8 +387,7 @@ function startMusic(){
 // 先読みして予約する方式。setInterval で直接鳴らすとタイミングがぶれる
 function musicTick(){
   if (!audio) return;
-  // 広告が出ているあいだは BGM を引っ込める（動画の音とぶつかる）
-  if (musGain) musGain.gain.setTargetAtTime(adPaused ? 0 : 0.30, audio.currentTime, 0.05);
+  if (musGain) musGain.gain.setTargetAtTime(0.30, audio.currentTime, 0.05);
   const eighth = 60/MUSIC.bpm/2;
   if (MUSIC.next < audio.currentTime) MUSIC.next = audio.currentTime + 0.05;  // 復帰時の一気鳴り防止
   while (MUSIC.next < audio.currentTime + 0.3){
@@ -586,15 +410,14 @@ document.addEventListener('visibilitychange', ()=>{
 
 canvas.addEventListener('pointerdown', e=>{
   initAudio();
-  if (adPaused) return;   // 広告表示中は操作を受け付けない
   const rect = canvas.getBoundingClientRect();
   const x = (e.clientX-rect.left) * (W/rect.width);
   const y = (e.clientY-rect.top)  * (H/rect.height);
 
   if (gameOver){
-    // コンテニュー → 動画リワード広告を視聴してから再開
+    // コンテニュー（広告を外したので、動画視聴なしでそのまま再開できる）
     if (x>W/2-110 && x<W/2+110 && y>444 && y<500){
-      showRewarded(continueStage, ()=>{ clearProgress(); reset(); });
+      continueStage();
     } else if (x>W/2-110 && x<W/2+110 && y>512 && y<562){ clearProgress(); reset(); } // さいしょから
     return;
   }
@@ -1464,8 +1287,8 @@ function drawGameOver(){
   ctx.font=F(26,900);
   // クリーム地の上なので、薄い縁取りだと金色が沈む。濃い茶で縁を取る
   outlined('¥'+score, W/2, 412, '#FFC13D', '#7A4A18', 5);
-  // コンテニュー（動画リワード）／ さいしょから
-  drawButton(W/2-110, 444, 220, 54, '#FF6F91', '#D9527A', '🎬 動画を見てコンテニュー', 15);
+  // コンテニュー（広告を外したので無条件）／ さいしょから
+  drawButton(W/2-110, 444, 220, 54, '#FF6F91', '#D9527A', '▶ つづきから', 17);
   drawButton(W/2-110, 512, 220, 46, '#8A6244', '#6B4A32', 'さいしょから', 17);
 }
 
@@ -1511,8 +1334,8 @@ function update(dt){
   if (catSuccess>0) catSuccess -= dt;
   updateParticles(dt);
 
-  // 一定時間ごとにランダムなコーンへ1個落下（広告表示中は停止）
-  if (!gameOver && !stageClear && !adPaused){
+  // 一定時間ごとにランダムなコーンへ1個落下
+  if (!gameOver && !stageClear){
     dropTimer -= dt;
     if (dropTimer<=0){ timedDrop(); dropTimer = intervalOf(stage); }
   }
@@ -1568,7 +1391,6 @@ if (muteBtn){
 }
 
 boot();
-initAds();
 requestAnimationFrame(frame);
 
 })();
