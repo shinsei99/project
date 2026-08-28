@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>にゃんこアイス 🍦</title>
+<style>
+  /* 日本語フォント: Zen Maru Gothic（Google Fonts・SIL OFL 1.1／商用可・埋め込み可・再配布可）
+     使う文字だけに絞って同梱している。文言を変えたら tools/fetch-font.py を流し直すこと。 */
+  @font-face{
+    font-family:'Zen Maru Gothic'; font-style:normal; font-weight:500; font-display:block;
+    src:url('assets/fonts/ZenMaruGothic-500.woff2') format('woff2');
+  }
+  @font-face{
+    font-family:'Zen Maru Gothic'; font-style:normal; font-weight:900; font-display:block;
+    src:url('assets/fonts/ZenMaruGothic-900.woff2') format('woff2');
+  }
+  :root{
+    --cream:#FFF6E6;
+    --wood:#B07B4E;
+    --berry:#FF6F91;
+    --mint:#5FD3C0;
+    --cocoa:#6B4A32;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; height:100%; }
+  body{
+    background:
+      radial-gradient(circle at 18% 8%,  #FFE3B8 0%, transparent 52%),
+      radial-gradient(circle at 88% 4%,  #FFC7D6 0%, transparent 48%),
+      linear-gradient(165deg, #FFF1DC 0%, #FBD9C0 55%, #F3BEA8 100%);
+    display:flex; align-items:center; justify-content:center;
+    min-height:100%;
+    font-family:'Zen Maru Gothic',"Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;
+    font-weight:500;
+    overflow:hidden;
+  }
+  #stage{ display:flex; flex-direction:column; align-items:center; gap:7px; }
+  #wrap{
+    position:relative;
+    /* 2026-08-28: iPad で盤面が小さすぎたので上限を上げた。
+       盤面は 500:760（=0.658）なので、高さいっぱいに置くなら幅は 65.8vh 必要。
+       50vh・max 470px では iPad(1032×1376pt)で 470px にしかならず、
+       画面の半分以上が余白だった（App Store のスクショで気づいた）。
+       ★iPhone の見え方は変えていない: 402pt 幅の端末では 100vw のほうが小さく、
+         上限（720px）にも 62vh にも当たらないため、従来どおり画面幅いっぱい。 */
+    width:min(100vw, 62vh);
+    max-width:720px;
+    aspect-ratio:500/760;
+    box-shadow:0 18px 44px rgba(150,90,60,.34), 0 0 0 5px #fff, 0 0 0 8px rgba(255,255,255,.45);
+    border-radius:26px;
+    overflow:hidden;
+  }
+  canvas{ display:block; width:100%; height:100%; border-radius:26px; cursor:pointer; }
+  /* ヒントと音ボタンはキャンバスの外に出す。
+     中に置くとコーンやカウンターに重なって読めないうえ、
+     音ボタンは canvas の当たり判定を増やすことになり、ゲーム操作と競合する */
+  #bar{
+    width:min(100vw, 62vh); max-width:720px;   /* #wrap と必ず同じ式にする */
+    display:flex; align-items:center; gap:8px;
+  }
+  #hint{
+    flex:1; min-width:0; text-align:center; pointer-events:none;
+    background:rgba(255,252,244,.9); color:#7A5334;
+    font-size:11px; font-weight:500; letter-spacing:.02em;
+    padding:6px 10px; border-radius:999px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    box-shadow:0 2px 6px rgba(120,80,50,.18);
+  }
+  #mute{
+    flex:none; width:34px; height:34px; border:none; cursor:pointer;
+    border-radius:50%; font-size:16px; line-height:1;
+    background:rgba(255,252,244,.9); color:#7A5334;
+    box-shadow:0 2px 6px rgba(120,80,50,.18);
+  }
+  #mute:active{ transform:translateY(1px); }
+  /* 2026-08-28: 広告（バナー／全画面／リワード）は全部外した。オーナー判断で広告なしで配信する。
+     戻すときは git 履歴の 942174fe 以前を見ること（AdMob の呼び出しごと消してある）。 */
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="wrap">
+    <canvas id="game" width="500" height="760"></canvas>
+
+  </div>
+
+  <div id="bar">
+    <div id="hint">コーンをタップ → 移動先をタップ（どこでもOK）</div>
+    <button id="mute" type="button" aria-label="音のオン・オフ" aria-pressed="false">🔊</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+(function(){
+
+/* ===================== 定数・設定 ===================== */
+const W = 500, H = 760;
+const LANES = 5;          // コーンの本数
+const MAXH  = 7;          // 1コーンの最大段数
+const R     = 20;         // アイスの半径（直径40px）
+const STEP  = 40;         // 段の高さ
+const BASEY = 684;        // 一番下(1段目)のアイス中心Y
+const LANE_W = W / LANES; // 100
+const laneX = c => LANE_W * c + LANE_W / 2;       // 50,150,...,450
+const ORDER_BOARD = { x: 78, y: 66 };             // 星が飛んでいく先
+
+/* ===================== 内装（見た目の骨格） =====================
+   画面を「アイス屋の店内」として3層に割っている。
+     0〜112      木の看板（スコア・注文・つぎ が載る）
+     112〜300    明るい店内の壁（丸窓・ペンダントライト・ネコ店長）
+     300〜706    冷凍ショーケース（★ここだけ意図的に暗い）
+     706〜760    手前のカウンター
+   ショーケースの中を暗くしているのは装飾ではなく必要から。アイスはぜんぶ淡い色
+   （バニラ #FFF6E0 など）なので、明るい背景に置くと輪郭が消える。
+   逆に画面ぜんぶを暗くすると「アイス屋」に見えない。だから上を明るく、
+   アイスが乗る場所だけを冷たい紺にしている。 */
+const SIGN_H   = 112;
+const CASE_TOP = 344;
+const CASE_BOT = 706;
+
+// 書体（Zen Maru Gothic・SIL OFL）。読み込めない環境でも豆腐にならないよう既定を並べる
+const FF = '"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif';
+const F  = (px, w) => (w || 900) + ' ' + px + 'px ' + FF;
+
+// 縁取り文字（明るい背景の上でも読めるように）
+function outlined(text, x, y, fill, edge, lw){
+  ctx.lineJoin = 'round';
+  ctx.lineWidth = lw || 5;
+  ctx.strokeStyle = edge;
+  ctx.strokeText(text, x, y);
+  ctx.fillStyle = fill;
+  ctx.fillText(text, x, y);
+}
+
+// フレーバー定義（後半ほどステージが上がると登場）
+const FLAV = {
+  vanilla:    { color:'#FFF6E0', shade:'#EBD9AE' },
+  choco:      { color:'#A1715B', shade:'#5D4037' },
+  strawberry: { color:'#FF9EBB', shade:'#EC5F86' },
+  mint:       { color:'#A8E6D5', shade:'#3FAE97' },   // STAGE3〜
+  soda:       { color:'#8FD8FB', shade:'#29B6F6' },   // STAGE5〜
+  grape:      { color:'#BBA4E6', shade:'#7E57C2' },   // STAGE7〜
+  rainbow:    { color:'#FFFFFF', shade:'#DDDDDD' },   // ワイルド（どの色にも化ける）
+};
+const FLAVS = ['vanilla','choco','strawberry','mint','soda','grape']; // rainbowは含めない（注文色にならない）
+// そのステージで使える色数（3色→3,5,7ステージで1色ずつ追加）
+const flavCount = s => Math.min(FLAVS.length, 3 + (s>=3?1:0) + (s>=5?1:0) + (s>=7?1:0));
+const randFlav  = () => FLAVS[(Math.random()*flavCount(stage))|0];
+
+// Nextの生成：たまにレインボーアイスが出る
+const RAINBOW_CHANCE = 0.10;
+const genNext = () => Math.random() < RAINBOW_CHANCE ? 'rainbow' : randFlav();
+// 注文一致判定：レインボーはどの色とも一致するワイルド
+const wild = (flavor, want) => flavor === want || flavor === 'rainbow';
+
+// ネコ店長の猫種（ステージごとに変わる）
+const CATS = [
+  { name:'ロシアンブルー', fur:['#CAD4DA','#A6B4BC','#788C97'], ear:'#8C9BA5', eye:'#66BB6A', pupil:'#1B5E20', mark:'none' },
+  { name:'ちゃトラ',       fur:['#FFE0B2','#FFB74D','#EF8C2E'], ear:'#FB8C00', eye:'#FFCA28', pupil:'#5D4037', mark:'tabby' },
+  { name:'くろねこ',       fur:['#62757F','#41525B','#28353B'], ear:'#28353B', eye:'#FFD54F', pupil:'#2E2E1B', mark:'none' },
+  { name:'しろねこ',       fur:['#FFFFFF','#ECEFF1','#CBD3D8'], ear:'#E0E4E6', eye:'#4FC3F7', pupil:'#0277BD', mark:'none' },
+  { name:'みけねこ',       fur:['#FFFFFF','#F4F4F4','#DCCFC8'], ear:'#E5DAD4', eye:'#9CCC65', pupil:'#33691E', mark:'calico' },
+  { name:'シャムねこ',     fur:['#F5EAD4','#E7D3B0','#CDAE82'], ear:'#7A584A', eye:'#4FC3F7', pupil:'#01579B', mark:'point' },
+];
+const catOf = s => CATS[(s-1) % CATS.length];
+
+/* ===================== ゲーム状態 ===================== */
+let cones, order, nextFlav, score, combo, prevOrder, selected, particles,
+    gameOver, catSuccess, last,
+    stage, ordersLeft, stageClear, dropTimer;
+
+const quotaOf    = s => 4 + s;                       // ステージごとのノルマ(注文数)
+const intervalOf = s => Math.max(3.5, 7.0 - (s-1)*0.3); // 落下間隔(秒)
+
+/* ---- 進行状況のセーブ／ロード ---- */
+const SAVE_KEY = 'nyanko_ice_save';
+function saveProgress(){
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ stage, score, ordersLeft })); } catch(e){}
+}
+function loadProgress(){
+  try { const s = JSON.parse(localStorage.getItem(SAVE_KEY)); if (s && s.stage>=1) return s; } catch(e){}
+  return null;
+}
+function clearProgress(){ try { localStorage.removeItem(SAVE_KEY); } catch(e){} }
+
+// 起動時：セーブがあれば続きから、無ければ最初から
+function boot(){
+  const s = loadProgress();
+  if (s){
+    stage = s.stage; score = s.score;
+    gameOver = false;
+    startStage();
+    ordersLeft = s.ordersLeft;           // ステージ途中の残数も復元
+  } else {
+    reset();
+  }
+}
+
+// 最初から（ステージ1）
+function reset(){
+  stage = 1;
+  score = 0;
+  gameOver = false;
+  startStage();
+  saveProgress();
+}
+
+// コンテニュー：今のステージ・スコア・注文の残数を引き継いで再開
+function continueStage(){
+  gameOver = false;
+  const keep = ordersLeft;
+  startStage();
+  ordersLeft = keep;
+  saveProgress();
+}
+
+function startStage(fresh){
+  cones = [[],[],[],[],[]];
+  order = makeOrder();
+  prevOrder = null;
+  nextFlav = genNext();
+  combo = 0;
+  selected = -1;
+  particles = [];
+  catSuccess = 0;
+  stageClear = false;
+  ordersLeft = quotaOf(stage);
+  dropTimer = intervalOf(stage);
+
+  // 初期配置：各コーンに 2〜3 個ランダムに積む
+  for (let c=0;c<LANES;c++){
+    const n = 2 + ((Math.random()*2)|0);
+    for (let i=0;i<n;i++) cones[c].push(mkIce(randFlav(), laneX(c), BASEY - i*STEP));
+  }
+  layout(true);
+}
+
+function advanceStage(){
+  stage++;
+  startStage();
+  saveProgress();
+}
+
+// seed はスプリンクル（粒）の並びを1個ごとに固定するためのもの。
+// 毎フレーム乱数を引くと粒がちらつくので、生成時に1回だけ決める。
+function mkIce(flavor, x, y){ return { flavor, x, y, tx:x, ty:y, flight:null, seed:Math.random()*1000 }; }
+function makeOrder(){ return [randFlav(), randFlav(), randFlav()]; }
+const eqArr = (a,b) => a && b && a.length===b.length && a.every((v,i)=>v===b[i]);
+
+/* ===================== レイアウト（目標位置の算出） ===================== */
+function layout(snap){
+  for (let c=0;c<LANES;c++){
+    const col = cones[c];
+    for (let i=0;i<col.length;i++){
+      const ice = col[i];
+      ice.tx = laneX(c);
+      ice.ty = BASEY - i*STEP;
+      // 選択中コーンの一番上は「肉球が掴んで」少し浮く
+      if (c===selected && i===col.length-1) ice.ty -= 30;
+      if (snap){ ice.x = ice.tx; ice.y = ice.ty; }
+    }
+  }
+}
+
+/* ===================== 入力 ===================== */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// 高解像度対応
+const dpr = Math.min(window.devicePixelRatio||1, 2);
+canvas.width = W*dpr; canvas.height = H*dpr;
+canvas.style.width='100%'; canvas.style.height='100%';
+ctx.scale(dpr,dpr);
+
+let audio;
+let nowT = 0;  // 経過秒（レインボーの色変化アニメ用）
+
+/* 広告は 2026-08-28 に全部外した（オーナー判断で広告なしで配信）。
+   AdMob の初期化・バナー・全画面・リワード、およびブラウザ用のモックまで削除している。
+   ゲームオーバーからの「コンテニュー」は、動画視聴の代わりに無条件で行えるようにした。
+   戻すときはコミット 942174fe 以前の同ファイルを見ること。 */
+
+/* ===================== 音 =====================
+   ★いま音のファイルは1つも同梱していない。ぜんぶ WebAudio の合成音。
+     容量が増えず、素材のライセンスを持ち込まずに済むため。
+
+   録音した素材に差し替えたいとき（耳で確かめられる人がやること）:
+     1. www/assets/audio/ に tap.mp3 place.mp3 … を置く（名前は SFX_FILES のとおり）
+     2. 下の USE_FILES を true にする  ← コードの変更はこれだけ
+     3. 見つからないファイルは、そのキーだけ合成音のまま鳴る（落ちない）
+
+   ★持ち込んでよい素材: **商用可 かつ 再配布可** のものだけ。
+     このリポジトリは public で、GitHub Pages で配信し、App Store にも出す（＝商用）。
+     効果音ラボ（商用可・クレジット表記不要）か CC0 が安全。
+     クレジット表記が要る素材（魔王魂など）は、アプリ内に表記欄を作らない限り使わない。 */
+const USE_FILES = false;
+const AUDIO_DIR = 'assets/audio/';
+const SFX_FILES = {
+  tap:'tap.mp3', place:'place.mp3', ng:'ng.mp3', drop:'drop.mp3', sell:'sell.mp3',
+  combo:'combo.mp3', cup:'cup.mp3', perfect:'perfect.mp3', clear:'clear.mp3', over:'over.mp3',
+};
+
+let masterGain=null, sfxGain=null, musGain=null;
+const buffers = {};
+let soundOn = true;
+try { soundOn = localStorage.getItem('nyanko_ice_sound') !== 'off'; } catch(e){}
+
+// iOS は「画面を触るまで」音を出せないので、最初の pointerdown で作る
+function initAudio(){
+  if (audio){ if (audio.state==='suspended') audio.resume(); return; }
+  try { audio = new (window.AudioContext||window.webkitAudioContext)(); }
+  catch(e){ return; }
+  masterGain = audio.createGain(); masterGain.gain.value = soundOn ? 1 : 0;
+  masterGain.connect(audio.destination);
+  sfxGain = audio.createGain(); sfxGain.gain.value = 0.9;  sfxGain.connect(masterGain);
+  musGain = audio.createGain(); musGain.gain.value = 0.30; musGain.connect(masterGain);
+  if (USE_FILES) loadSfxFiles();
+  startMusic();
+}
+
+function loadSfxFiles(){
+  for (const key in SFX_FILES){
+    fetch(AUDIO_DIR + SFX_FILES[key])
+      .then(r => r.ok ? r.arrayBuffer() : Promise.reject(new Error('404')))
+      .then(b => audio.decodeAudioData(b))
+      .then(buf => { buffers[key] = buf; })
+      .catch(()=>{});      // 無ければ、そのキーだけ合成音のまま
+  }
+}
+
+function setSound(on){
+  soundOn = on;
+  try { localStorage.setItem('nyanko_ice_sound', on ? 'on' : 'off'); } catch(e){}
+  if (masterGain) masterGain.gain.setTargetAtTime(on?1:0, audio.currentTime, 0.02);
+  const b = document.getElementById('mute');
+  if (b){ b.textContent = on ? '🔊' : '🔇'; b.setAttribute('aria-pressed', String(!on)); }
+}
+
+// 1音。立ち上がりと減衰を付けないと「ピー」と鳴りっぱなしに聞こえる
+function voice(freq, when, dur, type, gain, dest, slideTo){
+  if (!audio) return;
+  const o=audio.createOscillator(), g=audio.createGain();
+  o.type=type||'sine';
+  o.frequency.setValueAtTime(freq, when);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, when+dur);
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(gain, when+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, when+dur);
+  o.connect(g); g.connect(dest||sfxGain);
+  o.start(when); o.stop(when+dur+0.02);
+}
+
+function sfx(name, n){
+  if (!audio || !soundOn) return;
+  if (buffers[name]){                     // 差し替えたファイルがあればそちらを鳴らす
+    const s=audio.createBufferSource(); s.buffer=buffers[name];
+    s.connect(sfxGain); s.start(); return;
+  }
+  const t = audio.currentTime;
+  const seq = (notes, step, dur, type, gain) =>
+    notes.forEach((f,i)=>voice(f, t+i*step, dur, type, gain));
+  switch(name){
+    case 'tap':     voice(660,t,0.09,'triangle',0.16,null,900); break;
+    case 'place':   voice(520,t,0.14,'sine',0.20,null,780);
+                    voice(1040,t+0.02,0.09,'triangle',0.06); break;
+    case 'ng':      voice(200,t,0.16,'sawtooth',0.09,null,120); break;
+    case 'drop':    voice(300+(n||0)*34,t,0.10,'sine',0.11,null,210+(n||0)*26); break;
+    case 'sell':    seq([880,1174.7], 0.07, 0.28,'triangle',0.15); break;
+    case 'combo':   seq([880,1108.7,1318.5,1760], 0.055, 0.30,'triangle',0.14); break;
+    case 'cup':     seq([1046.5,1568], 0.06, 0.34,'sine',0.16); break;
+    case 'perfect': seq([1046.5,1318.5,1568,2093], 0.07, 0.45,'triangle',0.15); break;
+    case 'clear':   seq([784,1046.5,1318.5,1568], 0.12, 0.50,'triangle',0.17); break;
+    case 'over':    voice(330,t,0.50,'sawtooth',0.12,null,110);
+                    voice(220,t+0.16,0.60,'sine',0.09,null,90); break;
+  }
+}
+
+/* BGM。ハ長調のペンタトニック（ド・レ・ミ・ソ・ラ）だけを使う。
+   どの順に鳴らしても濁らないので、短いループでも耳障りになりにくい。 */
+const MUSIC = {
+  step:0, next:0, timer:null, bpm:104,
+  mel : [0,4,7,4, 9,7,4,2, 0,4,7,12, 9,7,4,0,
+         2,5,9,5, 7,4,2,0, 2,7,9,7, 4,2,0,-3],
+  bass: [0,0,-5,-5, -3,-3,-5,-5],
+};
+function startMusic(){
+  if (!audio || MUSIC.timer) return;
+  MUSIC.next = audio.currentTime + 0.15;
+  MUSIC.timer = setInterval(musicTick, 90);
+}
+// 先読みして予約する方式。setInterval で直接鳴らすとタイミングがぶれる
+function musicTick(){
+  if (!audio) return;
+  if (musGain) musGain.gain.setTargetAtTime(0.30, audio.currentTime, 0.05);
+  const eighth = 60/MUSIC.bpm/2;
+  if (MUSIC.next < audio.currentTime) MUSIC.next = audio.currentTime + 0.05;  // 復帰時の一気鳴り防止
+  while (MUSIC.next < audio.currentTime + 0.3){
+    const t = MUSIC.next, s = MUSIC.step;
+    voice(523.25*Math.pow(2, MUSIC.mel[s % MUSIC.mel.length]/12),
+          t, eighth*1.6, 'triangle', 0.055, musGain);
+    if (s % 2 === 0){
+      voice(130.81*Math.pow(2, MUSIC.bass[(s>>1) % MUSIC.bass.length]/12),
+            t, eighth*1.8, 'sine', 0.075, musGain);
+    }
+    MUSIC.next += eighth; MUSIC.step++;
+  }
+}
+
+// 裏に回ったら止める（電池とスピーカーの行儀）
+document.addEventListener('visibilitychange', ()=>{
+  if (!audio) return;
+  if (document.hidden) audio.suspend(); else audio.resume();
+});
+
+canvas.addEventListener('pointerdown', e=>{
+  initAudio();
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.clientX-rect.left) * (W/rect.width);
+  const y = (e.clientY-rect.top)  * (H/rect.height);
+
+  if (gameOver){
+    // コンテニュー（広告を外したので、動画視聴なしでそのまま再開できる）
+    if (x>W/2-110 && x<W/2+110 && y>444 && y<500){
+      continueStage();
+    } else if (x>W/2-110 && x<W/2+110 && y>512 && y<562){ clearProgress(); reset(); } // さいしょから
+    return;
+  }
+  if (stageClear){
+    if (x>W/2-90 && x<W/2+90 && y>470 && y<532) advanceStage();   // つぎのステージへ
+    return;
+  }
+  const c = Math.max(0, Math.min(LANES-1, (x/LANE_W)|0));
+  tap(c);
+});
+
+function tap(c){
+  if (selected===-1){
+    if (cones[c].length>0){ selected=c; sfx('tap'); layout(); }
+    return;
+  }
+  if (c===selected){ selected=-1; layout(); return; } // 選択解除
+  if (canMove(selected, c)){
+    const ice = cones[selected].pop();
+    cones[c].push(ice);
+    selected = -1;
+    sfx('place');
+    layout();                                              // 目標スロット確定
+    ice.flight = { x0: ice.x, y0: ice.y, t: 0, dur: 0.38 }; // すくって弧を描いて落とす
+    resolveSales();
+    checkAllFull();
+  } else {
+    selected = -1;               // 条件を満たさなければキャンセル
+    sfx('ng');
+    layout();
+  }
+}
+
+const topOf = col => col[col.length-1];
+function canMove(src,dst){
+  if (cones[src].length===0) return false;   // 掴むアイスが無い
+  if (cones[dst].length>=MAXH) return false; // 移動先が満杯
+  return true;                               // 色に関係なく自由に移動OK
+}
+
+/* ===================== 注文の判定と売却 ===================== */
+function resolveSales(){
+  let guard = 0;
+  while (guard++ < 40){
+    let sold = false;
+    for (let c=0;c<LANES && !sold;c++){
+      const col = cones[c];
+      for (let s=0; s+3<=col.length; s++){
+        if (wild(col[s].flavor,order[0]) && wild(col[s+1].flavor,order[1]) && wild(col[s+2].flavor,order[2])){
+          sellAt(c, s);
+          sold = true;
+          break;
+        }
+      }
+    }
+    if (!sold || stageClear) break;
+  }
+}
+
+function sellAt(c, start){
+  const isCombo = eqArr(order, prevOrder);
+  if (isCombo) combo++; else combo = 0;
+  const pts = 100 * (isCombo ? 2 : 1) * stage;
+  score += pts;
+
+  // 星パーティクル＆消滅
+  const removed = cones[c].splice(start, 3);
+  for (const ice of removed) burstStars(ice.tx, ice.ty, isCombo); // 正しいスロット位置で弾けさせる
+
+  // カップ全消しボーナス
+  if (cones[c].length===0){
+    const bonus = 500 * stage; score += bonus;
+    popText('カップすっきり! +¥'+bonus, laneX(c), BASEY-70, '#FFD700');
+    burstStars(laneX(c), BASEY-90, true);
+    sfx('cup');
+    if (cones.every(col=>col.length===0)){     // 盤面まるごと全消し
+      const big = 2000 * stage; score += big;
+      popText('PERFECT!! +¥'+big, W/2, 300, '#FF80AB');
+      for (let i=0;i<LANES;i++) burstStars(laneX(i), BASEY-120, true);
+      sfx('perfect');
+    }
+  }
+
+  ordersLeft--;                    // 注文の残数を減らす
+  prevOrder = order.slice();
+  order = makeOrder();             // 次の注文へ
+  catSuccess = 1.3;                // ネコ店長 喜ぶ
+  spawnHearts();
+
+  sfx(isCombo ? 'combo' : 'sell');
+
+  layout();
+  saveProgress();
+  if (ordersLeft<=0) doStageClear();  // ノルマ達成でステージクリア
+}
+
+/* ===================== 落下補充ロジック（一定時間で1個ずつ） ===================== */
+function timedDrop(){
+  const avail = [];
+  for (let c=0;c<LANES;c++) if (cones[c].length < MAXH) avail.push(c);
+  if (avail.length===0){ triggerGameOver(); return; }   // 落とす場所が無い＝満タン
+  const c = avail[(Math.random()*avail.length)|0];
+  cones[c].push(mkIce(nextFlav, laneX(c), -50));         // 画面外上部から
+  nextFlav = genNext();
+  layout();
+  sfx('drop', cones[c].length);
+  resolveSales();
+  checkAllFull();
+}
+
+/* ===================== ネコ店長 ===================== */
+function spawnHearts(){
+  for (let i=0;i<4;i++){
+    particles.push({
+      type:'heart',
+      x: 250 + (Math.random()*60-30),
+      y: 200,
+      vx:(Math.random()*40-20), vy:-(50+Math.random()*40),
+      life:1.1, max:1.1,
+      color: Math.random()<0.5 ? '#FF80AB' : '#FFD54F',
+      size: 9+Math.random()*6, rot:0, vr:0
+    });
+  }
+}
+
+/* ===================== パーティクル（星） ===================== */
+function burstStars(x,y,gold){
+  const n = 22 + ((Math.random()*6)|0);
+  for (let i=0;i<n;i++){
+    const a = (Math.PI*2*i)/n + Math.random()*0.5;
+    const sp = 120 + Math.random()*180;
+    particles.push({
+      type:'star',
+      x, y,
+      vx: Math.cos(a)*sp, vy: Math.sin(a)*sp,
+      tx: ORDER_BOARD.x, ty: ORDER_BOARD.y,
+      life: 1.0 + Math.random()*0.7, max: 1.7,
+      color: gold ? '#FFD700' : pickStarColor(),
+      size: 6 + Math.random()*7,
+      rot: Math.random()*Math.PI, vr: (Math.random()*8-4)
+    });
+  }
+}
+function pickStarColor(){
+  const c = ['#FFFFFF','#FF80AB','#FFD54F','#B3E5FC'];
+  return c[(Math.random()*c.length)|0];
+}
+function popText(text,x,y,color){
+  particles.push({ type:'text', text, x, y, vx:0, vy:-26, life:1.7, max:1.7, color, size:18, rot:0, vr:0 });
+}
+
+function updateParticles(dt){
+  for (let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.life -= dt;
+    if (p.type==='star'){
+      const ax = (p.tx - p.x), ay = (p.ty - p.y);
+      const pull = (1 - p.life/p.max) * 6;   // 時間が経つほど注文ボードへ吸い込まれる
+      p.vx = p.vx*0.90 + ax*pull*dt;
+      p.vy = p.vy*0.90 + ay*pull*dt;
+    } else if (p.type==='heart'){
+      p.vy += 30*dt; // ほんの少しだけ重力
+    } // text はそのまま上昇
+    p.x += p.vx*dt; p.y += p.vy*dt; p.rot += p.vr*dt;
+    if (p.life<=0) particles.splice(i,1);
+  }
+}
+
+/* ===================== クリア / ゲームオーバー ===================== */
+function doStageClear(){
+  stageClear = true;
+  selected = -1;
+  sfx('clear');
+}
+function checkAllFull(){
+  if (gameOver || stageClear) return;
+  for (const col of cones) if (col.length < MAXH) return; // 1つでも空きがあればOK
+  triggerGameOver();
+}
+function triggerGameOver(){
+  if (gameOver) return;
+  gameOver = true;
+  sfx('over');
+}
+
+/* ===================== 描画 ===================== */
+function roundRect(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r);
+  ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r);
+  ctx.arcTo(x,y,x+w,y,r);
+  ctx.closePath();
+}
+
+/* ---- 店内の壁（明るいところ） ---- */
+function drawShop(){
+  const bottom = CASE_TOP + 30;
+  const wg = ctx.createLinearGradient(0,0,0,bottom);
+  wg.addColorStop(0,'#FFF6E4'); wg.addColorStop(1,'#FFDCB4');
+  ctx.fillStyle=wg; ctx.fillRect(0,0,W,bottom);
+
+  // やわらかい縦ストライプ（壁紙）
+  ctx.save(); ctx.globalAlpha=.42; ctx.fillStyle='#FFFFFF';
+  for (let x=8; x<W; x+=58) ctx.fillRect(x, 0, 26, bottom);
+  ctx.restore();
+
+  // 壁の水玉
+  ctx.save(); ctx.globalAlpha=.16; ctx.fillStyle='#FF7FA0';
+  for (let i=0;i<24;i++){
+    const x=(i*83+29)%W, y=(i*57+11)%(bottom-SIGN_H-24)+SIGN_H+14;
+    ctx.beginPath(); ctx.arc(x,y,3.4,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+
+  drawWindow(64, 215, 42);
+  drawWindow(436, 215, 42);
+
+  // 腰壁（下half の板張り）。壁だけだと間延びするので、腰の高さで見切る
+  const wy = 284;
+  ctx.fillStyle='#F6E3C9'; ctx.fillRect(0, wy, W, bottom-wy);
+  ctx.fillStyle='rgba(150,100,55,.07)'; ctx.fillRect(0, wy, W, bottom-wy);
+  ctx.strokeStyle='rgba(170,115,62,.30)'; ctx.lineWidth=1.6;
+  for (let x=18; x<W; x+=42){ ctx.beginPath(); ctx.moveTo(x, wy+5); ctx.lineTo(x, CASE_TOP-11); ctx.stroke(); }
+  ctx.fillStyle='#E8CFAC'; ctx.fillRect(0, wy-7, W, 8);
+  ctx.fillStyle='rgba(255,255,255,.55)'; ctx.fillRect(0, wy-7, W, 2.5);
+}
+
+// 丸窓。外の空が見えると「屋内にいる」ことが一目で伝わる
+function drawWindow(x, y, r){
+  ctx.save();
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.clip();
+  const sg=ctx.createLinearGradient(0,y-r,0,y+r);
+  sg.addColorStop(0,'#8FD4F5'); sg.addColorStop(1,'#DDF3FF');
+  ctx.fillStyle=sg; ctx.fillRect(x-r,y-r,r*2,r*2);
+  // くも
+  ctx.fillStyle='rgba(255,255,255,.9)';
+  ctx.beginPath();
+  ctx.arc(x-9, y+4, 11, 0, Math.PI*2);
+  ctx.arc(x+4, y+2, 14, 0, Math.PI*2);
+  ctx.arc(x+17, y+8, 9, 0, Math.PI*2);
+  ctx.fill();
+  ctx.restore();
+  // 枠
+  ctx.strokeStyle='#FFF8EC'; ctx.lineWidth=7;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke();
+  ctx.strokeStyle='rgba(160,110,65,.35)'; ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.arc(x,y,r+3.5,0,Math.PI*2); ctx.stroke();
+  // 桟
+  ctx.strokeStyle='rgba(255,248,236,.85)'; ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(x-r+3,y); ctx.lineTo(x+r-3,y); ctx.stroke();
+}
+
+/* ---- 上の木看板（HUDの下地） ---- */
+function drawSign(){
+  ctx.save();
+  ctx.shadowColor='rgba(95,58,30,.34)'; ctx.shadowBlur=16; ctx.shadowOffsetY=6;
+  const g=ctx.createLinearGradient(0,-24,0,SIGN_H);
+  g.addColorStop(0,'#DCA76E'); g.addColorStop(.5,'#BC8350'); g.addColorStop(1,'#9C6837');
+  ctx.fillStyle=g;
+  roundRect(-18,-28,W+36,SIGN_H+28,26); ctx.fill();
+  ctx.restore();
+  // 木目
+  ctx.save();
+  roundRect(-18,-28,W+36,SIGN_H+28,26); ctx.clip();
+  ctx.strokeStyle='rgba(115,70,36,.18)'; ctx.lineWidth=1.6;
+  for (let y=-14;y<SIGN_H;y+=14){
+    ctx.beginPath(); ctx.moveTo(-18,y);
+    ctx.bezierCurveTo(W*0.32,y-3.5,W*0.68,y+3.5,W+18,y); ctx.stroke();
+  }
+  ctx.restore();
+  // 下辺のふち
+  ctx.strokeStyle='rgba(255,242,220,.55)'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(8,SIGN_H-2); ctx.lineTo(W-8,SIGN_H-2); ctx.stroke();
+  ctx.strokeStyle='rgba(110,66,34,.35)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(0,SIGN_H+1); ctx.lineTo(W,SIGN_H+1); ctx.stroke();
+}
+
+/* ---- 看板からぶら下がるペンダントライト ---- */
+function drawLamp(x, color){
+  const y = 158;                       // かさの下端
+  ctx.strokeStyle='rgba(110,70,40,.42)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(x,SIGN_H); ctx.lineTo(x,y-30); ctx.stroke();
+  // 灯り（先に敷く）
+  const lg=ctx.createRadialGradient(x,y+6,2,x,y+6,42);
+  lg.addColorStop(0,'rgba(255,232,150,.60)'); lg.addColorStop(1,'rgba(255,232,150,0)');
+  ctx.fillStyle=lg; ctx.beginPath(); ctx.arc(x,y+6,42,0,Math.PI*2); ctx.fill();
+  // かさ（台形。ドーム型はキノコに見えるので使わない）
+  ctx.fillStyle=color;
+  ctx.beginPath();
+  ctx.moveTo(x-6,y-30); ctx.lineTo(x+6,y-30);
+  ctx.quadraticCurveTo(x+23,y-6, x+22,y);
+  ctx.lineTo(x-22,y);
+  ctx.quadraticCurveTo(x-23,y-6, x-6,y-30);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.28)';
+  ctx.beginPath(); ctx.moveTo(x-6,y-30); ctx.lineTo(x-1,y-30); ctx.lineTo(x-9,y); ctx.lineTo(x-20,y); ctx.closePath(); ctx.fill();
+  // 口のふち＋電球
+  ctx.fillStyle='rgba(0,0,0,.12)';
+  ctx.beginPath(); ctx.ellipse(x,y,22,4.5,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#FFF3C4';
+  ctx.beginPath(); ctx.arc(x,y+3,5.5,0,Math.PI*2); ctx.fill();
+}
+
+/* ---- 冷凍ショーケース ---- */
+function drawCase(){
+  const x=10, y=CASE_TOP, w=W-20, h=CASE_BOT-CASE_TOP;
+  // 外枠（クリーム色の筐体）
+  ctx.save();
+  ctx.shadowColor='rgba(95,58,30,.30)'; ctx.shadowBlur=18; ctx.shadowOffsetY=8;
+  ctx.fillStyle='#FFF8EC';
+  roundRect(x-9,y-11,w+18,h+22,28); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle='rgba(170,118,70,.30)'; ctx.lineWidth=2;
+  roundRect(x-9,y-11,w+18,h+22,28); ctx.stroke();
+
+  // 中（冷たい紺）
+  const ig=ctx.createLinearGradient(0,y,0,CASE_BOT);
+  ig.addColorStop(0,'#4C5DA3'); ig.addColorStop(.45,'#36437F'); ig.addColorStop(1,'#232E58');
+  ctx.fillStyle=ig; roundRect(x,y,w,h,20); ctx.fill();
+
+  ctx.save();
+  roundRect(x,y,w,h,20); ctx.clip();
+  // 上のふちの霜
+  const fg=ctx.createLinearGradient(0,y,0,y+80);
+  fg.addColorStop(0,'rgba(198,238,255,.42)'); fg.addColorStop(1,'rgba(198,238,255,0)');
+  ctx.fillStyle=fg; ctx.fillRect(x,y,w,80);
+  // 冷気のきらめき
+  ctx.fillStyle='rgba(255,255,255,.15)';
+  for(let i=0;i<34;i++){
+    const px=(i*137+41)%w+x, py=(i*89+23)%h+y;
+    ctx.beginPath(); ctx.arc(px,py,(i%3)+1.2,0,Math.PI*2); ctx.fill();
+  }
+  // 底にたまる冷気（ゆっくり波打たせて、止まって見えないようにする）
+  const mg=ctx.createLinearGradient(0,CASE_BOT-120,0,CASE_BOT);
+  mg.addColorStop(0,'rgba(178,226,255,0)'); mg.addColorStop(1,'rgba(178,226,255,.17)');
+  ctx.fillStyle=mg;
+  ctx.beginPath();
+  ctx.moveTo(x, CASE_BOT);
+  for (let px=x; px<=x+w; px+=20){
+    ctx.lineTo(px, CASE_BOT-52 + Math.sin(px*0.021 + nowT*0.9)*9);
+  }
+  ctx.lineTo(x+w, CASE_BOT); ctx.closePath(); ctx.fill();
+  ctx.restore();
+
+  // 内側のふち
+  ctx.strokeStyle='rgba(255,255,255,.75)'; ctx.lineWidth=3;
+  roundRect(x,y,w,h,20); ctx.stroke();
+
+  drawFlavorShelf();
+}
+
+// きょうの味。空いていた帯を埋めつつ、いま何色が出るかを伝える
+function drawFlavorShelf(){
+  const n = flavCount(stage), cy = CASE_TOP + 36;
+  ctx.fillStyle='rgba(255,255,255,.10)';
+  roundRect(26, CASE_TOP+16, W-52, 41, 15); ctx.fill();
+  ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=1.5;
+  roundRect(26, CASE_TOP+16, W-52, 41, 15); ctx.stroke();
+  ctx.fillStyle='rgba(255,255,255,.82)'; ctx.font=F(12,500); ctx.textAlign='left';
+  ctx.fillText('きょうの味', 40, cy+4);
+  for (let i=0;i<n;i++) miniIce(132+i*40, cy, FLAVS[i], 12);
+  miniIce(132+n*40+8, cy, 'rainbow', 12);
+}
+
+// ガラスの映り込み。アイスの上に薄くのせて「ケースの中」に見せる
+function drawGlass(){
+  ctx.save();
+  roundRect(10,CASE_TOP,W-20,CASE_BOT-CASE_TOP,20); ctx.clip();
+  ctx.globalAlpha=.07; ctx.fillStyle='#FFFFFF';
+  ctx.beginPath();
+  ctx.moveTo(-40,CASE_BOT); ctx.lineTo(210,CASE_TOP-10);
+  ctx.lineTo(330,CASE_TOP-10); ctx.lineTo(80,CASE_BOT);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+
+/* ---- 手前のカウンター ---- */
+function drawCounter(){
+  ctx.save();
+  ctx.shadowColor='rgba(95,58,30,.34)'; ctx.shadowBlur=16; ctx.shadowOffsetY=-5;
+  const g=ctx.createLinearGradient(0,CASE_BOT,0,H);
+  g.addColorStop(0,'#FFF8EC'); g.addColorStop(.34,'#F2DFC2'); g.addColorStop(1,'#CFA87B');
+  ctx.fillStyle=g;
+  roundRect(-14, CASE_BOT, W+28, H-CASE_BOT+16, 22); ctx.fill();
+  ctx.restore();
+  // 天板のハイライト
+  ctx.strokeStyle='rgba(255,255,255,.95)'; ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(8,CASE_BOT+2); ctx.lineTo(W-8,CASE_BOT+2); ctx.stroke();
+  // 木目
+  ctx.save();
+  roundRect(-14, CASE_BOT, W+28, H-CASE_BOT+16, 22); ctx.clip();
+  ctx.strokeStyle='rgba(150,100,58,.16)'; ctx.lineWidth=1.4;
+  for (let y=CASE_BOT+14;y<H;y+=12){
+    ctx.beginPath(); ctx.moveTo(-14,y);
+    ctx.bezierCurveTo(W*0.35,y-2.5,W*0.65,y+2.5,W+14,y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawCones(){
+  for (let c=0;c<LANES;c++){
+    const x = laneX(c);
+    const on = (c===selected);
+    // 段スロットのガイド
+    ctx.strokeStyle = on ? 'rgba(255,205,88,.85)' : 'rgba(255,255,255,.14)';
+    ctx.lineWidth = on ? 3 : 2;
+    roundRect(x-R-5, BASEY-(MAXH-1)*STEP-R-5, (R+5)*2, MAXH*STEP+10, 18);
+    ctx.stroke();
+    if (on){   // 選択中はレーンをほんのり照らす
+      ctx.save();
+      const lg=ctx.createLinearGradient(0,BASEY-(MAXH-1)*STEP-25,0,BASEY+20);
+      lg.addColorStop(0,'rgba(255,205,88,0)'); lg.addColorStop(1,'rgba(255,205,88,.16)');
+      ctx.fillStyle=lg;
+      roundRect(x-R-5, BASEY-(MAXH-1)*STEP-R-5, (R+5)*2, MAXH*STEP+10, 18); ctx.fill();
+      ctx.restore();
+    }
+
+    // カウンターに落ちる影
+    ctx.fillStyle='rgba(120,80,45,.16)';
+    ctx.beginPath(); ctx.ellipse(x, BASEY+76, 24, 6, 0,0,Math.PI*2); ctx.fill();
+
+    // ワッフルコーン本体
+    ctx.save();
+    ctx.shadowColor='rgba(70,40,15,.30)'; ctx.shadowBlur=8; ctx.shadowOffsetY=3;
+    const cg=ctx.createLinearGradient(x-26,0,x+26,0);
+    cg.addColorStop(0,'#B87C3E'); cg.addColorStop(.42,'#F0CB92'); cg.addColorStop(1,'#B87C3E');
+    ctx.fillStyle=cg;
+    ctx.beginPath();
+    ctx.moveTo(x-26, BASEY+16); ctx.lineTo(x+26, BASEY+16);
+    ctx.quadraticCurveTo(x+8, BASEY+58, x, BASEY+74);
+    ctx.quadraticCurveTo(x-8, BASEY+58, x-26, BASEY+16);
+    ctx.closePath(); ctx.fill();
+    ctx.restore();
+    // ワッフル網目
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x-26, BASEY+16); ctx.lineTo(x+26, BASEY+16); ctx.lineTo(x, BASEY+74);
+    ctx.closePath(); ctx.clip();
+    ctx.strokeStyle='rgba(122,76,32,.42)'; ctx.lineWidth=1.4;
+    for (let k=-3;k<=3;k++){ ctx.beginPath(); ctx.moveTo(x+k*8, BASEY+16); ctx.lineTo(x, BASEY+74); ctx.stroke(); }
+    for (let k=0;k<3;k++){ const yy=BASEY+24+k*16; ctx.beginPath(); ctx.moveTo(x-26+k*5, yy); ctx.lineTo(x+26-k*5, yy); ctx.stroke(); }
+    ctx.restore();
+    // コーンの口（リム）
+    ctx.fillStyle='#F6DFB4';
+    ctx.beginPath(); ctx.ellipse(x, BASEY+16, 26, 6.5, 0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(150,100,52,.55)'; ctx.lineWidth=1.5; ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.45)';
+    ctx.beginPath(); ctx.ellipse(x-7, BASEY+14.5, 10, 2.4, -0.15,0,Math.PI*2); ctx.fill();
+  }
+}
+
+function rainbowGrad(x, y, r){
+  const hue = (nowT*70) % 360;
+  const g = ctx.createLinearGradient(x-r, y-r, x+r, y+r);
+  for (let i=0;i<=6;i++) g.addColorStop(i/6, 'hsl('+((hue+i*60)%360)+',85%,66%)');
+  return g;
+}
+function starPath(x,y,r){
+  ctx.beginPath();
+  for (let i=0;i<5;i++){
+    let a=-Math.PI/2 + i*2*Math.PI/5;
+    ctx.lineTo(x+Math.cos(a)*r, y+Math.sin(a)*r);
+    a += Math.PI/5;
+    ctx.lineTo(x+Math.cos(a)*r*0.45, y+Math.sin(a)*r*0.45);
+  }
+  ctx.closePath();
+}
+
+function drawIce(ice){
+  const rainbow = ice.flavor==='rainbow';
+  // 本体（やわらかい影つき）
+  ctx.save();
+  ctx.shadowColor='rgba(20,24,70,.30)'; ctx.shadowBlur=9; ctx.shadowOffsetY=4;
+  if (rainbow){
+    ctx.fillStyle = rainbowGrad(ice.x, ice.y, R);
+  } else {
+    const f = FLAV[ice.flavor];
+    const g = ctx.createRadialGradient(ice.x-7, ice.y-9, 3, ice.x, ice.y, R+2);
+    g.addColorStop(0, '#ffffff');
+    g.addColorStop(0.28, f.color);
+    g.addColorStop(1, f.shade);
+    ctx.fillStyle=g;
+  }
+  ctx.beginPath(); ctx.arc(ice.x, ice.y, R, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+  // 下側の陰影（立体感）
+  ctx.save();
+  ctx.beginPath(); ctx.arc(ice.x, ice.y, R, 0, Math.PI*2); ctx.clip();
+  ctx.fillStyle='rgba(0,0,0,.12)';
+  ctx.beginPath(); ctx.ellipse(ice.x, ice.y+R*0.55, R, R*0.75, 0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  // スクープの筋（ディッシャーですくった跡）
+  ctx.save();
+  ctx.beginPath(); ctx.arc(ice.x, ice.y, R, 0, Math.PI*2); ctx.clip();
+  ctx.strokeStyle='rgba(255,255,255,.22)'; ctx.lineWidth=2.4;
+  for (const d of [-8, 2, 12]){
+    ctx.beginPath();
+    ctx.arc(ice.x+d, ice.y+R*0.9, R*0.95, Math.PI*1.22, Math.PI*1.78);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // リムライト
+  ctx.lineWidth=2; ctx.strokeStyle='rgba(255,255,255,.55)';
+  ctx.beginPath(); ctx.arc(ice.x, ice.y, R-1, Math.PI*1.05, Math.PI*1.8); ctx.stroke();
+  // スプリンクル（粒）。並びは seed で固定してあるのでちらつかない
+  if (!rainbow){
+    const f = FLAV[ice.flavor];
+    ctx.save();
+    ctx.beginPath(); ctx.arc(ice.x, ice.y, R-3, 0, Math.PI*2); ctx.clip();
+    for (let i=0;i<5;i++){
+      const a = ice.seed*0.017 + i*1.257;
+      const d = 5 + ((ice.seed*(i+3)) % 9);
+      const px = ice.x + Math.cos(a)*d, py = ice.y + Math.sin(a)*d + 2;
+      ctx.save(); ctx.translate(px,py); ctx.rotate(a*1.7);
+      ctx.fillStyle = (i%2) ? 'rgba(255,255,255,.75)' : f.shade;
+      roundRect(-2.6,-1,5.2,2,1); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+  // 光沢
+  ctx.fillStyle='rgba(255,255,255,.92)';
+  ctx.beginPath(); ctx.ellipse(ice.x-6, ice.y-8, 5.5, 3.6, -0.5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.55)';
+  ctx.beginPath(); ctx.arc(ice.x+6, ice.y-2, 1.8, 0,Math.PI*2); ctx.fill();
+  // レインボーは中央に★で識別
+  if (ice.flavor==='rainbow'){
+    ctx.save();
+    ctx.shadowColor='rgba(0,0,0,.3)'; ctx.shadowBlur=3;
+    ctx.fillStyle='rgba(255,255,255,.95)';
+    starPath(ice.x, ice.y+1, 7); ctx.fill();
+    ctx.restore();
+  }
+}
+
+function drawPaw(ice){
+  const px = ice.x, py = ice.y - R - 16;
+  ctx.fillStyle='#FF80AB';
+  ctx.beginPath(); ctx.arc(px, py, 13, 0, Math.PI*2); ctx.fill();      // 肉球パッド
+  ctx.fillStyle='#F8BBD0';
+  for (const a of [-0.7,-0.2,0.3]){
+    ctx.beginPath(); ctx.arc(px+Math.sin(a)*11, py-9, 4.5, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle='#fff';
+  ctx.font='bold 16px sans-serif'; ctx.textAlign='center';
+  ctx.fillText('🐾', px, py+5);
+}
+
+function miniIce(x,y,flavor,r){
+  ctx.fillStyle = flavor==='rainbow' ? rainbowGrad(x,y,r) : FLAV[flavor].color;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
+  ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.stroke();
+  if (flavor==='rainbow'){
+    ctx.fillStyle='rgba(255,255,255,.95)'; starPath(x,y,r*0.5); ctx.fill();
+  }
+}
+
+// 看板に留めたクリーム色の札
+function drawCard(x,y,w,h){
+  ctx.save();
+  ctx.shadowColor='rgba(80,48,24,.30)'; ctx.shadowBlur=8; ctx.shadowOffsetY=3;
+  ctx.fillStyle='#FFF8EC'; roundRect(x,y,w,h,14); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle='rgba(150,100,55,.32)'; ctx.lineWidth=2; roundRect(x,y,w,h,14); ctx.stroke();
+  // 留めねじ
+  ctx.fillStyle='rgba(150,100,55,.28)';
+  ctx.beginPath(); ctx.arc(x+9,y+9,2.2,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x+w-9,y+9,2.2,0,Math.PI*2); ctx.fill();
+}
+
+function drawUI(){
+  // 注文ボード（左上）
+  drawCard(12, 26, 152, 76);
+  ctx.fillStyle='#8A6244'; ctx.font=F(12,500); ctx.textAlign='left';
+  ctx.fillText('ちゅうもん', 24, 46);
+  ctx.fillStyle= ordersLeft<=2 ? '#E0553F' : '#B07B4E';
+  ctx.font=F(13,900); ctx.textAlign='right';
+  ctx.fillText('のこり '+Math.max(0,ordersLeft), 154, 46);
+  ctx.textAlign='left';
+  for (let i=0;i<order.length;i++) miniIce(44+i*38, 76, order[i], 14);
+
+  // つぎ（右上）
+  drawCard(W-118, 26, 106, 76);
+  ctx.fillStyle='#8A6244'; ctx.font=F(12,500); ctx.textAlign='left';
+  ctx.fillText('つぎ', W-106, 46);
+  miniIce(W-65, 76, nextFlav, 16);
+
+  // スコア（中央上・看板の木地に直接）
+  ctx.textAlign='center';
+  ctx.font=F(31,900);
+  outlined('¥'+score, W/2, 54, '#FFF3D2', 'rgba(88,52,24,.75)', 6);
+  ctx.font=F(14,900);
+  outlined('STAGE '+stage, W/2, 80, '#FFD98A', 'rgba(88,52,24,.65)', 5);
+
+  if (combo>0){
+    ctx.font=F(15,900);
+    outlined('COMBO x'+(combo+1)+'!  ¥2倍', W/2, 132, '#FFC048', 'rgba(88,52,24,.8)', 6);
+  }
+}
+
+const CAT = { x:250, y:200 };   // ネコ店長の頭の中心
+
+function catMood(){
+  let pinch=false; for (const col of cones) if (col.length>=6) pinch=true;
+  return { pinch, happy: catSuccess>0, cat: catOf(stage) };
+}
+
+// 体・エプロン・腕。ショーケース(CASE_TOP)から下は枠に隠れるので、
+// 「カウンターの向こうに立っている」ように見える
+function drawCatBody(){
+  const cx=CAT.x, cy=CAT.y;
+  const { cat } = catMood();
+  // 腕（肩からケースの縁へ）
+  ctx.strokeStyle=cat.fur[1]; ctx.lineWidth=19; ctx.lineCap='round';
+  for (const s of [-1,1]){
+    ctx.beginPath();
+    ctx.moveTo(cx+s*46, cy+50);
+    ctx.quadraticCurveTo(cx+s*92, cy+60, cx+s*96, CASE_TOP-8);
+    ctx.stroke();
+  }
+  // 胴
+  const bg=ctx.createLinearGradient(cx-78,0,cx+78,0);
+  bg.addColorStop(0,cat.fur[2]); bg.addColorStop(.5,cat.fur[1]); bg.addColorStop(1,cat.fur[2]);
+  ctx.fillStyle=bg;
+  ctx.beginPath();
+  ctx.moveTo(cx-46, cy+30);
+  ctx.quadraticCurveTo(cx-82, cy+74, cx-80, CASE_TOP+20);
+  ctx.lineTo(cx+80, CASE_TOP+20);
+  ctx.quadraticCurveTo(cx+82, cy+74, cx+46, cy+30);
+  ctx.closePath(); ctx.fill();
+  // エプロン（店長の名前を載せる面。あごの下から始める）
+  ctx.fillStyle='#FFFBF2';
+  ctx.beginPath();
+  ctx.moveTo(cx-36, cy+56);
+  ctx.quadraticCurveTo(cx-62, cy+82, cx-60, CASE_TOP+20);
+  ctx.lineTo(cx+60, CASE_TOP+20);
+  ctx.quadraticCurveTo(cx+62, cy+82, cx+36, cy+56);
+  ctx.closePath(); ctx.fill();
+  ctx.strokeStyle='rgba(190,140,95,.35)'; ctx.lineWidth=1.6; ctx.stroke();
+  // 首もとのリボン
+  ctx.fillStyle='#FF6F91';
+  ctx.beginPath(); ctx.ellipse(cx,cy+62,8,7,0,0,Math.PI*2); ctx.fill();
+  for (const s2 of [-1,1]){
+    ctx.beginPath();
+    ctx.moveTo(cx+s2*6, cy+62);
+    ctx.quadraticCurveTo(cx+s2*28, cy+51, cx+s2*25, cy+72);
+    ctx.quadraticCurveTo(cx+s2*16, cy+71, cx+s2*6, cy+62);
+    ctx.fill();
+  }
+}
+
+// ケースの縁に乗せた前足。drawCase のあとに呼ぶ
+function drawCatPaws(){
+  const cx=CAT.x;
+  const { cat } = catMood();
+  const y = CASE_TOP - 4;
+  for (const s of [-1,1]){
+    const px = cx + s*96;
+    ctx.fillStyle=cat.fur[0];
+    ctx.beginPath(); ctx.ellipse(px, y, 15, 11, 0,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(120,80,50,.20)'; ctx.lineWidth=1.4; ctx.stroke();
+    // 指
+    ctx.fillStyle=cat.fur[2];
+    for (const d of [-7,0,7]){
+      ctx.beginPath(); ctx.ellipse(px+d, y-6, 2.6, 3.4, 0,0,Math.PI*2); ctx.fill();
+    }
+  }
+}
+
+function drawCat(){
+  const cx=CAT.x, cy=CAT.y;
+  const { pinch, happy, cat } = catMood();
+
+  drawCatBody();
+
+  // 耳
+  ctx.fillStyle=cat.ear;
+  if (pinch){ // イカ耳（横に伏せる）
+    ctx.save();ctx.translate(cx-44,cy-30);ctx.rotate(-1.1);
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(34,6);ctx.lineTo(8,22);ctx.closePath();ctx.fill();ctx.restore();
+    ctx.save();ctx.translate(cx+44,cy-30);ctx.rotate(1.1);
+    ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(-34,6);ctx.lineTo(-8,22);ctx.closePath();ctx.fill();ctx.restore();
+  } else { // ピンと立った耳（内側ピンク付き）
+    ctx.beginPath();ctx.moveTo(cx-48,cy-24);ctx.lineTo(cx-24,cy-64);ctx.lineTo(cx-9,cy-28);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(cx+48,cy-24);ctx.lineTo(cx+24,cy-64);ctx.lineTo(cx+9,cy-28);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#F8BBD0';
+    ctx.beginPath();ctx.moveTo(cx-39,cy-28);ctx.lineTo(cx-26,cy-54);ctx.lineTo(cx-17,cy-30);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(cx+39,cy-28);ctx.lineTo(cx+26,cy-54);ctx.lineTo(cx+17,cy-30);ctx.closePath();ctx.fill();
+  }
+  // 頭
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,.22)'; ctx.shadowBlur=10; ctx.shadowOffsetY=4;
+  const g=ctx.createRadialGradient(cx-14,cy-16,6,cx,cy+8,56);
+  g.addColorStop(0,cat.fur[0]); g.addColorStop(.55,cat.fur[1]); g.addColorStop(1,cat.fur[2]);
+  ctx.fillStyle=g;
+  ctx.beginPath(); ctx.ellipse(cx,cy,54,48,0,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+  // 猫種ごとの模様
+  ctx.save();
+  ctx.beginPath(); ctx.ellipse(cx,cy,54,48,0,0,Math.PI*2); ctx.clip();
+  if (cat.mark==='tabby'){
+    ctx.strokeStyle=cat.fur[2]; ctx.lineWidth=4; ctx.lineCap='round';
+    for (let k=-1;k<=1;k++){ ctx.beginPath(); ctx.moveTo(cx+k*11,cy-46); ctx.lineTo(cx+k*11,cy-26); ctx.stroke(); }
+    ctx.beginPath(); ctx.moveTo(cx-54,cy-4); ctx.lineTo(cx-32,cy-1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx+54,cy-4); ctx.lineTo(cx+32,cy-1); ctx.stroke();
+  } else if (cat.mark==='calico'){
+    ctx.fillStyle='#FFB74D'; ctx.beginPath(); ctx.ellipse(cx-26,cy-16,20,18,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#5D4037'; ctx.beginPath(); ctx.ellipse(cx+27,cy-4,17,20,0,0,Math.PI*2); ctx.fill();
+  } else if (cat.mark==='point'){
+    ctx.fillStyle=cat.ear; ctx.beginPath(); ctx.ellipse(cx,cy+12,27,22,0,0,Math.PI*2); ctx.fill();
+  }
+  ctx.restore();
+  // ほっぺ
+  ctx.fillStyle='rgba(255,138,171,.45)';
+  ctx.beginPath(); ctx.ellipse(cx-32,cy+8,9,6,0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(cx+32,cy+8,9,6,0,0,Math.PI*2); ctx.fill();
+
+  // 目
+  ctx.strokeStyle=cat.pupil; ctx.fillStyle=cat.eye; ctx.lineWidth=3;
+  if (happy){ // 細い「^ ^」目
+    ctx.beginPath(); ctx.arc(cx-18,cy-2,9,Math.PI*1.05,Math.PI*1.95); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx+18,cy-2,9,Math.PI*1.05,Math.PI*1.95); ctx.stroke();
+  } else {
+    for (const ex of [-18,18]){
+      ctx.beginPath(); ctx.ellipse(cx+ex,cy-2,7,9,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle=cat.pupil;
+      ctx.beginPath(); ctx.ellipse(cx+ex,cy-2,2.4,5,0,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(cx+ex-2,cy-5,1.6,0,Math.PI*2); ctx.fill(); // ハイライト
+      ctx.fillStyle=cat.eye;
+    }
+  }
+  // 鼻
+  ctx.fillStyle='#FF80AB';
+  ctx.beginPath();ctx.moveTo(cx-4,cy+12);ctx.lineTo(cx+4,cy+12);ctx.lineTo(cx,cy+17);ctx.closePath();ctx.fill();
+  // 口
+  ctx.strokeStyle='#546E7A'; ctx.lineWidth=2; ctx.beginPath();
+  if (happy){ ctx.arc(cx,cy+14,7,0.1*Math.PI,0.9*Math.PI); }
+  else { ctx.moveTo(cx-7,cy+20); ctx.quadraticCurveTo(cx,cy+24,cx+7,cy+20); }
+  ctx.stroke();
+  // ヒゲ
+  ctx.strokeStyle='rgba(255,255,255,.6)'; ctx.lineWidth=1.5;
+  for (const s of [-1,1]) for (const dy of [-2,4]){
+    ctx.beginPath(); ctx.moveTo(cx+s*16,cy+10+dy*0.5);
+    ctx.lineTo(cx+s*52,cy+6+dy); ctx.stroke();
+  }
+  // コック帽（耳のあいだに小さく傾けてのせる。耳を隠さない大きさにする）
+  ctx.save();
+  ctx.translate(cx-30, cy-42); ctx.rotate(-0.26);
+  ctx.fillStyle='#FFFBF2';
+  ctx.beginPath(); ctx.ellipse(0, 6, 21, 7, 0,0,Math.PI*2); ctx.fill();
+  ctx.beginPath();
+  ctx.arc(-9, -3, 9, 0, Math.PI*2);
+  ctx.arc(2, -8, 10.5, 0, Math.PI*2);
+  ctx.arc(12, -1, 8.5, 0, Math.PI*2);
+  ctx.fill();
+  ctx.strokeStyle='rgba(190,140,95,.30)'; ctx.lineWidth=1.4;
+  ctx.beginPath(); ctx.ellipse(0, 6, 21, 7, 0,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+
+  // エプロンの名札。文字を地の上に直接置くと、猫種によっては腕の毛にかかって
+  // 読めなくなる（「ロシアンブルー てんちょう」は幅がエプロンをはみ出す）。
+  // 文字幅を測って札を敷き、その上に載せる。
+  ctx.textAlign='center';
+  const pinchNow = pinch;
+  const label = pinchNow ? 'ピンチ…！' : (cat.name + ' てんちょう');
+  ctx.font = F(pinchNow ? 14 : 12, 900);
+  const tw = ctx.measureText(label).width;
+  const bw = tw + 24, bh = pinchNow ? 25 : 22, by = cy + 102 - bh + 6;
+  ctx.save();
+  ctx.shadowColor='rgba(120,80,50,.20)'; ctx.shadowBlur=5; ctx.shadowOffsetY=2;
+  ctx.fillStyle = pinchNow ? '#FF6F91' : '#FFFBF2';
+  roundRect(cx-bw/2, by, bw, bh, 11); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = pinchNow ? '#D9527A' : 'rgba(190,140,95,.45)';
+  ctx.lineWidth=2; roundRect(cx-bw/2, by, bw, bh, 11); ctx.stroke();
+  ctx.fillStyle = pinchNow ? '#FFFFFF' : '#8A6244';
+  ctx.fillText(label, cx, cy+102);
+  if (pinchNow){   // あせの雫
+    ctx.fillStyle='rgba(120,200,255,.95)';
+    ctx.beginPath(); ctx.ellipse(cx+54, cy-18, 5, 7.5, 0.3, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+function drawStar(p){
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, p.life/0.6));
+  ctx.translate(p.x,p.y); ctx.rotate(p.rot);
+  ctx.fillStyle=p.color;
+  ctx.beginPath();
+  for (let i=0;i<5;i++){
+    const o=p.size, inr=p.size*0.45;
+    let a=-Math.PI/2 + i*2*Math.PI/5;
+    ctx.lineTo(Math.cos(a)*o, Math.sin(a)*o);
+    a += Math.PI/5;
+    ctx.lineTo(Math.cos(a)*inr, Math.sin(a)*inr);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+}
+function drawHeart(p){
+  ctx.save();
+  ctx.globalAlpha=Math.max(0,Math.min(1,p.life/1.1));
+  ctx.translate(p.x,p.y); ctx.fillStyle=p.color;
+  const s=p.size;
+  ctx.beginPath();
+  ctx.moveTo(0,s*0.3);
+  ctx.bezierCurveTo(0,-s*0.2, -s, -s*0.2, -s, s*0.25);
+  ctx.bezierCurveTo(-s, s*0.7, 0, s*0.9, 0, s*1.2);
+  ctx.bezierCurveTo(0, s*0.9, s, s*0.7, s, s*0.25);
+  ctx.bezierCurveTo(s, -s*0.2, 0, -s*0.2, 0, s*0.3);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawText(p){
+  ctx.save();
+  ctx.globalAlpha = Math.max(0, Math.min(1, p.life/0.8));
+  ctx.font=F(p.size,900); ctx.textAlign='center';
+  ctx.lineJoin='round'; ctx.lineWidth=5; ctx.strokeStyle='rgba(255,255,255,.92)';
+  ctx.strokeText(p.text, p.x, p.y);
+  ctx.fillStyle=p.color; ctx.fillText(p.text, p.x, p.y);
+  ctx.restore();
+}
+function drawParticles(){
+  for (const p of particles){
+    if (p.type==='star') drawStar(p);
+    else if (p.type==='text') drawText(p);
+    else drawHeart(p);
+  }
+}
+
+// 押せることが分かるよう、下に厚みをつけた立体ボタン
+function drawButton(x,y,w,h,fill,edge,label,fontPx){
+  ctx.fillStyle=edge; roundRect(x,y+5,w,h,18); ctx.fill();
+  ctx.fillStyle=fill; roundRect(x,y,w,h,18); ctx.fill();
+  ctx.fillStyle='rgba(255,255,255,.26)'; roundRect(x+7,y+5,w-14,h*0.34,10); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.font=F(fontPx||20,900); ctx.textAlign='center';
+  ctx.fillText(label, x+w/2, y+h/2+(fontPx||20)*0.35);
+}
+
+// クリーム色の紙パネル（クリア／ゲームオーバー共通の下地）
+function drawPanel(y, h, title, titleColor){
+  ctx.save();
+  ctx.shadowColor='rgba(60,34,16,.45)'; ctx.shadowBlur=24; ctx.shadowOffsetY=10;
+  ctx.fillStyle='#FFF8EC'; roundRect(34, y, W-68, h, 28); ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle='rgba(150,100,55,.30)'; ctx.lineWidth=3; roundRect(34, y, W-68, h, 28); ctx.stroke();
+  // 上辺の飾りストライプ
+  ctx.save();
+  roundRect(34, y, W-68, h, 28); ctx.clip();
+  ctx.fillStyle=titleColor; ctx.fillRect(34, y, W-68, 8);
+  ctx.restore();
+}
+
+function drawGameOver(){
+  ctx.fillStyle='rgba(58,36,24,.72)';
+  ctx.fillRect(0,0,W,H);
+  drawPanel(268, 318, null, '#FF6F91');
+  ctx.textAlign='center';
+  ctx.font=F(40,900);
+  outlined('GAME OVER', W/2, 336, '#FF6F91', '#FFFFFF', 7);
+  ctx.fillStyle='#8A6244'; ctx.font=F(16,500);
+  ctx.fillText('STAGE '+stage+' でちからつきた…', W/2, 372);
+  ctx.font=F(26,900);
+  // クリーム地の上なので、薄い縁取りだと金色が沈む。濃い茶で縁を取る
+  outlined('¥'+score, W/2, 412, '#FFC13D', '#7A4A18', 5);
+  // コンテニュー（広告を外したので無条件）／ さいしょから
+  drawButton(W/2-110, 444, 220, 54, '#FF6F91', '#D9527A', '▶ つづきから', 17);
+  drawButton(W/2-110, 512, 220, 46, '#8A6244', '#6B4A32', 'さいしょから', 17);
+}
+
+function drawStageClear(){
+  ctx.fillStyle='rgba(58,36,24,.68)';
+  ctx.fillRect(0,0,W,H);
+  drawPanel(292, 288, null, '#5FD3C0');
+  ctx.textAlign='center';
+  ctx.font=F(34,900);
+  outlined('STAGE '+stage+' CLEAR!', W/2, 352, '#FFB020', '#FFFFFF', 7);
+  ctx.fillStyle='#6B4A32'; ctx.font=F(19,900);
+  ctx.fillText('スコア ¥'+score, W/2, 390);
+  // つぎのネコ店長 予告
+  ctx.fillStyle='#8A6244'; ctx.font=F(13,500);
+  ctx.fillText('つぎのてんちょう: '+catOf(stage+1).name, W/2, 416);
+  // 色が増える予告
+  if (flavCount(stage+1) > flavCount(stage)){
+    ctx.fillStyle='#1FA692'; ctx.font=F(14,900);
+    ctx.fillText('★ あたらしい味がとうじょう！', W/2, 440);
+  }
+  drawButton(W/2-90, 470, 180, 58, '#5FD3C0', '#37A493', 'つぎのステージへ', 18);
+}
+
+/* ===================== メインループ ===================== */
+function update(dt){
+  // アイスを目標位置へ。移動中(flight)は弧を描いて「すくって落とす」
+  for (const col of cones) for (const ice of col){
+    if (ice.flight){
+      const f = ice.flight; f.t += dt / f.dur;
+      const t = Math.min(1, f.t);
+      const te = t<0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2; // easeInOut
+      const x1 = ice.tx, y1 = ice.ty;
+      const mx = (f.x0 + x1) / 2;
+      const peak = Math.min(f.y0, y1) - 100;                // 弧の頂点
+      ice.x = (1-te)*(1-te)*f.x0 + 2*(1-te)*te*mx   + te*te*x1;
+      ice.y = (1-te)*(1-te)*f.y0 + 2*(1-te)*te*peak + te*te*y1;
+      if (t>=1) ice.flight = null;
+    } else {
+      ice.x += (ice.tx - ice.x) * Math.min(1, dt*14);
+      ice.y += (ice.ty - ice.y) * Math.min(1, dt*14);
+    }
+  }
+  if (catSuccess>0) catSuccess -= dt;
+  updateParticles(dt);
+
+  // 一定時間ごとにランダムなコーンへ1個落下
+  if (!gameOver && !stageClear){
+    dropTimer -= dt;
+    if (dropTimer<=0){ timedDrop(); dropTimer = intervalOf(stage); }
+  }
+}
+
+/* 描く順番＝奥から手前へ。
+   店内 → ライト → ネコ店長 → ショーケース → 縁にのせた前足 → カウンター →
+   コーン → アイス → ガラスの映り込み → 看板 → HUD → 星（看板の上を飛んで注文札へ吸い込まれる） */
+function render(){
+  ctx.clearRect(0,0,W,H);
+  drawShop();
+  drawLamp(150,'#FF8FA8'); drawLamp(350,'#5FD3C0');
+  drawCat();
+  drawCase();
+  drawCatPaws();
+  drawCounter();
+  drawCones();
+  for (const col of cones) for (const ice of col) drawIce(ice);
+  // 選択中の肉球
+  if (selected>=0 && cones[selected].length>0) drawPaw(topOf(cones[selected]));
+  drawGlass();
+  drawSign();
+  drawUI();
+  drawParticles();
+  if (stageClear) drawStageClear();
+  if (gameOver) drawGameOver();
+}
+
+function frame(t){
+  if (!last) last=t;
+  let dt=(t-last)/1000; last=t;
+  if (dt>0.05) dt=0.05;
+  nowT += dt;
+  update(dt); render();
+  requestAnimationFrame(frame);
+}
+
+// 書体を先に取りに行く。canvas は CSS の font-display を見ないので、
+// 明示的に load しないと最初の数フレームだけ既定書体で描かれてガタつく。
+if (document.fonts && document.fonts.load){
+  Promise.all([
+    document.fonts.load('900 31px "Zen Maru Gothic"'),
+    document.fonts.load('500 13px "Zen Maru Gothic"'),
+  ]).catch(()=>{});
+}
+
+// 音のオン・オフ。押した時点で AudioContext を起こす（iOSは操作なしでは鳴らせない）
+const muteBtn = document.getElementById('mute');
+if (muteBtn){
+  muteBtn.textContent = soundOn ? '🔊' : '🔇';
+  muteBtn.setAttribute('aria-pressed', String(!soundOn));
+  muteBtn.addEventListener('click', ()=>{ initAudio(); setSound(!soundOn); });
+}
+
+boot();
+requestAnimationFrame(frame);
+
+})();
+</script>
+<script src="../_switch.js"></script>
+</body>
+</html>
