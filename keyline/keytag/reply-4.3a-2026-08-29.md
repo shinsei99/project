@@ -57,19 +57,15 @@ We recognize how our recent activity may look from the outside:
 - Our store descriptions and support pages followed the same in-house format.
 
 We have stopped submitting new apps. Four additional apps that were already prepared have
-been withheld, and we will not submit any new app while this is unresolved. We also do not
-intend to resubmit one of our rejected, never-released apps ("にゃんこのアイス屋さん"); we are
-folding its content into an app we already have on the App Store instead of shipping it
-separately. We do intend to keep fixing bugs in the apps that are already live, so we may
-submit bug-fix updates for those.
+been withheld, and we will not submit any new app while this is unresolved. We do intend to
+keep fixing bugs in the apps that are already live, so we may submit bug-fix updates for
+those.
 
 One of the three apps rejected at the same time was "にゃんこのアイス屋さん"
-(com.daikyo.nyankoice, Apple ID 6784674385). We are removing it. It will not be shipped as a
-separate app; its content will be rebuilt inside "ネオンブロックス", an app we already have on
-the App Store, so that it does not become another app. The Remove App option is not available
-to us while the app is in the Rejected state, and the version cannot be deleted either
-("The last version of an app cannot be deleted"), so please remove that app record on your
-side.
+(com.daikyo.nyankoice, Apple ID 6784674385). We are removing it. The Remove App option is not
+available to us while the app is in the Rejected state, and the version cannot be deleted
+either ("The last version of an app cannot be deleted"), so please remove that app record on
+your side.
 
 Our question: if the concern is our portfolio as a whole rather than this specific app,
 please tell us which apps are considered duplicative. We will consolidate or remove them.
@@ -107,17 +103,13 @@ WebView ラッパー Capacitor を除く）。
 ・ストアの説明文やサポートページも、社内の同じ書式に従っていました
 
 新規アプリの提出はすでに止めました。用意済みだった4本も出さずに保留し、この件が
-解決するまで新しいアプリは出しません。却下されたまま未配信のアプリ1本
-（にゃんこのアイス屋さん）も再提出しません。単独で出す代わりに、すでに App Store に
-ある既存アプリの中へ内容をまとめます。なお、すでに配信しているアプリの不具合修正は
+解決するまで新しいアプリは出しません。なお、すでに配信しているアプリの不具合修正は
 続けたいので、その更新は提出することがあります。
 
 同時期に同じ判断を受けた3本のうちの1本が「にゃんこのアイス屋さん」
-（com.daikyo.nyankoice / Apple ID 6784674385）です。**これは削除します。** 単独のアプリとしては
-出さず、中身は、すでに App Store にある「ネオンブロックス」の**中に作り直します**
-（アプリを増やすことはしません）。ただし Rejected 状態のあいだは「Appを削除」が使えず、
-バージョンの削除もできません（「最後の版は削除できない」）。**そちらで App の記録の削除を
-お願いします。**
+（com.daikyo.nyankoice / Apple ID 6784674385）です。**これは削除します。**
+ただし Rejected 状態のあいだは「Appを削除」が使えず、バージョンの削除もできません
+（「最後の版は削除できない」）。**そちらで App の記録の削除をお願いします。**
 
 おうかがいしたいこと: もし懸念がこのアプリ単体ではなく、私たちのアプリ全体に
 あるのでしたら、どのアプリが重複していると見なされているか教えてください。
