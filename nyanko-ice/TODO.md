@@ -1,23 +1,24 @@
 # にゃんこアイス — TODO
 
-## 🛑 App 記録を削除する（2026-08-29 オーナー判断）
+## 🛑 単独では出さない。ネオンブロックスに統合する（2026-08-29 オーナー判断）
 
-**2026-08-29、1.0 が Guideline 4.3(a)（スパム）でリジェクトされた**（KeyTag・スクラップメモと
-同時・同一の定型文）。**アカウント全体の出し方を見られている**と判断し、このアプリは
-**再提出せず、App 記録ごと削除する**（未配信なので画面から削除できる）。
+**2026-08-29、1.0 が Guideline 4.3(a)（スパム）でリジェクト**（KeyTag・スクラップメモと同時・
+同一の定型文＝アカウント全体の出し方を見られている）。**このアプリは単独で再提出しない。**
+中身は**配信中の「ネオンブロックス」に統合**して、ゲームは1本にまとめる。
 
-| | |
+### ★App 記録は「削除しない」（一度そう決めたが、実測して撤回した）
+
+| 分かったこと | 出典 |
 |---|---|
-| 削除は誰が | **オーナーが画面で**（API は `apps` の DELETE を許可していない） |
-| 手順 | ASC →「マイApp」→ にゃんこのアイス屋さん →「App情報」→ 下部「Appを削除」 |
-| 消えるもの | App 記録・登録済みビルド（1.0 build2）・アプリ名の予約 |
-| 残るもの | バンドルID `com.daikyo.nyankoice`／ストア文言 `store-text.md`／スクショ `screenshots/`／**Web版の公開** |
-| 出し直すとき | **build 3 から**（`./ios-build-guard.sh nyanko-ice --bump`）。ただし**提出停止が解けてから** |
-| 確認 | `python3 ../appstore_api.py com.daikyo.nyankoice` が「見つかりません」になれば削除済み |
+| **Rejected 状態のアプリはそもそも削除できない** | Apple ドキュメント「Remove an app」: `You can't remove apps that are in the following states: … Rejected` |
+| **ビルドを上げた後に削除すると、バンドルIDを再利用できない** | 同上: `if you've uploaded a build, your bundle ID can't be reused` |
+| **アプリ名の所有権も失う**（他社が取れる） | 同上: `you'll lose ownership of the app name` |
+| **消しても App Store の見え方は変わらない** | 一度も配信されていない＝公開ページが存在しない（2026-08-29 API実測） |
 
-**★Web版（https://shinsei99.github.io/project/nyanko-ice/）は消さないこと。** App Store とは別で、
-`deploy.yml` の `DEPLOY_FOLDERS` に入っている。
+→ **放置でよい。** 再提出しなければ、それ以上は何も起きない。
+（当初「削除する」と書いたが、上の3点が分かった時点で撤回。**バンドルIDが残る**という当時の説明は誤り）
 
+**★Web版（https://shinsei99.github.io/project/nyanko-ice/）はそのまま公開を続ける。**
 
 ## 進行中: 見た目・魅力アップ（2026-08-27 着手）
 
