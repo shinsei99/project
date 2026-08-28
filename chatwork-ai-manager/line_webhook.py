@@ -201,7 +201,11 @@ def _handle_event(ev):
             text += (f"\n\n（★利用者はこの発言で、あなたが送った写真を引用している。"
                      f"対象は room_id=\"{rid}\" file_id=\"{fid}\"（現在のタイトル: {title or 'なし'}）。"
                      "『これは◯◯です』のように名前を告げられたら、"
-                     "番号を聞き返さずこの写真のタイトルを chatwork_image_set_title で直すこと）")
+                     "番号を聞き返さずこの写真のタイトルを chatwork_image_set_title で直すこと。"
+                     "『これ削除して』『間違えて投稿した』のように削除を求められたら、"
+                     "番号を聞き返さずこの room_id/file_id で chatwork_image_delete を呼ぶこと。"
+                     "投稿者が社員本人の場合はAPI仕様でChatwork本体からは削除できないので、"
+                     "戻り値の reason/hint（手動削除の案内）を正直にそのまま伝えること）")
             _log_line(user_id, text, note=f"引用を解決: {rid}/{fid}")
         else:
             text += ("\n\n（★利用者は何かを引用して返信しているが、"

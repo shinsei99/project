@@ -83,6 +83,17 @@ REGISTRY = {
                 "自動解析ではtitleが空のまま（不明）だった画像を後から埋めるのに使う",
         "usage": 'chatwork_image_set_title {"room_id":349546270,"file_id":2145187954,"title":"花園町駅前駐輪場"}',
     },
+    "chatwork_image_delete": {
+        "func": chatwork_image_tools.chatwork_image_delete,
+        "desc": "Chatworkに間違えて投稿された画像を削除する。「この写真を削除して」と言われたら"
+                "まず chatwork_image_search / 直近のやり取りの引用解決で room_id/file_id を特定し、"
+                "これを呼ぶ。ただし**Chatwork APIには他人が投稿したファイルを消す手段が無い**"
+                "（削除できるのは投稿者本人＝このAI自身のメッセージのみ。仕様上の制約）。"
+                "投稿者が社員本人の場合は ok:false が返るので、reason/hint（投稿者名・"
+                "手動削除の案内）をそのまま利用者に伝えること。Chatwork本体からは消えないが、"
+                "このBotの検索・再送信の対象からは自動で除外される",
+        "usage": 'chatwork_image_delete {"room_id":349546270,"file_id":2145187954}',
+    },
     # ---- ファイル送付（社内資料をChatworkへ添付） ----
     "chatwork_send_file": {
         "func": file_tools.chatwork_send_file,

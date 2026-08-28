@@ -125,6 +125,18 @@ class ChatworkClient:
         res = self._request("POST", f"/rooms/{room_id}/messages", data=data)
         return str(res.get("message_id")) if isinstance(res, dict) else None
 
+    def delete_message(self, room_id: int, message_id) -> None:
+        """メッセージを削除する（TASK-20260828-001で調査）。
+
+        Chatwork API v2 には**ファイル単体を削除するエンドポイントが無い**
+        （/rooms/{id}/files は GET・POSTのみ。公式ドキュメントで確認済み）。
+        ファイルは投稿時に自動生成されるメッセージに紐付いており、消す手段はこの
+        メッセージ削除APIしか無い。ただし**トークン所有アカウント自身が投稿した
+        メッセージしか削除できない**（他人のメッセージは403 "You can only edit
+        the message you sent."。room管理者による例外もドキュメントに無い）。
+        """
+        self._request("DELETE", f"/rooms/{room_id}/messages/{message_id}")
+
     def post_file(self, room_id: int, file_path: str, message: str = None,
                   filename: str = None) -> str:
         """ファイルを添付投稿する。戻り値: 作成された file_id。

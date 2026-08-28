@@ -262,3 +262,88 @@ def _title_of(room_id, file_id):
     r = query_one("SELECT title FROM chatwork_images WHERE room_id=? AND file_id=?",
                   (str(room_id), str(file_id)))
     return r["title"] if r else None
+
+
+def chatwork_image_delete(room_id, file_id):
+    """Chatworkへ間違えて投稿された画像を削除する（TASK-20260828-001）。
+
+    調査結果（developer.chatwork.com で確認済み）: Chatwork API v2 には
+    **ファイル単体を削除するエンドポイントが存在しない**（/rooms/{id}/files は
+    GET/POSTのみ）。ファイルは投稿時に生成されるメッセージ（GET /files/{file_id} の
+    `message_id`）に紐付いており、消せるのはメッセージ削除API
+    (DELETE /rooms/{id}/messages/{message_id}) だけ。しかもこのAPIは
+    **トークン所有アカウント（このAI自身）が投稿したメッセージしか削除できない**
+    （他人のメッセージは403 "You can only edit the message you sent."。
+    room管理者による例外もドキュメント上ない）。
+
+    そのため実際の動作は2通りに分かれる:
+      1. 投稿者がAI自身（chatwork_send_web_image等で誤って送った画像）→ 本当に削除できる。
+      2. 投稿者が社員本人（「間違えて投稿された写真」の主用途）→ API側では削除不可。
+         かわりに、投稿者名とmessage_idを返して人に手動削除を案内できるようにし、
+         このBotの検索キャッシュ(chatwork_images)からは取り除く
+         （以後 chatwork_image_search / 再送信の対象には出なくなる。
+         Chatwork本体の画面からは消えないので、その旨を利用者に必ず伝えること）。
+    """
+    if not room_id or not file_id:
+        return {"ok": False, "error": "room_id と file_id が必要です"}
+    from services.chatwork import ChatworkClient, ChatworkError
+
+    existing = query_one(
+        "SELECT room_id, file_id, filename, title FROM chatwork_images WHERE room_id=? AND file_id=?",
+        (room_id, file_id),
+    )
+    cw = ChatworkClient()
+    try:
+        info = cw.get_file(room_id, file_id)
+    except ChatworkError as e:
+        if e.status == 404:
+            if existing:
+                execute("DELETE FROM chatwork_images WHERE room_id=? AND file_id=?", (room_id, file_id))
+            return {"ok": True, "deleted": True,
+                    "note": "Chatwork側では既に削除済みでした（このBotのキャッシュも削除しました）"}
+        return {"ok": False, "error": f"ファイル情報の取得に失敗: {e}"}
+    if not info or not info.get("message_id"):
+        return {"ok": False, "error": "対象の画像が見つかりません（file_idが違うか、既に削除済みの可能性）"}
+
+    message_id = info.get("message_id")
+    uploader = info.get("account") or {}
+    uploader_id = uploader.get("account_id")
+    uploader_name = uploader.get("name")
+
+    my_account_id = _my_account_id()
+    if my_account_id is not None and str(uploader_id) == str(my_account_id):
+        try:
+            cw.delete_message(room_id, message_id)
+        except ChatworkError as e:
+            return {"ok": False, "error": f"削除に失敗: {e}"}
+        if existing:
+            execute("DELETE FROM chatwork_images WHERE room_id=? AND file_id=?", (room_id, file_id))
+        return {"ok": True, "deleted": True,
+                "note": "Chatwork上のメッセージごと削除しました（このBot自身が投稿した画像でした）"}
+
+    # 他人（社員）が投稿した画像 → Chatwork APIでは削除できない
+    if existing:
+        execute("DELETE FROM chatwork_images WHERE room_id=? AND file_id=?", (room_id, file_id))
+    return {
+        "ok": False,
+        "deleted": False,
+        "chatwork_still_visible": True,
+        "uploader": uploader_name,
+        "uploader_account_id": uploader_id,
+        "message_id": message_id,
+        "filename": info.get("filename"),
+        "reason": "Chatwork APIには他人が投稿したファイルを削除する手段がありません"
+                  "（削除できるのは投稿者本人のメッセージのみ。room管理者権限でもAPI越しには不可）。",
+        "hint": f"投稿者「{uploader_name}」さん本人に、Chatworkアプリ上でこのメッセージ"
+                f"（room_id={room_id}, message_id={message_id}）を手動削除してもらうよう案内してください。"
+                "このBotの検索対象からは除外済みです（chatwork_image_search・再送信では以後出てきません）",
+    }
+
+
+def _my_account_id():
+    from services.sync import get_ai_account_id
+    from services.chatwork import ChatworkClient, ChatworkError
+    try:
+        return get_ai_account_id(ChatworkClient())
+    except ChatworkError:
+        return None
