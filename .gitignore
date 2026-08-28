@@ -164,6 +164,8 @@ neko-escape/screenshots/shot-build.log
 # 撮ったPNGは入れない（`screenshots/shoot.sh` で撮り直せる）。upload/ の完成品だけ入れる
 neko-escape/screenshots/shots/
 neko-escape/screenshots/shots-ipad/
+# 仕上げ済みのPNGも入れない（1回ぶんで12MB。shoot.sh + sips でいつでも作り直せる）
+neko-escape/screenshots/upload/
 # 突き合わせ（tools/crosscheck.js）の一時ファイル。消し忘れても混ざらないように
 neko-escape/.crosscheck-*.js
 neko-escape/.run.log
