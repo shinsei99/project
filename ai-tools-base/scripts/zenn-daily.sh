@@ -127,7 +127,10 @@ mv "$PEND/$NEXT.md" "../articles/$NEXT.md" || exit 1
   && git commit -q -m "Zenn: $NEXT を公開（毎晩1本・自動）" -- articles ai-tools-base/drafts/zenn_pending \
   && { git push -q origin main \
        || { echo "  push が弾かれた。取り込み直して押し直す"; \
-            git fetch -q origin main && git rebase -q --autostash origin/main \
+            git fetch -q origin main \
+            && { git rebase -q --autostash origin/main \
+                 || { echo "  ★rebase に失敗したので中断する（作業ツリーを壊さない）"; \
+                      git rebase --abort 2>/dev/null; false; }; } \
             && git push -q origin main; }; } ) \
   || { echo "  ★git に失敗した（記事は articles/ に置いたまま。翌晩 zenn-daily が再デプロイを促す）"; exit 1; }
 

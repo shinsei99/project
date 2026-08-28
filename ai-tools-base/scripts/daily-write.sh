@@ -194,7 +194,10 @@ PYSTAT
     git commit -q -m "日次: 記事を1本足して待機場所へ入れた（自動）" -- articles ai-tools-base && \
     { git push -q origin main \
       || { echo "  push が弾かれた。取り込み直して押し直す"; \
-           git fetch -q origin main && git rebase -q --autostash origin/main \
+           git fetch -q origin main \
+           && { git rebase -q --autostash origin/main \
+                || { echo "  ★rebase に失敗したので中断する（作業ツリーを壊さない）"; \
+                     git rebase --abort 2>/dev/null; false; }; } \
            && git push -q origin main; }; } ) \
     && echo "push した"
 
