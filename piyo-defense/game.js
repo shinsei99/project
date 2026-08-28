@@ -19,6 +19,14 @@ resize();
 
 SoundManager.init();
 
+// 書体の読み込み。**canvas の ctx.font に指定しただけでは Web フォントは取りに行かない**
+// （DOMに文字が無いため）。明示的に load() を呼ぶ必要がある。
+// 描画は毎フレームやり直しているので、読み終わった時点から自動で切り替わる。
+if (document.fonts && document.fonts.load) {
+  document.fonts.load('500 16px "Zen Maru Gothic"');
+  document.fonts.load('900 16px "Zen Maru Gothic"');
+}
+
 // ── Constants ────────────────────────────────────────────────────────────────
 var CHICK_X = W/2;      // 毎フレーム chickCurrentX から更新
 var CHICK_Y = H - 148;
@@ -765,7 +773,7 @@ function drawBattleScr(frozenBg) {
   drawEvoBar(gs.evoGauge,gs.isEvolved,gs.evoTimer,gs.isAngel,gs.angelTimer);
   var cdCurr = {gunshi:getCdMax('gunshi'),nurse:getCdMax('nurse'),barrier:getCdMax('barrier')};
   drawHudTop(gs.earthHP,gs.maxEarthHP,gs.barrierActive,stage,wave,WAVES_PER_STAGE,score,level,xp,xpToNext(level),kills,SaveManager.getHigh().score,frame,runCoins,poisonDebuff);
-  TOWER_SLOTS.forEach(function(slot){drawTower(slot,!!frozenBg);});
+  TOWER_SLOTS.forEach(function(slot){drawTower(slot,!!frozenBg,frame);});
 
   enemies.forEach(function(e){
     if (e.dead&&e.reviveTimer>0) return;
@@ -794,7 +802,7 @@ function drawBattleScr(frozenBg) {
 
   floats.forEach(function(ft){
     ctx.globalAlpha=Math.min(1,ft.life/25);
-    ctx.fillStyle=ft.color; ctx.font='bold '+ft.size+'px "Kosugi Maru",sans-serif'; ctx.textAlign='center';
+    ctx.fillStyle=ft.color; ctx.font='bold '+ft.size+'px "Zen Maru Gothic",sans-serif'; ctx.textAlign='center';
     ctx.strokeStyle='rgba(0,0,0,0.7)'; ctx.lineWidth=4;
     ctx.strokeText(ft.text,ft.x,ft.y); ctx.fillText(ft.text,ft.x,ft.y);
     ctx.globalAlpha=1;

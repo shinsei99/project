@@ -31,71 +31,261 @@ function rrectGrd(x, y, w, h, r, grd, stroke, lw) {
 }
 
 // ── Background ───────────────────────────────────────────────────────────────
+// 空の色。t=天頂 / m=中空 / b=地平線側 / g=地平線のグロー / n=星雲 / mo=月あかり
+//
+// **地平線側(b)を一番明るくしてある。** 旧版は b が一番暗く、st20 は #000000 だった
+// ため、画面の2/3が黒一色になり「何も無い」画面に見えていた（2026-08-28 に実測）。
+// 明るい下空に黒いカラスが乗ると輪郭が立つので、見た目と遊びやすさが同時に良くなる。
+// ステージが進むと空は禍々しくなるが、**真っ黒にはしない**（暗さ＝緊張感は色で出す）。
 var _SBG = [
-  { t:'#04091E', m:'#08142E', b:'#04080E' },
-  { t:'#060820', m:'#0A1230', b:'#040610' },
-  { t:'#0C0822', m:'#140C32', b:'#08061A' },
-  { t:'#160622', m:'#1E082C', b:'#0C0414' },
-  { t:'#220408', m:'#300606', b:'#180204' },
-  { t:'#1C0604', m:'#280804', b:'#140402' },
-  { t:'#100A1E', m:'#160C28', b:'#080612' },
-  { t:'#1C0408', m:'#240406', b:'#0E0204' },
-  { t:'#160010', m:'#1E0018', b:'#0C0008' },
-  { t:'#09000C', m:'#110012', b:'#050006' },
-  { t:'#04000A', m:'#06000F', b:'#020007' },
-  { t:'#000308', m:'#000510', b:'#000204' },
-  { t:'#060009', m:'#08000F', b:'#030004' },
-  { t:'#080002', m:'#0C0004', b:'#040001' },
-  { t:'#050004', m:'#090008', b:'#030003' },
-  { t:'#000008', m:'#00000E', b:'#000004' },
-  { t:'#050000', m:'#090000', b:'#030000' },
-  { t:'#000505', m:'#000A0A', b:'#000303' },
-  { t:'#020002', m:'#030003', b:'#010001' },
-  { t:'#000000', m:'#010001', b:'#000000' },
+  { t:'#0A1740', m:'#16306B', b:'#4A72B0', g:'#FFC489', n:'#3E63C8', mo:'#FFF4D6' }, //  1 夜明け前
+  { t:'#0A1540', m:'#172C68', b:'#4569A8', g:'#FFB878', n:'#3E63C8', mo:'#FFF0CE' }, //  2
+  { t:'#0C1240', m:'#1B2A66', b:'#4463A2', g:'#FFA96A', n:'#4460C8', mo:'#FFEDC6' }, //  3
+  { t:'#0E1040', m:'#201F64', b:'#46589B', g:'#FF9A62', n:'#5A5AC8', mo:'#FFE9BE' }, //  4
+  { t:'#12083A', m:'#2A1560', b:'#56458F', g:'#FF8FA8', n:'#7A46C8', mo:'#FFE2D2' }, //  5 紫の夜
+  { t:'#150838', m:'#2E1560', b:'#5B4390', g:'#FF85B0', n:'#8446C8', mo:'#FFDCD4' }, //  6
+  { t:'#180636', m:'#331460', b:'#614292', g:'#FF7BB8', n:'#8E46C8', mo:'#FFD6D6' }, //  7
+  { t:'#1B0634', m:'#381360', b:'#664093', g:'#FF71C0', n:'#9846C8', mo:'#FFD0D8' }, //  8
+  { t:'#240826', m:'#4A1236', b:'#7A3A50', g:'#FF7A5A', n:'#C8464A', mo:'#FFC4B0' }, //  9 赤い異変
+  { t:'#260620', m:'#500F30', b:'#80354A', g:'#FF6B4A', n:'#C8383C', mo:'#FFBAA4' }, // 10
+  { t:'#28051C', m:'#560D2A', b:'#863044', g:'#FF5C3A', n:'#C82A2E', mo:'#FFB098' }, // 11
+  { t:'#2A0418', m:'#5B0B24', b:'#8C2B3E', g:'#FF4D2A', n:'#C81C20', mo:'#FFA68C' }, // 12
+  { t:'#1E0A28', m:'#34204A', b:'#4E5C6E', g:'#9BFF7A', n:'#58C86A', mo:'#DCFFCE' }, // 13 毒の空
+  { t:'#1A0C2A', m:'#2E2450', b:'#465F78', g:'#86FF6A', n:'#4AC85E', mo:'#D2FFC4' }, // 14
+  { t:'#160E2C', m:'#282856', b:'#3E6282', g:'#71FF5A', n:'#3CC852', mo:'#C8FFBA' }, // 15
+  { t:'#12102E', m:'#222C5C', b:'#36658C', g:'#5CFF4A', n:'#2EC846', mo:'#BEFFB0' }, // 16
+  { t:'#080A2C', m:'#14184A', b:'#283068', g:'#8FA8FF', n:'#5050D8', mo:'#D6E2FF' }, // 17 深宇宙
+  { t:'#07082E', m:'#121646', b:'#252C66', g:'#9FB4FF', n:'#5A50D8', mo:'#DCE6FF' }, // 18
+  { t:'#060630', m:'#101444', b:'#222964', g:'#AFC0FF', n:'#6450D8', mo:'#E2EAFF' }, // 19
+  { t:'#050432', m:'#0E1242', b:'#1F2662', g:'#C0CCFF', n:'#7050D8', mo:'#E8EEFF' }, // 20
 ];
 
-function drawBg(frame, stage) {
+// '#RRGGBB' → 'r,g,b'（rgba() に混ぜるため）
+function _rgb(hex) {
+  return parseInt(hex.substr(1,2),16)+','+parseInt(hex.substr(3,2),16)+','+parseInt(hex.substr(5,2),16);
+}
+
+// hideMoon: 月の位置(_W*0.79, 214)に画面側の絵が来るときに true を渡す
+// （ゲームオーバー/エンディングは同じ場所に地球を描くので、並ぶと灰色の塊に見える）
+function drawBg(frame, stage, hideMoon) {
   var si = Math.max(0, Math.min(19, (stage||1) - 1));
   var bg = _SBG[si];
-  var g  = _ctx.createLinearGradient(0, 0, 0, _H);
-  g.addColorStop(0, bg.t); g.addColorStop(0.6, bg.m); g.addColorStop(1, bg.b);
+
+  // ① 空 ─────────────────────────────────────────────────────────────────────
+  var g = _ctx.createLinearGradient(0, 0, 0, _H);
+  g.addColorStop(0, bg.t); g.addColorStop(0.52, bg.m); g.addColorStop(1, bg.b);
   _ctx.fillStyle = g; _ctx.fillRect(0, 0, _W, _H);
-  var cnt = 58 + Math.min(si, 9) * 4;
+
+  // ② 地平線から立ちのぼる光（画面下端の外に光源を置く）────────────────────────
+  var hg = _ctx.createRadialGradient(_W*0.5, _H*1.04, 0, _W*0.5, _H*1.04, _W*1.05);
+  hg.addColorStop(0,    'rgba('+_rgb(bg.g)+',0.34)');
+  hg.addColorStop(0.45, 'rgba('+_rgb(bg.g)+',0.11)');
+  hg.addColorStop(1,    'rgba('+_rgb(bg.g)+',0)');
+  _ctx.fillStyle = hg; _ctx.fillRect(0, 0, _W, _H);
+
+  // ③ 星雲（ステージが進むほど濃く）──────────────────────────────────────────
+  var na = 0.05 + Math.min(si, 12)/12 * 0.13;
+  var ng = _ctx.createRadialGradient(_W*0.68, _H*0.20, 0, _W*0.68, _H*0.20, _W*0.85);
+  ng.addColorStop(0, 'rgba('+_rgb(bg.n)+','+na+')'); ng.addColorStop(1, 'rgba('+_rgb(bg.n)+',0)');
+  _ctx.fillStyle = ng; _ctx.fillRect(0, 0, _W, _H);
+  var ng2 = _ctx.createRadialGradient(_W*0.14, _H*0.44, 0, _W*0.14, _H*0.44, _W*0.62);
+  ng2.addColorStop(0, 'rgba('+_rgb(bg.n)+','+(na*0.7)+')'); ng2.addColorStop(1, 'rgba('+_rgb(bg.n)+',0)');
+  _ctx.fillStyle = ng2; _ctx.fillRect(0, 0, _W, _H);
+
+  // ④ 星（上ほど多く、地平線側では消す＝明るい空に白点が浮くのを避ける）─────────
+  var cnt = 70 + Math.min(si, 9) * 5;
   for (var i = 0; i < cnt; i++) {
-    var sx = (i*141+47) % _W, sy = (i*233+31) % (_H*0.73);
-    _ctx.globalAlpha = (Math.sin(frame*0.04+i)*0.22+0.62)*0.82;
-    _ctx.fillStyle = si >= 14 ? '#FFAAFF' : si >= 7 ? '#FFCCCC' : si >= 4 ? '#FFE8CC' : '#FFFFFF';
-    _ctx.beginPath(); _ctx.arc(sx, sy, 0.55+(i%4)*0.36, 0, Math.PI*2); _ctx.fill();
+    var sx = (i*141+47) % _W, sy = (i*233+31) % (_H*0.80);
+    var fade = 1 - sy/(_H*0.86);                       // 下に行くほど薄く
+    if (fade <= 0.04) continue;
+    _ctx.globalAlpha = (Math.sin(frame*0.04+i)*0.24+0.66) * fade;
+    _ctx.fillStyle = si >= 12 ? '#EAFFEA' : si >= 8 ? '#FFDCD0' : '#FFFFFF';
+    _ctx.beginPath(); _ctx.arc(sx, sy, 0.55+(i%4)*0.38, 0, Math.PI*2); _ctx.fill();
   }
-  if (si >= 3) {
-    var na = Math.min(0.13, (si-3)/7*0.13);
-    var nc = si >= 14 ? '140,0,160' : si >= 7 ? '200,30,30' : si >= 4 ? '110,30,175' : '55,25,135';
-    var ng = _ctx.createRadialGradient(_W*0.65, _H*0.25, 0, _W*0.65, _H*0.25, _W*0.72);
-    ng.addColorStop(0, 'rgba('+nc+','+na+')'); ng.addColorStop(1, 'rgba('+nc+',0)');
-    _ctx.globalAlpha = 1; _ctx.fillStyle = ng; _ctx.fillRect(0, 0, _W, _H);
+  _ctx.globalAlpha = 1;
+
+  // ⑤ 月 ─────────────────────────────────────────────────────────────────────
+  if (!hideMoon) _drawMoon(frame, si, bg);
+
+  // ⑥ 雲（2層。手前ほど速い＝視差）────────────────────────────────────────────
+  _drawClouds(frame, si, bg);
+
+  // ⑦ 流れ星（300フレームに1回、45フレームだけ横切る）──────────────────────────
+  var sp = frame % 300;
+  if (sp < 45) {
+    var seed = Math.floor(frame/300) * 2654435761 % 1000 / 1000;
+    var p    = sp / 45;
+    var stx  = (0.12 + seed*0.7) * _W + p*130, sty = (0.06 + seed*0.34) * _H + p*90;
+    _ctx.globalAlpha = Math.sin(p*Math.PI) * 0.85;
+    var sg = _ctx.createLinearGradient(stx-46, sty-32, stx, sty);
+    sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(1, '#FFFFFF');
+    _ctx.strokeStyle = sg; _ctx.lineWidth = 2; _ctx.lineCap = 'round';
+    _ctx.beginPath(); _ctx.moveTo(stx-46, sty-32); _ctx.lineTo(stx, sty); _ctx.stroke();
+    _ctx.globalAlpha = 1; _ctx.lineCap = 'butt';
+  }
+}
+
+// 月。ステージ帯ごとに色と満ち欠けが変わる（st13以降は蝕んだ月）
+function _drawMoon(frame, si, bg) {
+  var mx = _W*0.79, my = 214, r = 33;
+  var pulse = Math.sin(frame*0.012)*0.06 + 1;
+  _ctx.save();
+  // 暈（かさ）
+  var hg = _ctx.createRadialGradient(mx, my, r*0.7, mx, my, r*3.4*pulse);
+  hg.addColorStop(0, 'rgba('+_rgb(bg.mo)+',0.20)'); hg.addColorStop(1, 'rgba('+_rgb(bg.mo)+',0)');
+  _ctx.fillStyle = hg; _ctx.beginPath(); _ctx.arc(mx, my, r*3.4*pulse, 0, Math.PI*2); _ctx.fill();
+  // 本体
+  var mg = _ctx.createRadialGradient(mx-r*0.3, my-r*0.32, r*0.15, mx, my, r);
+  mg.addColorStop(0, '#FFFFFF'); mg.addColorStop(1, bg.mo);
+  _ctx.fillStyle = mg; _ctx.beginPath(); _ctx.arc(mx, my, r, 0, Math.PI*2); _ctx.fill();
+  // クレーター
+  _ctx.fillStyle = 'rgba(0,0,0,0.07)';
+  [[-0.30,-0.10,0.24],[0.26,0.18,0.17],[0.02,0.42,0.12],[0.34,-0.34,0.10]].forEach(function(c){
+    _ctx.beginPath(); _ctx.arc(mx+r*c[0], my+r*c[1], r*c[2], 0, Math.PI*2); _ctx.fill();
+  });
+  // 欠け（空の色でくり抜く＝ステージが進むほど深く欠ける）
+  var phase = Math.min(0.72, si/19 * 0.72);
+  if (phase > 0.03) {
+    _ctx.globalCompositeOperation = 'destination-out';
+    _ctx.beginPath(); _ctx.arc(mx + r*(0.55+phase*0.9), my - r*0.10, r*1.02, 0, Math.PI*2); _ctx.fill();
+    _ctx.globalCompositeOperation = 'source-over';
+  }
+  _ctx.restore();
+}
+
+// 雲。sin で漂わせるだけ（乱数を使わないので毎フレーム同じ形になる）
+var _CLOUDS = [
+  { y:296, s:1.00, sp:0.16, a:0.13, o:0    },
+  { y:352, s:0.72, sp:0.11, a:0.10, o:180  },
+  { y:470, s:1.28, sp:0.26, a:0.15, o:60   },
+  { y:556, s:0.90, sp:0.34, a:0.12, o:300  },
+  { y:628, s:1.45, sp:0.46, a:0.14, o:120  },
+];
+function _drawClouds(frame, si, bg) {
+  var span = _W + 260;
+  for (var i = 0; i < _CLOUDS.length; i++) {
+    var c  = _CLOUDS[i];
+    var cx = ((frame*c.sp + c.o) % span) - 130;
+    var cy = c.y + Math.sin(frame*0.008 + i)*4;
+    _ctx.globalAlpha = c.a;
+    _ctx.fillStyle   = bg.mo;
+    _ctx.beginPath();
+    _ctx.ellipse(cx,            cy,        46*c.s, 15*c.s, 0, 0, Math.PI*2);
+    _ctx.ellipse(cx-30*c.s,     cy+5*c.s,  30*c.s, 11*c.s, 0, 0, Math.PI*2);
+    _ctx.ellipse(cx+34*c.s,     cy+4*c.s,  26*c.s, 10*c.s, 0, 0, Math.PI*2);
+    _ctx.ellipse(cx+8*c.s,      cy-10*c.s, 27*c.s, 13*c.s, 0, 0, Math.PI*2);
+    _ctx.fill();
   }
   _ctx.globalAlpha = 1;
 }
 
+// ── Ground ───────────────────────────────────────────────────────────────────
+// ひよこが守っている「村」。遠い丘 → 村の家並み（窓の明かり）→ 手前の草地 の3層。
+// 旧版は単色のベタ塗り1枚で、守るものが画面に無かった。
+var _HOUSES = [
+  { x:0.07, w:26, h:24, roof:'#5A3A6E', wall:'#3A2450' },
+  { x:0.17, w:20, h:18, roof:'#4A3060', wall:'#32204A' },
+  { x:0.30, w:32, h:30, roof:'#63407A', wall:'#402856' },
+  { x:0.44, w:22, h:20, roof:'#4A3060', wall:'#32204A' },
+  { x:0.60, w:28, h:26, roof:'#5A3A6E', wall:'#3A2450' },
+  { x:0.72, w:19, h:17, roof:'#4A3060', wall:'#32204A' },
+  { x:0.86, w:30, h:27, roof:'#63407A', wall:'#402856' },
+];
+
 function drawGround(stage) {
-  var t   = Math.max(0, Math.min(1, ((stage||1)-1)/19));
-  var r1  = Math.round(40+t*52), g1 = Math.round(138-t*112), b1 = Math.round(70-t*62);
-  var r2  = Math.round(30+t*42), g2 = Math.round(106-t*92),  b2 = Math.round(54-t*50);
-  var grd = _ctx.createLinearGradient(0, _H-128, 0, _H);
+  var t  = Math.max(0, Math.min(1, ((stage||1)-1)/19));
+  var si = Math.max(0, Math.min(19, (stage||1) - 1));
+  var bg = _SBG[si];
+  var HL = _H - 108;                       // 手前の草地の稜線
+
+  // ① 遠い丘（奥ほど空の色に溶かす）──────────────────────────────────────────
+  var hillTop = HL - 52;
+  _ctx.save();
+  _ctx.fillStyle = 'rgba('+_rgb(bg.b)+',0.62)';
+  _ctx.beginPath();
+  _ctx.moveTo(0, hillTop+8);
+  _ctx.quadraticCurveTo(_W*0.20, hillTop-26, _W*0.44, hillTop+4);
+  _ctx.quadraticCurveTo(_W*0.70, hillTop+30, _W, hillTop-6);
+  _ctx.lineTo(_W, _H); _ctx.lineTo(0, _H); _ctx.closePath(); _ctx.fill();
+  // 手前の丘（村が乗る面）
+  _ctx.fillStyle = 'rgba('+_rgb(bg.t)+',0.88)';
+  _ctx.beginPath();
+  _ctx.moveTo(0, HL-26);
+  _ctx.quadraticCurveTo(_W*0.30, HL-40, _W*0.58, HL-28);
+  _ctx.quadraticCurveTo(_W*0.82, HL-18, _W, HL-32);
+  _ctx.lineTo(_W, _H); _ctx.lineTo(0, _H); _ctx.closePath(); _ctx.fill();
+  _ctx.restore();
+
+  // ② 村（家＋窓の明かり）。ひよこ(y=_H-148)より上＝奥に置く ──────────────────
+  var base = HL - 30;
+  var HS   = 0.78;                                   // 遠景なので小さめ
+  _HOUSES.forEach(function(h, i) {
+    var hx = h.x*_W, hw = h.w*HS, hh = h.h*HS;
+    _ctx.fillStyle = h.wall;
+    _ctx.fillRect(hx - hw/2, base - hh, hw, hh);
+    _ctx.fillStyle = h.roof;                         // 三角屋根
+    _ctx.beginPath();
+    _ctx.moveTo(hx - hw/2 - 2.5, base - hh);
+    _ctx.lineTo(hx,              base - hh - hw*0.42);
+    _ctx.lineTo(hx + hw/2 + 2.5, base - hh);
+    _ctx.closePath(); _ctx.fill();
+    // 窓の明かり（家ごとに違うゆらぎ。ここが村の生活感になる）
+    var lit = 0.60 + Math.sin(i*2.1)*0.25;
+    _ctx.save();
+    _ctx.shadowColor = '#FFD98A'; _ctx.shadowBlur = 6;
+    _ctx.fillStyle   = 'rgba(255,216,134,'+lit+')';
+    _ctx.fillRect(hx - hw*0.28, base - hh*0.64, hw*0.24, hh*0.28);
+    _ctx.fillRect(hx + hw*0.05, base - hh*0.64, hw*0.24, hh*0.28);
+    _ctx.restore();
+  });
+  // 木（村のあいだ）
+  [0.12, 0.375, 0.525, 0.665, 0.795, 0.945].forEach(function(px) {
+    var tx = px*_W;
+    _ctx.fillStyle = '#2A1A3C';
+    _ctx.fillRect(tx-1.3, base-10, 2.6, 10);
+    _ctx.fillStyle = 'rgba(46,30,66,0.95)';
+    _ctx.beginPath(); _ctx.arc(tx, base-14, 6.6, 0, Math.PI*2); _ctx.fill();
+    _ctx.beginPath(); _ctx.arc(tx-4, base-10, 4.8, 0, Math.PI*2); _ctx.fill();
+    _ctx.beginPath(); _ctx.arc(tx+4, base-10, 4.8, 0, Math.PI*2); _ctx.fill();
+  });
+
+  // ③ 手前の草地 ────────────────────────────────────────────────────────────
+  var r1 = Math.round(52+t*46), g1 = Math.round(150-t*104), b1 = Math.round(82-t*58);
+  var r2 = Math.round(24+t*38), g2 = Math.round( 86-t* 74), b2 = Math.round(48-t*42);
+  var grd = _ctx.createLinearGradient(0, HL-20, 0, _H);
   grd.addColorStop(0, 'rgb('+r1+','+g1+','+b1+')');
   grd.addColorStop(1, 'rgb('+r2+','+g2+','+b2+')');
   _ctx.fillStyle = grd;
   _ctx.beginPath();
-  _ctx.moveTo(0, _H-108);
-  _ctx.quadraticCurveTo(_W*0.25, _H-125, _W*0.5, _H-112);
-  _ctx.quadraticCurveTo(_W*0.75, _H-100, _W, _H-118);
+  _ctx.moveTo(0, HL);
+  _ctx.quadraticCurveTo(_W*0.25, HL-17, _W*0.5, HL-4);
+  _ctx.quadraticCurveTo(_W*0.75, HL+8,  _W,    HL-10);
   _ctx.lineTo(_W, _H); _ctx.lineTo(0, _H); _ctx.closePath(); _ctx.fill();
-  _ctx.strokeStyle = 'rgba(255,255,255,0.12)'; _ctx.lineWidth = 2;
+
+  // 稜線のハイライト（月あかりが当たっている縁）
+  _ctx.strokeStyle = 'rgba('+_rgb(bg.mo)+',0.30)'; _ctx.lineWidth = 2;
   _ctx.beginPath();
-  _ctx.moveTo(0, _H-108);
-  _ctx.quadraticCurveTo(_W*0.25, _H-125, _W*0.5, _H-112);
-  _ctx.quadraticCurveTo(_W*0.75, _H-100, _W, _H-118);
+  _ctx.moveTo(0, HL);
+  _ctx.quadraticCurveTo(_W*0.25, HL-17, _W*0.5, HL-4);
+  _ctx.quadraticCurveTo(_W*0.75, HL+8,  _W,    HL-10);
   _ctx.stroke();
+
+  // 草と花（位置は式で決めているので毎フレーム同じ。ちらつかない）
+  _ctx.strokeStyle = 'rgba('+r1+','+Math.min(255,g1+40)+','+b1+',0.34)'; _ctx.lineWidth = 1.6;
+  for (var i = 0; i < 46; i++) {
+    var gx = (i*83+19) % _W;
+    var gy = HL + 6 + (i*37 % 84);
+    var lean = ((i%5)-2) * 1.6;
+    _ctx.beginPath(); _ctx.moveTo(gx, gy); _ctx.quadraticCurveTo(gx+lean, gy-5, gx+lean*1.7, gy-9); _ctx.stroke();
+  }
+  var FLOWER = ['#FFD9E8','#FFF0A8','#D8E8FF'];
+  for (var j = 0; j < 11; j++) {
+    var fx = (j*131+41) % _W, fy = HL + 16 + (j*53 % 70);
+    _ctx.fillStyle = FLOWER[j % 3];
+    _ctx.globalAlpha = 0.72;
+    _ctx.beginPath(); _ctx.arc(fx, fy, 2.1, 0, Math.PI*2); _ctx.fill();
+    _ctx.globalAlpha = 1;
+  }
 }
 
 // ── Chick ────────────────────────────────────────────────────────────────────
@@ -249,14 +439,19 @@ function drawCrow(e) {
   _ctx.translate(e.x, e.y + Math.sin(e.wobble) * 4);
   var s = e.size;
   var c = CROW_COLORS[e.type] || CROW_COLORS.normal;
+  // 図鑑の未発見枠は影絵で見せる（何が居るのか形だけ分かる＝集めたくなる）
+  if (e.silhouette) c = { wing:'#161B30', body:'#212844', hi:'#2E3659', eye:'#3C4472', glow:'rgba(0,0,0,0)' };
   var al = (e.hitFlash > 0 && e.hitFlash % 2 === 0) ? 0.25 : 1.0;
 
-  // ゴースト：透明パルス
-  if (e.type === 'ghost') al *= (0.20 + Math.abs(Math.sin(e.wobble * 0.30)) * 0.80);
-  // ステルス：完全透明
-  if (e.type === 'stealth' && e.isHidden) al *= 0.06;
-  // ファントム：幽霊的な透明感
-  if (e.type === 'phantom') al *= (0.55 + Math.abs(Math.sin(e.wobble * 0.4)) * 0.45);
+  // 透明化する種類。図鑑の影絵では適用しない（消えていると集める対象に見えない）
+  if (!e.silhouette) {
+    // ゴースト：透明パルス
+    if (e.type === 'ghost') al *= (0.20 + Math.abs(Math.sin(e.wobble * 0.30)) * 0.80);
+    // ステルス：完全透明
+    if (e.type === 'stealth' && e.isHidden) al *= 0.06;
+    // ファントム：幽霊的な透明感
+    if (e.type === 'phantom') al *= (0.55 + Math.abs(Math.sin(e.wobble * 0.4)) * 0.45);
+  }
 
   _ctx.globalAlpha = al;
   // 影
@@ -265,6 +460,9 @@ function drawCrow(e) {
   _ctx.beginPath(); _ctx.ellipse(0, s*0.9, s*0.46, s*0.1, 0, 0, Math.PI*2); _ctx.fill();
   _ctx.globalAlpha = al;
 
+  // 種類ごとの演出（オーラ・シールド・炎など）。
+  // 図鑑の未発見枠（影絵）では出さない。出すと未発見なのに種類が分かってしまう。
+  if (!e.silhouette) {
   // スプリンター：ダッシュ中速度線
   if (e.type === 'sprinter' && e.sprintPhase === 1) {
     _ctx.globalAlpha = al*0.55; _ctx.strokeStyle = '#AAFF00'; _ctx.lineWidth = 2;
@@ -354,6 +552,21 @@ function drawCrow(e) {
     _ctx.shadowBlur = 0; _ctx.globalAlpha = al;
   }
 
+  } // /種類ごとの演出
+
+  // ── 輪郭光 ───────────────────────────────────────────────────────────────
+  // 敵はほとんどが暗色なので、空に溶けて見えなくなっていた（2026-08-28 実測）。
+  // 月あかりが当たっている想定の淡い光を体の後ろに敷き、どの空の色でも輪郭が立つようにする。
+  // ステルスが隠れている間は光らせない（隠れる意味が消えるため）。
+  if (!(e.type === 'stealth' && e.isHidden) && !e.silhouette) {
+    _ctx.save();
+    _ctx.globalAlpha = al * 0.5;
+    _ctx.shadowColor = 'rgba(255,248,225,0.95)'; _ctx.shadowBlur = s*0.55;
+    _ctx.fillStyle   = 'rgba(255,248,225,0.30)';
+    _ctx.beginPath(); _ctx.ellipse(0, 0, s*0.60, s*0.50, 0, 0, Math.PI*2); _ctx.fill();
+    _ctx.restore();
+  }
+
   // ── 共通ボディ描画 ───────────────────────────────────────────────────────
   _ctx.fillStyle = c.wing; _ctx.strokeStyle = 'rgba(0,0,0,0.6)'; _ctx.lineWidth = 1.5;
   _ctx.beginPath();
@@ -387,8 +600,8 @@ function drawCrow(e) {
   _ctx.fillStyle = '#000'; _ctx.beginPath(); _ctx.arc(s*0.35, -s*0.3, s*0.05, 0, Math.PI*2); _ctx.fill();
   _ctx.fillStyle = 'rgba(255,255,255,0.85)'; _ctx.beginPath(); _ctx.arc(s*0.37, -s*0.32, s*0.025, 0, Math.PI*2); _ctx.fill();
 
-  // タイタン：追加の鎧プレート
-  if (e.type === 'titan') {
+  // タイタン：追加の鎧プレート（影絵では出さない）
+  if (e.type === 'titan' && !e.silhouette) {
     _ctx.fillStyle = 'rgba(150,150,160,0.45)'; _ctx.strokeStyle = '#888'; _ctx.lineWidth = 1.5;
     _ctx.beginPath(); _ctx.rect(-s*0.35, -s*0.28, s*0.7, s*0.5); _ctx.fill(); _ctx.stroke();
     _ctx.fillStyle = 'rgba(200,200,210,0.25)';
@@ -399,7 +612,7 @@ function drawCrow(e) {
   var showHp = (e.type === 'tank' || e.type === 'healer' || e.type === 'bomber' ||
     e.type === 'splitter' || e.type === 'regen' || e.type === 'shielded' ||
     e.type === 'titan' || e.type === 'leech' || e.type === 'necro' || e.maxHp > 14);
-  if (showHp) {
+  if (showHp && !e.noHpBar) {
     var bw = s*1.6, bx = -bw/2, by = s*0.65;
     rrect(bx-1, by-1, bw+2, 12, 4, 'rgba(0,0,0,0.75)', null);
     var ratio2 = e.hp/e.maxHp;
@@ -654,16 +867,16 @@ function _drawBossHpBar(e, s, label, labelCol, barTop, barBot, border) {
     _ctx.fillStyle='rgba(255,255,255,0.26)';
     _ctx.beginPath(); _ctx.moveTo(bx+4,by+2); _ctx.lineTo(bx+bw*ratio-4,by+2); _ctx.lineTo(bx+bw*ratio-4,by+7); _ctx.lineTo(bx+4,by+7); _ctx.closePath(); _ctx.fill();
   }
-  _ctx.fillStyle='#fff'; _ctx.font='bold 11px "Kosugi Maru",sans-serif'; _ctx.textAlign='center';
+  _ctx.fillStyle='#fff'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center';
   _ctx.fillText(e.hp+'/'+e.maxHp, 0, by+14);
   _ctx.shadowColor=labelCol; _ctx.shadowBlur=12;
-  _ctx.fillStyle=labelCol; _ctx.font='bold 13px "Kosugi Maru",sans-serif';
+  _ctx.fillStyle=labelCol; _ctx.font='bold 13px "Zen Maru Gothic",sans-serif';
   _ctx.fillText(label, 0, -s*1.06);
   _ctx.shadowBlur=0;
   // フェーズインジケーター
   var ph = e.phase||1;
   if (ph > 1) {
-    _ctx.fillStyle=ph>=3?'#FF4444':'#FF8800'; _ctx.font='bold 11px "Kosugi Maru",sans-serif';
+    _ctx.fillStyle=ph>=3?'#FF4444':'#FF8800'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif';
     _ctx.fillText('PHASE '+ph, 0, -s*1.06+16);
   }
 }
@@ -745,15 +958,38 @@ function drawEnemyBullet(eb) {
 }
 
 // ── Tower ─────────────────────────────────────────────────────────────────────
-function drawTower(slot, showRange) {
+function drawTower(slot, showRange, frame) {
+  frame = frame || 0;
   _ctx.save(); _ctx.translate(slot.x, slot.y);
   if (!slot.type) {
-    _ctx.globalAlpha=0.22; _ctx.setLineDash([5,6]);
-    _ctx.strokeStyle='#667'; _ctx.lineWidth=1.5;
-    _ctx.beginPath(); _ctx.arc(0,0,18,0,Math.PI*2); _ctx.stroke();
-    _ctx.setLineDash([]);
-    _ctx.fillStyle='#667'; _ctx.font='14px sans-serif'; _ctx.textAlign='center'; _ctx.textBaseline='middle'; _ctx.fillText('+',0,1);
-    _ctx.textBaseline='alphabetic'; _ctx.globalAlpha=1; _ctx.restore(); return;
+    // 空きスロット＝「浮かぶ雲の足場」。
+    // 旧版は薄い破線の丸に「+」だけで、置ける場所だと気づけなかった（2026-08-28 実測）。
+    var pulse = Math.sin(frame*0.06)*0.5 + 0.5;      // 0..1
+    var lift  = Math.sin(frame*0.03)*1.6;            // ふわふわ上下
+    _ctx.translate(0, lift);
+    // 足場の雲
+    _ctx.globalAlpha = 0.30 + pulse*0.10;
+    _ctx.fillStyle = '#CFE2FF';
+    _ctx.beginPath();
+    _ctx.ellipse(0,     6, 20, 7.5, 0, 0, Math.PI*2);
+    _ctx.ellipse(-11,   4, 11, 6,   0, 0, Math.PI*2);
+    _ctx.ellipse( 11,   4, 11, 6,   0, 0, Math.PI*2);
+    _ctx.ellipse(  1,  -1, 13, 7,   0, 0, Math.PI*2);
+    _ctx.fill();
+    // 光の輪（回る破線）
+    _ctx.globalAlpha = 0.34 + pulse*0.26;
+    _ctx.strokeStyle = '#8FD8FF'; _ctx.lineWidth = 2;
+    _ctx.setLineDash([6, 7]); _ctx.lineDashOffset = -frame*0.35;
+    _ctx.shadowColor = '#3FA8E8'; _ctx.shadowBlur = 8;
+    _ctx.beginPath(); _ctx.arc(0, -1, 19, 0, Math.PI*2); _ctx.stroke();
+    _ctx.setLineDash([]); _ctx.lineDashOffset = 0; _ctx.shadowBlur = 0;
+    // ＋
+    _ctx.globalAlpha = 0.55 + pulse*0.35;
+    _ctx.strokeStyle = '#EAF7FF'; _ctx.lineWidth = 3; _ctx.lineCap = 'round';
+    _ctx.beginPath(); _ctx.moveTo(-6.5,-1); _ctx.lineTo(6.5,-1); _ctx.stroke();
+    _ctx.beginPath(); _ctx.moveTo(0,-7.5);  _ctx.lineTo(0,5.5);  _ctx.stroke();
+    _ctx.lineCap = 'butt';
+    _ctx.globalAlpha = 1; _ctx.restore(); return;
   }
   var def=(typeof TOWER_DEFS!=='undefined')?TOWER_DEFS[slot.type]:null;
   if (!def) { _ctx.restore(); return; }
