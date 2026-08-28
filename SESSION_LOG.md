@@ -1,5 +1,42 @@
 # SESSION LOG — 横断作業
 
+## 2026-08-28（メインPC・朝）— 記事の自動執筆が毎晩失敗していた
+
+### 完了したこと
+**症状**: `com.shinsei.daily-write`（毎晩22:45）が毎回失敗し、記事が1本も増えていなかった。
+ログには `Error: claude native binary not installed.` と出ていた。
+
+**原因: このMacには `claude` が2つあり、壊れているほうが先に見つかっていた。**
+
+| パス | 中身 |
+|---|---|
+| `/usr/local/bin/claude` | **2026-06-24 の npm 版。native binary 未導入で壊れている** |
+| `/opt/homebrew/bin/claude` | Homebrew 版・正常（2.1.226） |
+
+ログインshellの `PATH` は `/usr/local/bin` が**1番目**、`/opt/homebrew/bin` が12番目。
+`daily-write.sh` だけが **裸で `claude` と書いていた**ので壊れたほうを掴んでいた。
+worker や他の常駐は絶対パスで呼んでいるため無事だった。
+
+**★ネタの収集までは正常に動いていた**（各アプリの SESSION_LOG から候補を拾えている）。
+止まっていたのは「記事を書かせる」一歩手前だけ。
+
+**直したこと**
+- `scripts/daily-write.sh`: `CLAUDE_BIN="${CLAUDE_BIN:-/opt/homebrew/bin/claude}"` を定義して絶対パスで呼ぶ。
+  無ければ `command -v claude` に落ちる
+- 直下 `visual-agent-check.sh` にも同じ裸呼び出しがあったので同様に修正
+  （点検用だが、通ると「Visual Agentが壊れている」と誤判定する）
+
+**壊れた `/usr/local/bin/claude` は消していない。** 6月から残っているシンボリックリンクで、
+他に何が参照しているか分からないため（戻せない操作なのでオーナー判断待ち）。
+
+### 検証
+`/bin/bash -lc` （launchd と同じ形）で `CLAUDE_BIN` が `/opt/homebrew/bin/claude` に解決され、
+`claude -p "OKとだけ返して"` が `OK` を返すことを確認。
+
+### 次回への引き継ぎ事項
+- **今夜22:45の daily-write で、記事が1本増えるかを見る**（`/tmp/daily-write.log`）
+- `/usr/local/bin/claude`（壊れた6月の残骸）を消すかどうかは未判断
+
 **1つのアプリで完結する作業のログはここに書かない。** それは
 `<アプリ>/SESSION_LOG.md` に書く（例: `pokecard-dex/SESSION_LOG.md`）。
 
@@ -10,6 +47,39 @@
 新しい節は**このすぐ下に追記**する（上が新しい）。書式は `CLAUDE.md` の作業ルール参照。
 
 ---
+
+### 続報（同日 09:00）— `CLAUDE_BIN` だけでは足りなかった
+
+壊れた `claude` を避けても、**launchd から呼ぶと別の理由でこける**ことが分かった。
+
+```
+SessionEnd hook [node ".../hooks/session-end-cleanup.mjs"] failed:
+  /bin/sh: node: command not found
+```
+
+**launchd から起動されたプロセスは PATH が空**（`launchctl getenv PATH` が空文字）。
+`node`（/usr/local/bin/node）が見えず、claude CLI の終了フック（Vercelプラグイン同梱）が
+失敗する。claude は**実際には応答していても非ゼロで終了する**ので、呼び出し側からは
+「claudeが失敗した」に見えていた。★**手で流すと PATH があるので再現しない。**
+
+これ1つで **2026-08-28未明のOCR（0.3分で中断）と英語メール翻訳940通**が同時に全滅していた。
+「定額枠切れ」と読んでいたが違った。同じ5件を朝ターミナルから流したら普通に成功している。
+
+**直し方**: launchd から呼ばれる wrapper 5本の先頭で PATH を明示した。
+
+```bash
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+```
+
+対象: `chatwork-ai-manager/run_ocr_nightly.sh` / `mail-archiver/sync-daily.sh` /
+`ai-tools-base/scripts/{daily-write,note-daily,zenn-daily}.sh`
+plist の `EnvironmentVariables` ではなく**スクリプト側**に置いた（引数を変えても
+bootout/bootstrap が要らず、git で両PCに渡り、手で流したときと同じ経路になるため）。
+
+**検証**: launchd 経由で `run_ocr_nightly.sh` を2件流し、**2件ともOCR成功（29チャンク）**。
+昨夜は同じ経路で0件だったので、原因はこれで確定。
+
+**次にやること: 明日の朝、00:30の取込＋翻訳と02:00のOCRが1晩通ったかをログで見る。**
 
 ## 2026-08-23（サブPC）— メインPCへの引き継ぎをまとめ直した
 
