@@ -37,7 +37,7 @@ SUPPORT_URL = "https://shinsei99.github.io/project/cyborg-defense/support.html"
 PRIVACY_URL = "https://shinsei99.github.io/project/cyborg-defense/privacy.html"
 COPYRIGHT = "2026 SHINSEI PROPERTY MANAGEMENT.K.K."
 PRIMARY_CATEGORY = "GAMES"
-PRIMARY_SUBCATEGORY = "GAMES_PUZZLE"
+PRIMARY_SUBCATEGORY = "GAMES_ACTION"   # ★このアプリはアクション（にゃんこアイスはパズル）
 
 # 審査の連絡先（KeyTag と同じ。ASC の「App Review 連絡先」欄）
 CONTACT = {

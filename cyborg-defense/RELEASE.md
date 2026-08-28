@@ -13,6 +13,7 @@
 | ストア文言 | **済**（`store-text.md`。4.3(a) 対策の調査つき） |
 | **ipa の書き出し** | **済**。`build/export/App.ipa`（2.0MB・Apple Distribution 署名・MinimumOSVersion 15.0） |
 | **アップロード** | **未**。App 記録が無いため弾かれる（下記） |
+| 記録ができた後の自動化 | **済**。`finish-release.py` が検証→アップロード→処理待ち→ビルドのひも付け→文言→スクショまで1コマンドで通す |
 
 ---
 
@@ -44,7 +45,19 @@ App Store Connect の「マイApp」→「＋」→「新規App」で、次を�
 
 ---
 
-## 記録を作ったあと（機械でできる。3コマンド＋2コマンド）
+## 記録を作ったあと（**1コマンド**）
+
+```bash
+cd ~/cyborg-defense
+python3 finish-release.py            # 何をするかだけ表示（変更しない）
+python3 finish-release.py --apply    # 検証→アップロード→処理待ち→ビルドのひも付け→文言→スクショ
+```
+
+**App 記録が無いうちに叩いても安全**（作るための値を出して止まるだけ）。
+記録ができていれば、そのまま審査提出の直前まで進む。
+中で何が起きているかは下の個別コマンドと同じ。
+
+<details><summary>個別に叩くとき（デバッグ用）</summary>
 
 ```bash
 cd ~/cyborg-defense
@@ -73,6 +86,8 @@ python3 push-screenshots.py screenshots/upload/ipad   --device ipad   --apply
 
 `--device iphone` は **6.9型（APP_IPHONE_67・1290×2796）** に入れる。もし寸法で弾かれたら
 `--device iphone65` に切り替える（`screenshots/upload/iphone65/` に 1284×2778 を用意してある）。
+
+</details>
 
 そのあと画面でしか設定できないもの（オーナー）:
 

@@ -75,8 +75,18 @@
     （`export GIT_INDEX_FILE=…/tmp-index && git read-tree HEAD && git add … && git commit`）。
     `.git/index.lock` に触れずに済む
 
+- **症状**（危なかった点）: `push-metadata.py` をにゃんこアイスから写して使ったが、
+  **プロモーション用テキストだけ空のまま流し込まれるところだった**
+  → **原因**: スクリプトの見出し辞書が `プロモーション用テキスト` なのに、
+    こちらの `store-text.md` の見出しは `プロモーションテキスト` だった（`startswith` で不一致）。
+    **エラーにならず黙って欠ける**のがたちが悪い
+  → **直し方**: 見出しを合わせ、流し込み前に**6項目すべてが上限内で取れているか**を機械で確認した。
+    ついでに `PRIMARY_SUBCATEGORY` を `GAMES_PUZZLE`（アイスのまま）→ `GAMES_ACTION` に直した
+
 ### 検証（実測）
 
+- 文言6項目の抽出を実測（name 8字 / subtitle 15字 / promotionalText 96字 / keywords 65字 /
+  description 683字 / notes 514字。**すべて上限内**）
 - **公開版と手元の `www/index.html` の sha256 が一致**（gh-pages 反映を実測）。
   `support.html` / `privacy.html` とも 200、同梱書体も 200
 - シミュレータ（iPhone 17 Pro Max / iPad Pro 13）で起動 → タイトル・ゲート3択・戦闘・ボス・コンボ・

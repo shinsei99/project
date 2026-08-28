@@ -42,7 +42,7 @@
 - [x] サポート／プライバシーページ、ストア文言（4.3(a) の調査つき）
 - [x] Archive → Export（`build/export/App.ipa`・Apple Distribution 署名）
 - [ ] **★オーナー: App Store Connect で App 記録を作る**（APIでは作れないと実測。値は `RELEASE.md`）
-- [ ] 記録ができたら: 検証 → アップロード → `push-metadata.py` → `push-screenshots.py`
+- [ ] 記録ができたら **`python3 finish-release.py --apply` の1コマンド**（検証→アップロード→処理待ち→ビルドのひも付け→文言→スクショ）
 - [ ] 価格・App のプライバシー・年齢制限・ビルド選択 → 審査へ提出（オーナー）
 
 ## 未着手
