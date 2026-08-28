@@ -23,6 +23,10 @@
 3. **「どのアプリが重複に見えるのか教えてほしい」と具体的に聞く**（審査側が答えられる問い）
 4. アプリ固有の話は**最後に3行だけ**（前回の繰り返しをしない）
 
+**★「また作り直します」とだけ書かないこと。** 「新しいアプリをまた出す」と読まれ、
+こちらの主旨（**本数を増やさない**）と正反対に伝わる。作り直す先が
+**既存アプリの中**であることを必ず同じ文に書く。
+
 ---
 
 ## 送る文面（英語・そのままコピー）
@@ -59,13 +63,14 @@ folding its content into an app we already have on the App Store instead of ship
 separately. We do intend to keep fixing bugs in the apps that are already live, so we may
 submit bug-fix updates for those.
 
-We would also like to ask for your help with one removal. We want to take
-"にゃんこのアイス屋さん" (com.daikyo.nyankoice, Apple ID 6784674385) out of our account
-entirely. It has never been released. We cannot remove it ourselves: the app is in the
-Rejected state, and the version cannot be deleted either. The API returns "The last version
-of an app cannot be deleted" and "A version cannot be deleted if any build has been
-uploaded". If you are able to remove that app record on your side, please do. Its content
-will be folded into an app we already have on the App Store instead.
+One of the three apps rejected at the same time was "にゃんこのアイス屋さん"
+(com.daikyo.nyankoice, Apple ID 6784674385). We accept that decision and will not ship it as
+a separate app. We want to remove it from our account entirely, but we cannot do it
+ourselves: the app is in the Rejected state, and the version cannot be deleted either. The
+API returns "The last version of an app cannot be deleted" and "A version cannot be deleted
+if any build has been uploaded". If you are able to remove that app record on your side,
+please do. We will rebuild that content inside "ネオンブロックス", an app we already have on
+the App Store, so that it does not become another separate app.
 
 Our question: if the concern is our portfolio as a whole rather than this specific app,
 please tell us which apps are considered duplicative. We will consolidate or remove them.
@@ -108,12 +113,13 @@ WebView ラッパー Capacitor を除く）。
 ある既存アプリの中へ内容をまとめます。なお、すでに配信しているアプリの不具合修正は
 続けたいので、その更新は提出することがあります。
 
-もう1点、削除のお願いがあります。「にゃんこのアイス屋さん」
-（com.daikyo.nyankoice / Apple ID 6784674385）をアカウントから完全に削除したいのですが、
-自分たちでは削除できません。一度も配信していないアプリですが、Rejected 状態のため
-削除操作が使えず、バージョンの削除もできません（APIは「最後の版は削除できない」
-「ビルドを上げた版は削除できない」と返します）。そちらで App の記録を削除していただけると
-助かります。内容は、すでに App Store にある既存アプリの中へまとめます。
+同時期に同じ判断を受けた3本のうちの1本が「にゃんこのアイス屋さん」
+（com.daikyo.nyankoice / Apple ID 6784674385）です。この判断は受け入れ、**単独のアプリとしては
+出しません**。アカウントから完全に削除したいのですが、自分たちでは削除できません。
+Rejected 状態のため削除操作が使えず、バージョンの削除もできません（APIは「最後の版は
+削除できない」「ビルドを上げた版は削除できない」と返します）。そちらで App の記録を
+削除していただけると助かります。中身は、すでに App Store にある「ネオンブロックス」の
+**中に作り直します**。別のアプリとして増やすことはしません。
 
 おうかがいしたいこと: もし懸念がこのアプリ単体ではなく、私たちのアプリ全体に
 あるのでしたら、どのアプリが重複していると見なされているか教えてください。
