@@ -15,7 +15,8 @@
 | Archive → export → validate → upload | すべて成功。**`UPLOAD SUCCEEDED`**（20MB・Delivery UUID `e409eb61-…`） |
 | ASC | **バージョン 1.0.5 を新規作成**し、「このバージョンの新機能」201字を投入、**build 9（VALID）をひも付け**。説明407字・キーワード63字・スクショ（iPhone 6.5" 3枚／iPad 12.9" 3枚）は前版から自動で引き継がれた |
 
-**いまの状態: `PREPARE_FOR_SUBMISSION`。残りは「審査へ提出」を押すだけ**（外部に出る操作なので人が行う）。
+**そのあとオーナーが ASC の画面から審査へ提出**（外部に出る操作なので人が実施）。
+**API で `1.0.5 … 審査待ち`（`WAITING_FOR_REVIEW`）を確認済み**。あとは結果を待つだけ。
 
 ### 発生したエラーと解決策
 
@@ -26,7 +27,8 @@
 
 ### 次回への引き継ぎ事項・未解決の課題
 
-- **★審査へ提出する操作が未了**（App Store Connect の画面から。中身は全部入っている）
+- **審査の結果を待つ**（`python3 appstore_api.py --review com.shinsei99.scrapmemo`）。
+  通ったら `CLAUDE.md` の一覧を「1.0.5 build9 が配信中」へ書き換える
 - **Web版（GitHub Pages）は今回も未反映のまま。** 外部公開なのでオーナー判断
 - 出し直すときは **必ず build 10 へ**（`./ios-build-guard.sh scrapmemo-petapeta --bump`）。
   Archive〜アップロードは GUI 不要で、`RELEASE_NOTES.md` 末尾の手順で通る

@@ -256,7 +256,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | 送付書ジェネレーター（**オーナー個人専用**・差出人4プロファイル／社内には配らない） | soufu-generator | 8518 | — |
 | デジタル書斎 | digital-shosai | 3001 | App Store ✅（**アイコンを差し替えた 1.0.1 build2 が配信中**・2026-08-28 に API で確認＝審査を通った） |
 | ブレイン・ダンプ自動整理 | brain-dump | 3002 | Vercel（brain-dump-sable-one.vercel.app） |
-| スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（**1.0.4 build8 が配信中**）。**1.0.5 build9 を 2026-08-28 にアップロード済み＝ASC で「提出準備中」（最新情報・スクショ・build まで入っており、審査へ提出を押すだけ）**。build7は提出せず |
+| スクラップメモ + PetaPeta Clipper | scrapmemo-petapeta + petapeta-extension | — | GitHub Pages / App Store ✅（**1.0.4 build8 が配信中**）。**1.0.5 build9 を 2026-08-28 に提出＝審査待ち**（`WAITING_FOR_REVIEW` を API で確認。長文編集時に「完了」へ指が届かない問題の修正）。build7は提出せず |
 | 水泳記録トラッカー | swim-tracker-react | — | GitHub Pages / App Store ✅（**1.0 build1 が配信中**・2026-08-24 に API で確認） |
 | ママカウンター | mom-counter | — | GitHub Pages / App Store ✅（**1.0 build4 が配信中**・2026-08-24 に API で確認。「v1.0.1」は誤記だった） |
 | Mac一斉メール送信 | mail-merge-pro | — | Macアプリ |
@@ -373,7 +373,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8532 | マルチプロダクション | com.shinsei.agent-platform |
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
 | 8534 | KeyLine（NFC鍵・備品貸出管理／※画像自動削除は -purge が毎日3:30） | com.shinsei.keyline ＋ -purge |
-| 8535 | メールアーカイバ（※ツール・127.0.0.1・メール本文＝個人情報のためLANに出さない） | com.shinsei.mail-archiver（閲覧）＋ -sync（毎日2時に取り込み＋1年超をサーバー削除） |
+| 8535 | メールアーカイバ（※ツール・127.0.0.1・メール本文＝個人情報のためLANに出さない） | com.shinsei.mail-archiver（閲覧）＋ -sync（**毎日00:30**に取り込み＋翻訳＋1年超をサーバー削除。2026-08-28にOCRと時間帯をずらした） |
 | 8536 | AI重説アシスタント（※不動産・0.0.0.0／**plistは `/bin/bash run.sh` を呼ぶ**＝Dropboxの公式書式200本を読むため `/bin/bash` にフルディスクアクセスが要る） | com.shinsei.jyuusetsu-research |
 | 8530 | AI業務マネージャー LINE webhook（※メインPCのみ稼働。ngrok固定ドメイン経由で公開） | com.shinsei.chatwork-ai-manager-line ＋ -ngrok |
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
