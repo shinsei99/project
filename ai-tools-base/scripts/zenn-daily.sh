@@ -65,8 +65,13 @@ if [ -n "$STUCK" ]; then
   #   待っているだけでは永久に公開されないので、空コミットを push してデプロイを促す。
   #   上限が解けていればこれで公開される。解けていなければまた弾かれるだけで害は無い。
   if [ -z "$DRY" ]; then
+    # ★空コミットでもパス指定は要る。素の `git commit --allow-empty` は
+    #   「インデックス全体」を木にするので、インデックスが古いと**空のつもりが
+    #   他人のファイルを消すコミットになる**（--allow-empty は空を許すだけで、空を作る指定ではない）。
+    #   パスを付ければ HEAD ＋ そのパスだけになり、変化が無ければ本当に空になる。
     if ( cd .. && git pull -q --rebase origin main \
          && git commit -q --allow-empty -m "Zenn: 未公開分の再デプロイを促す（$STUCK）" \
+              -- articles ai-tools-base/drafts/zenn_pending \
          && git push -q origin main ); then
       echo "  空コミットを push した（再デプロイを促した）。上限が解けていれば公開される。"
     else
@@ -108,8 +113,11 @@ if ! ./publish.sh guard "$NEXT" >/tmp/zenn-daily-guard.txt 2>&1; then
 fi
 
 mv "$PEND/$NEXT.md" "../articles/$NEXT.md" || exit 1
-( cd .. && git add -A articles ai-tools-base/drafts/zenn_pending \
-  && git commit -q -m "Zenn: $NEXT を公開（毎晩1本・自動）" \
+# ★コミットは**必ずパスを指定する**。素の `git commit` はインデックス全体を載せるので、
+#   インデックスが古いと**他の人が直前に足したファイルを「削除」としてコミットする**。
+#   2026-08-28 にこれで31ファイルが消え、gh-pages が全フォルダぶん止まった。詳細は daily-write.sh の同じ箇所。
+( cd .. && git add -A -- articles ai-tools-base/drafts/zenn_pending \
+  && git commit -q -m "Zenn: $NEXT を公開（毎晩1本・自動）" -- articles ai-tools-base/drafts/zenn_pending \
   && git push -q origin main ) || { echo "  ★git に失敗した"; exit 1; }
 
 echo "  push した。Zennのデプロイで公開される。残り $(ls "$PEND"/*.md 2>/dev/null | wc -l | tr -d ' ') 本"

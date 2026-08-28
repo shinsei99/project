@@ -167,8 +167,17 @@ PYMOVE
   echo "--- 転載URLを links へ ---"
   /usr/bin/python3 scripts/links_sync.py --write
 
-  ( cd .. && git add -A articles ai-tools-base && \
-    git commit -q -m "日次: 記事を1本足して待機場所へ入れた（自動）" && git push -q origin main ) \
+  # ★コミットは**必ずパスを指定する**（`git commit -- <paths>`）。
+  #   素の `git commit` は「インデックス全体」をコミットするので、インデックスが
+  #   何らかの理由で古いと、**他の人が直前に追加したファイルを「削除」としてコミットしてしまう。**
+  #   2026-08-28 にこれが起き、cyborg-defense と digital-shosai の31ファイルが消えて
+  #   gh-pages のデプロイが全フォルダぶん止まった。
+  #   `git commit -- <paths>` は HEAD ＋ 指定パスだけで木を作るので、他人の物は絶対に消えない。
+  #   （小さなリポジトリで①現行=消える ②この形=消えない を実測して確かめてある）
+  #   なお `git add` を先に走らせないと、**新規ファイルは未追跡のままで拾われない**ので順番も大事。
+  ( cd .. && git add -A -- articles ai-tools-base && \
+    git commit -q -m "日次: 記事を1本足して待機場所へ入れた（自動）" -- articles ai-tools-base && \
+    git push -q origin main ) \
     && echo "push した"
 
   # ⑤ 本体サイトを本番へ。**Zennはpushで出るが、本体は vercel --prod が要る**ので

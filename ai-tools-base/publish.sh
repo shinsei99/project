@@ -89,7 +89,11 @@ case "${1:-status}" in
     # ⚠️ 直近24時間の投稿数に上限があり、超えたぶんは**黙って**デプロイされない。
     #    時間を空けて **もう一度 push** が要る（空pushでよい）。
     before="$(zenn_published_slugs | wc -l | tr -d ' ')"
-    ( cd "$REPO_ROOT" && git add articles && git commit -m "Zenn: 記事を更新" || true; git push origin main )
+    # ★コミットは必ずパス指定（`git commit -- articles`）。素の `git commit` は
+    #   インデックス全体を載せるので、他セッションが編集中のファイルや、
+    #   インデックスが古いときは**他人の追加を削除としてコミットしてしまう**
+    #   （2026-08-28 に31ファイルが消えて gh-pages が全体で止まった）。
+    ( cd "$REPO_ROOT" && git add -- articles && git commit -m "Zenn: 記事を更新" -- articles || true; git push origin main )
     echo "push 済み。反映まで数分かかる。1〜2分後に ./publish.sh status で確認すること"
     echo "（push前の公開数: ${before}）"
     ;;
