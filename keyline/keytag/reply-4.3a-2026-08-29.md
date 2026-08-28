@@ -64,13 +64,12 @@ separately. We do intend to keep fixing bugs in the apps that are already live, 
 submit bug-fix updates for those.
 
 One of the three apps rejected at the same time was "にゃんこのアイス屋さん"
-(com.daikyo.nyankoice, Apple ID 6784674385). We accept that decision and will not ship it as
-a separate app. We want to remove it from our account entirely, but we cannot do it
-ourselves: the app is in the Rejected state, and the version cannot be deleted either. The
-API returns "The last version of an app cannot be deleted" and "A version cannot be deleted
-if any build has been uploaded". If you are able to remove that app record on your side,
-please do. We will rebuild that content inside "ネオンブロックス", an app we already have on
-the App Store, so that it does not become another separate app.
+(com.daikyo.nyankoice, Apple ID 6784674385). We are removing it. It will not be shipped as a
+separate app; its content will be rebuilt inside "ネオンブロックス", an app we already have on
+the App Store, so that it does not become another app. The Remove App option is not available
+to us while the app is in the Rejected state, and the version cannot be deleted either
+("The last version of an app cannot be deleted"), so please remove that app record on your
+side.
 
 Our question: if the concern is our portfolio as a whole rather than this specific app,
 please tell us which apps are considered duplicative. We will consolidate or remove them.
@@ -114,12 +113,11 @@ WebView ラッパー Capacitor を除く）。
 続けたいので、その更新は提出することがあります。
 
 同時期に同じ判断を受けた3本のうちの1本が「にゃんこのアイス屋さん」
-（com.daikyo.nyankoice / Apple ID 6784674385）です。この判断は受け入れ、**単独のアプリとしては
-出しません**。アカウントから完全に削除したいのですが、自分たちでは削除できません。
-Rejected 状態のため削除操作が使えず、バージョンの削除もできません（APIは「最後の版は
-削除できない」「ビルドを上げた版は削除できない」と返します）。そちらで App の記録を
-削除していただけると助かります。中身は、すでに App Store にある「ネオンブロックス」の
-**中に作り直します**。別のアプリとして増やすことはしません。
+（com.daikyo.nyankoice / Apple ID 6784674385）です。**これは削除します。** 単独のアプリとしては
+出さず、中身は、すでに App Store にある「ネオンブロックス」の**中に作り直します**
+（アプリを増やすことはしません）。ただし Rejected 状態のあいだは「Appを削除」が使えず、
+バージョンの削除もできません（「最後の版は削除できない」）。**そちらで App の記録の削除を
+お願いします。**
 
 おうかがいしたいこと: もし懸念がこのアプリ単体ではなく、私たちのアプリ全体に
 あるのでしたら、どのアプリが重複していると見なされているか教えてください。
