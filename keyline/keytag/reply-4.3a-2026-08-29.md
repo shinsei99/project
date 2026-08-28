@@ -59,6 +59,14 @@ folding its content into an app we already have on the App Store instead of ship
 separately. We do intend to keep fixing bugs in the apps that are already live, so we may
 submit bug-fix updates for those.
 
+We would also like to ask for your help with one removal. We want to take
+"にゃんこのアイス屋さん" (com.daikyo.nyankoice, Apple ID 6784674385) out of our account
+entirely. It has never been released. We cannot remove it ourselves: the app is in the
+Rejected state, and the version cannot be deleted either. The API returns "The last version
+of an app cannot be deleted" and "A version cannot be deleted if any build has been
+uploaded". If you are able to remove that app record on your side, please do. Its content
+will be folded into an app we already have on the App Store instead.
+
 Our question: if the concern is our portfolio as a whole rather than this specific app,
 please tell us which apps are considered duplicative. We will consolidate or remove them.
 
@@ -100,6 +108,13 @@ WebView ラッパー Capacitor を除く）。
 ある既存アプリの中へ内容をまとめます。なお、すでに配信しているアプリの不具合修正は
 続けたいので、その更新は提出することがあります。
 
+もう1点、削除のお願いがあります。「にゃんこのアイス屋さん」
+（com.daikyo.nyankoice / Apple ID 6784674385）をアカウントから完全に削除したいのですが、
+自分たちでは削除できません。一度も配信していないアプリですが、Rejected 状態のため
+削除操作が使えず、バージョンの削除もできません（APIは「最後の版は削除できない」
+「ビルドを上げた版は削除できない」と返します）。そちらで App の記録を削除していただけると
+助かります。内容は、すでに App Store にある既存アプリの中へまとめます。
+
 おうかがいしたいこと: もし懸念がこのアプリ単体ではなく、私たちのアプリ全体に
 あるのでしたら、どのアプリが重複していると見なされているか教えてください。
 統合するか、取り下げます。
@@ -113,6 +128,19 @@ NDEF データを読み書きします。App Store で見つかった同種の�
 
 文面のやり取りより通話のほうが早いようでしたら、喜んで調整します。
 ```
+
+## にゃんこアイスの削除について（2026-08-29 に分かったこと）
+
+**自分では消せない。** 実測した閉じた輪:
+
+| 試したこと | 返答 |
+|---|---|
+| アプリを削除（画面） | 「このアプリは現在削除できません」＝ **Rejected 状態は削除不可**（Appleドキュメント） |
+| 却下版 1.0 を削除（API） | `The last version of an app cannot be deleted` ／ `A version cannot be deleted if any build has been uploaded` |
+| 新しい版 1.1 を作る（API） | `You cannot create a new version of the App in the current state.` |
+
+→ **この返信の中で Apple に削除を依頼する**（上の文面に入れてある）。
+「再提出→即キャンセル」で状態を変える手もあるが、**提出イベントが1つ増える**ので今はやらない。
 
 ## 送ったあとにやること
 
