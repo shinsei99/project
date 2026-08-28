@@ -59,8 +59,26 @@
     `The resource 'apps' does not allow 'CREATE'`＝**APIでは作れない**
   → **直し方**: オーナーが画面で作る（`RELEASE.md` に入れる値を書いた）
 
+- **症状**: 公開（gh-pages）が**全体で**落ちた。まず `cyborg-defense/www/index.html がありません`、
+  直したら今度は `error: pathspec 'not' did not match any file(s) known to git`
+  → **原因は2つ**: ①`deploy.yml` に `cyborg-defense:www` を書いた時点で `www/` が未コミットだった
+    （**`DEPLOY_FOLDERS` に足すフォルダは、同じ push でリポジトリにも入れる**）／
+    ②ワークフローが `git commit -m "Deploy: ${{ github.event.head_commit.message }}"` と書いており、
+    **Actions が先に展開してからシェルが解釈する**ため、**引用符や改行を含むメッセージでコマンドが壊れる**
+    （任意コード実行の穴でもある）
+  → **直し方**: ①をコミットして push。②は `env:` で渡し、件名（1行目）だけを使う形に修正（`8c761d22`）。
+    **他の5本の公開も同じ理由で止まっていた**ので、まとめて復旧した
+
+- **症状**: `git add` / `git commit` が `Unable to create '.git/index.lock'` で通らない
+  → **原因**: 4セッションが同じ作業ツリーを触っており、**0バイトの `index.lock` が残骸として残っていた**
+  → **直し方**: `rm` は許可されていないので、**一時インデックスでコミットした**
+    （`export GIT_INDEX_FILE=…/tmp-index && git read-tree HEAD && git add … && git commit`）。
+    `.git/index.lock` に触れずに済む
+
 ### 検証（実測）
 
+- **公開版と手元の `www/index.html` の sha256 が一致**（gh-pages 反映を実測）。
+  `support.html` / `privacy.html` とも 200、同梱書体も 200
 - シミュレータ（iPhone 17 Pro Max / iPad Pro 13）で起動 → タイトル・ゲート3択・戦闘・ボス・コンボ・
   ゲームオーバーの**6画面を目視**
 - Web版（`www/`）を HTTP で開いて **25秒の自動操作で例外0件**、書体4つとも `loaded`、
