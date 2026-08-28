@@ -278,7 +278,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | カラー・グラビティ（旧「カラー重力ゲーム」） | color-gravity | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.shinsei99.colorgravity`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `color-gravity/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `color-gravity:www` |
 | サイボーグ防衛軍 | cyborg-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.cyborgdefense`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `cyborg-defense/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `cyborg-defense:www` |
 | にゃんこ大脱出（**全30面**・★評価つき） | neko-escape | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.nekoescape`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `neko-escape/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `neko-escape:www` |
-| にゃんこのアイス屋さん | nyanko-ice | **2026-08-29: Guideline 4.3(a)（スパム）でリジェクト。単独では再提出せず、配信中の「ネオンブロックス」に統合する**（オーナー判断）。**App記録は削除しない**＝ Rejected 状態のアプリは削除できない仕様であり、ビルドを上げた後に削除すると**バンドルIDが再利用できず名前の所有権も失う**（Apple ドキュメント実測）。一度も配信されていないので、放置しても App Store の見え方は変わらない。**Web版（gh-pages）はそのまま公開中** |
+| にゃんこのアイス屋さん | nyanko-ice | **2026-08-29: 4.3(a) でリジェクト → App 記録を削除した**（未配信のまま終了。**バンドルIDは再利用できない**）。手順は3段階で、**①提出物から項目を削除（Rejected → DEVELOPER_REJECTED になる）②配信可能状況を全地域でオフ（ここが本当の詰まり所。未配信でも米日が残っていた）③Appを削除**。詳細は `nyanko-ice/TODO.md`。**Web版（gh-pages）はそのまま公開中**。中身はネオンブロックスへ統合予定 |
 | ネオンブロック | neon-blocks | iOS App Store ✅（**1.0.3 build4 が配信中**・2026-08-24 に API で確認） |
 
 ## ★ 公開サイト（5つ）

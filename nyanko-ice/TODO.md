@@ -1,24 +1,35 @@
 # にゃんこアイス — TODO
 
-## 🛑 単独では出さない。ネオンブロックスに統合する（2026-08-29 オーナー判断）
+## ✅ App 記録は削除済み（2026-08-29）— ネオンブロックスに統合する
 
 **2026-08-29、1.0 が Guideline 4.3(a)（スパム）でリジェクト**（KeyTag・スクラップメモと同時・
-同一の定型文＝アカウント全体の出し方を見られている）。**このアプリは単独で再提出しない。**
-中身は**配信中の「ネオンブロックス」に統合**して、ゲームは1本にまとめる。
+同一の定型文＝アカウント全体の出し方を見られている）。オーナー判断で**単独では再提出せず、
+App 記録も削除した**。API でも消滅を確認済み（`list_apps` が8本になり、`com.daikyo.nyankoice` は無い）。
 
-### ★App 記録は「削除しない」（一度そう決めたが、実測して撤回した）
+### ★削除できた手順（3段階。ここが分かるまで何度も弾かれた）
 
-| 分かったこと | 出典 |
+| 順 | やること | これをやらないと |
+|---|---|---|
+| 1 | **App Review の提出物から項目を削除**（提出の詳細 → 項目の行） | 状態が `REJECTED` のままで、**Rejected は削除不可**（Apple ドキュメント）。項目を外すと **`DEVELOPER_REJECTED` に変わる**＝削除できない状態リストから外れる |
+| 2 | **価格および配信状況 → 配信可能状況を全地域でオフ** | **これが本当の詰まり所だった。** 未配信でも「アメリカ・日本」が `available: true` のまま残っていて（API で実測）、Apple の手順どおり**全地域を外すまで削除できない** |
+| 3 | **App情報 → 下部「Appを削除」** | — |
+
+**やっても無駄だったこと**（API で実測・記録として残す）:
+
+- 却下版 1.0 の削除 → `The last version of an app cannot be deleted` ／ `A version cannot be deleted if any build has been uploaded`
+- 新しい版 1.1 の作成 → `You cannot create a new version of the App in the current state.`
+- 「アプリの却下または削除」サポートフォーム → **Appleが却下・削除したケース専用**で、
+  「自分で消したいのに消せない」は選択肢が無い
+
+### 失ったもの・残ったもの
+
+| | |
 |---|---|
-| **Rejected 状態のアプリはそもそも削除できない** | Apple ドキュメント「Remove an app」: `You can't remove apps that are in the following states: … Rejected` |
-| **ビルドを上げた後に削除すると、バンドルIDを再利用できない** | 同上: `if you've uploaded a build, your bundle ID can't be reused` |
-| **アプリ名の所有権も失う**（他社が取れる） | 同上: `you'll lose ownership of the app name` |
-| **消しても App Store の見え方は変わらない** | 一度も配信されていない＝公開ページが存在しない（2026-08-29 API実測） |
+| 失った | アプリ名「にゃんこのアイス屋さん」の所有権／**バンドルID `com.daikyo.nyankoice` は再利用できない**（ビルドを上げた後に削除したため） |
+| 残った | ストア文言 `store-text.md`／スクショ `screenshots/`／**ゲーム本体 `www/`**／**Web版の公開**（https://shinsei99.github.io/project/nyanko-ice/ ） |
 
-→ **放置でよい。** 再提出しなければ、それ以上は何も起きない。
-（当初「削除する」と書いたが、上の3点が分かった時点で撤回。**バンドルIDが残る**という当時の説明は誤り）
-
-**★Web版（https://shinsei99.github.io/project/nyanko-ice/）はそのまま公開を続ける。**
+**次**: 中身は**配信中の「ネオンブロックス」に統合**する（ゲームは1本にまとめる方針）。
+**★Web版は消さないこと**（`deploy.yml` の `DEPLOY_FOLDERS` に入っている）。
 
 ## 進行中: 見た目・魅力アップ（2026-08-27 着手）
 
