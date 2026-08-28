@@ -60,13 +60,13 @@ python3 push-screenshots.py screenshots/upload/iphone --device iphone --apply
 python3 push-screenshots.py screenshots/upload/ipad   --device ipad   --apply
 ```
 
-### ★人にしかできないこと（残り）
+### 提出まで完了（同日・本人実施）
 
-1. **音を一度聴く**（こちらでは聴けない）。公開版で確認できる → https://shinsei99.github.io/project/nyanko-ice/
-2. **App Store Connect の画面でしか設定できない3つ**: 価格（**無料**）と配信地域／
-   **App のプライバシー（「データを収集しません」）**／年齢制限のアンケート（**4+**。
-   暴力・性的表現・ギャンブル・ユーザー生成コンテンツ すべて該当なし）
-3. **「審査へ提出」を押す**
+オーナーが App Store Connect の画面で、価格・App のプライバシー・年齢制限を設定して**提出**。
+**API で `1.0 … 審査待ち`（`WAITING_FOR_REVIEW`）を確認済み。** これが**このアプリの初提出**。
+
+**音は未試聴のまま提出した。** 気に入らなければ、素材を置いて `USE_FILES=true` にし、
+次のビルド（build 3）で出し直せばよい → https://shinsei99.github.io/project/nyanko-ice/
 
 ### 次回への引き継ぎ事項
 

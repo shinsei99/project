@@ -24,7 +24,9 @@ Console エラー0件。既存のゲーム進行（選択→移動→売却→�
 | 10 | **広告を全部外した（2026-08-28・オーナー判断）**。AdMob の CSS/DOM/JS・プラグイン・Info.plist の2キー・UMP の Pod まで削除。ipa の Frameworks が Capacitor と Cordova だけであることを実測 | **完了** |
 | 11 | **iPadの余白を解消**。`max-width:470px` → `min(100vw,62vh)/720px`。iPhone の見え方は不変（前後比較で確認） | **完了** |
 | 12 | **ストア文言・スクショ・ビルドを App Store Connect へ投入**。1.0 / build 2 をひも付け済み＝**提出直前** | **完了** |
-| 13 | **★人がやること**: ①音を聴く ②ASCの画面で 価格(無料)・App のプライバシー(データを収集しません)・年齢制限(4+) を設定 ③**審査へ提出** | **残り** |
+| 13 | **審査へ提出（2026-08-28・本人実施）**。価格・App のプライバシー・年齢制限も画面で設定済み。API で `1.0 … 審査待ち` を確認 | **完了** |
+| 14 | **審査結果を待つ**（`python3 appstore_api.py --review com.daikyo.nyankoice`）。通ったら `CLAUDE.md` の一覧を「1.0 build2 が配信中」へ書き換える。出し直すときは**必ず build 3 へ** | **待ち** |
+| 15 | **音は未試聴のまま提出した。** 聴いて気に入らなければ差し替えて次のビルドで出す（`www/assets/audio/` に置いて `USE_FILES=true`）→ https://shinsei99.github.io/project/nyanko-ice/ | 確認待ち |
 
 ### GitHub Pages との付き合い方（2026-08-28 オーナー判断・全アプリ共通）
 

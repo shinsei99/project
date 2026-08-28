@@ -278,7 +278,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | カラー重力ゲーム | color-gravity | GitHub Pages |
 | サイボーグ防衛軍 | cyborg-defense | GitHub Pages |
 | にゃんこ大脱出 | neko-escape | GitHub Pages |
-| にゃんこのアイス屋さん | nyanko-ice | **未提出**（1.0 が「提出準備中」）。**2026-08-28 に提出直前まで用意した**＝広告(AdMob)を全廃・ストア文言・スクショ(iPhone5枚+iPad5枚)・**build 2 をひも付け済み**。残るは人の操作3つ（音の試聴／ASC画面で 価格(無料)・Appのプライバシー(データを収集しません)・年齢制限(4+)／審査へ提出）。詳細は `nyanko-ice/SESSION_LOG.md` 冒頭 |
+| にゃんこのアイス屋さん | nyanko-ice | **1.0 build2 を 2026-08-28 に初提出＝審査待ち**（`WAITING_FOR_REVIEW` を API で確認）。**広告(AdMob)を全廃した版**＝広告なし・課金なし・通信なし。スクショは iPhone5枚+iPad5枚。詳細は `nyanko-ice/SESSION_LOG.md` 冒頭 |
 | ネオンブロック | neon-blocks | iOS App Store ✅（**1.0.3 build4 が配信中**・2026-08-24 に API で確認） |
 
 ## ★ 公開サイト（5つ）
