@@ -275,7 +275,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | アプリ名 | フォルダ名 | 外部公開 |
 |---|---|---|
 | ひよこ防衛軍 | piyo-defense | GitHub Pages |
-| カラー重力ゲーム | color-gravity | GitHub Pages |
+| カラー・グラビティ（旧「カラー重力ゲーム」） | color-gravity | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.shinsei99.colorgravity`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `color-gravity/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `color-gravity:www` |
 | サイボーグ防衛軍 | cyborg-defense | GitHub Pages |
 | にゃんこ大脱出 | neko-escape | GitHub Pages |
 | にゃんこのアイス屋さん | nyanko-ice | **1.0 build2 を 2026-08-28 に初提出＝審査待ち**（`WAITING_FOR_REVIEW` を API で確認）。**広告(AdMob)を全廃した版**＝広告なし・課金なし・通信なし。スクショは iPhone5枚+iPad5枚。詳細は `nyanko-ice/SESSION_LOG.md` 冒頭 |

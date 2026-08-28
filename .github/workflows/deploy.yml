@@ -28,7 +28,9 @@ jobs:
           # ★ここへ足すフォルダには support.html / privacy.html を同梱しておくこと。
           #   下の rm -rf は公開先を作り直すので、リポジトリ側に無いファイルは消える。
           #   App Store に登録済みのサポート/プライバシーURLが消えると審査に出せなくなる。
-          DEPLOY_FOLDERS="scrapmemo-petapeta mom-counter realestate-calc nyanko-ice:www"
+          # ★color-gravity は 2026-08-28 に iOS アプリ化したので、本体が www/ へ移った（にゃんこアイスと同じ形）。
+          #   `color-gravity` のままだと直下に index.html が無くてこのステップが落ちる。
+          DEPLOY_FOLDERS="scrapmemo-petapeta mom-counter realestate-calc nyanko-ice:www cyborg-defense:www color-gravity:www neko-escape"
 
           # 各フォルダを一時保存
           for ENTRY in $DEPLOY_FOLDERS; do

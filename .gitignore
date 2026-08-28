@@ -131,6 +131,13 @@ theta-viewer/server/ftp-config.json
 !petapeta-extension/**
 !color-gravity/
 !color-gravity/**
+# Capacitor/Xcode 生成物（各PCで `npm install` → `npx cap add ios` すれば作り直せる）。
+# ★やり直すとビルド番号が1に戻る。出し直すときは ./ios-build-guard.sh color-gravity で確認する
+color-gravity/node_modules/
+color-gravity/ios/
+color-gravity/build-sim/
+color-gravity/build/
+color-gravity/screenshots/shot-build.log
 !cyborg-defense/
 !cyborg-defense/**
 !neko-escape/

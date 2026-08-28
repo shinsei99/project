@@ -1,0 +1,9 @@
+{
+  "appId": "com.shinsei99.colorgravity",
+  "appName": "カラグラ",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#05030fff"
+  }
+}
