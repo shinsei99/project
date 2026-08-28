@@ -4,7 +4,12 @@
   "visibility": "public",
   "category": "realestate",
   "summary": "会社の休業日は、1シート＝1か月のカレンダーになったExcelにある。休みの日のマスがオレンジに塗ってあるだけで、文字は入っていない。人には一目で分かる表を機械に読ませて、色・段組み・月の切り出しの3か所で詰まった。",
-  "stack": ["Python", "openpyxl", "Excel", "SQLite"],
+  "stack": [
+    "Python",
+    "openpyxl",
+    "Excel",
+    "SQLite"
+  ],
   "year": 2026,
   "features": [
     "1シート＝1か月のカレンダーから、塗られたマスの日付を取り出す",
@@ -57,5 +62,11 @@
       "fix": "一度読めたらデータベースへ写し、以後は写しで判定する。読み直しは画面から手動でも行える"
     }
   ],
-  "links": []
+  "links": [
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/nf2f8ef6a8b73",
+      "note": "技術用語なしの読み物"
+    }
+  ]
 }

@@ -1,26 +1,21 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { BookOpen, Trash2, Loader2, Upload, ImageOff, Eraser, Download, FileUp, ScanText } from "lucide-react";
+import { BookOpen, Trash2, Loader2, Upload, ImageOff, Eraser, Download, FileUp } from "lucide-react";
 import { StorageMeter, formatBytes } from "@/components/StorageMeter";
 import {
   clearImageCache,
   deleteBook,
   exportPayload,
-  getBookPages,
   getCoverUrl,
   getStatus,
   importPayload,
   listBooks,
-  replaceIndex,
   type BookRecord,
 } from "@/lib/db";
 import type { LibraryStatus } from "@/lib/types";
-import { READABLE_QUALITY, REBUILT_HEAVY } from "@/lib/constants";
-import { available as ocrAvailable, reocrBook } from "@/lib/nativeOcr";
-import { forgetDoc, qualityOf } from "@/lib/pdfClient";
-import { bundledUrl } from "@/lib/bundled";
+import { READABLE_QUALITY } from "@/lib/constants";
 
 /**
  * 本棚。**表紙を並べて、開くと本文（テキスト）を読む**。
@@ -34,12 +29,6 @@ export default function LibraryPage() {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  // 端末内OCRが使えるか（iOS 26以降のアプリ版だけ true）。使えないならボタンごと出さない
-  const [ocrOk, setOcrOk] = useState(false);
-  const [reocr, setReocr] = useState<{ bookId: string; done: number; total: number } | null>(null);
-  // 原本PDFを選び直してもらうための入力（本文だけ持っていて原本は保存していないため）
-  const pickPdf = useRef<HTMLInputElement>(null);
-  const pickFor = useRef<BookRecord | null>(null);
 
   const refresh = useCallback(async () => {
     const [list, st] = await Promise.all([listBooks(), getStatus()]);
@@ -52,7 +41,6 @@ export default function LibraryPage() {
 
   useEffect(() => {
     refresh();
-    ocrAvailable().then((r) => setOcrOk(r.available));
     return () => {
       // objectURL を解放する
       setCovers((c) => {
@@ -61,64 +49,6 @@ export default function LibraryPage() {
       });
     };
   }, [refresh]);
-
-  /**
-   * 原本PDFを端末内OCRで読み直して、本文を入れ替える。
-   *
-   * **原本は保存していない**ので、同梱本なら自前で開き、それ以外はその場で選んでもらう。
-   * 読み取りは端末の中だけで動く（通信しない）。
-   */
-  const runReocr = useCallback(
-    async (book: BookRecord, file: File) => {
-      setMenu(null);
-      setNotice(null);
-      setReocr({ bookId: book.id, done: 0, total: book.pageCount });
-      try {
-        const before = await getBookPages(book.id);
-        const { pages, failed } = await reocrBook(
-          file,
-          book.pageCount,
-          before.map((p) => ({ pageNumber: p.pageNumber, text: p.text })),
-          (done, total) => setReocr({ bookId: book.id, done, total })
-        );
-        const quality = qualityOf(pages);
-        await replaceIndex(book.id, pages, { quality });
-        await refresh();
-        const pct = Math.round(quality * 35);
-        setNotice(
-          `「${book.title}」を読み取り直しました（ひらがな率 ${pct}%）` +
-            (failed.length ? `。${failed.length}ページは読み取れず、元の本文を残しました` : "")
-        );
-      } catch (e) {
-        setNotice(`読み取り直しに失敗しました: ${e instanceof Error ? e.message : String(e)}`);
-      } finally {
-        forgetDoc(`reocr|${file.name}|${file.size}`);
-        setReocr(null);
-      }
-    },
-    [refresh]
-  );
-
-  /** 「読み取り直す」を押したとき。同梱本は自前で開き、それ以外はファイルを選んでもらう */
-  const startReocr = useCallback(
-    async (book: BookRecord) => {
-      if (book.bundled) {
-        try {
-          const res = await fetch(bundledUrl(book.bundled));
-          if (res.ok) {
-            const name = book.source?.fileName ?? book.bundled;
-            await runReocr(book, new File([await res.blob()], name, { type: "application/pdf" }));
-            return;
-          }
-        } catch {
-          // 開けなければ、下と同じくファイルを選んでもらう
-        }
-      }
-      pickFor.current = book;
-      pickPdf.current?.click();
-    },
-    [runReocr]
-  );
 
   const remove = useCallback(
     async (id: string) => {
@@ -220,8 +150,6 @@ export default function LibraryPage() {
           {books.map((b) => {
             const cover = covers[b.id];
             const readable = (b.quality ?? 0) >= READABLE_QUALITY;
-            // 読み取り直しを勧めるか。**ひらがな率だけでは足りない**（constants の REBUILT_HEAVY 参照）
-            const worthReocr = !readable || (b.rebuiltRatio ?? 0) >= REBUILT_HEAVY;
             return (
               <li key={b.id} className="flex flex-col gap-2">
                 <Link
@@ -284,31 +212,6 @@ export default function LibraryPage() {
                       <p className="text-slate-400">
                         原本: {b.source?.fileName ?? "不明"}（{formatBytes(b.source?.fileSize ?? 0)}）
                       </p>
-                      {ocrOk && worthReocr && (
-                        <div className="space-y-1 rounded border border-amber-900/60 bg-amber-950/20 p-2">
-                          <p className="text-amber-200">
-                            {(b.rebuiltRatio ?? 0) >= REBUILT_HEAVY
-                              ? "縦書きページが1文字ずつ拾われている本です。"
-                              : "文字の読み取りが崩れている本です。"}
-                            <strong>端末の中だけで</strong>読み取り直せます
-                            （通信しません。{b.pageCount}ページで数分かかります）。
-                          </p>
-                          <button
-                            onClick={() => startReocr(b)}
-                            disabled={reocr !== null}
-                            className="inline-flex items-center gap-1 rounded border border-amber-700 px-2 py-1 text-amber-200 hover:bg-amber-900/30 disabled:opacity-50"
-                          >
-                            {reocr?.bookId === b.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            ) : (
-                              <ScanText className="h-3.5 w-3.5" />
-                            )}
-                            {reocr?.bookId === b.id
-                              ? `読み取り中 ${reocr.done}/${reocr.total}ページ`
-                              : "文字を読み取り直す"}
-                          </button>
-                        </div>
-                      )}
                       <button
                         onClick={async () => {
                           setBusy(b.id);
@@ -361,21 +264,6 @@ export default function LibraryPage() {
           })}
         </ul>
       )}
-
-      {/* 読み取り直しのときに原本PDFを選んでもらう（本文だけ持っていて原本は保存していない） */}
-      <input
-        ref={pickPdf}
-        type="file"
-        accept="application/pdf,.pdf"
-        className="hidden"
-        onChange={async (e) => {
-          const file = e.target.files?.[0];
-          const book = pickFor.current;
-          e.target.value = "";       // 同じファイルを続けて選べるようにする
-          pickFor.current = null;
-          if (file && book) await runReocr(book, file);
-        }}
-      />
 
       {books && books.length > 0 && (
         <p className="text-xs text-slate-500">

@@ -4,7 +4,12 @@
   "visibility": "public",
   "category": "realestate",
   "summary": "コードは直っている。コミットもしてある。なのに動いているものが古い。常時起動のアプリで、原因の違う4パターンを同じ月に踏んだ。どれもエラーは出ないので、確認の手順を持たないと気づけない。",
-  "stack": ["launchd", "Streamlit", "Node.js", "macOS"],
+  "stack": [
+    "launchd",
+    "Streamlit",
+    "Node.js",
+    "macOS"
+  ],
   "year": 2026,
   "features": [
     "常時起動アプリは、起動のたびに必ずビルドし直す",
@@ -56,5 +61,11 @@
       "fix": "共有部分を直したら、それを読んでいる常駐を全部入れ替える。動作確認は再起動後に行う"
     }
   ],
-  "links": []
+  "links": [
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/nbe1a9960df16",
+      "note": "技術用語なしの読み物"
+    }
+  ]
 }

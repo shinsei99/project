@@ -6,7 +6,7 @@
 //   extractIndex() … 取り込み時。**テキストだけ**を抜いて索引にする（1ページ1ms程度）
 //   renderPage()   … 見たいページだけ、その場で画像にする（60〜110ms程度）
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf";
-import { COVER_CANDIDATES, COVER_TARGET_WIDTH, IMAGE_CANDIDATES, OCR_RENDER_SCALE, RENDER_SCALE } from "@/lib/constants";
+import { COVER_CANDIDATES, COVER_TARGET_WIDTH, IMAGE_CANDIDATES, RENDER_SCALE } from "@/lib/constants";
 import type { BookSource } from "@/lib/types";
 
 // ワーカーは public/ に同梱した自前ホストのものを使う（オフライン動作）
@@ -140,31 +140,6 @@ function rebuild(items: any[]): string {
 // 取り込み（索引づくり）
 // ============================================================================
 
-/**
- * 読み順に並んだ「行の列」を、本文として読める形に組み立てる。
- *
- * 端末内OCR（`nativeOcr.ts`）の結果を、取り込み時とまったく同じ規則で通すために外へ出している。
- * **柱とノンブルを落としてから段落にまとめる**（順序が逆だと本文の数字を削る）。
- */
-export function assembleLines(lines: string[]): string {
-  return joinParagraphs(dropRunningHeads(lines));
-}
-
-/**
- * 本文の読みやすさ（0〜1）。ひらがな率 35% を満点として頭打ちにする。
- * **`extractIndex` と同じ式**。読み取り直したあとの本を同じ物差しで測るために切り出した。
- */
-export function qualityOf(pages: { text: string }[]): number {
-  let chars = 0;
-  let hira = 0;
-  for (const p of pages) {
-    const t = p.text.replace(/\s/g, "");
-    chars += t.length;
-    hira += t.match(/[ぁ-ん]/g)?.length ?? 0;
-  }
-  return chars ? Math.min(1, hira / chars / 0.35) : 0;
-}
-
 export interface ExtractedPage { pageNumber: number; text: string }
 export interface ExtractResult {
   pages: ExtractedPage[];
@@ -195,6 +170,8 @@ export async function extractIndex(file: File, onProgress?: ProgressFn): Promise
   const total = pdf.numPages;
   const pages: ExtractedPage[] = [];
   let rebuilt = 0;
+  let hira = 0;
+  let chars = 0;
 
   for (let i = 1; i <= total; i++) {
     const page = await pdf.getPage(i);
@@ -216,13 +193,18 @@ export async function extractIndex(file: File, onProgress?: ProgressFn): Promise
       }
     }
     pages.push({ pageNumber: i, text });
+    const t = text.replace(/\s/g, "");
+    chars += t.length;
+    hira += t.match(/[ぁ-ん]/g)?.length ?? 0;
     page.cleanup();
     onProgress?.(i, total);
   }
   await pdf.destroy();
 
-  // 読みやすさの式は qualityOf() に置いてある（読み取り直したあとも同じ物差しで測るため）
-  return { pages, quality: qualityOf(pages), rebuiltRatio: total ? rebuilt / total : 0 };
+  // 読みやすさ: ひらがな率 35% を満点として頭打ちにする（日本語の散文の目安が30〜45%。
+  // OCRが崩れたページはひらがなが極端に少なくなる＝実機の本で確認した指標）
+  const quality = chars ? Math.min(1, hira / chars / 0.35) : 0;
+  return { pages, quality, rebuiltRatio: total ? rebuilt / total : 0 };
 }
 
 // ============================================================================
@@ -284,33 +266,6 @@ export async function renderPage(
   page.cleanup();
   if (!blob) throw new Error("画像化に失敗しました");
   return { blob, width: canvas.width, height: canvas.height };
-}
-
-/**
- * 端末内OCRに渡すためのページ画像を作る（base64のJPEG）。
- *
- * **読書用の画像とは別に作る。** 読書用は `RENDER_SCALE`（2.0）だが、OCRは細部を見るので
- * `OCR_RENDER_SCALE`（3.0）で描く。形式は JPEG に固定する（iPhone は WebP を書き出せない
- * ＝実機で確認済みで、ここで形式を探る意味がない）。画像はプラグインへ渡すだけで保存しない。
- */
-export async function renderPageForOcr(file: File, pageNumber: number,
-                                       key = file.name + "|" + file.size): Promise<string> {
-  let pdf = openDocs.get(key);
-  if (!pdf) {
-    pdf = await open(await file.arrayBuffer());
-    openDocs.set(key, pdf);
-  }
-  const page = await pdf.getPage(pageNumber);
-  const viewport = page.getViewport({ scale: OCR_RENDER_SCALE });
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.ceil(viewport.width);
-  canvas.height = Math.ceil(viewport.height);
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Canvas 2D コンテキストを取得できませんでした");
-  await page.render({ canvasContext: ctx, viewport }).promise;
-  page.cleanup();
-  // data URL の前置き（"data:image/jpeg;base64,"）は付けたまま渡す。プラグイン側で落とす
-  return canvas.toDataURL("image/jpeg", 0.92);
 }
 
 /**

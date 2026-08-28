@@ -295,49 +295,6 @@ export async function saveIndex(
   return book;
 }
 
-/**
- * 本文だけを入れ替える（端末内OCRで読み取り直したとき）。
- *
- * **既存レコードの id を使い回す。** ページ画像のキャッシュは `pageText` と同じ id で
- * ひもづいているので、作り直すとキャッシュが迷子になる（容量だけ食って二度と使われない）。
- * 元より少ないページしか渡されなかった場合、渡されなかったページには手を触れない。
- */
-export async function replaceIndex(
-  bookId: string,
-  pages: NewPageText[],
-  meta: { quality?: number } = {}
-): Promise<BookRecord | null> {
-  const db = await getDB();
-  const book = await db.get("books", bookId);
-  if (!book) return null;
-
-  const tx = db.transaction(["books", "pageText"], "readwrite");
-  const store = tx.objectStore("pageText");
-  const existing = await store.index("byBook").getAll(bookId);
-  const byNumber = new Map(existing.map((p) => [p.pageNumber, p]));
-  const incoming = new Map(pages.map((p) => [p.pageNumber, p.text]));
-
-  for (const p of pages) {
-    const old = byNumber.get(p.pageNumber);
-    await store.put({
-      id: old?.id ?? uuid(),
-      bookId,
-      pageNumber: p.pageNumber,
-      text: p.text,
-      lower: p.text.toLowerCase(),
-    });
-  }
-  // 触っていないページの文字数も数に入れる（渡されなかったページは元のまま残っている）
-  let textChars = 0;
-  for (const p of existing) textChars += (incoming.get(p.pageNumber) ?? p.text).length;
-  for (const p of pages) if (!byNumber.has(p.pageNumber)) textChars += p.text.length;
-
-  const updated: BookRecord = { ...book, textChars, quality: meta.quality ?? book.quality };
-  await tx.objectStore("books").put(updated);
-  await tx.done;
-  return updated;
-}
-
 /** 原本を選び直したときに目印を更新する */
 export async function relinkSource(bookId: string, source: BookSource): Promise<void> {
   const db = await getDB();
