@@ -2,7 +2,7 @@
   "name": "nyanko-ice",
   "version": "1.0.0",
   "private": true,
-  "description": "にゃんこアイス — 落ち物系ソートパズル（Capacitor + AdMob）",
+  "description": "にゃんこアイス — 落ち物系ソートパズル（Capacitor・広告なし）",
   "scripts": {
     "sync": "cap sync",
     "open:ios": "cap open ios",
@@ -13,8 +13,7 @@
   "dependencies": {
     "@capacitor/android": "^6.1.2",
     "@capacitor/core": "^6.1.2",
-    "@capacitor/ios": "^6.1.2",
-    "@capacitor-community/admob": "^6.1.0"
+    "@capacitor/ios": "^6.1.2"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.2"

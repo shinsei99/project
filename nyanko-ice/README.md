@@ -1,84 +1,39 @@
-# にゃんこアイス 🍦 — AdMob 本番化セットアップ
+# にゃんこアイス 🍦
 
-落ち物系ソートパズル。ゲーム本体は `www/index.html`（単体で動作）。
-広告は **Capacitor + Google AdMob** でネイティブアプリ化して収益化する。
+落ち物系ソートパズル。**ゲーム本体は `www/index.html` の1枚**（外部ライブラリ無し・単体で動く）。
+iOS アプリは Capacitor で同じ1枚を包んでいる。
 
-- **ブラウザ**で `www/index.html` を開く → 広告は **DOMモック**（収益なし・動作確認用）
-- **ネイティブアプリ**（下記手順）→ **本物のAdMob広告**（バナー／インタースティシャル／動画リワード）
+## 広告は入っていない（2026-08-28 にすべて外した）
 
----
+もともと AdMob（バナー／3ステージごとの全画面／ゲームオーバー時の動画リワード）が
+入っていたが、**オーナー判断で「一旦、広告なしで出す」**ことにしたため、次を全部削除した。
 
-## 広告の出しどころ（実装済み）
+| 消したもの | |
+|---|---|
+| `www/index.html` | 広告のCSS・DOM・`initAds` / `showInterstitial` / `showRewarded` とブラウザ用モック |
+| `capacitor.config.json` | `plugins.AdMob`（アプリIDごと） |
+| `package.json` | `@capacitor-community/admob` |
+| `ios/App/App/Info.plist` | `GADApplicationIdentifier` と `NSUserTrackingUsageDescription` |
+| `ios/App/Podfile` | `GoogleUserMessagingPlatform`（AdMobの同意取得SDK） |
 
-| 種類 | タイミング | コード |
-|---|---|---|
-| バナー | 画面下に常時 | `initAds()` → `AdMob.showBanner` |
-| インタースティシャル | 3ステージクリアごと | `advanceStage()` → `showInterstitial()` |
-| 動画リワード | ゲームオーバーの「動画を見てコンテニュー」 | `showRewarded(continueStage, ...)` |
+**ゲームオーバーの「コンテニュー」は残した。** 動画を見る代わりに無条件で押せる
+（ボタンの文言も `🎬 動画を見てコンテニュー` → `▶ つづきから` に変えた）。
+広告を戻すときは、コミット `942174fe` 以前の同ファイルを見ればすべて揃う。
 
-現状は **Googleの公式テストID** を使用。実機で「Test Ad」と出れば成功。
+**この結果、アプリは外部と一切通信しない。** 第三者SDKも無く、集めているデータも無い
+（App Store の「プライバシー」では「データを収集しません」）。
 
----
+## セットアップ・ビルド
 
-## セットアップ手順
-
-### 1. 依存インストール & プラットフォーム追加
 ```bash
 cd ~/nyanko-ice
 npm install
-npx cap add ios       # iOS
-npx cap add android   # Android（任意）
-npx cap sync
+npx cap sync ios
+xcodebuild -workspace ios/App/App.xcworkspace -scheme App … archive   # 手順は下の「App Store へ出す」
 ```
 
-### 2. AdMob アプリIDをネイティブに設定
-`capacitor.config.json` の `plugins.AdMob.appId` は **テスト用**。本番は自分のAdMobアプリIDに変更し、`npx cap sync` で反映。
-
-- **iOS**: `ios/App/App/Info.plist` に `GADApplicationIdentifier`（cap syncで入るが要確認）
-  - ATT（トラッキング許可）を使う場合は `NSUserTrackingUsageDescription` も追記
-- **Android**: `android/app/src/main/AndroidManifest.xml` の
-  `com.google.android.gms.ads.APPLICATION_ID` を確認
-
-### 3. 広告ユニットIDを本番に差し替え
-`www/index.html` 内の以下を、AdMob管理画面で発行した本番IDに変更：
-```js
-const TESTING = true;   // ← 本番リリース時は false
-const AD_IDS = {
-  ios:     { banner:'...', interstitial:'...', reward:'...' },
-  android: { banner:'...', interstitial:'...', reward:'...' },
-};
-```
-変更後は `npx cap sync`。
-
-### 4. ビルド・実行
-```bash
-npx cap open ios       # Xcodeで実機/シミュレータ実行
-npx cap open android   # Android Studioで実行
-```
-
----
-
-## 注意・チェックリスト
-
-- **プラグインのイベント名はバージョン依存**。`showInterstitial` / `showRewarded` 内の
-  `addListener('interstitialAdDismissed' / 'onRewardedVideoAdReward' / 'onRewardedVideoAdDismissed', …)`
-  は `@capacitor-community/admob` v6 準拠。導入版のドキュメントで名称を確認し、必要なら修正。
-- リリース前に **`TESTING=false`** と **本番ID** に必ず切替（テスト中に本番IDを叩くとポリシー違反になり得る）。
-- iOSは **App Tracking Transparency** の対応（`requestTrackingAuthorization`）を検討。
-- 既存の `piyo-defense/ios` と同じCapacitorワークフローで運用可能。
-
-## ブラウザでの動作確認
-
-**`open www/index.html` では書体が当たらない。** Chrome は `file://` からのフォント取得を
-止めることがあり、日本語が OS 標準（ヒラギノ）で描かれる。**HTTP 経由で開くこと。**
-
-```bash
-cd ~/nyanko-ice/www && python3 -m http.server 8571 --bind 127.0.0.1
-# → http://127.0.0.1:8571/index.html
-```
-
-実運用では起きない問題（Capacitor は独自スキームのHTTP、GitHub Pages もHTTP）。
-AdMob未接続のためモック広告。ゲーム挙動・広告の出るタイミング確認用。
+**`ios/` は gitignore。** 別PCでは `npx cap add ios` から作り直す（そのとき Podfile に
+広告SDKが入っていないことを確認すること）。
 
 ---
 
