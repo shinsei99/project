@@ -1,0 +1,11 @@
+{
+  "appId": "com.daikyo.cyborgdefense",
+  "appName": "サイボーグ防衛軍",
+  "webDir": "www",
+  "backgroundColor": "#04030c",
+  "ios": {
+    "contentInset": "never",
+    "scrollEnabled": false,
+    "backgroundColor": "#04030c"
+  }
+}

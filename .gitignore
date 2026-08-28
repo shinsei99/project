@@ -140,6 +140,18 @@ color-gravity/build/
 color-gravity/screenshots/shot-build.log
 !cyborg-defense/
 !cyborg-defense/**
+# iOSプロジェクトと依存は入れない（他PCで `npx cap add ios` から作り直す前提。
+# 作り直したときに入れ直す設定は cyborg-defense/RELEASE.md の表にある）
+cyborg-defense/ios/
+cyborg-defense/node_modules/
+cyborg-defense/build/
+cyborg-defense/build-sim/
+cyborg-defense/screenshots/shot-build.log
+# 撮ったPNGは入れない（1回ぶんで65MB。`screenshots/shoot.sh` でいつでも撮り直せる）。
+# にゃんこアイスも同じ扱い（スクリプトだけ git に入っている）
+cyborg-defense/screenshots/shots/
+cyborg-defense/screenshots/shots-ipad/
+cyborg-defense/screenshots/upload/
 !neko-escape/
 !neko-escape/**
 !neon-blocks/
