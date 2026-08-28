@@ -9,12 +9,12 @@
       長文だとテキスト欄が数千pxに伸び、末尾の「完了」に指が届かず、
       枠外タップ＝保存せず閉じる、を踏みやすかった。ヘッダーなら**縦を1pxも使わない**
 - [x] 字数の独立行を廃してタイトル横へ畳んだ（そのぶん編集エリアが広がる）
-- [x] ~~**Web版（GitHub Pages）へ反映**~~ → **見送り（2026-08-28 オーナー判断）**。
-      使うのは App Store のアプリだけなので、触れる Web版を最新にする意味が無い。
-      **ただし `support.html` / `privacy.html` は消さない**（App Store に登録済みの
-      必須URL `…/project/scrapmemo-petapeta/support.html` `/privacy.html` が
-      このフォルダを指している。2026-08-28 に API で実測）。
-      `index.html` は古いまま置いておく＝アプリ側には一切影響しない
+- [x] **Web版（GitHub Pages）へ反映（2026-08-28 に反映済み）** — このアプリは Actions の
+      `DEPLOY_FOLDERS` に元から入っているので、**main へ push した時点で自動で出ていた**
+      （公開版に新UIが入っていることを実測）。**手で置きに行く作業は不要**
+- **消さないこと**: `support.html` / `privacy.html` は App Store に登録済みの必須URL
+      （`…/project/scrapmemo-petapeta/support.html` `/privacy.html`）の実体。
+      デプロイは公開先を `rm -rf` で作り直すため、リポジトリから消すと公開先からも消える
 - [x] **iOSアプリへ反映（2026-08-28）** — `npm run sync` → build 9 / 表示 1.0.5 へ繰り上げ →
       Archive → アップロード（`UPLOAD SUCCEEDED`）→ ASC に **1.0.5 を作成・最新情報・build 9 をひも付け**
 - [x] **1.0.5 を審査へ提出（2026-08-28・本人実施）** — API で `審査待ち` を確認
