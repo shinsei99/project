@@ -1,23 +1,25 @@
 # にゃんこ大脱出 — TODO
 
-## 進行中（2026-08-28 メインPC・夜）: iOSアプリ化 → App Store 提出直前まで
+## 完了（2026-08-28 メインPC・夜）: iOSアプリ化 → App Store 提出直前まで
 
 **目的**: にゃんこアイス／カラー重力／サイボーグ防衛軍と同じところまで持っていく
 （＝**人がやるのは「App 記録を作る」と「提出」だけ**の状態）。
 
 | # | 実装内容 | 状態 |
 |---|---|---|
-| 1 | 本体を `www/` へ移す（Capacitor の webDir）。**同じ push で `deploy.yml` を `neko-escape:www` に直す**（直さないと gh-pages が落ちる。今日それで全体が止まった） | |
-| 2 | Capacitor 8（SPM）で iOS プロジェクト作成。`com.daikyo.nekoescape`・1.0/build1・**MinimumOSVersion 15.0** | |
-| 3 | アイコンと起動画面を自前生成（本編と同じネコの顔。**アルファ無し・角丸を付けない**） | |
-| 4 | `www/support.html` / `www/privacy.html`（**Appleの必須URL**。gh-pages に出す） | |
-| 5 | `store-text.md`（**先に App Store を実測して 4.3(a) スパム判定を避ける**。KeyTag で実際に食らった） | |
-| 6 | スクリーンショット iPhone 1284×2778 ×5／iPad 2048×2732 ×5（シミュレータから・タップ不要） | |
-| 7 | Archive → ipa 書き出し → 配信物の実測（Frameworks・最低OS・通信の有無） | |
-| 8 | `finish-release.py`（記録ができた後は1コマンド）＋ `RELEASE.md` | |
+| 1 | 本体を `www/` へ移す＋`deploy.yml` を `neko-escape:www` へ | 完了 |
+| 2 | Capacitor 8（SPM）・`com.daikyo.nekoescape`・1.0/build1・MinimumOSVersion 15.0 | 完了 |
+| 3 | アイコンと起動画面（本編と同じネコの顔・アルファ無し・60px相当でも潰れない） | 完了 |
+| 4 | `www/support.html` / `www/privacy.html` | 完了 |
+| 5 | `store-text.md`（App Store を実測。完全一致0件・近い名前は別ジャンルと確認） | 完了 |
+| 6 | スクショ iPhone 1290×2796／1284×2778／iPad 2048×2732 を各5枚 | 完了 |
+| 7 | Archive → ipa（870KB）→ 配信物を実測（Frameworks 2つ・通信なし・細工の残り0） | 完了 |
+| 8 | `finish-release.py` ＋ `RELEASE.md` | 完了 |
 
-**完了条件**: `build/export/App.ipa` ができ、`altool --validate-app` が
-「App 記録が無い」以外の理由で落ちないこと／必須URLが 200／スクショが規定寸法。
+**結果**: `build/export/App.ipa` ができ、`altool --validate-app` は
+**「App 記録が無い」以外の理由では落ちていない**（= 想定どおりの状態）。
+シミュレータで見つけた不具合2件（「ぜんぶで20ステージ」の古い表記／ヘッダーが
+Dynamic Island に潜る）も直した。
 
 **★人にしかできないこと**: App Store Connect で App 記録を作る（`POST /v1/apps` は
 403 で API 不可・他アプリで実測済み）／価格・Appのプライバシー・年齢制限・提出。

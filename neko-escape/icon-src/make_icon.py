@@ -69,13 +69,14 @@ def draw_cat(d: ImageDraw.ImageDraw, cx: float, cy: float, s: float) -> None:
     # 顔
     ellipse(0, 0, 300, 268, CREAM, lw)
 
-    # キジトラのぶち（左上）。顔からはみ出さないよう、顔の形で切り抜いてから貼る
-    patch = Image.new("RGB", (int(600 * s), int(536 * s)), CREAM)
+    # キジトラのぶち。**丸い模様**にする（角ばった多角形にすると絆創膏に見えた）。
+    # 顔からはみ出さないよう、顔の形のマスクで切り抜いてから貼る
+    fw, fh = int(600 * s), int(536 * s)
+    patch = Image.new("RGB", (fw, fh), CREAM)
     pd = ImageDraw.Draw(patch)
-    pd.polygon([(int(70 * s), 0), (int(330 * s), int(40 * s)),
-                (int(250 * s), int(230 * s)), (int(20 * s), int(150 * s))], fill=TABBY)
-    mask = Image.new("L", patch.size, 0)
-    ImageDraw.Draw(mask).ellipse([0, 0, patch.size[0] - 1, patch.size[1] - 1], fill=255)
+    pd.ellipse([int(28 * s), int(20 * s), int(300 * s), int(250 * s)], fill=TABBY)
+    mask = Image.new("L", (fw, fh), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, fw - 1, fh - 1], fill=255)
     d._image.paste(patch, (int(cx - 300 * s), int(cy - 268 * s)), mask)
     ellipse(0, 0, 300, 268, None, lw)          # ぶちの上から輪郭を引き直す
 
@@ -83,14 +84,15 @@ def draw_cat(d: ImageDraw.ImageDraw, cx: float, cy: float, s: float) -> None:
     for sx in (-1, 1):
         ellipse(sx * 108, -34, 46, 56, INK)
         ellipse(sx * 108 + 16, -54, 16, 16, (255, 255, 255))
-    # 鼻と口
+    # 鼻
     d.polygon([P(-42, 60), P(42, 60), P(0, 108)], fill=NOSE)
+    # 口は「ω」。★弧は必ず「箱＋0〜180度」で描く。始点終点を手で計算すると
+    #   ぐるりと回った線になり、頬に傷があるような顔になる（実際に一度そうなった）
     for sx in (-1, 1):
-        d.arc([P(sx * 88 - 88, 96), P(sx * 88 + 88, 200)],
-              200 if sx < 0 else 300, 340 if sx < 0 else 80, fill=INK, width=int(20 * s))
+        d.arc([P(sx * 44 - 46, 96), P(sx * 44 + 46, 178)], 0, 180, fill=INK, width=int(20 * s))
     # ひげ
     for sx in (-1, 1):
-        for k, (y0, y1) in enumerate(((-20, -46), (40, 34))):
+        for y0, y1 in ((-20, -46), (40, 34)):
             d.line([P(sx * 280, y0), P(sx * 470, y1)], fill=INK, width=int(18 * s))
 
 

@@ -1,8 +1,9 @@
 # にゃんこ大脱出 🐱
 
-おじいちゃんの家から、おそうじロボットに捕まらずキャットタワーへ逃げるターン制パズル。**全20ステージ**。
+おじいちゃんの家から、おそうじロボットに捕まらずキャットタワーへ逃げるターン制パズル。**全30ステージ**。
 
-**`index.html` の1枚で完結**（外部ライブラリ・画像素材ゼロ）。同じフォルダにあるのは書体だけ。
+**`www/index.html` の1枚で完結**（外部ライブラリ・画像素材ゼロ）。同じ場所にあるのは書体と、
+Appleの必須ページ（`support.html` / `privacy.html`）だけ。iOSアプリ版も同じ1枚を包んでいる。
 
 ```bash
 ./run.sh                              # http://127.0.0.1:8543 で開く
@@ -10,7 +11,7 @@
 open "http://127.0.0.1:8543/index.html?stage=13"   # ★そのステージから始める（確認用）
 ```
 
-> **`file://` で開かない。** 書体（`assets/fonts/*.woff2`）の読み込みがブラウザに止められ、
+> **`file://` で開かない。** 書体（`www/assets/fonts/*.woff2`）の読み込みがブラウザに止められ、
 > 「手元では平気なのに実際は豆腐」を取り違える。確認は必ず HTTP で。
 
 ## ルール
@@ -75,7 +76,7 @@ node tools/analyze-stages.js --opt     # 貼り直す値と、ズレている面
 
 ### 書体（Zen Maru Gothic・SIL OFL）
 
-`assets/fonts/ZenMaruGothic-{500,900}.woff2` を同梱（商用可・埋め込み可・**再配布可**）。
+`www/assets/fonts/ZenMaruGothic-{500,900}.woff2` を同梱（商用可・埋め込み可・**再配布可**）。
 丸ごとの日本語フォントは数MBあるので、**画面に出る文字だけ**に絞ってある（各45KB前後）。
 
 ```bash
@@ -83,16 +84,16 @@ python3 tools/fetch-font.py          # 取り直す
 python3 tools/fetch-font.py --check  # いま何字使っているかだけ見る
 ```
 
-> **`index.html` の文言を変えたら必ず流し直すこと。** 忘れると増やした字が □ になる。
+> **`www/index.html` の文言を変えたら必ず流し直すこと。** 忘れると増やした字が □ になる。
 > Google Fonts の css2 API に `text=` を渡すサーバ側サブセットなので `fonttools` は要らない。
 > スクリプトは **HTMLのテキストとJSの文字列リテラルだけ**を拾う（ソース全体をなめると
 > 日本語コメントの漢字まで拾ってフォントが倍近くに膨らむ）。
 
 ### 音
 
-**音のファイルは同梱していない。** 効果音9種もBGMも `index.html` の中で WebAudio により合成している。
+**音のファイルは同梱していない。** 効果音10種もBGMも `www/index.html` の中で WebAudio により合成している。
 
-録音した素材に差し替えたいときは、`assets/audio/` に `step.mp3` `fish.mp3` …（名前は `SFX_FILES` のとおり）を
+録音した素材に差し替えたいときは、`www/assets/audio/` に `step.mp3` `fish.mp3` …（名前は `SFX_FILES` のとおり）を
 置いて `USE_FILES = true` にするだけ。無いファイルはそのキーだけ合成音のまま鳴る（落ちない）。
 
 > 持ち込んでよいのは**商用可 かつ 再配布可**の素材だけ（このリポジトリは public）。
@@ -105,7 +106,7 @@ BGM はハ長調のペンタトニック（ド・レ・ミ・ソ・ラ）だけ�
 
 | キー | 中身 |
 |---|---|
-| `neko_escape_v2` | `{cleared: クリア済みステージ数, best: {ステージ番号: 最少手数}}` |
+| `neko_escape_v2` | `{cleared: クリア済みステージ数, best: {ステージ番号: 最少手数}}`（★はここから導く） |
 | `neko_escape_sound` | 音のオン・オフ |
 
 ステージ選択は **クリア済み＋1** まで開く。`?stage=N` は確認用の抜け道で、記録は付かない。
@@ -164,7 +165,24 @@ node tools/analyze-stages.js     # 全30面を解いて表を出す
 ```
 
 **画面を見ずに「直った」と言わない。** 2026-08-28 の作り替えでは、タイトル／盤面／ステージ選択／
-クリア画面／iPhone幅の5枚を目で見て、全20ステージを機械で読み込み＋3手ずつ打って例外0件を確認した。
+クリア画面／iPhone幅の5枚を目で見て、全30ステージを機械で読み込み＋3手ずつ打って例外0件を確認した。
+iOSアプリ版は**シミュレータで5画面を撮って**確認している（そこで「20ステージ」の古い表記と
+Dynamic Island の潜り込みが見つかった＝ブラウザだけ見ていると気づけない）。
+
+
+## iOSアプリ版（2026-08-28・提出直前）
+
+**Capacitor 8（SPM）で同じ `www/` を包んでいる**（`com.daikyo.nekoescape`・1.0/build 1）。
+手順とハマり所は **`RELEASE.md`** にある。要点だけ:
+
+- **本体は `www/`**。`deploy.yml` の取り出し元も `neko-escape:www`。
+  **本体を動かすときは同じ push で deploy.yml も直す**（片方だけ push すると gh-pages が
+  ステップごと落ち、**他のアプリの公開まで止まる**）
+- `ios/` は git に入れていない。他PCでは `npm install` → `npx cap add ios` から作り直す。
+  そのとき **`DEVELOPMENT_TEAM` は自動では書かれない**ので入れ直すこと（`RELEASE.md`）
+- **`viewport-fit=cover` が要る**。無いと `env(safe-area-inset-*)` が 0 のままで、
+  ヘッダーが Dynamic Island の下に潜る
+- 広告・課金・通信・第三者SDK はゼロ（ipa を展開して実測済み）
 
 ## 公開（2026-08-28 に公開へ切り替えた）
 
@@ -175,5 +193,6 @@ node tools/analyze-stages.js     # 全30面を解いて表を出す
 
 - 公開先: https://shinsei99.github.io/project/neko-escape/
 - **手で gh-pages に置きに行かない**（必ずズレる）。デプロイは公開先を `rm -rf` して作り直す
-- App Store には出していないので、`support.html` / `privacy.html` は要らない
-  （あの2ページが必須なのは、Apple に必須URLを登録しているアプリのフォルダだけ）
+- **`www/support.html` と `www/privacy.html` は消さないこと。** App Store に登録する
+  必須URL（サポート／プライバシー）がこの2ページを指す。デプロイは公開先を `rm -rf` して
+  作り直すので、リポジトリから消えると審査に出せなくなり、問い合わせ先も切れる

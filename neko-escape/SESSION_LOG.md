@@ -1,5 +1,64 @@
 # にゃんこ大脱出 セッションログ
 
+## 2026-08-28（メインPC・深夜）— iOSアプリ化し、App Store 提出直前まで用意した
+
+### 完了したこと
+
+オーナー依頼「App ストア公開も直前まで入力とか含めて」。他3本（にゃんこアイス／カラー重力／
+サイボーグ防衛軍）と同じところまで持っていった。**残りは人にしかできない2つだけ**
+（ASC で App 記録を作る／価格・プライバシー・年齢制限を入れて提出）。
+
+| | |
+|---|---|
+| 構成 | 本体を `www/` へ移し、Capacitor 8（SPM）で包んだ。`com.daikyo.nekoescape`・**1.0 / build 1**・**MinimumOSVersion 15.0** |
+| アイコン・起動画面 | 本編と同じネコの顔を自前生成（`icon-src/make_icon.py`）。**アルファ無し**・角丸なし。60px相当に縮めても崩れないことを確認 |
+| 必須ページ | `www/support.html`（遊び方・★の説明・FAQ）と `www/privacy.html` |
+| ストア文言 | `store-text.md`。名前・サブタイトル・説明・キーワード・審査ノートまで。**文字数は全項目とも上限内**（機械で確認） |
+| スクショ | シミュレータから5画面 × iPhone(1290×2796 / 1284×2778) × iPad(2048×2732) |
+| ipa | `build/export/App.ipa`（870KB）。`altool --validate-app` は **「App 記録が無い」以外では落ちない**＝想定どおり |
+| 自動化 | `finish-release.py` / `push-metadata.py` / `push-screenshots.py`（カテゴリは **GAMES_PUZZLE**）＋ `RELEASE.md` |
+
+**4.3(a)（スパム）対策として、提出前に App Store を実測した**（iTunes Search API・日本ストア）。
+
+- `にゃんこ大脱出` の**完全一致は0件**（名前は空いている）
+- 近い名前の `ミケねこ大脱出` は**壁を跳ねて登るジャンプアクション**で、遊びが違う
+- 「猫 × 脱出」の棚は**ほぼ全部が謎解きの脱出ゲーム**（`迷い猫の旅` ほか）。本作はそこに属さない
+- → **サブタイトルと説明の1行目で「1手ずつ考える追いかけっこパズル」と言い切る**構成にし、
+  審査ノートにも「脱出ゲームではない・敵は決定論・乱数なし」と明記した
+
+### 発生したエラーと解決策
+
+- **症状**: Archive が `Signing for "App" requires a development team` で落ちる。
+  **原因**: `npx cap add ios` は `DEVELOPMENT_TEAM` を書かない。
+  **直し方**: pbxproj の `CODE_SIGN_STYLE = Automatic;` の隣に `DEVELOPMENT_TEAM = 773DPMVW7Q;` を2か所。
+  **`ios/` は git に入れないので、作り直すたびに必要**（`RELEASE.md` に手順として書いた）。
+- **症状**: `-exportArchive` が `No Accounts` / `No signing certificate "iOS Distribution" found`。
+  **原因**: 配布用証明書は Xcode のクラウド管理で、`security find-identity` にも出てこない。
+  **直し方**: `-authenticationKeyPath ~/.appstore/AuthKey_35U53KWY5J.p8` ほかを付ける（Archive 側にも付ける）。
+- **症状（実機で見つけた不具合2件）**:
+  ① タイトルが「**ぜんぶで20ステージ**」のままだった（30面に増やしたのに）。
+  ② **ヘッダーが Dynamic Island の下に潜っていた**。
+  原因は `viewport-fit=cover` が無く `env(safe-area-inset-*)` が 0 のままだったこと。
+  **どちらもブラウザだけ見ていたら気づけなかった**。シミュレータで撮る工程を持つ意味がここにある。
+- **症状**: スクショに「◀ デジタル書斎」と実時刻が写り込む（別セッションが同じシミュレータを使っていた）。
+  **直し方**: `simctl status_bar override --time "9:41" …` を撮影スクリプトに入れた。
+
+### 検証（実測）
+
+- ipa を展開して確認: **Frameworks は Capacitor と Cordova だけ**／外部URLは SVG の名前空間のみ＝
+  **通信なし**／`__SHOT__`（撮影用の細工）の残り**0件**／`MinimumOSVersion 15.0`／`CFBundleVersion 1`
+- マーケティング用アイコン（1024）は **アルファ無し**
+- スクショは3種類の寸法とも**全5枚が規定どおり**（`sips` で確認）
+- 移動後の Web 版も Console エラー0件・`va.sh check` 指摘0件
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **★人にしかできないこと（2つ）**: ① ASC で App 記録を作る（`POST /v1/apps` は 403 で API 不可）
+  ② 価格・Appのプライバシー・年齢制限を入れて提出。①のあとは `python3 finish-release.py --apply` の1コマンド
+- **★音はまだ試聴していない**（ここまで持ち越し）
+- 出し直すときは **必ず build 2 へ**（`../ios-build-guard.sh neko-escape --bump`）
+
+
 ## 2026-08-28（メインPC・夜）— 遊びごたえを足した（★評価・新ギミック2種・10面追加）
 
 ### 完了したこと
