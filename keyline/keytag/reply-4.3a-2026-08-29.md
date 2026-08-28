@@ -62,10 +62,10 @@ keep fixing bugs in the apps that are already live, so we may submit bug-fix upd
 those.
 
 One of the three apps rejected at the same time was "にゃんこのアイス屋さん"
-(com.daikyo.nyankoice, Apple ID 6784674385). We are removing it. The Remove App option is not
-available to us while the app is in the Rejected state, and the version cannot be deleted
-either ("The last version of an app cannot be deleted"), so please remove that app record on
-your side.
+(com.daikyo.nyankoice, Apple ID 6784674385). We would like to remove it from our account, but
+we are not able to: the Remove App option is unavailable while the app is in the Rejected
+state, and the version cannot be deleted either ("The last version of an app cannot be
+deleted"). Please let us know if there is a way to remove it.
 
 Our question: if the concern is our portfolio as a whole rather than this specific app,
 please tell us which apps are considered duplicative. We will consolidate or remove them.
@@ -107,9 +107,9 @@ WebView ラッパー Capacitor を除く）。
 続けたいので、その更新は提出することがあります。
 
 同時期に同じ判断を受けた3本のうちの1本が「にゃんこのアイス屋さん」
-（com.daikyo.nyankoice / Apple ID 6784674385）です。**これは削除します。**
-ただし Rejected 状態のあいだは「Appを削除」が使えず、バージョンの削除もできません
-（「最後の版は削除できない」）。**そちらで App の記録の削除をお願いします。**
+（com.daikyo.nyankoice / Apple ID 6784674385）です。**これはアカウントから削除したいのですが、
+削除できません。** Rejected 状態のあいだは「Appを削除」が使えず、バージョンの削除もできません
+（「最後の版は削除できない」）。削除する方法があれば教えてください。
 
 おうかがいしたいこと: もし懸念がこのアプリ単体ではなく、私たちのアプリ全体に
 あるのでしたら、どのアプリが重複していると見なされているか教えてください。
