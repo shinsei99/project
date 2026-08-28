@@ -71,13 +71,38 @@
 2. そのあと、こちらで validate → upload → メタデータ・スクショ投入まで機械で流せる
 3. 最後に画面で **価格（無料）／App のプライバシー（データを収集しません）／年齢制限（4+）／提出**
 
-### 次回への引き継ぎ事項・未解決の課題
+### Web公開（同日・完了）
 
-- **★サポートURL・プライバシーURLがまだ公開されていない。**
-  `store-text.md` は `https://shinsei99.github.io/project/piyo-defense/...` を指しているが、
-  **`piyo-defense` は gh-pages に存在しない**（`git ls-tree origin/gh-pages` で確認。
-  CLAUDE.md の「GitHub Pages」という記載は実態と違っていた）。公開するには `deploy.yml` の
-  `DEPLOY_FOLDERS` に足すが、**ゲーム本体もWeb公開することになるのでオーナー判断**
+**オーナー判断で「ゲーム本体も一緒に公開する」に決定** → `deploy.yml` の `DEPLOY_FOLDERS` に
+`piyo-defense` を追加して push。**3つとも 200 を実測**:
+
+- https://shinsei99.github.io/project/piyo-defense/
+- https://shinsei99.github.io/project/piyo-defense/support.html
+- https://shinsei99.github.io/project/piyo-defense/privacy.html
+
+（それまで `piyo-defense` は gh-pages に**存在しなかった**。CLAUDE.md の
+「GitHub Pages」という記載は実態と違っていた。同じ誤りが neko-escape にもあった）
+
+#### ここで2回つまずいた（どちらも git の使い方）
+
+- **症状**: push したのに `support.html` / `privacy.html` が 404
+  → **原因**: **`git commit -- <path>` は追跡済みファイルしか拾わない。**
+    直前に `git add` がロックで失敗していたので staged が空のまま commit し、
+    **新規ファイルが1つも入っていなかった**（変更のあった既存ファイルだけが入った）
+  → **直し方**: `git add <path>` を先に成功させてから commit する。
+    **push しただけで安心せず、URLを curl で叩いて確かめる**
+
+- **症状**: gh-pages のデプロイが全フォルダぶん落ちる（`cyborg-defense/www/index.html がありません`）
+  → **原因**: `ec84f66e 日次: 記事を1本足して待機場所へ入れた（自動）` が
+    **古いインデックスごとコミットし、他セッションが直前に追加した31ファイルを削除していた**
+    （cyborg-defense 27件・digital-shosai 4件）。`DEPLOY_FOLDERS` の存在チェックは
+    gh-pages を触る前に落ちるので、**1本欠けると他の全部も公開されない**
+  → **直し方**: 作業ツリーに残っていた実体を add し直して復旧（`60ddc8f3`）。
+    **根本原因は日次ジョブ側**。共有ツリーで `git add -A` 相当を走らせると再発する。
+    一時インデックスに切り替え、自分のパスだけを明示して add するのが確実:
+    `export GIT_INDEX_FILE=/tmp/daily-index && git read-tree HEAD && git add <自分のパス>`
+
+### 次回への引き継ぎ事項・未解決の課題
 - **★にゃんこアイスも Capacitor の既定アイコンのまま提出されている**（審査待ちの build 2 の
   ipa を展開して実測）。差し替えるなら build 3 で出し直しになる
 - 音は今回も触っていない。耳で確かめていない（こちらでは聴けない）
