@@ -20,6 +20,12 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Deploy to gh-pages
+        # ★コミットメッセージは **env 経由**で渡すこと。`${{ github.event.head_commit.message }}` を
+        #   run: の中へ直接書くと、Actions が展開してからシェルが解釈するので、
+        #   メッセージに 引用符や改行 が入っているとコマンドが壊れる（2026-08-28 に実際に落ちた:
+        #   `error: pathspec 'not' did not match any file(s)`）。任意のコードが走る穴でもある。
+        env:
+          HEAD_COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           # 「公開先フォルダ:リポジトリ側の取り出し元」。`:` を書かなければ同名フォルダをそのまま出す。
           # ★公開中のWeb版は main を push したときに一緒に更新する（2026-08-28 オーナー判断）。
@@ -30,7 +36,7 @@ jobs:
           #   App Store に登録済みのサポート/プライバシーURLが消えると審査に出せなくなる。
           # ★color-gravity は 2026-08-28 に iOS アプリ化したので、本体が www/ へ移った（にゃんこアイスと同じ形）。
           #   `color-gravity` のままだと直下に index.html が無くてこのステップが落ちる。
-          DEPLOY_FOLDERS="scrapmemo-petapeta mom-counter realestate-calc nyanko-ice:www cyborg-defense:www color-gravity:www neko-escape"
+          DEPLOY_FOLDERS="scrapmemo-petapeta mom-counter realestate-calc nyanko-ice:www cyborg-defense:www color-gravity:www neko-escape:www piyo-defense"
 
           # 各フォルダを一時保存
           for ENTRY in $DEPLOY_FOLDERS; do
@@ -74,6 +80,8 @@ jobs:
           if git diff --cached --quiet; then
             echo "変更なし、スキップ"
           else
-            git commit -m "Deploy: ${{ github.event.head_commit.message }}"
+            # 1行目だけ使う（複数行のメッセージをそのまま渡すと読みにくい）
+            SUBJECT="${HEAD_COMMIT_MESSAGE%%$'\n'*}"
+            git commit -m "Deploy: ${SUBJECT}"
             git push origin gh-pages
           fi
