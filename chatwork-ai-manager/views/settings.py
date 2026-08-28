@@ -2,6 +2,7 @@
 import streamlit as st
 
 from services import settings as S
+from services import daily_report as DR
 
 
 def render():
@@ -47,6 +48,23 @@ def render():
     if st.button("業務記録リマインド設定を保存"):
         S.set_setting("daily_record_reminder_enabled", "1" if rec_enabled else "0")
         S.set_setting("daily_record_min_count", str(int(rec_min)))
+        st.success("保存しました（次回サイクルから反映）")
+
+    st.caption("催促の対象者と、18:30に自動生成する日報の対象者は別々に設定できる"
+               "（TASK-20260828-005で分離。空にすると監視ルームの全員が対象）。")
+    roster_names = [p["name"] for p in DR.roster()]
+    cur_reminder = [n.strip() for n in
+                    (S.get_setting("daily_record_reminder_people", "") or "").split(",") if n.strip()]
+    cur_report = [n.strip() for n in
+                 (S.get_setting("daily_report_people", "") or "").split(",") if n.strip()]
+    cp = st.columns(2)
+    new_reminder = cp[0].multiselect("業務記録リマインドの対象者", roster_names,
+                                     default=[n for n in cur_reminder if n in roster_names])
+    new_report = cp[1].multiselect("18:30 業務日報の対象者", roster_names,
+                                   default=[n for n in cur_report if n in roster_names])
+    if st.button("対象者を保存"):
+        S.set_setting("daily_record_reminder_people", ",".join(new_reminder))
+        S.set_setting("daily_report_people", ",".join(new_report))
         st.success("保存しました（次回サイクルから反映）")
 
     st.divider()

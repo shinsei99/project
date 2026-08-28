@@ -181,20 +181,35 @@ def _business_record_count(today: str, account_id: int) -> int:
     return rows[0]["n"] if rows else 0
 
 
+def _daily_record_reminder_people():
+    """業務記録リマインド（18時）の対象者。設定が空なら監視ルームのメンバー全員（AIを除く）。
+
+    18:30の業務日報（daily_report_people）とは別の設定 daily_record_reminder_people を使う
+    （催促の対象と日報の対象を別々に運用できるようにするため。TASK-20260828-005で分離）。
+    """
+    from services import daily_report as DR
+    names = [n.strip() for n in
+             (settings.get_setting("daily_record_reminder_people", "") or "").split(",") if n.strip()]
+    roster = {p["name"]: p for p in DR.roster()}
+    if names:
+        return [roster[n] for n in names if n in roster]
+    return list(roster.values())
+
+
 def _send_daily_record_reminders(client, today) -> int:
     """本日の報告件数が閾値未満の社員へ、業務記録の入力・確認を促す。送った人数を返す。
 
     件数は「本人のChatwork発言数」と「本人の発言を根拠に分割済みのTODOイベント件数」の
     大きい方を採る（1通のメッセージに複数件まとめて報告した場合の誤催促を防ぐ）。
-    対象者は 18:30 の業務日報と同じ設定 daily_report_people（空なら監視ルーム全員）を使う
-    （催促だけ送って日報には含めない・逆、を避けるため。TASK-20260828-003）。
+    対象者は設定 daily_record_reminder_people（空なら監視ルーム全員）を使う。
+    18:30の業務日報の対象者（daily_report_people）とは別のリスト（TASK-20260828-005で分離）。
     """
     if not _daily_record_reminder_enabled():
         return 0
     from services import daily_report as DR
     min_count = _daily_record_min_count()
     sent = 0
-    for p in _daily_report_people():
+    for p in _daily_record_reminder_people():
         room_id = p.get("room_id")
         if not room_id:
             continue

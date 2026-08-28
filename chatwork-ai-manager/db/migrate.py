@@ -31,8 +31,13 @@ DEFAULT_SETTINGS = {
     # 業務日報（Stage 10・2026-08-21 オーナー指示で 18:30 自動）
     "daily_report_enabled": "1",
     "daily_report_time": "18:30",
-    "daily_report_people": "塚本,松本,森",   # 空なら監視ルームのメンバー全員
+    # 吉浦さんはChatwork上の表示名が「吉浦　雅代」（全角スペース）なので、姓だけの
+    # 「吉浦」ではroster突き合わせに失敗し無視される。フルネームで書くこと。
+    "daily_report_people": "塚本,松本,大鹿,森,吉浦　雅代",   # 空なら監視ルームのメンバー全員
     "daily_report_room_id": "",              # 空なら manager_room_id → 監視中のgroupルーム
+    # 業務記録リマインド（18時）の対象者。TASK-20260828-005で daily_report_people から分離
+    # （日報催促と日報出力を別の対象者リストで運用できるようにするため）。空なら監視ルーム全員。
+    "daily_record_reminder_people": "塚本,松本,大鹿,森",
     "daily_report_upload": "1",              # 1でChatworkへ自動アップ（post_modeは見ない）
     # 社内メールへも同じExcelを添付して送る（2026-08-21 オーナー依頼）。SMTP設定は secrets.toml
     "daily_report_mail": "1",
@@ -133,6 +138,14 @@ def migrate() -> None:
         # 手動でカスタマイズ済み（09:00以外）の値は上書きしない。
         conn.execute(
             "UPDATE settings SET value='10:30' WHERE key='due_reminder_check_time' AND value='09:00'"
+        )
+        # daily_report_people を日報催促と日報出力で共用していたのを分離（TASK-20260828-005）。
+        # 旧共用値（塚本,松本,森）のままの場合だけ、日報出力の対象を新しい5名へ更新する
+        # （手動でカスタマイズ済みの値は上書きしない）。日報催促は新設 daily_record_reminder_people
+        # がDEFAULT_SETTINGSにより初回投入されるのでそのままでよい。
+        conn.execute(
+            "UPDATE settings SET value='塚本,松本,大鹿,森,吉浦　雅代' "
+            "WHERE key='daily_report_people' AND value='塚本,松本,森'"
         )
 
 
