@@ -186,13 +186,15 @@ def _send_daily_record_reminders(client, today) -> int:
 
     件数は「本人のChatwork発言数」と「本人の発言を根拠に分割済みのTODOイベント件数」の
     大きい方を採る（1通のメッセージに複数件まとめて報告した場合の誤催促を防ぐ）。
+    対象者は 18:30 の業務日報と同じ設定 daily_report_people（空なら監視ルーム全員）を使う
+    （催促だけ送って日報には含めない・逆、を避けるため。TASK-20260828-003）。
     """
     if not _daily_record_reminder_enabled():
         return 0
     from services import daily_report as DR
     min_count = _daily_record_min_count()
     sent = 0
-    for p in DR.roster():
+    for p in _daily_report_people():
         room_id = p.get("room_id")
         if not room_id:
             continue
