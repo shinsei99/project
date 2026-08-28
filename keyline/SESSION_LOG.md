@@ -1,4 +1,45 @@
-## 2026-08-28（メインPC）— **Guideline 4.3(a)（スパム）でリジェクト**。名前・見せ方を作り直し、build 4 を上げた
+## 2026-08-28（メインPC・昼）— build 4 の提出前チェックを API で全項目確認し、オーナーが画面から提出
+
+### 完了したこと
+
+**★提出完了。`WAITING_FOR_REVIEW`（2026-08-28 11:13:54 JST）。** 8/27 のリジェクト分
+`reviewSubmission a47e6a37…` が**そのまま再提出された形**で、item は `REJECTED` → `READY_FOR_REVIEW`
+に戻っている（新しい submission は作られない）。**Resolution Center への返信は付けていない。**
+
+
+**提出できる状態かを、画面を見に行かずに App Store Connect API で1件ずつ確かめた**（読み取りのみ）。
+確認スクリプトの形は `scratchpad/keytag_ready.py`（使い捨て。要点は下表）。
+
+| 確認項目 | 結果 |
+|---|---|
+| バージョン 1.0 | `PREPARE_FOR_SUBMISSION`・`releaseType=AFTER_APPROVAL` |
+| ビルド | **build 4 がひも付け済み・`VALID`** |
+| スクリーンショット | `APP_IPHONE_65` **5枚・すべて `COMPLETE`** |
+| 説明文 / キーワード / プロモ | 1,592字・あり・あり（ja のみ＝日本語1言語） |
+| 審査ノート | 1,153字（4.3(a) への回答が入っている） |
+| 連絡先 | shinichi washimi / info@shinsei-pm.co.jp / +819085300184・デモアカウント不要 |
+
+**iPad用スクショが要らないことの根拠**: App ターゲットの `TARGETED_DEVICE_FAMILY` が **`1`（iPhone専用）**。
+`build-sim/.../PIFCache` の Release 設定で実測。Capacitor の SPM パッケージ側は `1,2,3,4,6,7` と
+出るが、**見るのは App ターゲットのほう**（ここを取り違えると「iPadスクショが足りない」と誤診する）。
+
+### 発生したエラーと解決策
+
+- **`/appStoreVersions/{id}/ageRatingDeclaration` が 404**（`PATH_ERROR`）→ 原因: この関係名は
+  appStoreVersion 直下に無い（App 側に移っている）。**提出可否の判断には不要**なので追わなかった
+- **8/27 のリジェクト分 `reviewSubmission a47e6a37…` が `UNRESOLVED_ISSUES` のまま残っていた**
+  （item 1件が `REJECTED`）。新しく出すときは画面がこれの片付けに誘導する
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **提出は API ではなく画面から行った**（オーナー判断）。`reviewSubmission` を API から作って
+  `submitted=true` を送る経路は**このリポジトリでは未実績**。古いリジェクト分が残っている状態で
+  通るかも未確認なので、次に自動化するなら**そこから調べること**
+- **Resolution Center への返信は付けていない**（4.3(a) の回答は審査ノートに入れてある）。
+  前回の 2.1 は返信＋動画で通っているので、**返信の有無が効いたかどうかは今回の結果で分かる**
+- KeyLine 本体（8534）は**このMacの launchd に登録していない**（2026-08-28 オーナー判断で見送り）。
+  CLAUDE.md のポート表とは食い違ったままなので、次に触るときに揃えること
+
 
 ### 何が起きたか
 
