@@ -1,4 +1,10 @@
 #!/bin/bash
+
+# ★launchd から起動されると PATH が空になり、claude CLI の終了フック（Vercelプラグインの
+#   session-end-cleanup.mjs）が呼ぶ node が見つからず、**claude が毎回エラー終了する**。
+#   2026-08-28未明のOCR全滅・翻訳940通全滅はこれが原因だった（定額枠切れではない）。
+#   手で流すと PATH があるので再現しない＝気づきにくい。[[reference_launchd_path_node]]
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 # 毎日の自動取り込み（launchd から午前2時に呼ばれる）。
 # ★ /bin/bash 経由で呼ぶこと。保管先が個人Dropbox（CloudStorage）で、
 #   launchd 常時起動プロセスは責任プロセスに FDA が無いと読み書きできない。

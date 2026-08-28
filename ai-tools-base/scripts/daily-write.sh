@@ -22,6 +22,12 @@
 # ④-b で links に入れて、そのまま⑤で本番へ出せる（朝に置くと約10時間ずれる）。
 # あわせて、**Macが起きていないといけない時間帯が夜の1回だけ**になる。
 set -u
+
+# ★launchd から起動されると PATH が空になり、claude CLI の終了フック（Vercelプラグインの
+#   session-end-cleanup.mjs）が呼ぶ node が見つからず、**claude が毎回エラー終了する**。
+#   2026-08-28未明のOCR全滅・翻訳940通全滅はこれが原因だった（定額枠切れではない）。
+#   手で流すと PATH があるので再現しない＝気づきにくい。[[reference_launchd_path_node]]
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 cd "$(dirname "$0")/.."
 DRY=""
 [ "${1:-}" = "--dry" ] && DRY="1"

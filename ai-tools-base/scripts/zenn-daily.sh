@@ -24,6 +24,8 @@
 #   ./scripts/zenn-daily.sh          1本出す
 #   ./scripts/zenn-daily.sh --dry    何を出すか見るだけ
 set -u
+# launchd から起動されると PATH が空（git / python が見つからない）
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 cd "$(dirname "$0")/.." || exit 1
 DRY=""
 [ "${1:-}" = "--dry" ] && DRY=1
