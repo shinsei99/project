@@ -51,10 +51,11 @@ We recognize how our recent activity may look from the outside:
   are nearly identical in size. The actual product is the content we wrote.
 - Our store descriptions and support pages followed the same in-house format.
 
-We have stopped submitting. Four additional apps that were already prepared have been
-withheld, and we will not submit anything new while this is unresolved. We have also deleted
-one of our unreleased apps ("にゃんこのアイス屋さん") from App Store Connect rather than
-resubmit it.
+We have stopped submitting new apps. Four additional apps that were already prepared have
+been withheld, and we will not submit any new app while this is unresolved. We have also
+deleted one of our unreleased apps ("にゃんこのアイス屋さん") from App Store Connect rather
+than resubmit it. We do intend to keep fixing bugs in the apps that are already live, so we
+may submit bug-fix updates for those.
 
 Our question: if the concern is our portfolio as a whole rather than this specific app,
 please tell us which apps are considered duplicative. We will consolidate or remove them.
@@ -91,9 +92,10 @@ WebView ラッパー Capacitor を除く）。
   ほぼ同じ大きさになります。実体は私たちが書いた中身のほうです
 ・ストアの説明文やサポートページも、社内の同じ書式に従っていました
 
-提出はすでに止めました。用意済みだった4本も出さずに保留し、この件が解決するまで
-新規の提出は行いません。未配信だったアプリ1本（にゃんこのアイス屋さん）も、再提出せず
-App Store Connect から削除しました。
+新規アプリの提出はすでに止めました。用意済みだった4本も出さずに保留し、この件が
+解決するまで新しいアプリは出しません。未配信だったアプリ1本（にゃんこのアイス屋さん）も、
+再提出せず App Store Connect から削除しました。なお、すでに配信しているアプリの不具合修正は
+続けたいので、その更新は提出することがあります。
 
 おうかがいしたいこと: もし懸念がこのアプリ単体ではなく、私たちのアプリ全体に
 あるのでしたら、どのアプリが重複していると見なされているか教えてください。
