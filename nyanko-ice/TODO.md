@@ -67,9 +67,12 @@ Kenney など海外のフラット素材（手描きcanvasの画風と確実に�
 
 ## 未着手
 
-- **App Store への提出**（1.0 / build 2 をひも付け済み＝「提出準備中」。残りは上の #13 だけ）
+- ~~App Store への提出~~ → **2026-08-28 に提出済み＝審査待ち**（上の #13・#14）
 - 出し直すときは **必ず build 3 へ**（`./ios-build-guard.sh nyanko-ice --bump`）
-- **`MinimumOSVersion` が 13.0**。アップロード時に警告が出る。
-  **2027年春以降は 15.0 以上でないと受け付けられない**ので、次に出すときに上げる
+- **`MinimumOSVersion` は 15.0 に上げ済み（2026-08-28）**。ただし**審査中の build 2 は 13.0 のまま**なので、
+  効くのは次のビルドから。**ビルドが通ることは確認済み**（Archive・アップロードはしていない）。
+  設定は `ios/App/Podfile` の `platform :ios, '15.0'` と pbxproj の
+  `IPHONEOS_DEPLOYMENT_TARGET = 15.0`（4か所）→ `pod install`。
+  **`ios/` は git に入らない**ので、`npx cap add ios` で作り直したら 13.0 に戻る。入れ直すこと
 - Android プロジェクトは未作成（`android/` フォルダ無し）。広告は外したので、
   作るときも広告IDは入らない

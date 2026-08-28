@@ -435,6 +435,15 @@ PSA管理は図鑑の `app.py` を**モジュールとして直接読み込む**
 5. Archive → Upload → App Store Connectで **今上げたbuild番号** が選択肢に出ることを確認してから提出
 6. 配信物のソースは必ずコミット＆push（修正が手元だけに残ると同じ事故が再発する）
 
+### MinimumOSVersion は 15.0 以上（2027年春から必須）
+
+**iOS 15.0 未満のアプリは、2027年春以降アップロードできなくなる**（警告 90068）。
+2026-08-28 に全9本を API で実測したところ、**13.0 だったのは Capacitor 6 世代の
+`neon-blocks` と `nyanko-ice` の2本だけ**。**両方 15.0 へ変更しビルド確認済み＝次に出すビルドから効く**
+（配信中・審査中のビルドは 13.0 のまま）。**この2本は `ios/` が git に入らない**ので、
+`npx cap add ios` で作り直したら入れ直すこと（`ios/App/Podfile` と pbxproj の
+`IPHONEOS_DEPLOYMENT_TARGET`・4か所 → `pod install`）。
+
 ---
 
 ## Environment
