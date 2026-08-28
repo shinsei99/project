@@ -69,7 +69,11 @@ if [ -n "$STUCK" ]; then
     #   「インデックス全体」を木にするので、インデックスが古いと**空のつもりが
     #   他人のファイルを消すコミットになる**（--allow-empty は空を許すだけで、空を作る指定ではない）。
     #   パスを付ければ HEAD ＋ そのパスだけになり、変化が無ければ本当に空になる。
-    if ( cd .. && git pull -q --rebase origin main \
+    # ★`--autostash` が要る（2026-08-29に判明）。このMacは複数セッションが同じ作業ツリーを
+    #   同時に触るので、**他人の未コミット変更が常に残っている**。素の `git pull --rebase` は
+    #   "cannot pull with rebase: You have unstaged changes" で必ず失敗する。
+    #   8/28 の「★空コミットの push に失敗した」はこれが原因だった。
+    if ( cd .. && git pull -q --rebase --autostash origin main \
          && git commit -q --allow-empty -m "Zenn: 未公開分の再デプロイを促す（$STUCK）" \
               -- articles ai-tools-base/drafts/zenn_pending \
          && git push -q origin main ); then
@@ -116,8 +120,15 @@ mv "$PEND/$NEXT.md" "../articles/$NEXT.md" || exit 1
 # ★コミットは**必ずパスを指定する**。素の `git commit` はインデックス全体を載せるので、
 #   インデックスが古いと**他の人が直前に足したファイルを「削除」としてコミットする**。
 #   2026-08-28 にこれで31ファイルが消え、gh-pages が全フォルダぶん止まった。詳細は daily-write.sh の同じ箇所。
+# ★push は1回で通るとは限らない。他セッションが先に push していると non-fast-forward で落ちる。
+#   そのときだけ取り込み直して押し直す。`--autostash` は他人の未コミット変更を跨ぐために要る
+#   （素の rebase は "You have unstaged changes" で必ず失敗する）。
 ( cd .. && git add -A -- articles ai-tools-base/drafts/zenn_pending \
   && git commit -q -m "Zenn: $NEXT を公開（毎晩1本・自動）" -- articles ai-tools-base/drafts/zenn_pending \
-  && git push -q origin main ) || { echo "  ★git に失敗した"; exit 1; }
+  && { git push -q origin main \
+       || { echo "  push が弾かれた。取り込み直して押し直す"; \
+            git fetch -q origin main && git rebase -q --autostash origin/main \
+            && git push -q origin main; }; } ) \
+  || { echo "  ★git に失敗した（記事は articles/ に置いたまま。翌晩 zenn-daily が再デプロイを促す）"; exit 1; }
 
 echo "  push した。Zennのデプロイで公開される。残り $(ls "$PEND"/*.md 2>/dev/null | wc -l | tr -d ' ') 本"

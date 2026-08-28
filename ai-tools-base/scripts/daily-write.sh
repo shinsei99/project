@@ -138,9 +138,20 @@ fi
 if [ -n "$DRY" ]; then
   echo "--- dry: 待機場所には入れない ---"
 else
-  echo "--- 待機場所へ入れる（Zennへは 22:00 に1本ずつ出る） ---"
-  /usr/bin/python3 - <<'PYMOVE'
-import pathlib, re, json, urllib.request
+  echo "--- 待機場所の状況（Zennへは 22:00 に1本ずつ出る） ---"
+  # ★ここで articles/ から記事を引き戻してはいけない（2026-08-29に直した）。
+  #
+  #   もとは「Zennで未公開の記事を待機場所へ戻す」処理だった。だが 22:00 の zenn-daily が
+  #   出したばかりの1本は、**45分後のこの時点ではまだ Zenn が公開していない**のが普通で、
+  #   毎晩それを引き戻していた。翌 22:00 には zenn-daily が「前に出した記事がまだ公開
+  #   されていない」と言って次を出さない。**結果、Zennへ1本も出ない状態が続いていた**
+  #   （8/27に仕組みを入れてから公開ゼロ／待機26本）。
+  #
+  #   引き戻しは、予約投稿をやめて待機場所方式へ移した**一度きりの引っ越し**のための処理で、
+  #   移行が済んだ今は害しかない。articles/ に未公開が溜まる心配も要らない
+  #   ——zenn-daily 自身が「未公開が1本でもあれば次を出さない」ので、最大でも1本しか増えない。
+  /usr/bin/python3 - <<'PYSTAT'
+import pathlib, json, urllib.request
 REPO = pathlib.Path(".."); PEND = pathlib.Path("drafts/zenn_pending")
 PEND.mkdir(parents=True, exist_ok=True)
 try:
@@ -148,18 +159,18 @@ try:
             "https://zenn.dev/api/articles?username=shinsei99&order=latest", timeout=10) as r:
         live = {a["slug"] for a in json.load(r).get("articles", [])}
 except Exception:
-    live = None            # 取れなければ何も動かさない（安全側）
-if live is not None:
-    n = 0
-    for f in sorted((REPO / "articles").glob("*.md")):
-        if f.stem in live:
-            continue       # 公開済みは articles/ に置いたまま
-        t = re.sub(r"^published_at:.*\n", "", f.read_text(encoding="utf-8"), flags=re.M)
-        (PEND / f.name).write_text(t, encoding="utf-8")
-        f.unlink(); n += 1
-    print("  待機場所へ移した: %d 本 / 待機中 %d 本"
-          % (n, len(list(PEND.glob('*.md')))))
-PYMOVE
+    live = None
+waiting = len(list(PEND.glob("*.md")))
+if live is None:
+    print("  待機中 %d 本（Zennを見に行けなかったので公開状況は不明）" % waiting)
+else:
+    inflight = [f.stem for f in sorted((REPO / "articles").glob("*.md")) if f.stem not in live]
+    print("  待機中 %d 本 / Zenn公開済み %d 本" % (waiting, len(live)))
+    if inflight:
+        print("  出したがまだZennで公開されていない: %s" % " ".join(inflight))
+        print("  → 引き戻さずそのまま置く。Zennのデプロイで公開される。"
+              "翌日も公開されないままなら zenn-daily が空コミットで再デプロイを促す")
+PYSTAT
 
   # 昨夜までに公開された Zenn / note のURLを本体の links へ入れる。
   # **本体・Zenn・note の3点で1本**なので、ここが埋まるまでが1本（validate の転載⚠️が消える）。
@@ -175,9 +186,16 @@ PYMOVE
   #   `git commit -- <paths>` は HEAD ＋ 指定パスだけで木を作るので、他人の物は絶対に消えない。
   #   （小さなリポジトリで①現行=消える ②この形=消えない を実測して確かめてある）
   #   なお `git add` を先に走らせないと、**新規ファイルは未追跡のままで拾われない**ので順番も大事。
+  # ★push は1回で通るとは限らない。他セッションが先に push していると non-fast-forward で落ちる。
+  #   そのときだけ取り込み直して押し直す。`--autostash` は他人の未コミット変更を跨ぐために要る
+  #   （このMacは複数セッションが同じ作業ツリーを触るので、素の rebase は
+  #    "You have unstaged changes" で必ず失敗する。2026-08-29に実測）。
   ( cd .. && git add -A -- articles ai-tools-base && \
     git commit -q -m "日次: 記事を1本足して待機場所へ入れた（自動）" -- articles ai-tools-base && \
-    git push -q origin main ) \
+    { git push -q origin main \
+      || { echo "  push が弾かれた。取り込み直して押し直す"; \
+           git fetch -q origin main && git rebase -q --autostash origin/main \
+           && git push -q origin main; }; } ) \
     && echo "push した"
 
   # ⑤ 本体サイトを本番へ。**Zennはpushで出るが、本体は vercel --prod が要る**ので

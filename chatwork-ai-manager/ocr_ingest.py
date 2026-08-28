@@ -45,6 +45,13 @@ SKIP_MAX_TRIES = 2          # 同じ内容で2回ダメなら以後は飛ばす�
 #   数えていたため、同じ業者の点検報告書が5件続いただけで **その晩の作業が21秒で全部止まった**。
 #   中断すべきなのは claude 自体が落ちているとき（OcrUnavailable）だけ。
 ABORT_AFTER_BACKEND_FAILS = 3   # claude が連続でこの回数こければ、その晩は諦める
+# ★書類側の失敗も中断の判定に数えていた（2026-08-29に判明。上と同じ間違いの繰り返し）。
+#   8/28の晩は `OSError: [Errno 11] Resource deadlock avoided` が3件続いただけで
+#   「claude が連続3回こけた」と誤って表示し、**2秒・2件で撤退**した（予定は300件）。
+#   原因は Dropbox(CloudStorage) の**未ダウンロード（オンラインのみ）**ファイルで、
+#   claude とは無関係。→ 読めないファイルは `unreadable` として数えるだけにし、
+#   書類側の失敗はここまで連続したときだけ「環境がおかしい」とみなす。
+ABORT_AFTER_DOC_FAILS = 50
 
 
 def _load_skiplist() -> dict:
@@ -116,8 +123,9 @@ def main():
     budget = f"（上限 {args.max_new}件）" if args.max_new else ""
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] PDF {len(pdfs)} 件を確認{budget}", flush=True)
 
-    ocr_ok = text_skip = empty = failed = chunks = known_skip = 0
-    streak = 0
+    ocr_ok = text_skip = empty = failed = chunks = known_skip = unreadable = 0
+    streak = 0          # claude（バックエンド）が連続でこけた回数。これだけが撤退の理由
+    doc_streak = 0      # 書類側の失敗が連続した回数。桁違いに大きいときだけ異常とみなす
     stopped = ""
     for i, p in enumerate(pdfs, 1):
         if deadline and time.time() > deadline:
@@ -145,6 +153,7 @@ def main():
             else:
                 ocr_ok += 1
                 streak = 0
+                doc_streak = 0
                 chunks += r.get("chunks", 0)
                 skips.pop(p, None)            # 取れたので記録から外す
                 tag = "OCR" if str(r.get("mime", "")).endswith("-ocr") else "text"
@@ -155,9 +164,20 @@ def main():
             streak += 1
             print(f"  [{i}/{len(pdfs)}] claudeが応答せず（この書類は見送りに入れない）: {rel}: "
                   f"{str(e)[:80]}", flush=True)
+        except OSError as e:
+            # ★ファイルを読めなかっただけ。**バックエンド異常として数えない**（2026-08-29）。
+            #   Dropbox(CloudStorage) の**未ダウンロード（オンラインのみ）**のファイルを開くと
+            #   `[Errno 11] Resource deadlock avoided` が出る。書類の中身の問題ではないので、
+            #   見送りリストにも入れない（ダウンロードされれば次の晩に読める）。
+            #   2026-08-28 の晩は、これを「claudeがこけた」と誤って数えたせいで**3件で撤退**し、
+            #   7,840件中2件しか進まなかった。
+            unreadable += 1
+            print(f"  [{i}/{len(pdfs)}] 読めない（Dropbox未ダウンロードの可能性・再挑戦する）: "
+                  f"{rel}: {type(e).__name__}: {e}", flush=True)
         except Exception as e:
+            # 書類側の問題。見送りに記録して次へ進む。**バックエンド異常として数えない**
             failed += 1
-            streak += 1
+            doc_streak += 1
             _record_skip(skips, p, mtime, f"{type(e).__name__}: {e}")
             print(f"  [{i}/{len(pdfs)}] FAIL {rel}: {type(e).__name__}: {e}", flush=True)
 
@@ -168,6 +188,10 @@ def main():
         if streak >= ABORT_AFTER_BACKEND_FAILS:
             stopped = (f"claude が連続 {streak} 回こけた（定額枠切れ・環境異常の可能性）。"
                        "この晩は諦める。★書類側の問題ではないので見送りには入れていない")
+            break
+        if doc_streak >= ABORT_AFTER_DOC_FAILS:
+            stopped = (f"書類側の失敗が連続 {doc_streak} 件（環境がおかしい可能性）。この晩は諦める。"
+                       "★1件ずつの失敗では止めない。まとめて壊れているときだけここへ来る")
             break
         if args.max_new and done >= args.max_new:
             stopped = f"上限 {args.max_new} 件に到達"
@@ -180,7 +204,11 @@ def main():
               f"{'中断' if stopped else '完了'} OCR {ocr_ok} / 認識なし {empty} / 失敗 {failed}")
     print(f"\n[{datetime.now():%Y-%m-%d %H:%M:%S}] 終了 {elapsed/60:.1f}分{tail}", flush=True)
     print(f"OCR取込 {ocr_ok} / 既取込スキップ {text_skip} / 認識なし {empty} / "
-          f"失敗 {failed} / 見送り済み飛ばし {known_skip} / 追加チャンク {chunks}", flush=True)
+          f"失敗 {failed} / 読めない {unreadable} / 見送り済み飛ばし {known_skip} / "
+          f"追加チャンク {chunks}", flush=True)
+    if unreadable:
+        print(f"※「読めない {unreadable} 件」は Dropbox が未ダウンロードの可能性。"
+              "見送りには入れていないので、次の晩に再挑戦する", flush=True)
     print(f"索引合計: {knowledge.stats()}", flush=True)
 
 
