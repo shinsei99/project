@@ -274,11 +274,11 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 
 | アプリ名 | フォルダ名 | 外部公開 |
 |---|---|---|
-| ひよこ防衛軍 | piyo-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28。`com.shinsei99.piyodefense`・1.0/build2 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `piyo-defense/RELEASE.md`）。**2026-08-28 まで gh-pages に存在しなかった**（「GitHub Pages」は誤記だった）。`DEPLOY_FOLDERS` に `piyo-defense` を追加済み＝push で公開される |
-| カラー・グラビティ（旧「カラー重力ゲーム」） | color-gravity | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.shinsei99.colorgravity`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `color-gravity/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `color-gravity:www` |
-| サイボーグ防衛軍 | cyborg-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.cyborgdefense`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `cyborg-defense/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `cyborg-defense:www` |
-| にゃんこ大脱出（**全30面**・★評価つき） | neko-escape | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.nekoescape`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `neko-escape/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `neko-escape:www` |
-| にゃんこのアイス屋さん | nyanko-ice | **2026-08-29: 4.3(a) でリジェクト → App 記録を削除した**（未配信のまま終了。**バンドルIDは再利用できない**）。手順は3段階で、**①提出物から項目を削除（Rejected → DEVELOPER_REJECTED になる）②配信可能状況を全地域でオフ（ここが本当の詰まり所。未配信でも米日が残っていた）③Appを削除**。詳細は `nyanko-ice/TODO.md`。**Web版（gh-pages）はそのまま公開中**。中身はネオンブロックスへ統合予定 |
+| **ネオンタワー**（旧 ひよこ防衛軍） | piyo-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28。`com.shinsei99.piyodefense`・1.0/build2 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `piyo-defense/RELEASE.md`）。**2026-08-28 まで gh-pages に存在しなかった**（「GitHub Pages」は誤記だった）。`DEPLOY_FOLDERS` に `piyo-defense` を追加済み＝push で公開される |
+| **ネオングラビティ**（旧 カラー・グラビティ） | color-gravity | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.shinsei99.colorgravity`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `color-gravity/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `color-gravity:www` |
+| **ネオンサイボーグ**（旧 サイボーグ防衛軍） | cyborg-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.cyborgdefense`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `cyborg-defense/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `cyborg-defense:www` |
+| **ネオンエスケープ**（旧 にゃんこ大脱出・全30面・★評価つき） | neko-escape | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.nekoescape`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `neko-escape/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `neko-escape:www` |
+| **ネオンアイス**（旧 にゃんこのアイス屋さん） | nyanko-ice | **2026-08-29: 4.3(a) でリジェクト → App 記録を削除した**（未配信のまま終了。**バンドルIDは再利用できない**）。手順は3段階で、**①提出物から項目を削除（Rejected → DEVELOPER_REJECTED になる）②配信可能状況を全地域でオフ（ここが本当の詰まり所。未配信でも米日が残っていた）③Appを削除**。詳細は `nyanko-ice/TODO.md`。**Web版（gh-pages）はそのまま公開中**。中身はネオンブロックスへ統合予定 |
 | ネオンブロック | neon-blocks | iOS App Store ✅（**1.0.3 build4 が配信中**・2026-08-24 に API で確認） |
 
 ## ★ 公開サイト（5つ）

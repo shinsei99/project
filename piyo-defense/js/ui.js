@@ -205,10 +205,10 @@ function drawTitle(frame, hs, bs, bgmOn, seOn, coins) {
   var bloom=_ctx.createRadialGradient(_W/2,144+titleBob,0,_W/2,144+titleBob,130);
   bloom.addColorStop(0,'rgba(255,145,18,0.16)'); bloom.addColorStop(1,'rgba(255,100,0,0)');
   _ctx.fillStyle=bloom; _ctx.fillRect(0,50+titleBob,_W,170);
-  _ctx.fillStyle='rgba(255,175,95,0.58)'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif'; _ctx.fillText('✦  PIYO  DEFENSE  ✦',_W/2,98+titleBob);
+  _ctx.fillStyle='rgba(255,175,95,0.58)'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif'; _ctx.fillText('✦  NEON  TOWER  ✦',_W/2,98+titleBob);
   _ctx.save(); _ctx.translate(_W/2,152+titleBob); _ctx.scale(titleSc,titleSc);
   _ctx.shadowColor='#FF6B00'; _ctx.shadowBlur=32;
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 46px "Zen Maru Gothic",sans-serif'; _ctx.fillText('ひよこ防衛軍',0,0);
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 46px "Zen Maru Gothic",sans-serif'; _ctx.fillText('ネオンタワー',0,0);
   _ctx.restore();
   _ctx.shadowColor='#FF9900'; _ctx.shadowBlur=9;
   _ctx.fillStyle='#FFA040'; _ctx.font='bold 15px "Zen Maru Gothic",sans-serif'; _ctx.fillText('～地球救出大作戦～',_W/2,176+titleBob);
@@ -297,7 +297,7 @@ function drawTitle(frame, hs, bs, bgmOn, seOn, coins) {
   var fw=_ctx.measureText(ftxt).width;
   rrect(_W/2-fw/2-12,664,fw+24,19,9.5,'rgba(6,10,26,0.62)',null);
   _ctx.fillStyle='rgba(178,196,236,0.86)'; _ctx.fillText(ftxt,_W/2,678);
-  _ctx.fillStyle='rgba(255,255,255,0.34)'; _ctx.font='10px sans-serif'; _ctx.fillText('PIYO-DEFENSE  v4.0',_W/2,_H-18);
+  _ctx.fillStyle='rgba(255,255,255,0.34)'; _ctx.font='10px sans-serif'; _ctx.fillText('NEON TOWER  v4.0',_W/2,_H-18);
 }
 
 // ── Settings & Shop（y範囲メモ：各ボタンy記載） ────────────────────────────

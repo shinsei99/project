@@ -19,11 +19,11 @@
   // 並びは 3列×2行。上の行＝ネオン系、下の行＝それ以外（オーナー指定）
   var GAMES = [
     { id:'blocks',  name:'ネオンブロックス',   href: base + 'index.html',               color:'#41E3FF' },
-    { id:'cyborg',  name:'サイボーグ防衛軍',   href: base + 'games/cyborg/index.html',  color:'#7CFF4F' },
-    { id:'piyo',    name:'ひよこ防衛軍',       href: base + 'games/piyo/index.html',    color:'#FF8A3D' },
-    { id:'gravity', name:'カラーグラビティ',   href: base + 'games/gravity/index.html', color:'#B36BFF' },
-    { id:'ice',     name:'にゃんこアイス',     href: base + 'games/ice/index.html',     color:'#FF4FC3' },
-    { id:'escape',  name:'にゃんこ大脱出',     href: base + 'games/escape/index.html',  color:'#FFD54F' }
+    { id:'cyborg',  name:'ネオンサイボーグ',   href: base + 'games/cyborg/index.html',  color:'#7CFF4F' },
+    { id:'piyo',    name:'ネオンタワー',       href: base + 'games/piyo/index.html',    color:'#FF8A3D' },
+    { id:'gravity', name:'ネオングラビティ',   href: base + 'games/gravity/index.html', color:'#B36BFF' },
+    { id:'ice',     name:'ネオンアイス',     href: base + 'games/ice/index.html',     color:'#FF4FC3' },
+    { id:'escape',  name:'ネオンエスケープ',     href: base + 'games/escape/index.html',  color:'#FFD54F' }
   ];
 
   var css = ''
@@ -31,9 +31,18 @@
     +   'font:600 12px/1 "Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif;'
     +   'padding-bottom:env(safe-area-inset-bottom);pointer-events:none}'
     + '#nbSwitch *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}'
-    + '#nbTab{pointer-events:auto;display:block;margin:0 auto 6px;border:2px solid rgba(65,227,255,.55);'
-    +   'background:rgba(10,7,26,.82);color:#9BE9FF;border-radius:999px;padding:6px 14px;'
-    +   'box-shadow:0 0 12px rgba(65,227,255,.35);cursor:pointer;font:inherit;backdrop-filter:blur(4px)}'
+    // ★閉じているときは小さく。ゲーム側の下部UI（ヒント帯・操作ボタン）を隠さないため。
+    //   実際、にゃんこアイスのヒント文の上に乗ってしまったので詰めた
+    // ★閉じているときは**左下の隅**に小さく。ゲームのUIは中央〜右下に置かれることが多く、
+    //   中央に出すと、にゃんこアイスのヒント文の上に乗ってしまった（実測）。
+    //   さらに半透明にして、下に何かあっても読めるようにしている
+    + '#nbTab{pointer-events:auto;display:block;margin:0 0 0 8px;border:1.5px solid rgba(65,227,255,.45);'
+    +   'background:rgba(10,7,26,.62);color:#9BE9FF;border-radius:999px 999px 0 0;padding:3px 10px 2px;'
+    +   'font:600 10px/1.35 inherit;box-shadow:0 0 8px rgba(65,227,255,.22);cursor:pointer;'
+    +   'backdrop-filter:blur(4px);border-bottom:none;opacity:.75}'
+    + '#nbTab:hover{opacity:1}'
+    + '#nbSwitch.open #nbTab{margin:0 auto;padding:6px 14px;font-size:12px;opacity:1;'
+    +   'background:rgba(10,7,26,.92)}'
     // 帯の地は画面いっぱい、中身は中央寄せで幅を抑える（PC・iPad で横に間延びしないように）
     + '#nbList{pointer-events:auto;display:none;gap:8px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));'
     +   'background:rgba(8,5,20,.94);border-top:2px solid rgba(65,227,255,.45);'
@@ -54,7 +63,7 @@
     var box = document.createElement('div'); box.id = 'nbSwitch';
     var tab = document.createElement('button'); tab.id = 'nbTab';
     tab.type = 'button';
-    tab.textContent = '▲ ほかのあそび';
+    tab.textContent = '▲ ほかのあそび';   // 閉じているときは小さく出る
     tab.setAttribute('aria-expanded', 'false');
 
     var list = document.createElement('div'); list.id = 'nbList';
