@@ -1,5 +1,87 @@
 # ひよこ防衛軍 — 作業ログ
 
+## 2026-08-28（メインPC・夜）— App Store 提出直前まで用意した（1.0 / build 2）
+
+**残っているのは「App Store Connect で App 記録を作ること」と、画面でしか設定できない4項目だけ。**
+手順の全部は `RELEASE.md` にある。
+
+### 完了したこと
+
+| | 内容 |
+|---|---|
+| **アイコン** | Capacitor の**既定アイコン（青い×印）のままだった**。ゲーム本体と同じ `drawChick()` を使って描き直した（`tools/make-icon.py` + `make-icon.html`）。ヘルメットをかぶったひよこ・月・村。**別の道具で描くとゲームの絵を直したときにアイコンだけ古くなる**ので、同じ関数を使う作りにした |
+| 起動画面 | 同じ絵で 2732×2732 を生成し、Splash の3枚を差し替え |
+| 向き | **iPhone は縦のみ**に（盤面が縦長固定のため）。iPad は全方向のまま（後述の警告のため）。`UIRequiredDeviceCapabilities: armv7` も外した |
+| サポート/プライバシー | `support.html` `privacy.html` を新設（遊び方・FAQ・データの扱い） |
+| ストア文言 | `store-text.md` に全文。**4.3(a) 対策として先に App Store を実測**（下記） |
+| スクリーンショット | **iPhone 6.5型 1284×2778 ・ iPad 12.9型 2048×2732 を5枚ずつ**（title/battle/tower/boss/bestiary）。`screenshots/shoot.py` |
+| ビルド | `./ios-build-guard.sh piyo-defense --bump` で **build 1 → 2**。Archive → export まで完了（`build/export-build2/App.ipa`・6.8MB） |
+| 投入スクリプト | `push-metadata.py` / `push-screenshots.py` を color-gravity から移植して差し替え |
+
+**4.3(a) 対策で先に調べた**（KeyTag が「スパム」で差し戻された教訓）。
+`ひよこ防衛軍` は iTunes Search API で**完全一致0件**。同じ棚に量産アプリはいるが、
+「ひよこを3レーンで動かす」「カラスが敵」「20ステージ各固有ボス」の組み合わせは無い。
+根拠の表は `store-text.md` の冒頭にある。
+
+### 配信物の実測（build 2）
+
+| 見たこと | 結果 |
+|---|---|
+| Frameworks | **Capacitor と Cordova の2つだけ**（広告SDK・解析SDKなし） |
+| 画像ファイル | **アイコン2枚のみ**（ゲームの絵はすべて実行時に描いている） |
+| 外部URL | `http://www.w3.org/2000/svg` のみ＝**SVGの名前空間で通信しない** |
+| 撮影用の細工 | **0件**（`shotSetup` / `__pin` とも ipa に無い） |
+| MinimumOSVersion | **15.0**（2027年春からの必須要件を満たす） |
+| バージョン | 1.0 / build 2 ／ Bundle ID `com.shinsei99.piyodefense` |
+| 同梱書体 | ZenMaruGothic 500/900 |
+| サイズ | 6.79 MB |
+
+### 発生したエラーと解決策
+
+- **症状**: `POST /v1/apps` が HTTP 403
+  → **原因**: **App Store Connect API では新規Appを作れない**
+    （`The resource 'apps' does not allow 'CREATE'`）
+  → **直し方**: 無い。**画面で人が作る**。作る前に `altool` を叩くと
+    `Cannot determine the Apple ID from Bundle ID ...` で止まる（**実測済み**）
+
+- **症状**: `--headless=new --screenshot` の Chrome が戻ってこない（120秒でも終わらない）
+  → **原因**: 未特定（このMacのChromeで再現）
+  → **直し方**: アイコン生成もスクショも **Playwright** に寄せた（`va.sh` と同じChrome）
+
+- **症状**: アーカイブで `All interface orientations must be supported unless the app
+  requires full screen` の警告
+  → **原因**: iPad を縦だけにしたため（マルチタスク要件）
+  → **直し方**: `UIRequiresFullScreen` で黙らせる手はあるが Apple は廃していく方向なので、
+    **iPad は全方向に戻した**。横向きでも `resize()` が高さに合わせるだけで、左右が黒帯になって遊べる
+
+- **症状**: スクショ5枚のうち2枚がタイトル画面のまま写った
+  → **原因**: 仕込みで**弾オブジェクトを手で作って `bullets` に入れていた**。足りないフィールドで
+    `update()` が例外を投げ、**`requestAnimationFrame` の輪が切れて描画がその場で止まっていた**
+  → **直し方**: 作り物をやめ、状態だけ作って2〜3秒走らせる。加えて
+    **撮る前に `frame` が進んでいるかを毎回確かめる**ようにした（止まっていたら異常終了する）
+
+- **症状**: `drawChick(..., 'helmet')` をアイコンに使うと目が隠れる
+  → **原因**: ヘルメットの縁が `y=-sz*0.3`、目が `y=-sz*0.33`。ゲーム内はボタンの小さい絵なので
+    問題にならなかった
+  → **直し方**: **ゲーム側は変えず**、アイコン側で縁を `-sz*0.46` に上げて描いた
+
+### ★人にしかできないこと（残り）
+
+1. **App Store Connect で App 記録を作る**（名前=ひよこ防衛軍／日本語／`com.shinsei99.piyodefense`）
+2. そのあと、こちらで validate → upload → メタデータ・スクショ投入まで機械で流せる
+3. 最後に画面で **価格（無料）／App のプライバシー（データを収集しません）／年齢制限（4+）／提出**
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **★サポートURL・プライバシーURLがまだ公開されていない。**
+  `store-text.md` は `https://shinsei99.github.io/project/piyo-defense/...` を指しているが、
+  **`piyo-defense` は gh-pages に存在しない**（`git ls-tree origin/gh-pages` で確認。
+  CLAUDE.md の「GitHub Pages」という記載は実態と違っていた）。公開するには `deploy.yml` の
+  `DEPLOY_FOLDERS` に足すが、**ゲーム本体もWeb公開することになるのでオーナー判断**
+- **★にゃんこアイスも Capacitor の既定アイコンのまま提出されている**（審査待ちの build 2 の
+  ipa を展開して実測）。差し替えるなら build 3 で出し直しになる
+- 音は今回も触っていない。耳で確かめていない（こちらでは聴けない）
+
 ## 2026-08-28（メインPC）— 見た目を作り替えた（にゃんこアイスと同じ手順）
 
 **きっかけ**: オーナー「にゃんこアイスを魅力的にしたみたいに、もっと魅力的にしたい」。
