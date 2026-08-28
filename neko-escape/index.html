@@ -2,7 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!-- ★viewport-fit=cover が無いと env(safe-area-inset-*) が 0 のままで、
+     iOSアプリのときヘッダーが Dynamic Island の下に潜る（シミュレータで確認） -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#e3c79b">
 <title>にゃんこ大脱出 🐱</title>
 <!-- タブのアイコン。外部ファイルにすると 404 が Console に残り、
@@ -38,7 +40,10 @@
     background-attachment:fixed;
     min-height:100%;
     display:flex;flex-direction:column;align-items:center;
-    padding:8px 10px 26px;
+    /* ★iOSアプリでは画面いっぱいに描くので、ノッチとホームバーを避ける。
+       これが無いと上のバッジがステータスバーに潜る（実機シミュレータで確認） */
+    padding:calc(8px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right))
+            calc(26px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
   }
 
   .wrap{width:100%;max-width:760px;display:flex;flex-direction:column;align-items:center;}
@@ -152,7 +157,8 @@
   /* スマホでは盤面をできるだけ大きく。マスが小さいと指で押しにくい
      （タップ判定はマスの半径より広く取ってあるが、見えている大きさも効く） */
   @media (max-width:460px){
-    body{padding:6px 6px 18px;}
+    body{padding:calc(6px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right))
+                calc(18px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left));}
     .board-wrap{padding:6px;border-radius:17px;border-width:4px;}
     .badge{font-size:12px;padding:3px 9px;}
     .msg{font-size:14px;margin-top:6px;}
@@ -210,7 +216,7 @@
     <div class="card">
       <canvas id="titleArt" width="380" height="150" style="width:100%;max-width:340px;height:auto"></canvas>
       <h1 class="titlelogo">にゃんこ大脱出</h1>
-      <div class="titlesub">おじいちゃんの家から、キャットタワーをめざそう！<br>ぜんぶで20ステージ</div>
+      <div class="titlesub">おじいちゃんの家から、キャットタワーをめざそう！<br>ぜんぶで30ステージ</div>
       <div class="btns">
         <button id="playBtn">あそぶ</button>
         <button class="ghost" id="selBtn2">ステージをえらぶ</button>
