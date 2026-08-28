@@ -1,5 +1,81 @@
 # にゃんこアイス — 作業ログ
 
+## 2026-08-28（メインPC・午後）— 広告を全部外し、App Store の**提出直前まで**用意した
+
+**残っているのは「審査へ提出」を押すことと、画面でしか設定できない3項目だけ**（下の「人にしかできないこと」）。
+
+### 完了したこと
+
+オーナー判断「他のアプリと同様に、アーカイブから提出できる寸前までやる。**広告は削除**。一旦、広告なしで出す」。
+
+| | 内容 |
+|---|---|
+| **広告の全廃** | `www/index.html` の広告CSS・DOM・JS（98行）／`plugins.AdMob`／`@capacitor-community/admob`／`Info.plist` の `GADApplicationIdentifier` と `NSUserTrackingUsageDescription`／Podfile の `GoogleUserMessagingPlatform` を削除。**書き出したipaに広告SDKが入っていないことを実測**（Frameworks は Capacitor と Cordova の2つだけ） |
+| ゲームオーバー | 「動画を見てコンテニュー」は**動画なしでそのまま再開**に。文言も `▶ つづきから` へ |
+| 書体 | 文言が変わったのでサブセットを取り直した（漢字 20→5字・各29KB前後） |
+| **iPadの見た目** | 盤面の上限が `max-width:470px` で、iPad(1032×1376pt)では**画面の半分以上が余白**だった。`width:min(100vw,62vh); max-width:720px` に変更。**iPhone の見え方は変えていない**（402pt幅では 100vw が最小のまま。前後のスクショを同座標で比較して一致を確認） |
+| サポート/プライバシー | `www/support.html` `www/privacy.html` を新設 → gh-pages へ自動デプロイ → **どちらも 200 を実測** |
+| ストア文言 | `store-text.md` に全文（名前・サブタイトル・プロモ・キーワード・説明・審査ノート）。**API で流し込み済み** |
+| スクリーンショット | **iPhone 6.5型 5枚・iPad 12.9型 5枚**（`start / play / stack / clear / gameover`）。すべて `COMPLETE` |
+| ビルド | **1.0 / build 2** を Archive → 検証 → アップロード → `VALID` → **バージョンにひも付け済み** |
+
+**4.3(a) 対策として、先に App Store を実測した**（KeyTag の差し戻しの教訓）。
+`にゃんこのアイス屋さん` は完全一致なしで空いていたが、**アイス×並べ替えパズルは量産アプリが多い棚**
+（`Icecream Sort Puzzle` / `Ice Cream Sort` / `アイスクリームの並べ替え` ほか）。そこで文言は
+**「広告なし・課金なし・通信なし」「絵は全部手描き」「ちゅうもんを作る店番ゲーム」**を前面に出し、
+審査ノートにも 4.3 への説明とソースの公開先を明記した。根拠は `store-text.md` の冒頭。
+
+### 発生したエラーと解決策
+
+- **症状**: 撮影用ビルドが `unable to resolve module dependency: 'Capacitor'` で落ちる
+  → **原因**: このアプリは **Capacitor 6＝CocoaPods**。`-project` で建てると Pods が繋がらない
+  → **直し方**: **`-workspace ios/App/App.xcworkspace`** を使う。
+    （KeyTag は Capacitor 8＝SPM で `.xcworkspace` が無く `-project` が正しい。**アプリごとに違う**）
+
+- **症状**: 説明文の投入が HTTP 409 `INVALID_CHARACTERS`
+  → **原因**: **App Store の説明に絵文字は入れられない**（`Description can't contain 🍦`）
+  → **直し方**: 絵文字を外した。`store-text.md` にも注意書きを残した
+
+- **症状**: カテゴリを PATCH しても、読み直すと `primaryCategory: null` のまま（PATCHは200）
+  → **原因**: **`include=primaryCategory` を付けないと relationships に出てこない**だけで、
+    実際には設定できていた。素の応答を見て「未設定」と誤認していた
+  → **直し方**: `push-metadata.py` の現状読み取りを `include` 付きに変更。誤って毎回 PATCH しない
+
+- **警告（対応不要・記録のみ）**: アップロード時に `MinimumOSVersion too low`（現在 13.0）。
+  **2027年春以降は 15.0 以上でないとアップロードできない**。次に出すときに上げる
+
+### 撮影のしかた（次回も使える）
+
+`screenshots/shoot.sh` … シミュレータで**タップを使わずに**撮る。`screenshots/shot-boot.js` を
+**`www/index.html` の IIFE の中**（末尾の `})();` の直前）へ差し込んだビルドを画面ごとに作り、
+`simctl` で撮って、最後に `public/index.html` を `www/` で戻す。**配信物には細工が残らない**
+（Archive 前に `AdMob|shotSetup` の grep が0件であることを確認済み）。
+
+```bash
+./screenshots/shoot.sh start play stack clear gameover              # iPhone 17 Pro Max
+DEVICE=ipad ./screenshots/shoot.sh start play stack clear gameover  # iPad Pro 13
+# 寸法を直してから投入（シミュレータの素の解像度は弾かれる）
+sips -z 2778 1284 …  /  sips -z 2732 2048 …
+python3 push-screenshots.py screenshots/upload/iphone --device iphone --apply
+python3 push-screenshots.py screenshots/upload/ipad   --device ipad   --apply
+```
+
+### ★人にしかできないこと（残り）
+
+1. **音を一度聴く**（こちらでは聴けない）。公開版で確認できる → https://shinsei99.github.io/project/nyanko-ice/
+2. **App Store Connect の画面でしか設定できない3つ**: 価格（**無料**）と配信地域／
+   **App のプライバシー（「データを収集しません」）**／年齢制限のアンケート（**4+**。
+   暴力・性的表現・ギャンブル・ユーザー生成コンテンツ すべて該当なし）
+3. **「審査へ提出」を押す**
+
+### 次回への引き継ぎ事項
+
+- **広告を戻すときはコミット `3d637897` の1つ前（`942174fe`）を見る。** 消した箇所がすべて揃っている
+- 出し直すときは **必ず build 3 へ**（`./ios-build-guard.sh nyanko-ice --bump`）
+- **Android プロジェクトはそもそも存在しない**（`android/` フォルダ無し。`package.json` に
+  `@capacitor/android` の依存だけがある状態）。将来 `npx cap add android` するときは、
+  広告を外した後の `capacitor.config.json` から作られるので、広告IDは入らない
+
 ## 2026-08-28（メインPC）— Web版(gh-pages)へ反映。以後は push で自動になった
 
 ### 完了したこと
