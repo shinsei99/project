@@ -1,5 +1,37 @@
 # SESSION LOG — 横断作業
 
+## 2026-08-28（メインPC・昼）— OSアップデート＋再起動後の常駐点検
+
+### 完了したこと
+
+再起動（boot 10:17頃）から43分後に全常駐を点検した。**結論: 復帰は正常。落ちているものは無い。**
+
+| 見たもの | 結果 |
+|---|---|
+| launchd ジョブ | **43本ロード・全て status 0**（`launchctl list \| grep shinsei`） |
+| 待ち受けポート | **35本**すべて起動。HTTP は**全部 200**（8512の `/` は302→`/vr/` が200、8523はAPIサーバーなので `/` の404は正常） |
+| バインド先 | ルールどおり。127.0.0.1＝8518/8526/8527/8535、0.0.0.0＝不動産の共有分。**逸脱なし** |
+| ngrok | トンネル生存。`https://hesitant-theology-yiddish.ngrok-free.dev` → localhost:8530 |
+| **フルディスクアクセス（TCC）** | **OSアップデートで飛んでいなかった**。8528 の画面を実際に開いて Dropbox `書類取込` を読めていることを目視（`.see/0828-110313-shot.png`）。err.log も 8/12 以降更新なし |
+| pokecard-dex | `disabled` のまま（2026-08-24のオーナー判断どおり・異常ではない） |
+| 定時ジョブ | OCR(01:00) / mail-archiver-sync(02:00) / note-daily(22:35) / daily-write(22:45) / zenn-daily / tailscale-keepalive は**ロード済み・boot後まだ発火前**。`last exit code = (never exited)` は再起動でカウンタが消えただけ |
+
+### 発生したエラーと解決策
+
+- **`/tmp/note-daily.log` `/tmp/daily-write.log` が再起動で消えた** → 原因: macOS が boot 時に
+  `/private/tmp` を掃除する。直し方（未実施）: 出力先を `~/Library/Logs/` に寄せれば残る。
+  今回は消えても**記録から昨夜の稼働を確認できた**（note は `drafts/.note_posted.json` が12件＝
+  `deploy-not-reflected` 投稿済み／daily-write は `content/works/a4-one-page-layout.json` が
+  **8/28 08:11** に生成＝22:45はスリープ中で、**起床時に launchd が取りこぼしを実行**していた）
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **★keyline（8534）だけ常駐に入っていない。** `~/keyline/_launchd/` に plist は2本あるが
+  `~/Library/LaunchAgents/` に**入っておらず、`~/Library/Logs/com.shinsei.keyline*.log` も
+  一度も作られていない**＝**再起動で落ちたのではなく、このMacに最初から入れていなかった**。
+  CLAUDE.md の一覧表・ポート表は「常駐している」前提の書き方なので**表と実体が食い違っている**。
+  入れるなら 0.0.0.0 で社内LANに出る＋`-purge` が毎日3:30に画像を消すので**オーナー判断が要る**（保留中）
+
 ## 2026-08-28（メインPC・朝）— 記事の自動執筆が毎晩失敗していた
 
 ### 完了したこと
