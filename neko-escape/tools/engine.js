@@ -16,7 +16,7 @@ const fs = require('fs');
 const path = require('path');
 
 function parseStages(htmlPath){
-  const html = fs.readFileSync(htmlPath || path.join(__dirname, '..', 'index.html'), 'utf8');
+  const html = fs.readFileSync(htmlPath || path.join(__dirname, '..', 'www', 'index.html'), 'utf8');
   const m = html.match(/const STAGES = \[([\s\S]*?)\n\];/);
   if (!m) throw new Error('index.html から STAGES を取り出せない');
   return eval('[' + m[1] + ']');

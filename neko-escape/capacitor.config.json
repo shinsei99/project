@@ -1,0 +1,11 @@
+{
+  "appId": "com.daikyo.nekoescape",
+  "appName": "にゃんこ大脱出",
+  "webDir": "www",
+  "backgroundColor": "#e6d4b6",
+  "ios": {
+    "contentInset": "never",
+    "scrollEnabled": true,
+    "backgroundColor": "#e6d4b6"
+  }
+}

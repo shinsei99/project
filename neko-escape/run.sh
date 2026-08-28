@@ -8,5 +8,6 @@
 #   ../app-start.sh neko-escape --shot   → 起動して画面も撮る
 #
 # ★ 127.0.0.1 固定（ゲームは社内LANに出さない）。--port 8543
-cd "$(dirname "$0")" || exit 1
+# ★配信するのは www/（Capacitor の webDir）。本体はここにある
+cd "$(dirname "$0")/www" || exit 1
 exec /usr/bin/python3 -m http.server 8543 --bind 127.0.0.1

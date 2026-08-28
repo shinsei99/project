@@ -20,7 +20,7 @@
     python3 tools/fetch-font.py          # www/assets/fonts/ に .woff2 を書き出す
     python3 tools/fetch-font.py --check  # 取得せず、いま何文字使っているかだけ見る
 
-**index.html の文字を書き換えたら、必ずこれを流し直すこと。**
+**www/index.html の文字を書き換えたら、必ずこれを流し直すこと。**
 流し忘れると、増やした文字が □（豆腐）になる。
 """
 from __future__ import annotations
@@ -33,8 +33,8 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "index.html"
-OUT_DIR = ROOT / "assets" / "fonts"
+SRC = ROOT / "www" / "index.html"
+OUT_DIR = ROOT / "www" / "assets" / "fonts"
 
 FAMILY = "Zen Maru Gothic"
 WEIGHTS = ["500", "900"]          # 本文と、スコア・見出しの極太
@@ -127,7 +127,7 @@ def main() -> None:
         dest.write_bytes(data)
         print("  %s  %.1f KB" % (dest.relative_to(ROOT), len(data) / 1024))
 
-    print("\n★ index.html の @font-face が上のファイルを指していることを確認すること")
+    print("\n★ www/index.html の @font-face が上のファイルを指していることを確認すること")
 
 
 if __name__ == "__main__":
