@@ -4,8 +4,11 @@
 **★審査ノートに書くだけでは届かない。** 8/28 の再提出は返信を付けず審査ノートだけで出し、
 同じ 4.3(a) の定型文で返ってきた（`keyline/SESSION_LOG.md`）。今回は必ず返信の形で送ること。
 
-**★にゃんこアイスの話はここに書かない。** そのアプリのスレッドで別途伝える
-（`nyanko-ice/reply-4.3a-2026-08-29.md`）。アプリ固有の話は、そのアプリの場所で。
+**★にゃんこアイスの削除依頼は、この手紙に1段落だけ入れてある。**
+理由（2026-08-29 実測）: にゃんこ側のスレッドは**項目を削除済みにすると返信欄が消える**。
+Apple の「アプリの却下または削除」フォームは**Appleが却下・削除したケース専用**で、
+「自分で消したいのに消せない」は扱えない（2つの選択肢がどちらも `your app was rejected
+or removed` 前提）。**返信欄が生きている窓口はここだけ**なので、ここから伝える。
 
 **★この文面は KeyTag だけに使う。** 同じ文章を3本に送ると「やはり同じ型で量産している」という
 最初の印象を補強してしまう。ほかの2本（にゃんこアイス／スクラップメモ）は返信しないで置く。
@@ -64,6 +67,13 @@ been withheld, and we will not submit any new app while this is unresolved. We d
 keep fixing bugs in the apps that are already live, so we may submit bug-fix updates for
 those.
 
+One more thing, about a different app. "にゃんこのアイス屋さん" (com.daikyo.nyankoice,
+Apple ID 6784674385) was rejected at the same time. We will not resubmit it, and we would like
+to remove it from our account, but we are not able to: "Remove App" is unavailable while the
+app is in the Rejected state, and the version cannot be deleted either ("The last version of
+an app cannot be deleted"). The App Rejection or Removal support form does not cover this
+case. If you can remove that app record, or tell us how, we would appreciate it.
+
 Our question: if the concern is our portfolio as a whole rather than this specific app,
 please tell us which apps are considered duplicative. We will consolidate or remove them.
 
@@ -102,6 +112,13 @@ WebView ラッパー Capacitor を除く）。
 新規アプリの提出はすでに止めました。用意済みだった4本も出さずに保留し、この件が
 解決するまで新しいアプリは出しません。なお、すでに配信しているアプリの不具合修正は
 続けたいので、その更新は提出することがあります。
+
+もう1点、別のアプリについてです。「にゃんこのアイス屋さん」
+（com.daikyo.nyankoice / Apple ID 6784674385）が同時に却下されました。**再提出はしません。
+アカウントからも削除したいのですが、削除できません**（Rejected 状態のあいだは「Appを削除」が
+使えず、バージョンの削除もできない）。「アプリの却下または削除」のサポートフォームは
+この場合を扱っていないようでした。記録を削除していただけるか、方法を教えていただけると
+助かります。
 
 おうかがいしたいこと: もし懸念がこのアプリ単体ではなく、私たちのアプリ全体に
 あるのでしたら、どのアプリが重複していると見なされているか教えてください。
