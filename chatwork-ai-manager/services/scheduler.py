@@ -13,10 +13,15 @@
 
 closing_1800 にはさらに、業務記録リマインド（Stage 16・TASK-20260827-006）を同居させている:
   その日、本人がChatworkに投稿した発言数（services/daily_report.own_message_count。18:30に
-  自動生成する業務日報が実際に使っている「本人の発言」の数え方をそのまま流用＝二重管理にしない）が
-  既定3件未満の社員へ、18:30の自動生成より前に「本日の業務内容を入力・報告してください」と
+  自動生成する業務日報が実際に使っている「本人の発言」の数え方をそのまま流用＝二重管理にしない）と、
+  本人のメッセージを根拠にanalyzerが作成/更新したTODOイベント件数（_business_record_count）の
+  **大きい方**が既定3件未満の社員へ、18:30の自動生成より前に「本日の業務内容を入力・報告してください」と
   個別に知らせる。TODO確認（Claudeの優先度判断）とは別の、単純な閾値判定（Pythonで完結）。
   設定 daily_record_reminder_enabled（既定1）/ daily_record_min_count（既定3）。
+  ※ 1通のメッセージに複数件の業務報告をまとめて書く社員がいる（例: 6件の完了報告を1通で送る）。
+  analyzer.py が案件ごとに分割してTODOイベント化するようになった（TASK-20260828-002）ため、
+  発言数だけで閾値判定すると「メッセージは1通だが実質6件報告済み」を見落として誤って
+  催促してしまう。business_record_count を併用してこれを防ぐ。
 
 方針:
   - **会社の休業日（年間休暇スケジュールのオレンジ）は投稿する定時ジョブを全て止める**（オーナー指示 2026-08-22）。
@@ -158,8 +163,30 @@ def _daily_record_min_count() -> int:
         return 3
 
 
+def _business_record_count(today: str, account_id: int) -> int:
+    """本日、本人のメッセージを根拠にanalyzerが作成/更新したTODOイベント件数。
+
+    1通のメッセージに複数案件の完了報告がまとめて書かれても、analyzer.pyが
+    案件ごとに別イベント（同じevidence_message_id）へ分割するようになった
+    （TASK-20260828-002）ので、そのイベント数を「実質の報告件数」として数える。
+    """
+    from db.connection import query
+    rows = query(
+        "SELECT COUNT(*) AS n FROM task_events te JOIN messages m "
+        "ON te.evidence_message_id = m.message_id "
+        "WHERE m.account_id=? AND date(te.created_at)=? "
+        "AND te.event_type IN ('created', 'status_change')",
+        (account_id, today),
+    )
+    return rows[0]["n"] if rows else 0
+
+
 def _send_daily_record_reminders(client, today) -> int:
-    """本日の発言数が閾値未満の社員へ、業務記録の入力・確認を促す。送った人数を返す。"""
+    """本日の報告件数が閾値未満の社員へ、業務記録の入力・確認を促す。送った人数を返す。
+
+    件数は「本人のChatwork発言数」と「本人の発言を根拠に分割済みのTODOイベント件数」の
+    大きい方を採る（1通のメッセージに複数件まとめて報告した場合の誤催促を防ぐ）。
+    """
     if not _daily_record_reminder_enabled():
         return 0
     from services import daily_report as DR
@@ -169,7 +196,8 @@ def _send_daily_record_reminders(client, today) -> int:
         room_id = p.get("room_id")
         if not room_id:
             continue
-        count = DR.own_message_count(today, p["account_id"])
+        count = max(DR.own_message_count(today, p["account_id"]),
+                    _business_record_count(today, p["account_id"]))
         if count >= min_count:
             continue
         header = mention(p["account_id"], p["name"])

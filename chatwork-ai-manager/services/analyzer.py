@@ -132,6 +132,21 @@ def _build_prompt(room_id, new_msgs, context_msgs, members, open_tasks) -> str:
 4. 期限は本日を基準に "YYYY-MM-DD" へ変換（明日/金曜/来週/月末等）。判断できなければ due_date=null、元表現を due_raw に残す。
 5. 担当者は会話とメンバーから推定し、可能なら assignee_account_id も埋める。不明なら null。
 6. reason には「なぜそう判断したか」を日本語で簡潔に必ず書く。
+7. **1つのメッセージに、複数の独立した物件・案件についての業務報告（完了・進行中など）が
+   まとめて書かれることがある**（例:「A邸図面作成完了、B社契約手続き進行中、C物件引渡し完了」）。
+   このとき、まとめて1件のイベントにせず、**案件ごとに別々のイベントへ分割する**こと。
+   同じ message_id を複数のイベントで使ってよい（1メッセージ→複数イベントは正常）。
+8. 分割した案件ごとの報告が、既存の未完了TODO（一覧参照）のどれにも該当しない場合
+   （＝そもそもTODOとして事前登録されていなかった業務についての完了・進行中の報告）は、
+   target_task_id が見つからないからと黙って捨てない。new_task として登録し、
+   task.report_status に実際の状態を入れること:
+   - 既に完了済みの報告 → "完了"
+   - 着手済み・進行中の報告 → "進行中"
+   - まだ着手していない依頼 → "未着手"（省略時のデフォルト）
+   （「業務記録を入力してください」のような、特定の案件を指さない**汎用の依頼TODO**への
+   返信として複数件の案件が報告された場合も同様。汎用TODO自体への completion イベントは
+   従来通り target_task_id で送りつつ、報告された案件ごとに上記の new_task を追加で出す。
+   汎用TODOの完了1件だけで案件6件分の報告を済ませたことにしない。）
 
 ## 出力フォーマット（JSON配列のみ。前後に説明文を書かない）
 [
@@ -154,6 +169,7 @@ def _build_prompt(room_id, new_msgs, context_msgs, members, open_tasks) -> str:
       "due_raw": null,
       "done_condition": null,
       "priority": "中",
+      "report_status": "未着手",
       "conf_assignee": "明示|高|推測|不明",
       "conf_due": "明示|高|推測|不明",
       "conf_done": "明示|高|推測|不明",
@@ -161,7 +177,8 @@ def _build_prompt(room_id, new_msgs, context_msgs, members, open_tasks) -> str:
     }}
   }}
 ]
-new_task/due_change 以外では "task" は省略可（null）でよい。"""
+new_task/due_change 以外では "task" は省略可（null）でよい。
+report_status は new_task の時だけ使う（"未着手"|"進行中"|"完了"。ルール8参照）。"""
 
 
 def _norm_name(s):
@@ -224,7 +241,12 @@ def _apply_events(room_id, events, members, msg_by_id):
             assignee_name = task.get("assignee_name")
             if not assignee_name and not aid:
                 assignee_name, reason = _apply_property_master(content, reason)
-            status = T.STATUS_AI_CONFIRM if conf in LOW_CONF else T.STATUS_TODO
+            # report_status: 事前登録の無かった案件を「完了/進行中の報告」として登録する場合の初期状態
+            # （ルール8）。confidenceが低い時は従来通りAI確認待ちを優先する。
+            report_status = task.get("report_status")
+            if report_status not in (T.STATUS_TODO, T.STATUS_DOING, T.STATUS_DONE):
+                report_status = T.STATUS_TODO
+            status = T.STATUS_AI_CONFIRM if conf in LOW_CONF else report_status
             dedup_key = f"{room_id}:{content}"[:200]
             # 同一 dedup_key の未完了TODOが既にあればスキップ（多重生成防止）
             existing = T.find_by_dedup_key(dedup_key)
