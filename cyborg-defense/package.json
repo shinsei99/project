@@ -1,0 +1,18 @@
+{
+  "name": "cyborg-defense",
+  "version": "1.0.0",
+  "private": true,
+  "description": "サイボーグ防衛軍 — 位置取りだけで戦う防衛シューティング（Capacitor・広告なし・課金なし・通信なし）",
+  "scripts": {
+    "sync": "cap sync",
+    "open:ios": "cap open ios",
+    "add:ios": "cap add ios"
+  },
+  "dependencies": {
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/ios": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0"
+  }
+}
