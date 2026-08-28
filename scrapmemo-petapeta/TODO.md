@@ -10,8 +10,12 @@
       枠外タップ＝保存せず閉じる、を踏みやすかった。ヘッダーなら**縦を1pxも使わない**
 - [x] 字数の独立行を廃してタイトル横へ畳んだ（そのぶん編集エリアが広がる）
 - [ ] **Web版（GitHub Pages）へ反映** — push すれば Actions で出る。**外部公開なのでオーナー判断**
-- [ ] **iOSアプリへ反映** — 配信中の 1.0.4 / build 8 はそのまま。載せるときは
-      `npm run sync`（`npx cap sync` 単体は不可）→ `./ios-build-guard.sh scrapmemo-petapeta --bump` → Archive
+- [x] **iOSアプリへ反映（2026-08-28）** — `npm run sync` → build 9 / 表示 1.0.5 へ繰り上げ →
+      Archive → アップロード（`UPLOAD SUCCEEDED`）→ ASC に **1.0.5 を作成・最新情報・build 9 をひも付け**
+- [x] **1.0.5 を審査へ提出（2026-08-28・本人実施）** — API で `審査待ち` を確認
+- [ ] **審査結果を待つ。**`python3 appstore_api.py --review com.shinsei99.scrapmemo` で見る。
+      通ったら `CLAUDE.md` の一覧を「1.0.5 build9 が配信中」へ書き換える。
+      出し直すことになったら**必ず build 10 へ**（`./ios-build-guard.sh scrapmemo-petapeta --bump`）
 - [ ] 枠外タップでの破棄に確認を出すか（保留・オーナー未判断）
 
 

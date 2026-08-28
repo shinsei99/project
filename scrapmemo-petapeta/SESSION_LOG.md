@@ -1,5 +1,40 @@
 # SESSION LOG — スクラップメモ（scrapmemo-petapeta）
 
+## 2026-08-28（メインPC）— 1.0.5 / build 9 をアップロードし、審査提出の直前まで整えた
+
+### 完了したこと
+
+8/27 に直した「完了／キャンセルをヘッダーへ」を **iOSアプリへ載せた**（それまでは
+`index.html` だけの修正で、配信中の 1.0.4 / build 8 には入っていなかった）。
+
+| 手順 | 結果 |
+|---|---|
+| `npm run sync` | `ios/App/App/public/index.html` に `mh-done` 2件・`makeMemoFootDOM` 0件を実測（新版が入った証拠） |
+| `./ios-build-guard.sh scrapmemo-petapeta --bump` | ASC 登録済み最大 build 8 と衝突 → **build 9** へ自動更新 |
+| `MARKETING_VERSION` | **1.0.4 → 1.0.5** に手で上げた（1.0.4 は `READY_FOR_SALE` なので同じ表示バージョンでは出せない） |
+| Archive → export → validate → upload | すべて成功。**`UPLOAD SUCCEEDED`**（20MB・Delivery UUID `e409eb61-…`） |
+| ASC | **バージョン 1.0.5 を新規作成**し、「このバージョンの新機能」201字を投入、**build 9（VALID）をひも付け**。説明407字・キーワード63字・スクショ（iPhone 6.5" 3枚／iPad 12.9" 3枚）は前版から自動で引き継がれた |
+
+**そのあとオーナーが ASC の画面から審査へ提出**（外部に出る操作なので人が実施）。
+**API で `1.0.5 … 審査待ち`（`WAITING_FOR_REVIEW`）を確認済み**。あとは結果を待つだけ。
+
+### 発生したエラーと解決策
+
+- **症状**: `xcodebuild -workspace ios/App/App.xcworkspace` が `does not exist` で落ちる
+  → **原因**: Capacitor 8 は CocoaPods ではなく **SPM（`ios/App/CapApp-SPM`）**を使うので、
+    `.xcworkspace` が生成されない。過去のアプリの手順をそのまま持ってくると踏む
+  → **直し方**: **`-project ios/App/App.xcodeproj`** を使う。他は同じで通る
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **審査の結果を待つ**（`python3 appstore_api.py --review com.shinsei99.scrapmemo`）。
+  通ったら `CLAUDE.md` の一覧を「1.0.5 build9 が配信中」へ書き換える
+- **Web版（GitHub Pages）は今回も未反映のまま。** 外部公開なのでオーナー判断
+- 出し直すときは **必ず build 10 へ**（`./ios-build-guard.sh scrapmemo-petapeta --bump`）。
+  Archive〜アップロードは GUI 不要で、`RELEASE_NOTES.md` 末尾の手順で通る
+- ASC のバージョン作成・最新情報・build ひも付けは **`push-version.py`** に残した
+  （次回は `VERSION` / `BUILD` を書き換えて `--apply`）
+
 ## 2026-08-27（メインPC）— 「長文をペーストすると途中までしか入らない」の調査と、編集画面の作り替え
 
 ### 完了したこと
