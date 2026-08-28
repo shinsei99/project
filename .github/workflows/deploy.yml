@@ -21,11 +21,32 @@ jobs:
 
       - name: Deploy to gh-pages
         run: |
-          DEPLOY_FOLDERS="scrapmemo-petapeta mom-counter"
+          # 「公開先フォルダ:リポジトリ側の取り出し元」。`:` を書かなければ同名フォルダをそのまま出す。
+          # ★公開中のWeb版は main を push したときに一緒に更新する（2026-08-28 オーナー判断）。
+          #   手で置きに行くとズレる。実際 realestate-calc と nyanko-ice はここに無かったせいで
+          #   数か月ぶん古いままだった。
+          # ★ここへ足すフォルダには support.html / privacy.html を同梱しておくこと。
+          #   下の rm -rf は公開先を作り直すので、リポジトリ側に無いファイルは消える。
+          #   App Store に登録済みのサポート/プライバシーURLが消えると審査に出せなくなる。
+          DEPLOY_FOLDERS="scrapmemo-petapeta mom-counter realestate-calc nyanko-ice:www"
 
           # 各フォルダを一時保存
-          for FOLDER in $DEPLOY_FOLDERS; do
-            cp -r $FOLDER /tmp/$FOLDER
+          for ENTRY in $DEPLOY_FOLDERS; do
+            DEST="${ENTRY%%:*}"
+            SUB="${ENTRY#*:}"
+            # `:` を書いていないときは ${ENTRY#*:} が丸ごと返るので、その場合だけ同名扱い。
+            # ここを `[ … ] && SRC=…` で書くと、`:` 無しの行でリスト全体が非0になり、
+            # GitHub Actions の `bash -e` がステップごと落ちる。if で書くこと。
+            if [ "$SUB" != "$ENTRY" ]; then
+              SRC="$DEST/$SUB"
+            else
+              SRC="$DEST"
+            fi
+            if [ ! -f "$SRC/index.html" ]; then
+              echo "ERROR: $SRC/index.html がありません"
+              exit 1
+            fi
+            cp -r "$SRC" "/tmp/$DEST"
           done
 
           # gh-pagesブランチに切り替え
@@ -33,7 +54,8 @@ jobs:
           git checkout gh-pages
 
           # 各フォルダをコピー＆検証
-          for FOLDER in $DEPLOY_FOLDERS; do
+          for ENTRY in $DEPLOY_FOLDERS; do
+            FOLDER="${ENTRY%%:*}"
             SRC_SHA=$(sha256sum /tmp/$FOLDER/index.html | awk '{print $1}')
             rm -rf ./$FOLDER
             cp -r /tmp/$FOLDER ./$FOLDER
