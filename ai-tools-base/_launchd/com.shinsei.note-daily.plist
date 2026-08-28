@@ -21,8 +21,10 @@
     <key>Hour</key><integer>22</integer>
     <key>Minute</key><integer>35</integer>
   </dict>
-  <key>StandardOutPath</key><string>/tmp/note-daily.log</string>
-  <key>StandardErrorPath</key><string>/tmp/note-daily.err</string>
+  <!-- ★ログは /tmp に置かない。macOS が再起動時に /private/tmp を掃除するので、
+       夜に動いた証拠が朝には消えている（2026-08-28の再起動で実際に消えた）。 -->
+  <key>StandardOutPath</key><string>/Users/apple/Library/Logs/com.shinsei.note-daily.log</string>
+  <key>StandardErrorPath</key><string>/Users/apple/Library/Logs/com.shinsei.note-daily.err.log</string>
   <key>RunAtLoad</key><false/>
 </dict>
 </plist>

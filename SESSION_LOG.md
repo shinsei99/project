@@ -24,8 +24,45 @@
   `deploy-not-reflected` 投稿済み／daily-write は `content/works/a4-one-page-layout.json` が
   **8/28 08:11** に生成＝22:45はスリープ中で、**起床時に launchd が取りこぼしを実行**していた）
 
+### 追記（同日・昼）— 夜間ルーティーンを点検し、22時台3本のログを `/tmp` から出した
+
+**夜間ジョブは5本。全部ロード済みで、5本とも今朝の PATH 修正（`6d879f3a`）が入っていることを実測。**
+
+| 時刻 | ラベル | 中身 |
+|---|---|---|
+| 22:00 | `zenn-daily` | Zenn へ push（公開は22:30・Zenn側） |
+| 22:35 | `note-daily` | 同じ記事を note へ投稿（Playwright・画面あり） |
+| 22:45 | `daily-write` | ネタ収集→1本執筆→guard→予約→本番反映 |
+| 00:30 | `mail-archiver-sync` | メール取込＋翻訳＋1年超をサーバー削除 |
+| 02:00 | `chatwork-ai-manager-ocr` | スキャンPDFのOCR（最大300件・180分） |
+
+**★今夜が PATH 修正後の初日。** これまで全滅していた真因なので、効いたかは今夜の結果で分かる。
+
+**やったこと: 22時台3本の `StandardOutPath` / `StandardErrorPath` を
+`/tmp/*` → `~/Library/Logs/com.shinsei.<ラベル>.{log,err.log}` に変えた。**
+理由は、macOS が再起動時に `/private/tmp` を掃除するので**夜に動いた証拠が朝には消える**から
+（今朝の再起動で実際に消え、note が出せたかを `.note_posted.json` から、記事が書けたかを
+生成ファイルの日付から後追いで復元する羽目になった）。00:30 と 02:00 の2本は元から
+`~/Library/Logs` なので触っていない。
+
+- 直したのは **`ai-tools-base/_launchd/` のリポジトリ側**（＝サブPCにも渡る）→ `cp` で設置
+- 反映は **`bootout` → `bootstrap`**。パスを変えたので `kickstart -k` では反映されない
+- `launchctl print` で **3本とも新しいログパスと、22:00 / 22:35 / 22:45 の時刻**を確認済み
+- **試し打ち（kickstart）はしていない。** この3本は note へ投稿・Zenn へ push・本番デプロイと
+  **外部に出る**ため、確認のためだけに走らせない
+
+### 記録と実物の食い違いを直した
+
+朝のセッションで時間帯をずらしてあるのに、CLAUDE.md が古かった。
+
+- メール取込: 「毎日2時」→ **00:30**（CLAUDE.md 修正）
+- 明朝見るコマンドの `/tmp/...` → `~/Library/Logs/...`（TODO.md 修正）
+
 ### 次回への引き継ぎ事項・未解決の課題
 
+- **★明朝、この3つを見る**（今夜が PATH 修正後の初日）:
+  `~/Library/Logs/com.shinsei.{zenn-daily,note-daily,daily-write}.log` ＋
+  `com.shinsei.{mail-archiver-sync,chatwork-ai-manager-ocr}.log` ＋ `./publish.sh status`
 - **★keyline（8534）だけ常駐に入っていない。** `~/keyline/_launchd/` に plist は2本あるが
   `~/Library/LaunchAgents/` に**入っておらず、`~/Library/Logs/com.shinsei.keyline*.log` も
   一度も作られていない**＝**再起動で落ちたのではなく、このMacに最初から入れていなかった**。
