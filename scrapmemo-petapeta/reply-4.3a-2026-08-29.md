@@ -13,6 +13,33 @@
 - ビルド **9 が `VALID` でひも付け済み**。「今回の変更」も記入済み ＝ **作り直し不要**
 - にゃんこのアイス屋さんの App 記録は **削除済み**（同日実施）
 
+
+## ✅ 審査ノートは入力済み（2026-08-29・API で書き込み）
+
+`appStoreReviewDetails` の `notes` に899字を書き込み、読み返して確認済み（もとは**空**だった）。
+**返信とは役割を分けてある**: 返信＝経緯（なぜ3件同時に出したか）／ノート＝このビルドの事実
+（何が変わったか・オフラインで完結すること・ログイン不要）＋最後に4.3(a)の一言。
+
+```
+This is a bug-fix update to an app that is already on the App Store. Version 1.0.4 is live,
+and versions 1.0.1 through 1.0.4 were each approved by review.
+
+Only change in 1.0.5: in the note editor, the Done and Cancel buttons were at the bottom of
+the note, so with a long note they could not be reached, and tapping outside the editor
+discarded the edit. They were moved to the header. No new features, no new frameworks or
+SDKs, and no changes to the store listing.
+
+The app works entirely offline. There is no account, no login, and no demo credentials are
+needed. Notes are stored on the device only.
+
+Regarding the Guideline 4.3(a) decision of August 29: we have replied in Resolution Center.
+In short, three unrelated items were submitted within about six hours by mistake in our own
+scheduling. We have deleted that new app from our account, and from now on we will submit
+one item at a time.
+```
+
+**「今回の変更」欄はもともと記入済み**（完了・キャンセルの移動と、文字数表示の整理）。触っていない。
+
 ---
 
 ## 送る文面（英語・そのままコピー）
