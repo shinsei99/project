@@ -8,18 +8,23 @@ function drawStageIntro(stage, timer, totalTime) {
   var sc=0.82+alpha*0.18;
   _ctx.save(); _ctx.translate(_W/2,_H/2); _ctx.scale(sc,sc); _ctx.globalAlpha=alpha; _ctx.textAlign='center';
   _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=26;
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 26px "Zen Maru Gothic",sans-serif'; _ctx.fillText('STAGE',0,-36);
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 26px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('STAGE',0,-36);
   _ctx.shadowColor='#FFFFFF'; _ctx.shadowBlur=22;
-  _ctx.fillStyle='#FFFFFF'; _ctx.font='bold 86px "Zen Maru Gothic",sans-serif'; _ctx.fillText(stage,0,52);
+  _ctx.fillStyle='#FFFFFF'; _ctx.font='bold 86px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText(stage,0,52);
   _ctx.shadowBlur=0;
-  _ctx.fillStyle='rgba(180,210,255,0.70)'; _ctx.font='15px "Zen Maru Gothic",sans-serif'; _ctx.fillText('タップでスキップ',0,96);
+  _ctx.fillStyle='rgba(180,210,255,0.70)'; _ctx.font='15px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('タップでスキップ',0,96);
   _ctx.globalAlpha=1; _ctx.restore();
 }
 
 // ── Button gradient ───────────────────────────────────────────────────────────
+/* ★2026-08-29: ボタンの地を**一律で暗い紺**にした。
+   呼び出し側は今までどおり色を渡してよい（無視する）。色分けは
+   rrectGrd に渡す「縁の色」＝光る色のほうで付ける。
+   こうしないと、赤や茶色の面がネオンの画面から浮く。
+   ★暗くしすぎると押せる場所が分からなくなるので、上をわずかに明るくして立体を残している。 */
 function _btnGrd(x, y, w, h, colTop, colBot) {
   var g=_ctx.createLinearGradient(x,y,x,y+h);
-  g.addColorStop(0,colTop); g.addColorStop(1,colBot); return g;
+  g.addColorStop(0,'rgba(22,16,54,0.94)'); g.addColorStop(1,'rgba(8,5,24,0.94)'); return g;
 }
 
 // ── Battle HUD ───────────────────────────────────────────────────────────────
@@ -34,12 +39,13 @@ function drawHudTop(earthHP, maxEarthHP, barrierActive, stage, wave, wavesPerSta
   var ratio=earthHP/maxEarthHP;
   rrect(48,13,_W-110,24,12,'rgba(0,0,0,0.7)','rgba(80,100,140,0.4)',1);
   if (ratio>0) {
-    var hcol=ratio>0.55?'#2ECC71':ratio>0.3?'#F39C12':'#E74C3C';
+    // ★2026-08-29: HPバーもネオン3色に（緑→黄→マゼンタ）。中は暗いまま、縁と光で見せる
+    var hcol=ratio>0.55?'#7CFF4F':ratio>0.3?'#FFD54F':'#FF4FC3';
     var hG=_ctx.createLinearGradient(49,14,49,36);
-    hG.addColorStop(0,hcol==='#2ECC71'?'#50FF90':hcol==='#F39C12'?'#FFB830':'#FF6060'); hG.addColorStop(1,hcol);
-    rrectGrd(49,14,(_W-112)*ratio,22,11,hG,null);
-    _ctx.fillStyle='rgba(255,255,255,0.22)';
-    _ctx.beginPath(); _ctx.moveTo(52,15); _ctx.lineTo(49+(_W-112)*ratio-3,15); _ctx.lineTo(49+(_W-112)*ratio-3,20); _ctx.lineTo(52,20); _ctx.closePath(); _ctx.fill();
+    hG.addColorStop(0,hcol); hG.addColorStop(1,'rgba(10,8,26,0.85)');
+    _ctx.save(); _ctx.shadowColor=hcol; _ctx.shadowBlur=12;
+    rrectGrd(49,14,(_W-112)*ratio,22,11,hG,hcol,1.5);
+    _ctx.restore();
   }
   // 毒デバフ表示
   if (poisonDebuff > 0) {
@@ -47,7 +53,7 @@ function drawHudTop(earthHP, maxEarthHP, barrierActive, stage, wave, wavesPerSta
     rrect(47,12,_W-110,26,13,null,'#88FF44',2);
     _ctx.globalAlpha=1;
   }
-  _ctx.fillStyle='#fff'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center';
+  _ctx.fillStyle='#fff'; _ctx.font='bold 11px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center';
   _ctx.fillText('HP '+earthHP+'/'+maxEarthHP, 48+(_W-112)/2, 29);
   if (barrierActive) {
     _ctx.globalAlpha=0.55+Math.sin(frame*0.12)*0.3; rrect(47,12,_W-110,26,13,null,'#00FFFF',2.5); _ctx.globalAlpha=1;
@@ -60,19 +66,19 @@ function drawHudTop(earthHP, maxEarthHP, barrierActive, stage, wave, wavesPerSta
   // STAGE/WAVE
   var swG=_btnGrd(8,44,80,30,'rgba(20,40,80,0.92)','rgba(8,18,45,0.92)');
   rrectGrd(8,44,80,30,6,swG,'rgba(68,138,187,0.7)',1.5);
-  _ctx.fillStyle='#7EC8E3'; _ctx.font='bold 9px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('STAGE '+stage,48,55);
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 13px "Zen Maru Gothic",sans-serif'; _ctx.fillText('WAVE '+wave+'/'+wavesPerStage,48,70);
+  _ctx.fillStyle='#7EC8E3'; _ctx.font='bold 9px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('STAGE '+stage,48,55);
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 13px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('WAVE '+wave+'/'+wavesPerStage,48,70);
 
   // SCORE
   var scG=_btnGrd(96,44,100,30,'rgba(25,25,45,0.92)','rgba(10,10,28,0.92)');
   rrectGrd(96,44,100,30,6,scG,'rgba(80,80,110,0.5)',1.5);
-  _ctx.fillStyle='#888'; _ctx.font='9px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('SCORE',146,55);
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 13px "Zen Maru Gothic",sans-serif'; _ctx.fillText(score,146,70);
+  _ctx.fillStyle='#888'; _ctx.font='9px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('SCORE',146,55);
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 13px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText(score,146,70);
 
   // LV/XP
   var lvG=_btnGrd(204,44,80,30,'rgba(40,15,70,0.92)','rgba(18,6,36,0.92)');
   rrectGrd(204,44,80,30,6,lvG,'rgba(155,89,182,0.6)',1.5);
-  _ctx.fillStyle='#CC88FF'; _ctx.font='bold 10px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('Lv.'+level,244,56);
+  _ctx.fillStyle='#CC88FF'; _ctx.font='bold 10px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('Lv.'+level,244,56);
   rrect(209,63,68,7,3,'rgba(0,0,0,0.55)',null);
   if (xp>0) {
     var xpG=_ctx.createLinearGradient(209,63,209,70);
@@ -87,9 +93,9 @@ function drawHudTop(earthHP, maxEarthHP, barrierActive, stage, wave, wavesPerSta
   var rG=_btnGrd(rx,44,rw,30,'rgba(30,26,10,0.92)','rgba(15,12,4,0.92)');
   rrectGrd(rx,44,rw,30,6,rG,'rgba(180,150,50,0.5)',1.5);
   drawCoinIcon(rx+12, 55, 6.5);
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 12px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='left';
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 12px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='left';
   _ctx.fillText(coins, rx+22, 59);
-  _ctx.fillStyle='#A0A0BC'; _ctx.font='9px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='right';
+  _ctx.fillStyle='#A0A0BC'; _ctx.font='9px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='right';
   _ctx.fillText('撃破 '+kills+'  ｜  HS '+hs, rx+rw-7, 70);
 }
 
@@ -102,7 +108,7 @@ function drawEvoBar(evoGauge, isEvolved, evoTimer, isAngel, angelTimer) {
     var ea=_ctx.createLinearGradient(bx,by,bx,by+bh);
     ea.addColorStop(0,'#88CCFF'); ea.addColorStop(1,'#4488CC');
     rrectGrd(bx,by,bw*Math.max(0,Math.min(1,(angelTimer||0)/900)),bh,bh/2,ea,null);
-    _ctx.fillStyle='#AADDFF'; _ctx.font='bold 9px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='right';
+    _ctx.fillStyle='#AADDFF'; _ctx.font='bold 9px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='right';
     _ctx.fillText('😇 エンジェル変身中！ '+Math.ceil((angelTimer||0)/60)+'s',_W-10,by-1);
   } else {
     if (evoGauge>0) {
@@ -111,17 +117,20 @@ function drawEvoBar(evoGauge, isEvolved, evoTimer, isAngel, angelTimer) {
       rrectGrd(bx,by,bw*(evoGauge/100),bh,bh/2,eg,null);
     }
     if (isEvolved) {
-      _ctx.fillStyle='#FF6B35'; _ctx.font='bold 9px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='right';
+      _ctx.fillStyle='#FF6B35'; _ctx.font='bold 9px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='right';
       _ctx.fillText('にわトリ変身中！ '+Math.ceil(evoTimer/60)+'s',_W-10,by-1);
     }
   }
 }
 
 function drawCompanionBtns(upg, cds, CD_MAX, frame) {
+  // ★2026-08-29: 茶・桃・青の丸ボタンをやめ、**暗い地＋ネオンの輪**にした
+  //   （中身のひよこは残す。誰を呼ぶかが分からなくなるため）。
+  //   色の役割は輪のほうに移した: 軍師＝黄／ナース＝マゼンタ／バリア＝シアン。
   var BTNS=[
-    {id:'gunshi', label:'軍師',   x:50,    color:'#8B4513',hiColor:'#C06020',acc:'glasses'},
-    {id:'nurse',  label:'ナース', x:_W/2,  color:'#C0397B',hiColor:'#E05090',acc:'nurse'  },
-    {id:'barrier',label:'バリア', x:_W-50, color:'#1A5DAD',hiColor:'#2878CC',acc:'helmet' },
+    {id:'gunshi', label:'軍師',   x:50,    neon:'#FFD54F', acc:'glasses'},
+    {id:'nurse',  label:'ナース', x:_W/2,  neon:'#FF4FC3', acc:'nurse'  },
+    {id:'barrier',label:'バリア', x:_W-50, neon:'#41E3FF', acc:'helmet' },
   ];
   var BY=_H-65,BR=30;
   BTNS.forEach(function(btn){
@@ -129,17 +138,19 @@ function drawCompanionBtns(upg, cds, CD_MAX, frame) {
     _ctx.beginPath(); _ctx.arc(btn.x,BY+3,BR,0,Math.PI*2); _ctx.fillStyle='rgba(0,0,0,0.4)'; _ctx.fill();
     var ready=unlocked&&cd<=0;
     var cG=_ctx.createRadialGradient(btn.x-BR*0.3,BY-BR*0.3,2,btn.x,BY,BR);
-    if(ready){cG.addColorStop(0,btn.hiColor);cG.addColorStop(1,btn.color);}
-    else{cG.addColorStop(0,'#2A2A2A');cG.addColorStop(1,'#111');}
+    cG.addColorStop(0,'rgba(24,17,58,0.95)'); cG.addColorStop(1,'rgba(8,5,22,0.95)');
     _ctx.beginPath(); _ctx.arc(btn.x,BY,BR,0,Math.PI*2); _ctx.fillStyle=cG; _ctx.fill();
-    _ctx.strokeStyle=ready?'rgba(255,255,255,0.7)':(unlocked?'#555':'#333'); _ctx.lineWidth=ready?2.5:1.5; _ctx.stroke();
-    if(ready){_ctx.globalAlpha=0.25;_ctx.fillStyle='#fff';_ctx.beginPath();_ctx.arc(btn.x,BY,BR,Math.PI*1.1,Math.PI*1.9);_ctx.lineTo(btn.x,BY);_ctx.closePath();_ctx.fill();_ctx.globalAlpha=1;}
+    _ctx.save();
+    if(ready){ _ctx.shadowColor=btn.neon; _ctx.shadowBlur=14; _ctx.strokeStyle=btn.neon; _ctx.lineWidth=2.6; }
+    else { _ctx.strokeStyle=unlocked?'rgba(120,130,180,0.5)':'rgba(70,75,110,0.45)'; _ctx.lineWidth=1.5; }
+    _ctx.beginPath(); _ctx.arc(btn.x,BY,BR,0,Math.PI*2); _ctx.stroke();
+    _ctx.restore();
     if(unlocked&&cd>0){
       _ctx.globalAlpha=0.55;_ctx.fillStyle='#000';_ctx.beginPath();_ctx.moveTo(btn.x,BY);_ctx.arc(btn.x,BY,BR,-Math.PI/2,-Math.PI/2+Math.PI*2*(cd/cdMax));_ctx.closePath();_ctx.fill();_ctx.globalAlpha=1;
       _ctx.fillStyle='#fff';_ctx.font='bold 12px sans-serif';_ctx.textAlign='center';_ctx.fillText(Math.ceil(cd/60)+'s',btn.x,BY+5);
     } else if(unlocked){drawChick(btn.x,BY-2,22,false,btn.acc);}
     else{_ctx.fillStyle='#555';_ctx.font='20px sans-serif';_ctx.textAlign='center';_ctx.textBaseline='middle';_ctx.fillText('🔒',btn.x,BY);_ctx.textBaseline='alphabetic';}
-    _ctx.fillStyle=unlocked?'#ddd':'#444';_ctx.font='9px "Zen Maru Gothic",sans-serif';_ctx.textAlign='center';_ctx.fillText(btn.label,btn.x,BY+BR+13);
+    _ctx.fillStyle=unlocked?(ready?btn.neon:'#9FB0D8'):'#4A4F70';_ctx.font='9px Orbitron,"Zen Kaku Gothic New",sans-serif';_ctx.textAlign='center';_ctx.fillText(btn.label,btn.x,BY+BR+13);
   });
 }
 
@@ -150,9 +161,9 @@ function drawBossWarn(timer, totalWarnTime) {
   var sc=1+Math.sin(timer*0.22)*0.08;
   _ctx.save(); _ctx.translate(_W/2,_H/2-30); _ctx.scale(sc,sc); _ctx.textAlign='center';
   _ctx.shadowColor='#FF0000'; _ctx.shadowBlur=28; _ctx.strokeStyle='#000'; _ctx.lineWidth=10; _ctx.fillStyle='#FF1A1A';
-  _ctx.font='bold 48px "Zen Maru Gothic",sans-serif'; _ctx.strokeText('⚠️ WARNING!! ⚠️',0,0); _ctx.fillText('⚠️ WARNING!! ⚠️',0,0);
+  _ctx.font='bold 48px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.strokeText('⚠️ WARNING!! ⚠️',0,0); _ctx.fillText('⚠️ WARNING!! ⚠️',0,0);
   _ctx.shadowColor='#FF8800'; _ctx.shadowBlur=16; _ctx.strokeStyle='#000'; _ctx.lineWidth=7; _ctx.fillStyle='#FFD700';
-  _ctx.font='bold 31px "Zen Maru Gothic",sans-serif'; _ctx.strokeText('BOSS INCOMING!!',0,50); _ctx.fillText('BOSS INCOMING!!',0,50);
+  _ctx.font='bold 31px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.strokeText('BOSS INCOMING!!',0,50); _ctx.fillText('BOSS INCOMING!!',0,50);
   _ctx.shadowBlur=0; _ctx.restore();
 }
 
@@ -162,15 +173,15 @@ function drawStageClear(stage, totalStages, timer, totalTime, frame) {
   _ctx.fillStyle='rgba(0,0,0,'+(0.55*fadeIn)+')'; _ctx.fillRect(0,0,_W,_H);
   var sc=(1+Math.sin(frame*0.08)*0.04)*fadeIn;
   _ctx.save(); _ctx.translate(_W/2,_H*0.38); _ctx.scale(sc,sc); _ctx.textAlign='center';
-  _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=28; _ctx.fillStyle='#FFD700'; _ctx.font='bold 44px "Zen Maru Gothic",sans-serif'; _ctx.fillText('STAGE '+stage,0,0);
-  _ctx.shadowColor='#FFFFFF'; _ctx.shadowBlur=18; _ctx.fillStyle='#FFFFFF'; _ctx.font='bold 54px "Zen Maru Gothic",sans-serif'; _ctx.fillText('CLEAR!!',0,64);
+  _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=28; _ctx.fillStyle='#FFD700'; _ctx.font='bold 44px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('STAGE '+stage,0,0);
+  _ctx.shadowColor='#FFFFFF'; _ctx.shadowBlur=18; _ctx.fillStyle='#FFFFFF'; _ctx.font='bold 54px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('CLEAR!!',0,64);
   _ctx.shadowBlur=0; _ctx.restore();
   _ctx.globalAlpha=fadeIn;
   if (stage<totalStages) {
-    _ctx.fillStyle='rgba(200,220,255,0.85)'; _ctx.font='16px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('STAGE '+(stage+1)+' へ進む...',_W/2,_H*0.38+126);
-    _ctx.fillStyle='#4EE890'; _ctx.font='14px "Zen Maru Gothic",sans-serif'; _ctx.fillText('地球HP +20 ボーナス！',_W/2,_H*0.38+150);
+    _ctx.fillStyle='rgba(200,220,255,0.85)'; _ctx.font='16px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('STAGE '+(stage+1)+' へ進む...',_W/2,_H*0.38+126);
+    _ctx.fillStyle='#4EE890'; _ctx.font='14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('地球HP +20 ボーナス！',_W/2,_H*0.38+150);
   } else {
-    _ctx.fillStyle='#FFD700'; _ctx.font='bold 20px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('ALL STAGES COMPLETE!!',_W/2,_H*0.38+126);
+    _ctx.fillStyle='#FFD700'; _ctx.font='bold 20px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('ALL STAGES COMPLETE!!',_W/2,_H*0.38+126);
   }
   _ctx.globalAlpha=1;
 }
@@ -195,30 +206,33 @@ function drawTitle(frame, hs, bs, bgmOn, seOn, coins) {
     var px=(j*91+Math.sin(frame*0.013+j*0.9)*28+22)%(_W-36)+18;
     var pa=Math.abs(Math.sin(frame*0.028+j*1.2))*0.44+0.06;
     _ctx.globalAlpha=pa;
-    _ctx.fillStyle=j%4===0?'#FFD700':j%4===1?'#FF88CC':j%4===2?'#88CCFF':'#AAFFAA';
+    _ctx.fillStyle=j%4===0?'#FFD54F':j%4===1?'#FF4FC3':j%4===2?'#41E3FF':'#7CFF4F';
     _ctx.beginPath(); _ctx.arc(px,py,1.1+(j%3)*0.55,0,Math.PI*2); _ctx.fill();
   }
   _ctx.globalAlpha=1; _ctx.textAlign='center';
 
   // タイトルテキスト
   var titleBob=Math.sin(frame*0.042)*2.5, titleSc=1+Math.sin(frame*0.028)*0.016;
-  var bloom=_ctx.createRadialGradient(_W/2,144+titleBob,0,_W/2,144+titleBob,130);
-  bloom.addColorStop(0,'rgba(255,145,18,0.16)'); bloom.addColorStop(1,'rgba(255,100,0,0)');
+  var bloom=_ctx.createRadialGradient(_W/2,144+titleBob,0,_W/2,144+titleBob,150);
+  bloom.addColorStop(0,'rgba(65,227,255,0.18)'); bloom.addColorStop(1,'rgba(65,227,255,0)');
   _ctx.fillStyle=bloom; _ctx.fillRect(0,50+titleBob,_W,170);
-  _ctx.fillStyle='rgba(255,175,95,0.58)'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif'; _ctx.fillText('✦  NEON  TOWER  ✦',_W/2,98+titleBob);
+  _ctx.fillStyle='rgba(255,79,195,0.85)'; _ctx.font='bold 12px Orbitron,"Zen Kaku Gothic New",sans-serif';
+  _ctx.save(); _ctx.shadowColor='#FF4FC3'; _ctx.shadowBlur=12;
+  _ctx.fillText('N E O N   T O W E R',_W/2,98+titleBob); _ctx.restore();
   _ctx.save(); _ctx.translate(_W/2,152+titleBob); _ctx.scale(titleSc,titleSc);
-  _ctx.shadowColor='#FF6B00'; _ctx.shadowBlur=32;
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 46px "Zen Maru Gothic",sans-serif'; _ctx.fillText('ネオンタワー',0,0);
+  _ctx.shadowColor='#41E3FF'; _ctx.shadowBlur=30;
+  _ctx.fillStyle='#EAF6FF'; _ctx.font='bold 44px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('ネオンタワー',0,0);
+  _ctx.shadowColor='#FF4FC3'; _ctx.shadowBlur=22; _ctx.fillText('ネオンタワー',0,0);
   _ctx.restore();
-  _ctx.shadowColor='#FF9900'; _ctx.shadowBlur=9;
-  _ctx.fillStyle='#FFA040'; _ctx.font='bold 15px "Zen Maru Gothic",sans-serif'; _ctx.fillText('～地球救出大作戦～',_W/2,176+titleBob);
+  _ctx.shadowColor='#41E3FF'; _ctx.shadowBlur=10;
+  _ctx.fillStyle='#8FE9FF'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('～地球救出大作戦～',_W/2,176+titleBob);
   _ctx.shadowBlur=0;
 
   // キャラゾーン
   var chickBob=Math.sin(frame*0.052)*5, chickSc=1+Math.sin(frame*0.038)*0.028;
   _ctx.globalAlpha=0.15+Math.sin(frame*0.08)*0.06;
   var aGrd=_ctx.createRadialGradient(_W/2,288+chickBob,0,_W/2,288+chickBob,88);
-  aGrd.addColorStop(0,'#FFD700'); aGrd.addColorStop(1,'rgba(255,200,0,0)');
+  aGrd.addColorStop(0,'#41E3FF'); aGrd.addColorStop(1,'rgba(65,227,255,0)');
   _ctx.fillStyle=aGrd; _ctx.beginPath(); _ctx.arc(_W/2,288+chickBob,88,0,Math.PI*2); _ctx.fill();
   _ctx.globalAlpha=1;
 
@@ -229,18 +243,23 @@ function drawTitle(frame, hs, bs, bgmOn, seOn, coins) {
   _ctx.save(); _ctx.translate(w1x, _H-148); _ctx.scale(1+Math.abs(walkCycle)*0.08,1); drawChick(0,walkCycle*20,24,false); _ctx.restore();
   _ctx.save(); _ctx.translate(w2x, _H-138); _ctx.scale(-1,1); drawChick(0,walkCycle*20,20,false); _ctx.restore();
 
-  // 風に揺れる草（地面は drawGround が描いている。ここは手前の揺れる分だけ）
+  // 手前で揺れる光の穂（もとは緑の草。夜のネオンの地面に緑の草だけ残って浮いていた）
   for (var gi=0;gi<22;gi++) {
     var gx=(gi*43+17)%_W;
     var sway=Math.sin(frame*0.03+gi*0.7)*4;
     var gby=_H-96+(gi*29)%54;
-    _ctx.globalAlpha=0.34;
-    _ctx.strokeStyle='#5FC463'; _ctx.lineWidth=2; _ctx.lineCap='round';
+    _ctx.globalAlpha=0.30+Math.abs(Math.sin(frame*0.04+gi))*0.18;
+    _ctx.save();
+    _ctx.shadowColor=gi%3===0?'#FF4FC3':'#41E3FF'; _ctx.shadowBlur=8;
+    _ctx.strokeStyle=gi%3===0?'rgba(255,79,195,0.85)':'rgba(65,227,255,0.85)';
+    _ctx.lineWidth=1.6; _ctx.lineCap='round';
     _ctx.beginPath(); _ctx.moveTo(gx,gby); _ctx.quadraticCurveTo(gx+sway,gby-9,gx+sway*1.5,gby-15); _ctx.stroke();
+    _ctx.restore();
     _ctx.globalAlpha=1; _ctx.lineCap='butt';
   }
 
-  // デコレーション的なカラス
+  // 飛んでいる敵。drawCrow は NEON_ENEMY があるとネオンブロックに切り替わるので、
+  // ここは呼び出しのままでバトルと同じ絵になる（実測で確認済み・書き換え不要だった）
   var orb=Math.sin(frame*0.025)*7;
   drawCrow({x:78+orb, y:256+Math.sin(frame*0.042)*5,  size:26, hp:3,  maxHp:3,  wobble:frame*0.05,   type:'normal',   hitFlash:0, rangedTimer:0});
   drawCrow({x:312-orb,y:250+Math.sin(frame*0.042+1)*5,size:20, hp:3,  maxHp:3,  wobble:frame*0.05+1, type:'fast',     hitFlash:0, rangedTimer:0});
@@ -252,47 +271,55 @@ function drawTitle(frame, hs, bs, bgmOn, seOn, coins) {
 
   // スコアパネル（2行が11px間隔で重なっていたので、パネルを広げて行間を15pxに）
   var spG=_btnGrd(44,441,_W-88,40,'rgba(10,14,40,0.90)','rgba(5,8,24,0.94)');
-  rrectGrd(44,441,_W-88,40,8,spG,'rgba(68,88,138,0.5)',1.5);
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 12px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center';
+  rrectGrd(44,441,_W-88,40,6,spG,'rgba(65,227,255,0.55)',1.5);
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 12px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center';
   _ctx.fillText('🏆  ベスト: '+hs+'点  ｜  STAGE '+bs,_W/2,458);
   var coinTxt='所持コイン: '+coins;
-  _ctx.font='bold 11px "Zen Maru Gothic",sans-serif';
+  _ctx.font='bold 11px Orbitron,"Zen Kaku Gothic New",sans-serif';
   var ctw=_ctx.measureText(coinTxt).width;
   drawCoinIcon(_W/2-ctw/2-9,469,7);
   _ctx.fillStyle='#FFD700'; _ctx.textAlign='left'; _ctx.fillText(coinTxt,_W/2-ctw/2,473);
   _ctx.textAlign='center';
 
   // STARTボタン (y=486-546)
-  var pulse=Math.sin(frame*0.07)*5;
-  rrect(76,492+pulse,238,52,14,'rgba(0,0,0,0.52)',null);
-  var stG=_ctx.createLinearGradient(72,486+pulse,72,542+pulse);
-  stG.addColorStop(0,'#FF8050'); stG.addColorStop(0.4,'#E84B2B'); stG.addColorStop(0.85,'#C03010'); stG.addColorStop(1,'#9E2008');
-  _ctx.shadowColor='rgba(255,82,30,0.75)'; _ctx.shadowBlur=26;
-  rrectGrd(72,486+pulse,246,56,15,stG,'#FFD700',3); _ctx.shadowBlur=0;
-  _ctx.fillStyle='rgba(255,255,255,0.24)';
-  _ctx.beginPath(); _ctx.moveTo(88,488+pulse); _ctx.lineTo(302,488+pulse); _ctx.lineTo(302,499+pulse); _ctx.lineTo(88,499+pulse); _ctx.closePath(); _ctx.fill();
-  _ctx.shadowColor='rgba(0,0,0,0.6)'; _ctx.shadowBlur=5; _ctx.shadowOffsetY=2;
-  _ctx.fillStyle='#FFFFFF'; _ctx.font='bold 27px "Zen Maru Gothic",sans-serif'; _ctx.fillText('▶  START  ◀',_W/2,522+pulse);
-  _ctx.shadowBlur=0; _ctx.shadowOffsetY=0;
+  // ★2026-08-29: 赤とオレンジのボタンをやめ、**マゼンタのネオン管**にした。
+  //   押せる所だと分かることが第一なので、明るさ（脈動）と太い縁は残している。
+  // ★位置: スコアパネルの下端が y=481。脈動を ±5 のまま y=486 に置くと**1フレームおきに接触**し、
+  //   さらに光（26px）がパネルへかぶって「重なって見える」状態だった（2026-08-29 指摘）。
+  //   → 開始位置を 496 へ下げ、脈動を ±3、光を 18px にして 15px の間を空けた。
+  //   ★game.js のタップ判定（y 490〜558）も同じ数字にそろえること。
+  var pulse=Math.sin(frame*0.07)*3;
+  var glow=0.55+Math.abs(Math.sin(frame*0.07))*0.45;
+  var stG=_ctx.createLinearGradient(72,496+pulse,72,552+pulse);
+  stG.addColorStop(0,'rgba(70,14,52,0.95)'); stG.addColorStop(1,'rgba(24,6,24,0.95)');
+  _ctx.save();
+  _ctx.shadowColor='rgba(255,79,195,'+glow.toFixed(2)+')'; _ctx.shadowBlur=18;
+  rrectGrd(72,496+pulse,246,52,10,stG,'#FF4FC3',3);
+  _ctx.restore();
+  _ctx.save();
+  _ctx.shadowColor='#FF4FC3'; _ctx.shadowBlur=14;
+  _ctx.fillStyle='#FFFFFF'; _ctx.font='bold 25px Orbitron,"Zen Kaku Gothic New",sans-serif';
+  _ctx.fillText('▶  START  ◀',_W/2,530+pulse);
+  _ctx.restore();
 
   // 図鑑ボタン (y=558-604, x=50-190)
   var bkG=_btnGrd(50,558,136,44,'rgba(16,40,100,0.92)','rgba(8,20,60,0.92)');
-  rrectGrd(50,558,136,44,10,bkG,'rgba(60,110,200,0.6)',1.5);
-  _ctx.fillStyle='#88AAFF'; _ctx.font='bold 14px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('📚 図鑑',118,585);
+  rrectGrd(50,558,136,44,8,bkG,'rgba(65,227,255,0.85)',2);
+  _ctx.fillStyle='#8FE9FF'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('📚 図鑑',118,585);
 
   // 実績ボタン (y=558-604, x=204-344)
   var rkG=_btnGrd(204,558,136,44,'rgba(80,60,10,0.92)','rgba(50,30,4,0.92)');
-  rrectGrd(204,558,136,44,10,rkG,'rgba(200,160,40,0.6)',1.5);
-  _ctx.fillStyle='#FFD080'; _ctx.font='bold 14px "Zen Maru Gothic",sans-serif'; _ctx.fillText('🏆 実績',272,585);
+  rrectGrd(204,558,136,44,8,rkG,'rgba(255,213,79,0.85)',2);
+  _ctx.fillStyle='#FFD54F'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('🏆 実績',272,585);
 
   // 設定/ショップボタン (y=616-662, x=50-344)
   var sgG=_btnGrd(50,616,294,44,'rgba(20,20,50,0.92)','rgba(8,8,28,0.92)');
-  rrectGrd(50,616,294,44,10,sgG,'rgba(80,80,140,0.6)',1.5);
-  _ctx.fillStyle='#AAAADD'; _ctx.font='bold 14px "Zen Maru Gothic",sans-serif'; _ctx.fillText('⚙ 設定・強化ショップ',_W/2,643);
+  rrectGrd(50,616,294,44,8,sgG,'rgba(179,107,255,0.85)',2);
+  _ctx.fillStyle='#C9A8FF'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('⚙ 設定・強化ショップ',_W/2,643);
 
   // フッター
   // 村の絵と重なって読めなくなったので、下敷きを1枚敷く（2026-08-28）
-  _ctx.font='11px "Zen Maru Gothic",sans-serif';
+  _ctx.font='11px Orbitron,"Zen Kaku Gothic New",sans-serif';
   var ftxt='全20ステージ × 5Wave構成';
   var fw=_ctx.measureText(ftxt).width;
   rrect(_W/2-fw/2-12,664,fw+24,19,9.5,'rgba(6,10,26,0.62)',null);
@@ -308,12 +335,17 @@ function drawSettings(frame, bgmOn, seOn) {
   drawBg(frame);
   _ctx.fillStyle='rgba(0,0,12,0.86)'; _ctx.fillRect(0,0,_W,_H);
   _ctx.shadowColor='#AAAAFF'; _ctx.shadowBlur=14;
-  _ctx.fillStyle='#AAAAFF'; _ctx.font='bold 24px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('⚙ 設定 & 強化ショップ',_W/2,60);
+  _ctx.fillStyle='#AAAAFF'; _ctx.font='bold 24px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('⚙ 設定 & 強化ショップ',_W/2,60);
   _ctx.shadowBlur=0;
 
   var coins=SaveManager.getCoins();
-  drawCoinIcon(_W/2-50,85,10);
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 16px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('所持コイン: '+coins,_W/2+10,90);
+  // ★コインの絵と文字が重なっていたので、文字幅を測ってから左に並べる（固定値で置かない）
+  _ctx.font='bold 16px Orbitron,"Zen Kaku Gothic New",sans-serif';
+  var cTxt='所持コイン: '+coins;
+  var cW=_ctx.measureText(cTxt).width;
+  drawCoinIcon(_W/2-cW/2-14,85,10);
+  _ctx.fillStyle='#FFD54F'; _ctx.textAlign='left'; _ctx.fillText(cTxt,_W/2-cW/2,90);
+  _ctx.textAlign='center';
 
   // ショップアイテム（最大6個）
   var lvls=SaveManager.getShopLevels();
@@ -334,9 +366,9 @@ function drawSettings(frame, bgmOn, seOn) {
     _ctx.font='28px sans-serif'; _ctx.textAlign='left'; _ctx.fillText(item.icon,32,iy+44);
     // 名前
     _ctx.fillStyle=maxed?'#88FF88':canAfford?'#FFD700':'#888';
-    _ctx.font='bold 15px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='left'; _ctx.fillText(item.name,70,iy+32);
+    _ctx.font='bold 15px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='left'; _ctx.fillText(item.name,70,iy+32);
     // 説明
-    _ctx.fillStyle='#aaa'; _ctx.font='12px "Zen Maru Gothic",sans-serif'; _ctx.fillText(item.desc,70,iy+52);
+    _ctx.fillStyle='#aaa'; _ctx.font='12px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText(item.desc,70,iy+52);
     // レベルドット
     for (var li=0;li<item.maxLv;li++) {
       _ctx.fillStyle=li<lv?'#FFD700':'rgba(255,255,255,0.18)';
@@ -344,17 +376,17 @@ function drawSettings(frame, bgmOn, seOn) {
     }
     // コスト or MAX
     if (maxed) {
-      _ctx.fillStyle='#88FF88'; _ctx.font='bold 13px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='right'; _ctx.fillText('MAX',_W-28,iy+72);
+      _ctx.fillStyle='#88FF88'; _ctx.font='bold 13px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='right'; _ctx.fillText('MAX',_W-28,iy+72);
     } else {
       drawCoinIcon(_W-76,iy+64,8);
-      _ctx.fillStyle=canAfford?'#FFD700':'#AA6655'; _ctx.font='bold 14px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='right'; _ctx.fillText(cost,_W-28,iy+72);
+      _ctx.fillStyle=canAfford?'#FFD700':'#AA6655'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='right'; _ctx.fillText(cost,_W-28,iy+72);
     }
   });
 
   // BGM/SE (y=790, y=840)
   var bgmG=_btnGrd(18,780,(_W-44)/2,48,bgmOn?'rgba(10,55,10,0.95)':'rgba(48,10,10,0.95)',bgmOn?'rgba(4,33,4,0.95)':'rgba(28,4,4,0.95)');
   rrectGrd(18,780,(_W-44)/2,48,10,bgmG,bgmOn?'rgba(45,165,45,0.55)':'rgba(165,45,45,0.5)',1.5);
-  _ctx.fillStyle=bgmOn?'#80F080':'#F08080'; _ctx.font='bold 14px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center';
+  _ctx.fillStyle=bgmOn?'#80F080':'#F08080'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center';
   _ctx.fillText('♪ BGM '+(bgmOn?'ON':'OFF'),18+(_W-44)/4,810);
 
   var seG=_btnGrd(26+(_W-44)/2,780,(_W-44)/2,48,seOn?'rgba(10,55,10,0.95)':'rgba(48,10,10,0.95)',seOn?'rgba(4,33,4,0.95)':'rgba(28,4,4,0.95)');
@@ -365,7 +397,7 @@ function drawSettings(frame, bgmOn, seOn) {
   // 戻る (y=840-888)
   var bk2G=_btnGrd(50,840,_W-100,46,'rgba(22,24,76,0.92)','rgba(9,10,48,0.92)');
   rrectGrd(50,840,_W-100,46,11,bk2G,'rgba(65,85,175,0.56)',1.5);
-  _ctx.fillStyle='#AAC0FF'; _ctx.font='bold 16px "Zen Maru Gothic",sans-serif'; _ctx.fillText('← タイトルに戻る',_W/2,869);
+  _ctx.fillStyle='#AAC0FF'; _ctx.font='bold 16px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('← タイトルに戻る',_W/2,869);
 }
 
 // ── 図鑑 ──────────────────────────────────────────────────────────────────────
@@ -410,14 +442,14 @@ function drawBestiary(frame) {
   // 薄い幕にして夜空を透かす（2026-08-28）。
   _ctx.fillStyle='rgba(6,10,30,0.60)'; _ctx.fillRect(0,0,_W,_H);
   _ctx.shadowColor='#88AAFF'; _ctx.shadowBlur=14;
-  _ctx.fillStyle='#BBD4FF'; _ctx.font='bold 24px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('📚 敵図鑑',_W/2,56);
+  _ctx.fillStyle='#BBD4FF'; _ctx.font='bold 24px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('📚 敵図鑑',_W/2,56);
   _ctx.shadowBlur=0;
 
   var bestiary=SaveManager.getBestiary();
   var types=BESTIARY_TYPES;
   var total=types.length;
   var found=types.filter(function(t){return bestiary[t]>0;}).length;
-  _ctx.fillStyle='#9AD4FF'; _ctx.font='13px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center';
+  _ctx.fillStyle='#9AD4FF'; _ctx.font='13px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center';
   _ctx.fillText('撃破済み: '+found+'/'+total,_W/2,78);
   // 収集バー（あと何種いるかが一目で分かる）
   var pbw=_W-120;
@@ -452,12 +484,12 @@ function drawBestiary(frame) {
 
     _ctx.textAlign='center';
     if (seen) {
-      _ctx.fillStyle='#FFD700'; _ctx.font='bold 10px "Zen Maru Gothic",sans-serif';
+      _ctx.fillStyle='#FFD700'; _ctx.font='bold 10px Orbitron,"Zen Kaku Gothic New",sans-serif';
       _ctx.fillText(BESTIARY_LABELS[type]||type, ix+iw/2, iy+60);
-      _ctx.fillStyle='#8FA8C8'; _ctx.font='9px "Zen Maru Gothic",sans-serif';
+      _ctx.fillStyle='#8FA8C8'; _ctx.font='9px Orbitron,"Zen Kaku Gothic New",sans-serif';
       _ctx.fillText('×'+(bestiary[type]||0), ix+iw/2, iy+71);
     } else {
-      _ctx.fillStyle='#6B7699'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif';
+      _ctx.fillStyle='#6B7699'; _ctx.font='bold 11px Orbitron,"Zen Kaku Gothic New",sans-serif';
       _ctx.fillText('？？？', ix+iw/2, iy+62);
     }
   }
@@ -465,7 +497,7 @@ function drawBestiary(frame) {
   // 戻る (y=790-838)
   var bkG2=_btnGrd(50,790,_W-100,46,'rgba(22,24,76,0.92)','rgba(9,10,48,0.92)');
   rrectGrd(50,790,_W-100,46,11,bkG2,'rgba(65,85,175,0.56)',1.5);
-  _ctx.fillStyle='#AAC0FF'; _ctx.font='bold 16px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('← タイトルに戻る',_W/2,819);
+  _ctx.fillStyle='#AAC0FF'; _ctx.font='bold 16px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('← タイトルに戻る',_W/2,819);
 }
 
 // ── 実績 ──────────────────────────────────────────────────────────────────────
@@ -474,36 +506,42 @@ function drawAchievements(frame) {
   drawBg(frame);
   _ctx.fillStyle='rgba(0,0,12,0.86)'; _ctx.fillRect(0,0,_W,_H);
   _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=14;
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 24px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('🏆 実績',_W/2,56);
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 24px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('🏆 実績',_W/2,56);
   _ctx.shadowBlur=0;
 
   var ach=SaveManager.getAchievements();
   var done=ACHIEVEMENT_DEFS.filter(function(d){return ach[d.id];}).length;
-  _ctx.fillStyle='#FFCC66'; _ctx.font='13px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center';
+  _ctx.fillStyle='#FFCC66'; _ctx.font='13px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center';
   _ctx.fillText('達成済み: '+done+'/'+ACHIEVEMENT_DEFS.length,_W/2,78);
 
   ACHIEVEMENT_DEFS.forEach(function(def,i) {
     var achieved=!!ach[def.id];
-    var ay=96+i*66;
-    var ag=_btnGrd(18,ay,_W-36,58,
+    // ★2026-08-29: 実績が11件になり、**最後の1件が「タイトルに戻る」の下に潜っていた**
+    //   （96 + 10×66 + 58 = 814 に対して、ボタンの上端は 780）。
+    //   行の間隔を 66→61、高さを 58→54 に詰めて、最終行の下端を 760 にした。
+    var ay=96+i*61;
+    var ag=_btnGrd(18,ay,_W-36,54,
       achieved?'rgba(30,24,5,0.95)':'rgba(12,12,30,0.95)',
       achieved?'rgba(15,12,2,0.95)':'rgba(6,6,18,0.95)');
-    rrectGrd(18,ay,_W-36,58,10,ag,achieved?'rgba(200,160,40,0.6)':'rgba(50,50,80,0.35)',1.5);
+    rrectGrd(18,ay,_W-36,54,8,ag,achieved?'rgba(255,213,79,0.75)':'rgba(70,80,130,0.35)',1.5);
 
     _ctx.globalAlpha=achieved?1:0.35;
-    _ctx.font='22px sans-serif'; _ctx.textAlign='left'; _ctx.fillText(def.icon,32,ay+38);
-    _ctx.fillStyle=achieved?'#FFD700':'#888'; _ctx.font='bold 14px "Zen Maru Gothic",sans-serif'; _ctx.fillText(def.name,64,ay+26);
-    _ctx.fillStyle=achieved?'#CCAA44':'#555'; _ctx.font='11px "Zen Maru Gothic",sans-serif'; _ctx.fillText(def.desc,64,ay+46);
+    _ctx.font='21px sans-serif'; _ctx.textAlign='left'; _ctx.fillText(def.icon,32,ay+35);
+    _ctx.fillStyle=achieved?'#FFD54F':'#8891B8'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText(def.name,64,ay+24);
+    _ctx.fillStyle=achieved?'#CCAA44':'#5A6088'; _ctx.font='11px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText(def.desc,64,ay+43);
     if (achieved) {
-      drawCoinIcon(_W-56,ay+30,8);
-      _ctx.fillStyle='#FFD700'; _ctx.font='bold 12px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='right'; _ctx.fillText('+'+def.reward,_W-26,ay+35);
+      // ★コインの絵（半径8）と「+40」が2pxだけ重なっていたので、幅を測って離す
+      _ctx.font='bold 12px Orbitron,"Zen Kaku Gothic New",sans-serif';
+      var rTxt='+'+def.reward, rW=_ctx.measureText(rTxt).width;
+      drawCoinIcon(_W-24-rW-13,ay+27,8);
+      _ctx.fillStyle='#FFD54F'; _ctx.textAlign='right'; _ctx.fillText(rTxt,_W-24,ay+32);
     }
     _ctx.globalAlpha=1;
   });
 
   var bkG3=_btnGrd(50,780,_W-100,46,'rgba(22,24,76,0.92)','rgba(9,10,48,0.92)');
-  rrectGrd(50,780,_W-100,46,11,bkG3,'rgba(65,85,175,0.56)',1.5);
-  _ctx.fillStyle='#AAC0FF'; _ctx.font='bold 16px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('← タイトルに戻る',_W/2,809);
+  rrectGrd(50,780,_W-100,46,8,bkG3,'rgba(65,227,255,0.7)',2);
+  _ctx.fillStyle='#8FE9FF'; _ctx.font='bold 16px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('← タイトルに戻る',_W/2,809);
 }
 
 // ── 実績ポップアップ ─────────────────────────────────────────────────────────
@@ -516,10 +554,10 @@ function drawAchievementPopup(def, timer, maxTimer) {
   var py=_H-200;
   rrect(28,py,_W-56,72,14,'rgba(20,16,4,0.96)','rgba(200,160,40,0.8)',2.5);
   _ctx.font='26px sans-serif'; _ctx.textAlign='left'; _ctx.fillText(def.icon,46,py+44);
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 14px "Zen Maru Gothic",sans-serif'; _ctx.fillText('実績解除: '+def.name,84,py+28);
-  _ctx.fillStyle='#CCAA44'; _ctx.font='12px "Zen Maru Gothic",sans-serif'; _ctx.fillText(def.desc,84,py+48);
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('実績解除: '+def.name,84,py+28);
+  _ctx.fillStyle='#CCAA44'; _ctx.font='12px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText(def.desc,84,py+48);
   drawCoinIcon(_W-64,py+36,9);
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 13px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='right'; _ctx.fillText('+'+def.reward,_W-38,py+41);
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 13px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='right'; _ctx.fillText('+'+def.reward,_W-38,py+41);
   _ctx.restore();
 }
 
@@ -528,7 +566,7 @@ function drawHowTo(frame) {
   drawBg(frame);
   _ctx.fillStyle='rgba(0,0,10,0.84)'; _ctx.fillRect(0,0,_W,_H);
   _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=12;
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 26px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('あそびかた',_W/2,78);
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 26px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('あそびかた',_W/2,78);
   _ctx.shadowBlur=0;
   var rows=[
     ['👆','画面を押しっぱなしで連続発射！'],
@@ -544,11 +582,11 @@ function drawHowTo(frame) {
     var rG=_btnGrd(28,102+i*80,334,66,'rgba(12,12,44,0.92)','rgba(6,6,28,0.92)');
     rrectGrd(28,102+i*80,334,66,10,rG,'rgba(50,60,100,0.5)',1.5);
     _ctx.font='26px sans-serif'; _ctx.textAlign='left'; _ctx.fillStyle='#fff'; _ctx.fillText(row[0],56,146+i*80);
-    _ctx.fillStyle='#dde'; _ctx.font='13px "Zen Maru Gothic",sans-serif'; _ctx.fillText(row[1],96,146+i*80);
+    _ctx.fillStyle='#dde'; _ctx.font='13px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText(row[1],96,146+i*80);
   });
   var bkG4=_btnGrd(72,750,246,52,'rgba(28,42,100,0.95)','rgba(12,18,60,0.95)');
   rrectGrd(72,750,246,52,13,bkG4,'rgba(100,160,220,0.6)',2.5);
-  _ctx.fillStyle='#AAC0FF'; _ctx.font='bold 18px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('タイトルに戻る',_W/2,782);
+  _ctx.fillStyle='#AAC0FF'; _ctx.font='bold 18px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('タイトルに戻る',_W/2,782);
 }
 
 // ── Level Up ─────────────────────────────────────────────────────────────────
@@ -556,11 +594,11 @@ function drawLevelUp(choices, level) {
   _ctx.fillStyle='rgba(0,0,12,0.80)'; _ctx.fillRect(0,0,_W,_H);
   _ctx.textAlign='center';
   _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=28;
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 38px "Zen Maru Gothic",sans-serif'; _ctx.fillText('LEVEL UP!',_W/2,172);
+  _ctx.fillStyle='#FFD700'; _ctx.font='bold 38px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('LEVEL UP!',_W/2,172);
   _ctx.shadowBlur=0;
-  _ctx.fillStyle='#CC88FF'; _ctx.font='bold 14px "Zen Maru Gothic",sans-serif'; _ctx.fillText('Lv.'+level+' に上がった！',_W/2,200);
-  _ctx.fillStyle='rgba(255,200,80,0.85)'; _ctx.font='12px "Zen Maru Gothic",sans-serif'; _ctx.fillText('⏱ ゲームはスローで継続中',_W/2,222);
-  _ctx.fillStyle='#888'; _ctx.font='12px "Zen Maru Gothic",sans-serif'; _ctx.fillText('強化を1つ選んでください',_W/2,242);
+  _ctx.fillStyle='#CC88FF'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('Lv.'+level+' に上がった！',_W/2,200);
+  _ctx.fillStyle='rgba(255,200,80,0.85)'; _ctx.font='12px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('⏱ ゲームはスローで継続中',_W/2,222);
+  _ctx.fillStyle='#888'; _ctx.font='12px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('強化を1つ選んでください',_W/2,242);
 
   choices.forEach(function(ch,i) {
     var cy=258+i*184;
@@ -569,8 +607,8 @@ function drawLevelUp(choices, level) {
     _ctx.fillStyle='rgba(255,255,255,0.07)';
     _ctx.beginPath(); _ctx.moveTo(34,cy+2); _ctx.lineTo(_W-34,cy+2); _ctx.lineTo(_W-34,cy+24); _ctx.lineTo(34,cy+24); _ctx.closePath(); _ctx.fill();
     _ctx.font='36px sans-serif'; _ctx.textAlign='center'; _ctx.fillText(ch.icon,_W/2,cy+54);
-    _ctx.fillStyle='#FFD700'; _ctx.font='bold 19px "Zen Maru Gothic",sans-serif'; _ctx.fillText(ch.name,_W/2,cy+90);
-    _ctx.fillStyle='#aaa'; _ctx.font='13px "Zen Maru Gothic",sans-serif'; _ctx.fillText(ch.desc,_W/2,cy+118);
+    _ctx.fillStyle='#FFD700'; _ctx.font='bold 19px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText(ch.name,_W/2,cy+90);
+    _ctx.fillStyle='#aaa'; _ctx.font='13px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText(ch.desc,_W/2,cy+118);
     _ctx.fillStyle='rgba(255,255,255,0.25)'; _ctx.font='11px sans-serif'; _ctx.fillText('タップして選択',_W/2,cy+146);
   });
 }
@@ -578,11 +616,11 @@ function drawLevelUp(choices, level) {
 // ── Pause ────────────────────────────────────────────────────────────────────
 function drawPause(stage, wave, score) {
   _ctx.fillStyle='rgba(0,0,0,0.82)'; _ctx.fillRect(0,0,_W,_H);
-  _ctx.fillStyle='#fff'; _ctx.font='bold 40px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('PAUSE',_W/2,280);
-  _ctx.fillStyle='#666'; _ctx.font='14px "Zen Maru Gothic",sans-serif'; _ctx.fillText('STAGE '+stage+'  WAVE '+wave+'  SCORE '+score,_W/2,316);
+  _ctx.fillStyle='#fff'; _ctx.font='bold 40px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('PAUSE',_W/2,280);
+  _ctx.fillStyle='#666'; _ctx.font='14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('STAGE '+stage+'  WAVE '+wave+'  SCORE '+score,_W/2,316);
   var r1G=_btnGrd(72,358,246,58,'rgba(32,72,180,0.95)','rgba(14,36,110,0.95)');
   rrectGrd(72,358,246,58,14,r1G,'rgba(100,180,220,0.6)',2.5);
-  _ctx.fillStyle='#fff'; _ctx.font='bold 20px "Zen Maru Gothic",sans-serif'; _ctx.fillText('再開する',_W/2,394);
+  _ctx.fillStyle='#fff'; _ctx.font='bold 20px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('再開する',_W/2,394);
   var r2G=_btnGrd(72,436,246,58,'rgba(130,22,22,0.95)','rgba(80,8,8,0.95)');
   rrectGrd(72,436,246,58,14,r2G,'rgba(220,80,80,0.6)',2.5);
   _ctx.fillStyle='#fff'; _ctx.fillText('最初からやり直す',_W/2,472);
@@ -597,12 +635,12 @@ function drawGameOver(score, stage, wave, kills, isNewHS, hs, bs, frame, runCoin
   drawBg(frame, 1, true);
   _ctx.fillStyle='rgba(0,0,0,0.80)'; _ctx.fillRect(0,0,_W,_H);
   _ctx.textAlign='center';
-  _ctx.shadowColor='#FF2020'; _ctx.shadowBlur=28; _ctx.fillStyle='#FF4444'; _ctx.font='bold 44px "Zen Maru Gothic",sans-serif'; _ctx.fillText('EARTH CRASH!',_W/2,148); _ctx.shadowBlur=0;
+  _ctx.shadowColor='#FF2020'; _ctx.shadowBlur=28; _ctx.fillStyle='#FF4444'; _ctx.font='bold 44px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('EARTH CRASH!',_W/2,148); _ctx.shadowBlur=0;
   drawEarth(_W/2,228,36);
   _ctx.strokeStyle='#FF4444'; _ctx.lineWidth=4;
   _ctx.beginPath(); _ctx.moveTo(_W/2-6,193); _ctx.lineTo(_W/2+5,218); _ctx.lineTo(_W/2-10,263); _ctx.stroke();
   if (isNewHS) {
-    _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=14; _ctx.fillStyle='#FFD700'; _ctx.font='bold 18px "Zen Maru Gothic",sans-serif'; _ctx.fillText('🏆 NEW HIGH SCORE! 🏆',_W/2,292); _ctx.shadowBlur=0;
+    _ctx.shadowColor='#FFD54F'; _ctx.shadowBlur=14; _ctx.fillStyle='#FFD54F'; _ctx.font='bold 18px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('🏆 NEW HIGH SCORE! 🏆',_W/2,292); _ctx.shadowBlur=0;
   }
   var rows=[
     ['スコア',score],['到達ステージ','STAGE '+stage+' - WAVE '+wave],
@@ -611,29 +649,30 @@ function drawGameOver(score, stage, wave, kills, isNewHS, hs, bs, frame, runCoin
   rows.forEach(function(row,i) {
     var ry=308+i*42;
     var rG=_btnGrd(44,ry,_W-88,34,'rgba(12,14,36,0.92)','rgba(6,8,22,0.92)');
-    rrectGrd(44,ry,_W-88,34,7,rG,'rgba(50,60,100,0.4)',1.5);
-    _ctx.fillStyle='#777'; _ctx.font='11px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='left'; _ctx.fillText(row[0],62,ry+21);
-    _ctx.fillStyle='#fff'; _ctx.font='bold 14px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='right'; _ctx.fillText(row[1],_W-56,ry+21);
+    rrectGrd(44,ry,_W-88,34,6,rG,'rgba(65,227,255,0.35)',1.5);
+    _ctx.fillStyle='#8891B8'; _ctx.font='11px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='left'; _ctx.fillText(row[0],62,ry+21);
+    _ctx.fillStyle='#fff'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='right'; _ctx.fillText(row[1],_W-56,ry+21);
   });
   // コイン獲得表示
   if (runCoins > 0) {
     var cy2=520;
     rrect(44,cy2,_W-88,36,8,'rgba(30,24,5,0.90)','rgba(180,140,30,0.6)',1.5);
-    drawCoinIcon(64,cy2+18,9); _ctx.fillStyle='#FFD700'; _ctx.font='bold 15px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center';
+    drawCoinIcon(64,cy2+18,9); _ctx.fillStyle='#FFD700'; _ctx.font='bold 15px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center';
     _ctx.fillText('コイン +'+runCoins+' 獲得！',_W/2+6,cy2+23);
   }
+  // ★2026-08-29: 橙のグラデーションをやめ、ネオン（緑＝進む色）にした
   var cG2=_ctx.createLinearGradient(44,566,44,622);
-  cG2.addColorStop(0,'#FF8050'); cG2.addColorStop(0.4,'#E84B2B'); cG2.addColorStop(1,'#9E2008');
+  cG2.addColorStop(0,'rgba(18,50,20,0.95)'); cG2.addColorStop(1,'rgba(6,20,10,0.95)');
   _ctx.shadowColor='rgba(255,80,30,0.7)'; _ctx.shadowBlur=20;
-  rrectGrd(44,566,_W-88,54,14,cG2,'#FFD700',3); _ctx.shadowBlur=0;
-  _ctx.fillStyle='#fff'; _ctx.font='bold 17px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('▶ STAGE '+stage+' からコンテニュー',_W/2,590);
-  _ctx.fillStyle='rgba(255,220,180,0.75)'; _ctx.font='11px "Zen Maru Gothic",sans-serif'; _ctx.fillText('スコアはリセット',_W/2,608);
+  rrectGrd(44,566,_W-88,54,10,cG2,'#7CFF4F',3); _ctx.shadowBlur=0;
+  _ctx.fillStyle='#fff'; _ctx.font='bold 17px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('▶ STAGE '+stage+' からコンテニュー',_W/2,590);
+  _ctx.fillStyle='rgba(160,230,180,0.8)'; _ctx.font='11px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('スコアはリセット',_W/2,608);
   var rG2=_btnGrd(44,630,_W-88,46,'rgba(30,12,12,0.95)','rgba(15,5,5,0.95)');
-  rrectGrd(44,630,_W-88,46,11,rG2,'rgba(150,50,50,0.5)',1.5);
-  _ctx.fillStyle='#F08080'; _ctx.font='bold 16px "Zen Maru Gothic",sans-serif'; _ctx.fillText('最初からやり直す',_W/2,659);
+  rrectGrd(44,630,_W-88,46,8,rG2,'rgba(255,79,195,0.7)',2);
+  _ctx.fillStyle='#FF9AD8'; _ctx.font='bold 16px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('最初からやり直す',_W/2,659);
   var tG2=_btnGrd(44,686,_W-88,46,'rgba(18,20,60,0.95)','rgba(7,9,34,0.95)');
-  rrectGrd(44,686,_W-88,46,11,tG2,'rgba(55,75,155,0.5)',1.5);
-  _ctx.fillStyle='#AAC0FF'; _ctx.font='bold 16px "Zen Maru Gothic",sans-serif'; _ctx.fillText('タイトルへ',_W/2,715);
+  rrectGrd(44,686,_W-88,46,8,tG2,'rgba(65,227,255,0.7)',2);
+  _ctx.fillStyle='#8FE9FF'; _ctx.font='bold 16px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('タイトルへ',_W/2,715);
 }
 
 // ── Ending ───────────────────────────────────────────────────────────────────
@@ -657,12 +696,12 @@ function drawEnding(score, kills, playFrames, isNewHS, hs, frame, runCoins) {
   });
   _ctx.globalAlpha=1; _ctx.shadowBlur=0;
   drawEarth(_W/2,180,70); _ctx.fillStyle='#FFD700'; _ctx.font='32px sans-serif'; _ctx.textAlign='center'; _ctx.fillText('🌟',_W/2,104);
-  _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=22; _ctx.fillStyle='#FFD700'; _ctx.font='bold 52px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('ALL CLEAR!!',_W/2,292); _ctx.shadowBlur=0;
+  _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=22; _ctx.fillStyle='#FFD700'; _ctx.font='bold 52px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('ALL CLEAR!!',_W/2,292); _ctx.shadowBlur=0;
   drawChick(_W/2,368,58,true); drawChick(_W/2-90,392,34,false,'glasses'); drawChick(_W/2+90,392,34,false,'nurse'); drawChick(_W/2,412,28,false,'helmet');
-  if (isNewHS) { _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=12; _ctx.fillStyle='#FFD700'; _ctx.font='bold 18px "Zen Maru Gothic",sans-serif'; _ctx.fillText('🏆 NEW HIGH SCORE! 🏆',_W/2,452); _ctx.shadowBlur=0; }
+  if (isNewHS) { _ctx.shadowColor='#FFD700'; _ctx.shadowBlur=12; _ctx.fillStyle='#FFD700'; _ctx.font='bold 18px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('🏆 NEW HIGH SCORE! 🏆',_W/2,452); _ctx.shadowBlur=0; }
   if (runCoins>0) {
     rrect(60,460,_W-120,36,8,'rgba(30,24,5,0.90)','rgba(180,140,30,0.6)',1.5);
-    drawCoinIcon(_W/2-55,478,9); _ctx.fillStyle='#FFD700'; _ctx.font='bold 15px "Zen Maru Gothic",sans-serif'; _ctx.fillText('コイン +'+runCoins+' 獲得！',_W/2+6,483);
+    drawCoinIcon(_W/2-55,478,9); _ctx.fillStyle='#FFD700'; _ctx.font='bold 15px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('コイン +'+runCoins+' 獲得！',_W/2+6,483);
   }
   var mins=~~(playFrames/60/60),secs=~~(playFrames/60)%60;
   var timeStr=(mins<10?'0':'')+mins+':'+(secs<10?'0':'')+secs;
@@ -671,14 +710,14 @@ function drawEnding(score, kills, playFrames, isNewHS, hs, frame, runCoins) {
     var ry=506+i*52;
     var rG=_btnGrd(55,ry,_W-110,44,'rgba(10,12,36,0.88)','rgba(4,6,20,0.88)');
     rrectGrd(55,ry,_W-110,44,8,rG,'rgba(40,55,100,0.4)',1.5);
-    _ctx.fillStyle='#777'; _ctx.font='12px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='left'; _ctx.fillText(row[0],76,ry+26);
-    _ctx.fillStyle='#fff'; _ctx.font='bold 16px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='right'; _ctx.fillText(row[1],_W-70,ry+26);
+    _ctx.fillStyle='#777'; _ctx.font='12px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='left'; _ctx.fillText(row[0],76,ry+26);
+    _ctx.fillStyle='#fff'; _ctx.font='bold 16px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='right'; _ctx.fillText(row[1],_W-70,ry+26);
   });
-  _ctx.fillStyle='#B8E8FF'; _ctx.font='bold 16px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('THANK YOU FOR PLAYING!',_W/2,670);
+  _ctx.fillStyle='#B8E8FF'; _ctx.font='bold 16px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('THANK YOU FOR PLAYING!',_W/2,670);
   var eG=_ctx.createLinearGradient(55,682,55,736); eG.addColorStop(0,'#3060C0'); eG.addColorStop(1,'#1A3888');
   rrectGrd(55,682,_W-110,54,14,eG,'rgba(100,180,220,0.6)',2.5);
-  _ctx.fillStyle='#fff'; _ctx.font='bold 20px "Zen Maru Gothic",sans-serif'; _ctx.fillText('もう一度プレイ',_W/2,716);
+  _ctx.fillStyle='#fff'; _ctx.font='bold 20px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('もう一度プレイ',_W/2,716);
   var e2G=_btnGrd(55,746,_W-110,48,'rgba(20,22,65,0.95)','rgba(8,10,38,0.95)');
   rrectGrd(55,746,_W-110,48,13,e2G,'rgba(60,80,160,0.5)',2);
-  _ctx.fillStyle='#AAC0FF'; _ctx.font='bold 18px "Zen Maru Gothic",sans-serif'; _ctx.fillText('タイトルへ',_W/2,777);
+  _ctx.fillStyle='#AAC0FF'; _ctx.font='bold 18px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('タイトルへ',_W/2,777);
 }
