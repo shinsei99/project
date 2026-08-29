@@ -93,7 +93,11 @@ case "${1:-status}" in
     #   インデックス全体を載せるので、他セッションが編集中のファイルや、
     #   インデックスが古いときは**他人の追加を削除としてコミットしてしまう**
     #   （2026-08-28 に31ファイルが消えて gh-pages が全体で止まった）。
-    ( cd "$REPO_ROOT" && git add -- articles && git commit -m "Zenn: 記事を更新" -- articles || true; git push origin main )
+    # ★専用インデックス（2026-08-29）。共有インデックスを触らないので他セッションと衝突しない
+    ( export GIT_INDEX_FILE="$(mktemp -t publish-index)"; \
+      cd "$REPO_ROOT" && git read-tree HEAD && git add -A -- articles \
+      && git commit -q -m "Zenn: 記事を更新" 2>/dev/null; \
+      git push origin main; rc=$?; rm -f "$GIT_INDEX_FILE"; exit $rc )
     echo "push 済み。反映まで数分かかる。1〜2分後に ./publish.sh status で確認すること"
     echo "（push前の公開数: ${before}）"
     ;;

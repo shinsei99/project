@@ -73,10 +73,14 @@ if [ -n "$STUCK" ]; then
     #   同時に触るので、**他人の未コミット変更が常に残っている**。素の `git pull --rebase` は
     #   "cannot pull with rebase: You have unstaged changes" で必ず失敗する。
     #   8/28 の「★空コミットの push に失敗した」はこれが原因だった。
-    if ( cd .. && git pull -q --rebase --autostash origin main \
+    # ★ここも専用インデックスで行う（2026-08-29）。共有インデックスを触らない。
+    #   `git pull --rebase` は他人の未コミット変更があると失敗するので fetch＋rebase にする
+    if ( export GIT_INDEX_FILE="$(mktemp -t zenn-empty-index)"; \
+         cd .. && git read-tree HEAD \
          && git commit -q --allow-empty -m "Zenn: 未公開分の再デプロイを促す（$STUCK）" \
-              -- articles ai-tools-base/drafts/zenn_pending \
-         && git push -q origin main ); then
+         && { git push -q origin main \
+              || { git fetch -q origin main && git rebase -q --autostash origin/main \
+                   && git push -q origin main || { git rebase --abort 2>/dev/null; false; }; }; } ); then
       echo "  空コミットを push した（再デプロイを促した）。上限が解けていれば公開される。"
     else
       echo "  ★空コミットの push に失敗した。"
@@ -117,21 +121,35 @@ if ! ./publish.sh guard "$NEXT" >/tmp/zenn-daily-guard.txt 2>&1; then
 fi
 
 mv "$PEND/$NEXT.md" "../articles/$NEXT.md" || exit 1
-# ★コミットは**必ずパスを指定する**。素の `git commit` はインデックス全体を載せるので、
-#   インデックスが古いと**他の人が直前に足したファイルを「削除」としてコミットする**。
-#   2026-08-28 にこれで31ファイルが消え、gh-pages が全フォルダぶん止まった。詳細は daily-write.sh の同じ箇所。
-# ★push は1回で通るとは限らない。他セッションが先に push していると non-fast-forward で落ちる。
-#   そのときだけ取り込み直して押し直す。`--autostash` は他人の未コミット変更を跨ぐために要る
-#   （素の rebase は "You have unstaged changes" で必ず失敗する）。
-( cd .. && git add -A -- articles ai-tools-base/drafts/zenn_pending \
-  && git commit -q -m "Zenn: $NEXT を公開（毎晩1本・自動）" -- articles ai-tools-base/drafts/zenn_pending \
-  && { git push -q origin main \
-       || { echo "  push が弾かれた。取り込み直して押し直す"; \
-            git fetch -q origin main \
-            && { git rebase -q --autostash origin/main \
-                 || { echo "  ★rebase に失敗したので中断する（作業ツリーを壊さない）"; \
-                      git rebase --abort 2>/dev/null; false; }; } \
-            && git push -q origin main; }; } ) \
-  || { echo "  ★git に失敗した（記事は articles/ に置いたまま。翌晩 zenn-daily が再デプロイを促す）"; exit 1; }
+
+# ★専用インデックスでコミットする（2026-08-29 に方式を確定）。
+#
+#   このMacは複数セッションが同じ作業ツリーを同時に触る。共有インデックス（.git/index）を
+#   使うと、他人のステージを引き継いだり、index.lock とぶつかったりして落ちる。
+#   実際 2026-08-28/29 の2晩とも、記事の移動までは成功して **git だけが落ちていた**。
+#
+#   `git read-tree HEAD` で毎回まっさらから始め、自分のパスだけを add して commit する。
+#   共有インデックスには一切触らないので、他セッションと並行でも事故らない。
+#   （パス指定だけでは足りない: `git commit -- <path>` は HEAD＋指定パスの作業ツリーで
+#     木を作るので、削除が反映されない。それを避けようとパス指定を外すと巻き込む）
+export GIT_INDEX_FILE="$(mktemp -t zenn-index)"
+zenn_git() {
+  ( cd .. \
+    && git read-tree HEAD \
+    && git add -A -- articles ai-tools-base/drafts/zenn_pending \
+    && git commit -q -m "Zenn: $NEXT を公開（毎晩1本・自動）" \
+    && { git push -q origin main \
+         || { echo "  push が弾かれた。取り込み直して押し直す"; \
+              git fetch -q origin main \
+              && git rebase -q --autostash origin/main \
+              && git push -q origin main \
+              || { git rebase --abort 2>/dev/null; false; }; }; } )
+}
+if ! zenn_git; then
+  rm -f "$GIT_INDEX_FILE"; unset GIT_INDEX_FILE
+  echo "  ★git に失敗した（記事は articles/ に置いたまま。翌晩 zenn-daily が再デプロイを促す）"
+  exit 1
+fi
+rm -f "$GIT_INDEX_FILE"; unset GIT_INDEX_FILE
 
 echo "  push した。Zennのデプロイで公開される。残り $(ls "$PEND"/*.md 2>/dev/null | wc -l | tr -d ' ') 本"

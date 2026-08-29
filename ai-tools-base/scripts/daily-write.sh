@@ -178,27 +178,21 @@ PYSTAT
   echo "--- 転載URLを links へ ---"
   /usr/bin/python3 scripts/links_sync.py --write
 
-  # ★コミットは**必ずパスを指定する**（`git commit -- <paths>`）。
-  #   素の `git commit` は「インデックス全体」をコミットするので、インデックスが
-  #   何らかの理由で古いと、**他の人が直前に追加したファイルを「削除」としてコミットしてしまう。**
-  #   2026-08-28 にこれが起き、cyborg-defense と digital-shosai の31ファイルが消えて
-  #   gh-pages のデプロイが全フォルダぶん止まった。
-  #   `git commit -- <paths>` は HEAD ＋ 指定パスだけで木を作るので、他人の物は絶対に消えない。
-  #   （小さなリポジトリで①現行=消える ②この形=消えない を実測して確かめてある）
-  #   なお `git add` を先に走らせないと、**新規ファイルは未追跡のままで拾われない**ので順番も大事。
-  # ★push は1回で通るとは限らない。他セッションが先に push していると non-fast-forward で落ちる。
-  #   そのときだけ取り込み直して押し直す。`--autostash` は他人の未コミット変更を跨ぐために要る
-  #   （このMacは複数セッションが同じ作業ツリーを触るので、素の rebase は
-  #    "You have unstaged changes" で必ず失敗する。2026-08-29に実測）。
-  ( cd .. && git add -A -- articles ai-tools-base && \
-    git commit -q -m "日次: 記事を1本足して待機場所へ入れた（自動）" -- articles ai-tools-base && \
-    { git push -q origin main \
-      || { echo "  push が弾かれた。取り込み直して押し直す"; \
-           git fetch -q origin main \
-           && { git rebase -q --autostash origin/main \
-                || { echo "  ★rebase に失敗したので中断する（作業ツリーを壊さない）"; \
-                     git rebase --abort 2>/dev/null; false; }; } \
-           && git push -q origin main; }; } ) \
+  # ★専用インデックスでコミットする（2026-08-29 に方式を確定）。
+  #   このMacは複数セッションが同じ作業ツリーを同時に触る。共有インデックス（.git/index）を
+  #   使うと、他人のステージを引き継いだり index.lock とぶつかったりする。
+  #   2026-08-28 に素の commit で31ファイルを消し、その復旧コミットもさらに巻き込んだ。
+  #   `git read-tree HEAD` で毎回まっさらから始めれば、共有インデックスに一切触らない。
+  ( export GIT_INDEX_FILE="$(mktemp -t dailywrite-index)"; \
+    cd .. \
+    && git read-tree HEAD \
+    && git add -A -- articles ai-tools-base \
+    && git commit -q -m "日次: 記事を1本足して待機場所へ入れた（自動）" \
+    && { git push -q origin main \
+         || { echo "  push が弾かれた。取り込み直して押し直す"; \
+              git fetch -q origin main && git rebase -q --autostash origin/main \
+              && git push -q origin main || { git rebase --abort 2>/dev/null; false; }; }; }; \
+    rc=$?; rm -f "$GIT_INDEX_FILE"; exit $rc ) \
     && echo "push した"
 
   # ⑤ 本体サイトを本番へ。**Zennはpushで出るが、本体は vercel --prod が要る**ので

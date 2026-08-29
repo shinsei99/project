@@ -221,6 +221,37 @@ def git_head(workspace: str):
     return out.strip() if rc == 0 else None
 
 
+def push_main(workspace: str) -> dict:
+    """開発タスクの完了後に、溜まっているコミットを push する（2026-08-29 オーナー指示）。
+
+    **なぜ機械が押すのか。** 従来はエージェントに「push はしない（公開は人の判断）」と
+    禁じていた。その結果コミットが未pushで溜まり、**夜の自動ジョブ（zenn-daily）の push が
+    巻き添えで落ちる**事故が起きた（2026-08-29）。かといってエージェント自身に
+    `git push` を許すと、任意のブランチ・force push まで書けてしまう。
+    そこで **エージェントには許さないまま、完了後の定型処理として main だけを押す**。
+
+    安全のため:
+      - main 以外のブランチにいるときは押さない（意図しないブランチを公開しない）
+      - force は使わない。**弾かれたらそのまま報告して終わる**（rebase もしない）
+      - 押すのは「すでにコミット済みのもの」だけ。ここで新たに add / commit はしない
+    """
+    if settings.get_setting("dev_push_enabled", "1") != "1":
+        return {"skipped": "設定で無効（dev_push_enabled=0）"}
+    rc, br = _sh(["/usr/bin/git", "-C", workspace, "rev-parse", "--abbrev-ref", "HEAD"], timeout=30)
+    br = (br or "").strip()
+    if rc != 0 or br != "main":
+        return {"skipped": f"main ではないので押さない（現在: {br or '不明'}）"}
+    rc, ahead = _sh(["/usr/bin/git", "-C", workspace, "rev-list", "--count", "origin/main..HEAD"],
+                    timeout=30)
+    n = int((ahead or "0").strip() or 0) if rc == 0 else 0
+    if n == 0:
+        return {"skipped": "未pushのコミットなし"}
+    rc, out = _sh(["/usr/bin/git", "-C", workspace, "push", "origin", "main"], timeout=120)
+    if rc == 0:
+        return {"ok": True, "count": n}
+    return {"ok": False, "count": n, "error": (out or "")[-200:]}
+
+
 def changed_dirs(workspace: str, base_ref: str) -> list:
     """base_ref から今までのコミットで変更されたトップレベルフォルダ（絶対パス）。"""
     if not base_ref:
@@ -391,9 +422,15 @@ def after_task(task: dict, base_ref=None) -> dict:
         return {"text": "", "results": [], "deferred": []}
     workspace = (task or {}).get("workspace") or settings.get_setting("dev_workspace",
                                                                      "/Users/apple")
+    # ★先に push する（2026-08-29 オーナー指示）。
+    #   コミットが未pushで溜まると、夜の自動ジョブの push が巻き添えで落ちる。
+    #   常駐の再起動対象が無いタスク（文書だけ直した等）でも押したいので、ここで先に行う。
+    push = push_main(workspace)
+
     hits, dirs = targets((task or {}).get("project_dir"), workspace, base_ref)
     if not hits:
-        return {"text": "", "results": [], "deferred": [], "dirs": dirs}
+        return {"text": _push_text(push), "results": [], "deferred": [], "dirs": dirs,
+                "push": push}
 
     excluded = _excluded()
     hits = [a for a in hits if a["label"] not in excluded]
@@ -406,7 +443,11 @@ def after_task(task: dict, base_ref=None) -> dict:
             continue
         results.append(restart_one(a))
 
-    lines = ["🔄 反映（常駐の再起動）"]
+    lines = []
+    t = _push_text(push)
+    if t:
+        lines.append(t)
+    lines.append("🔄 反映（常駐の再起動）")
     for r in results:
         if r["skipped"]:
             lines.append(f"・{r['label']}: {r['skipped']}")
@@ -418,7 +459,17 @@ def after_task(task: dict, base_ref=None) -> dict:
         lines.append(f"・{a['label']}: この報告のあと再起動します（自分自身のため）")
     return {"text": "\n".join(lines), "results": results,
             "deferred": [a["label"] for a in deferred], "dirs": dirs,
-            "_deferred_agents": deferred}
+            "push": push, "_deferred_agents": deferred}
+
+
+def _push_text(push: dict) -> str:
+    """完了報告に足す1行。**押せなかったときは黙らない**（溜まると夜のジョブが落ちる）"""
+    if not push or push.get("skipped"):
+        return ""
+    if push.get("ok"):
+        return f"⬆️ GitHubへ push しました（{push['count']}件のコミット）"
+    return (f"⚠️ push できませんでした（{push.get('count')}件が未pushのまま）。"
+            f"放置すると夜の自動ジョブが巻き添えで落ちます: {push.get('error','')[:120]}")
 
 
 def run_deferred(info: dict) -> None:
