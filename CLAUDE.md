@@ -272,13 +272,18 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 
 ### ゲーム（6本）※社内LAN共有なし
 
+**★6本は「ネオンブロックス」の中に同居し、画面下の帯で行き来する。**
+色・書体・タイトル・音ボタン・音の調・画面の向きを**揃える決まりは
+`neon-blocks/NEON_STYLE.md`**（2026-08-29 制定）。どれか1本を触るときは先にそこを読むこと。
+直したら `python3 neon-blocks/tools/sync-games.py` で集合側へ入れ直す。
+
 | アプリ名 | フォルダ名 | 外部公開 |
 |---|---|---|
-| ひよこ防衛軍 | piyo-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28。`com.shinsei99.piyodefense`・1.0/build2 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `piyo-defense/RELEASE.md`）。**2026-08-28 まで gh-pages に存在しなかった**（「GitHub Pages」は誤記だった）。`DEPLOY_FOLDERS` に `piyo-defense` を追加済み＝push で公開される |
-| カラー・グラビティ（旧「カラー重力ゲーム」） | color-gravity | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.shinsei99.colorgravity`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `color-gravity/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `color-gravity:www` |
-| サイボーグ防衛軍 | cyborg-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.cyborgdefense`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `cyborg-defense/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `cyborg-defense:www` |
-| にゃんこ大脱出（**全30面**・★評価つき） | neko-escape | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.nekoescape`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `neko-escape/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `neko-escape:www` |
-| にゃんこのアイス屋さん | nyanko-ice | **1.0 build2 を 2026-08-28 に初提出＝審査待ち**（`WAITING_FOR_REVIEW` を API で確認）。**広告(AdMob)を全廃した版**＝広告なし・課金なし・通信なし。スクショは iPhone5枚+iPad5枚。詳細は `nyanko-ice/SESSION_LOG.md` 冒頭 |
+| **ネオンタワー**（旧 ひよこ防衛軍） | piyo-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28。`com.shinsei99.piyodefense`・1.0/build2 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `piyo-defense/RELEASE.md`）。**2026-08-28 まで gh-pages に存在しなかった**（「GitHub Pages」は誤記だった）。`DEPLOY_FOLDERS` は **`piyo-defense:www`**（2026-08-29 に `piyo-defense` から変更。直下の控えが古く、公開ページだけ旧デザイン・旧題名のままだった）。**2026-08-29: UIをネオンに統一**（タイトル・ボタン・書体・草・HUD・ゲームオーバー。ひよこ本体は残す）。**スクショは旧デザインのまま**＝提出再開時に撮り直す |
+| **ネオングラビティ**（旧 カラー・グラビティ） | color-gravity | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.shinsei99.colorgravity`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `color-gravity/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `color-gravity:www` |
+| **ネオンサイボーグ**（旧 サイボーグ防衛軍） | cyborg-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.cyborgdefense`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `cyborg-defense/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `cyborg-defense:www` |
+| **ネオンエスケープ**（旧 にゃんこ大脱出・**全40面**・★評価つき。2026-08-29 に世界観を「宇宙の脱出行」へ作り替え＝自機／追撃機／ワープゲート・**縦画面**・角ゴシック＋Orbitron） | neko-escape | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.nekoescape`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `neko-escape/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `neko-escape:www` |
+| **ネオンアイス**（旧 にゃんこのアイス屋さん） | nyanko-ice | **2026-08-29: 4.3(a) でリジェクト → App 記録を削除した**（未配信のまま終了。**バンドルIDは再利用できない**）。手順は3段階で、**①提出物から項目を削除（Rejected → DEVELOPER_REJECTED になる）②配信可能状況を全地域でオフ（ここが本当の詰まり所。未配信でも米日が残っていた）③Appを削除**。詳細は `nyanko-ice/TODO.md`。**Web版（gh-pages）はそのまま公開中**。中身はネオンブロックスへ統合予定 |
 | ネオンブロック | neon-blocks | iOS App Store ✅（**1.0.3 build4 が配信中**・2026-08-24 に API で確認） |
 
 ## ★ 公開サイト（5つ）
@@ -416,6 +421,21 @@ PSA管理は図鑑の `app.py` を**モジュールとして直接読み込む**
   `sips -s format png` → PIL の `save(..., sizes=[...])` で変換すると見た目を揃えられる
 
 ---
+
+## ★★ App Store への提出は停止中（2026-08-29〜）
+
+**2026-08-29 に3本まとめて Guideline 4.3(a)（スパム）でリジェクトされた**
+（KeyTag / スクラップメモ1.0.5 / にゃんこアイス）。3通とも同一の定型文で、提出は約6時間に集中。
+**スクラップメモ 1.0.5 は「配信中アプリのUI修正だけの更新」なのに 4.3(a)** ＝ アプリ個別ではなく
+**アカウント全体の出し方**を見られている。原因として実測できたのは次の3つ。
+
+- 2か月で**9本**提出（多くが Capacitor の同じ殻で、**ネイティブ実行ファイルはほぼ同一バイト数**）
+- ストア文言・サポート/プライバシーページを**アプリ間で置換して作っていた**（同じ型）
+- **バースト提出**（3本を6時間に）
+
+**当面、App 記録の新規作成・提出・アップロード・再提出を行わない。** ipa やスクショの準備は可。
+方針は「**まず KeyTag だけ Resolution Center に返信して様子を見る**」（`keyline/keytag/reply-4.3a-2026-08-29.md`）。
+経緯と再開条件は直下 `TODO.md` の冒頭。
 
 ## ★ iOS App Store 再配信ルール（再発防止・必読）
 
