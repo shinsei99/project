@@ -99,6 +99,46 @@ def kinds_from_question(question: str):
     return kinds
 
 
+def staff_alias() -> list:
+    """資料に残る旧担当者 → 現在の担当。[(旧, 新), ...] を返す。
+
+    **書類そのものは書き換えない。** 過去の記録として当時の担当は事実なので残し、
+    回答するときだけ読み替える。設定 staff_alias（「旧→新」のカンマ区切り）で増減できる。
+    """
+    from services.settings import get_setting
+    raw = get_setting("staff_alias", "") or ""
+    out = []
+    for part in raw.replace("，", ",").split(","):
+        part = part.strip()
+        for arrow in ("→", "->", "=>"):
+            if arrow in part:
+                old, new = part.split(arrow, 1)
+                old, new = old.strip(), new.strip()
+                if old and new:
+                    out.append((old, new))
+                break
+    return out
+
+
+def _expand_terms(terms: list) -> list:
+    """検索語を旧担当者名にも広げる。
+
+    「松本さんの担当物件は？」と聞かれても、資料には旧担当の「杉田」としか
+    書かれていないことがある。新しい名前で引いたら旧い名前も見に行く（逆も同じ）。
+    """
+    alias = staff_alias()
+    if not alias:
+        return terms
+    extra = []
+    for t in terms:
+        for old, new in alias:
+            if old in t and new not in terms:
+                extra.append(new)
+            elif new in t and old not in terms:
+                extra.append(old)
+    return terms + [e for e in dict.fromkeys(extra) if e not in terms]
+
+
 def _with_year(d: dict) -> dict:
     """元ファイルの更新年を足す。**いつの資料かを回答に出すため**（_chunk_header 参照）"""
     mt = d.get("source_mtime")
@@ -169,7 +209,7 @@ def search(question: str, top_k: int = TOP_K, kinds=None, widen: bool = True):
 
 def _search_once(question: str, top_k: int, kinds):
     """1回ぶんの検索（FTS5 trigram + 本文/文書名 LIKE フォールバック、active文書のみ）"""
-    terms = _terms(question)
+    terms = _expand_terms(_terms(question))   # 旧担当者名にも広げる
     results = {}   # chunk_id -> row dict
     kc, kargs = _kind_clause(kinds)
 
@@ -409,7 +449,7 @@ def _chunk_header(c) -> str:
 
 
 # 「分かりません」で終わらせないための手順（2026-08-29 オーナー指示）
-_EFFORT_RULE = """- **「分かりません」で終わらせない。** 次の順に必ず努力すること。
+_EFFORT_RULE_TMPL = """- **「分かりません」で終わらせない。** 次の順に必ず努力すること。
   1. **自社書類**（Dropboxの社内資料・レントロール・マニュアル）
   2. **蔵書・法令・判例**（下の資料に含まれていればそれを使う。無ければ Bash で
      `python3 /Users/apple/chatwork-ai-manager/kb_search.py "検索語" --kind 法令,判例,本` を実行して探す）
@@ -425,9 +465,22 @@ _EFFORT_RULE = """- **「分かりません」で終わらせない。** 次の�
   マニュアルの人名は書かれた当時のもので、退職・異動で変わる。実例（2026-08-29）:
   マニュアルの担当者を「立会い担当は◯◯さん」と答えたが、その人は直近90日の
   やり取りに一度も出てこなかった。
-  書くなら「**資料（◯年時点）では◯◯さんと記載**。現在の担当は確認してください」の形にする。
-  同じ理由で、資料に出てくる**様式ファイル名・帳票名も「◯年時点の名称」**として扱う。
+{alias_rule}  同じ理由で、資料に出てくる**様式ファイル名・帳票名も「◯年時点の名称」**として扱う。
 - 資料の見出しにある年（発行 / この資料の更新）を見て、**古ければその旨を必ず添える**。"""
+
+
+def _effort_rule() -> str:
+    """努力ルール。担当者の読み替え表がある日はそれを差し込む"""
+    alias = staff_alias()
+    if alias:
+        pairs = " / ".join(f"{o}さん→**{n}さん**" for o, n in alias)
+        rule = (f"  **旧担当者は次のとおり読み替えて案内する**: {pairs}\n"
+                f"  書き方は「資料（◯年時点）では◯◯さんと記載。**現在の担当は△△さん**です」。\n"
+                f"  資料の記載を消さずに、現在の担当を並べて書く（過去の記録は事実なので残す）。\n")
+    else:
+        rule = ("  書くなら「**資料（◯年時点）では◯◯さんと記載**。"
+                "現在の担当は確認してください」の形にする。\n")
+    return _EFFORT_RULE_TMPL.replace("{alias_rule}", rule)
 
 
 def build_prompt(question, chunks, room_id=None):
@@ -465,7 +518,7 @@ def build_prompt(question, chunks, room_id=None):
   「反映しました」「更新しました」「完了にしました」「登録しました」等、何かを実行済みであるかのような
   表現を絶対に使わないこと。実行できないので、その旨と「少し時間をおいて再度お知らせください」を正直に伝える。
 {coverage_rule}
-{_EFFORT_RULE}"""
+{_effort_rule()}"""
 
 
 APP_DIR = __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__)))
