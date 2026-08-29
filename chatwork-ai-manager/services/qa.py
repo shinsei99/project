@@ -691,6 +691,7 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork", line_u
   ○ 良い例: 「コーポ・ラ・ベリエール801号室の契約者は森田様です。電話番号は…」
   資料が見つからない・OCR未処理といった事情は、**結論を述べた後**に日本語で補足する。
 {coverage}
+{_effort_rule()}
 
 # コンテキスト
 {asker_line}{room_line}
