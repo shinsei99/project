@@ -53,7 +53,14 @@
     width:min(100%, calc((100vh - 260px) * 1.5)); }
   @supports (height:100dvh){ .stage{ width:min(100%, calc((100dvh - 260px) * 1.5)); } }
   /* ★盤の枠はシリーズ共通（2px シアン・角8px。neon-blocks/NEON_STYLE.md） */
-  canvas{ width:100%; aspect-ratio:2/3; display:block; border-radius:8px;
+  /* ★2026-08-29: 盤を 2:3 → **9:16** に。iPhone(390×844) で盤が画面の67%しか
+     使えていなかった。9:16 で **面積が+18%**、サイボーグ・エスケープと同じ比率になる。
+     ★世界の座標（600×900）は触っていない。canvas の高さを 900→1067 に伸ばし、
+       物の位置は動かさずに**下へ余白を足した**だけ＝距離が変わらないので物理は無傷。 */
+  canvas{ width:100%; aspect-ratio:9/16; display:block; border-radius:8px;
+    /* ★保険: 画面が低いときは盤の高さを頭打ちにする（下のボタンが切れないように）。
+       aspect-ratio と併用すると幅のほうが縮む＝比率は保たれる */
+    max-height:calc(100dvh - 196px);
     border:2px solid rgba(65,227,255,.5); box-shadow:0 0 22px rgba(65,227,255,.2),inset 0 0 26px rgba(65,227,255,.06);
     background:#05030f; touch-action:none; }
 
@@ -116,16 +123,29 @@
     box-shadow:0 0 14px rgba(255,79,195,.35); }
   .btn.primary:hover{ background:rgba(255,79,195,.28); }
 
-  .hintbar{ width:100%; max-width:900px; margin:9px 0 0; display:flex; justify-content:center; }
+  .hintbar{ width:100%; max-width:900px; margin:5px 0 0; display:flex; justify-content:center; }
   .hintbar div{ padding:7px 14px; border-radius:10px; background:rgba(125,242,255,.06);
     border:1px solid rgba(125,242,255,.16); font-size:12px; color:rgba(206,240,255,.9);
     text-align:center; line-height:1.6; }
 
-  .controls{ margin-top:10px; width:100%; max-width:900px; display:flex; flex-direction:column;
-    align-items:center; gap:9px; }
+  .controls{ margin-top:6px; width:100%; max-width:900px; display:flex; flex-direction:column;
+    align-items:center; gap:6px; }
   .ctl-row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
-  .small{ padding:6px 15px; font-size:13px; }
+  .small{ padding:5px 13px; font-size:13px; }
   .sel{ display:flex; gap:6px; flex-wrap:wrap; justify-content:center; }
+  /* ★スマホでは畳む。開いたときは下から出る板にする（盤を隠さない位置） */
+  @media (max-width:560px){
+    .sel{ display:none; }
+    .note{ display:none; }
+    #btn-sel{ display:inline-block; }
+    .controls.showsel .sel{
+      display:flex; position:fixed; left:8px; right:8px; bottom:8px; z-index:50;
+      background:rgba(8,5,20,.96); border:2px solid rgba(65,227,255,.5); border-radius:8px;
+      padding:10px; max-height:56vh; overflow:auto;
+      box-shadow:0 0 22px rgba(65,227,255,.25);
+    }
+  }
+  @media (min-width:561px){ #btn-sel{ display:none; } }
   /* ステージ選択。番号の下に取った★を出すので、正方形ではなく縦長 */
   .lv{ width:34px; height:40px; border-radius:10px; padding:0; gap:1px;
     display:flex; flex-direction:column; align-items:center; justify-content:center;
@@ -204,6 +224,9 @@
       <button class="btn small" id="btn-retry">↺ リトライ</button>
       <button class="btn small" id="btn-solve">💡 正解を見る</button>
       <button class="btn small" id="btn-skip">ステージスキップ ⏭</button>
+      <!-- ★2026-08-29: 盤を9:16に広げたぶん、スマホでは20面の選択と説明文を畳む。
+           このボタンで開く（他のゲームの「ステージ選択」と同じ役割） -->
+      <button class="btn small" id="btn-sel">☰ ステージ選択</button>
     </div>
     <div class="sel" id="selector"></div>
     <p class="note">砲台をドラッグして引っ張り、離すと星が発射。点線は予測軌道。ゲートで色が混ざり、結晶と同じ色で当てればクリア。全20面。一発で決めると★3つ。詰まったら「💡 正解を見る」で正解の軌道を再現できる。</p>
@@ -228,7 +251,7 @@
      stepSim はこの2つを読まないので軌道は1ミリも変わらない。
      最初は反射で `return 'bounce'` にしたが、それだと同じフレームのゲート判定と結晶判定が
      飛ばされて軌道が変わる（＝鏡のある5・7・13・16・19面の sol が外れる）。戻り値は増やさないこと。 */
-const W=600,H=900,STAR_R=7,G_CONST=1.0,MAX_SPEED=16,MAX_PULL=210,LAUNCH_SPEED=12;
+const W=600,H=1067,STAR_R=7,G_CONST=1.0,MAX_SPEED=16,MAX_PULL=210,LAUNCH_SPEED=12;
 const PRIMARIES=['R','B','Y'];
 const keyOf=set=>PRIMARIES.filter(c=>set.has(c)).join('');
 
@@ -398,7 +421,10 @@ const STAGES=[
    ★確認は tools/verify_solutions.py（物理区間を抜き出して node で実行し、全20面が
      正解に到達するかを見る）。回し忘れ・回し間違いがあればここで落ちる。 */
 const OLD_W = 900;
-const rotPt = o => { const x = o.x, y = o.y; o.x = y; o.y = OLD_W - x; return o; };
+/* ★盤を 9:16（高さ1067）にしたぶん、世界を**中央に置き直す**（下に寄ると間が抜けて見える）。
+   足すのは全部の物に同じ値なので**距離は変わらない**＝物理も正解データもそのまま。 */
+const YOFF = (1067 - OLD_W) / 2;
+const rotPt = o => { const x = o.x, y = o.y; o.x = y; o.y = OLD_W - x + YOFF; return o; };
 STAGES.forEach(st => {
   rotPt(st.cannon);
   st.planets.forEach(rotPt);
@@ -407,8 +433,8 @@ STAGES.forEach(st => {
   (st.blackholes || []).forEach(rotPt);
   (st.reflectors || []).forEach(r => {
     const x1 = r.x1, y1 = r.y1, x2 = r.x2, y2 = r.y2;
-    r.x1 = y1; r.y1 = OLD_W - x1;
-    r.x2 = y2; r.y2 = OLD_W - x2;
+    r.x1 = y1; r.y1 = OLD_W - x1 + YOFF;
+    r.x2 = y2; r.y2 = OLD_W - x2 + YOFF;
   });
   if (st.sol){ const vx = st.sol.vx, vy = st.sol.vy; st.sol.vx = vy; st.sol.vy = -vx; }
 });
@@ -821,6 +847,13 @@ canvas.addEventListener('pointerdown',e=>{ initAudio(); if(G.mode!=='aim')return
 window.addEventListener('pointermove',e=>{ if(!G.aim.active)return; const p=toLocal(e); G.aim.x=p.x; G.aim.y=p.y; });
 window.addEventListener('pointerup',()=>{ if(!G.aim.active)return; G.aim.active=false; launch(); });
 $('btn-retry').onclick=retry; $('btn-skip').onclick=skip; $('btn-solve').onclick=showSolution;
+// ステージ選択の開閉（スマホだけ畳んでいる。面を選んだら自動で閉じる）
+(function(){
+  const c = document.querySelector('.controls'), b = $('btn-sel'), sel = $('selector');
+  if (!c || !b) return;
+  b.onclick = () => c.classList.toggle('showsel');
+  sel.addEventListener('click', e => { if (e.target.closest('.lv')) c.classList.remove('showsel'); });
+})();
 $('mute').addEventListener('click',()=>{ initAudio(); setSound(!soundOn); });
 // キーボードでも遊べるように（R=リトライ / S=正解 / M=消音）
 window.addEventListener('keydown',e=>{
