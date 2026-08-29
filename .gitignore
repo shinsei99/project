@@ -507,3 +507,8 @@ mail-archiver/static/att/
 # 2026-08-29 に `git add -A -- db` で誤って追跡してしまった。DBはgitに入れない
 chatwork-ai-manager/db/*.db
 chatwork-ai-manager/data/*.db
+
+# App Store 用スクリーンショットを撮る道具（6本まとめて・寸法ちょうど）。
+# ★直下の tools/ は既定で無視されるので、この2行が無いと git add しても黙って落ちる
+!tools/
+!tools/shoot-store.py

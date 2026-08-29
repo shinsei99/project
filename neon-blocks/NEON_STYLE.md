@@ -159,6 +159,22 @@ box-shadow:0 0 22px rgba(65,227,255,.2), inset 0 0 26px rgba(65,227,255,.06);
 | グラビティ | **ステージ選択と説明文を畳んだ**（`☰ ステージ選択` で開く）＋盤に `max-height` の保険 |
 | アイス | 不要（下はヒント1行だけだった） |
 
+## 6-b. App Store 用スクリーンショット
+
+**撮るのは `python3 tools/shoot-store.py`**（リポジトリ直下）。ブラウザから寸法ちょうどで撮る。
+
+```bash
+python3 tools/shoot-store.py                 # 6本 × iPhone/iPad
+python3 tools/shoot-store.py --only escape   # 1本だけ
+```
+
+- 出力は `<アプリ>/screenshots/store/<機種>/NN-<名前>.png`
+- **iPhone 1284×2778 ／ iPad 2048×2732**（新しめのシミュレータの解像度は審査で弾かれる）
+- 各アプリの `screenshots/shoot.sh` は**1枚ごとにアプリを再ビルドする**作りで、
+  6本×2機種だと72回のビルドになるため使っていない。中身は同じHTMLなので絵は変わらない
+- **★撮ったら1枚ずつ目で見る。** 状態を作る JS（`shots` の指定）が効かず、
+  タイトルのままの絵が混じることがある
+
 ## 7. その他
 
 - **favicon を必ず入れる**（data URI で埋め込む。外部ファイルにすると 404 が Console に残る）
