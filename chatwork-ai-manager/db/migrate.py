@@ -109,6 +109,22 @@ def migrate() -> None:
         # 既存 DB 向けの追加カラム（新規作成時は schema.sql 側で作成済み）
         _ensure_column(conn, "knowledge_documents", "content_hash", "TEXT")
         _ensure_column(conn, "knowledge_documents", "source_mtime", "REAL")
+        # 本棚まわり（2026-08-29）。
+        # pub_date: 出版・改訂の年月（"2022" / "202210"）。**本は古くなるので、答えるときに
+        #   必ず年を添えて「この本は制度開始前です」と言えるようにするため**。
+        #   自炊本はISBNから openBD / 国立国会図書館サーチで引いて入れる。
+        # source_kind: 本 / 法令・ガイドライン / 判例 / 自社書類。優先順位の判断に使う
+        #   （本と条文が食い違ったら条文が勝つ）。
+        _ensure_column(conn, "knowledge_documents", "pub_date", "TEXT")
+        _ensure_column(conn, "knowledge_documents", "source_kind", "TEXT")
+        # use_scope: **その資料を何に使ってよいか**（2026-08-29 オーナー指示）。
+        #   'full'    … そのまま使える。法令・数値・要件も引いてよい（一次資料、直近の実務書）
+        #   'concept' … **考え方だけ**。法律・税率・要件・期限は引かない（古い本）
+        #   'case'    … 判例・紛争事例。事案と判断を引く
+        # なぜ要るか: 古い本を丸ごと捨てると、変わらない部分（サービス業の考え方、
+        #   商業集積の見方、承継の発想）まで失う。逆にそのまま使うと、消費税5%時代の
+        #   税率や廃止された制度を根拠として出してしまう。**同じ本でも用途で線を引く。**
+        _ensure_column(conn, "knowledge_documents", "use_scope", "TEXT NOT NULL DEFAULT 'full'")
         # Stage 0: 進捗確認・エスカレーション用
         _ensure_column(conn, "tasks", "last_check_at", "TEXT")
         _ensure_column(conn, "tasks", "last_progress_reply", "TEXT")

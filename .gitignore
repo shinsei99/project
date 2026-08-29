@@ -496,3 +496,9 @@ mail-archiver/.venv-embed/
 
 # 添付を開くための一時コピー（個人情報。絶対に追跡しない）
 mail-archiver/static/att/
+
+# 蔵書パイプライン（2026-08-29）。自炊本のOCR作り直し→書誌取得→棚への配置まで。
+# **次に本を買ったときに同じ手順で処理できるよう、道具を git に残す。**
+# 本のPDFそのものは Dropbox にあり、ここには入れない（著作物・容量）。
+!bookshelf/
+!bookshelf/**

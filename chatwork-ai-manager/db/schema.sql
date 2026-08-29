@@ -209,6 +209,36 @@ CREATE TRIGGER IF NOT EXISTS knowledge_chunks_au AFTER UPDATE ON knowledge_chunk
     INSERT INTO knowledge_fts(rowid, text) VALUES (new.id, new.text);
 END;
 
+-- ============================================================================
+-- 本棚（2026-08-29）
+--
+-- **なぜフォルダ（category）ではなくラベルなのか。**
+-- knowledge_documents.category は1文書に1つしか持てない。だが同じ資料が複数の用途で
+-- 要る場面が必ずある（例: 都市・建築・不動産 企画開発マニュアルは「不動産実務」でも
+-- 「物件企画」でも引きたい）。フォルダ方式だと置き場所を1つ選ばされる。
+-- そこで **資料の実体は1つのまま、棚のラベルを何枚でも貼れる**多対多にした。
+--
+-- 使い方: 検索時に shelf を指定すると、その棚に入っている文書だけを対象にする。
+-- 棚を指定しなければ従来どおり全件が対象（既存の動作は変わらない）。
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS knowledge_shelf (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    name       TEXT NOT NULL UNIQUE,               -- 例: 不動産実務 / 税務・お金 / 小説資料
+    note       TEXT,                               -- 何のための棚か（人が読む説明）
+    -- 新しい順に優先するか。制度・税務は新しいものが正しいが、理論書は古くても現役なので
+    -- 棚ごとに決める（2026-08-29に実測して分かった。詳細は SESSION_LOG）
+    prefer_new INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS knowledge_shelf_member (
+    shelf_id   INTEGER NOT NULL,
+    doc_id     INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (shelf_id, doc_id)
+);
+CREATE INDEX IF NOT EXISTS idx_shelf_member_doc ON knowledge_shelf_member(doc_id);
+
 -- key-value 設定（post_mode 等）
 CREATE TABLE IF NOT EXISTS settings (
     key        TEXT PRIMARY KEY,

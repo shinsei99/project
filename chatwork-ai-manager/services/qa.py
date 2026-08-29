@@ -28,10 +28,120 @@ def _terms(question: str):
     return sorted(set(terms), key=len, reverse=True)[:10]
 
 
-def search(question: str, top_k: int = TOP_K):
-    """関連チャンクを返す（FTS5 trigram + 本文/文書名 LIKE フォールバック、active文書のみ）。"""
+# ============================================================================
+# 資料の種別（source_kind）で対象を絞る（2026-08-29）
+#
+# **既定は今までどおり自社書類だけ。** 蔵書68冊・法令21点・判例173本を索引に足したが、
+# 業務の質問（「〇〇物件の請求は？」）に本の一般論が混ざると、答えの根拠が濁る。
+# そこで **明示的に呼ばれたときだけ**本や法令を見る。
+#
+# 既存の文書は source_kind が NULL のまま＝既定で拾われるので、動作は変わらない。
+# ============================================================================
+KIND_OWN = "自社書類"        # 既存の Dropbox 書類（source_kind は NULL のまま）
+KIND_LAW = "法令・ガイドライン"
+KIND_CASE = "判例"
+KIND_BOOK = "本"
+
+
+# ----------------------------------------------------------------------------
+# 質問の言い回しから、見に行く棚を決める（2026-08-29 オーナー判断・案A）
+#
+# **切り替えではなく「追加」。** 合図が出たら自社書類に**足して**その棚も見る。
+# こうすれば合図を外しても業務の書類は必ず残るので、パターンを大胆に増やせる。
+# （切り替え式にすると「トラブル」の一語で社内書類が消え、実害が出る）
+# ----------------------------------------------------------------------------
+_TRIG_LAW = re.compile(
+    # 法令そのものを指す言い方
+    r"法律|法令|条文|何条|第\s*\d+\s*条|規定|法的|制度上|正式に|義務|要件|"
+    r"ガイドライン|指針|基準|通達|告示|Ｑ&Ａ|Q&A|一問一答|"
+    # 出どころ
+    r"国交省|国土交通省|国税庁|個人情報保護委員会|法務省|"
+    # 分野名（これが出たら一次資料を見る価値が高い）
+    r"宅建業法|宅地建物取引業法|借地借家法|区分所有|管理業法|賃貸住宅管理業|サブリース新法|"
+    r"インボイス|適格請求書|消費税|電子帳簿|電帳法|個人情報|マイナンバー|"
+    r"標準契約書|標準管理規約|管理規約|長期修繕計画|修繕積立金|重要事項説明|重説|"
+    # ★分野の言葉そのものも合図にする（2026-08-29 追加）。
+    #   「原状回復でクロスの負担割合は？」は法律の語が1つも出ないが、
+    #   答えるべき根拠は国交省ガイドラインしかない。実務で最も多いのがこの形。
+    r"原状回復|経年変化|通常損耗|減価|負担割合|負担区分|敷金|"
+    r"善管注意|貸主負担|借主負担|入居者負担|オーナー負担|"
+    r"更新料|礼金|保証金|極度額|連帯保証|家賃債務保証|"
+    r"仕入税額控除|課税事業者|免税事業者|登録番号|区分記載|"
+    r"スキャナ保存|電子取引|タイムスタンプ|"
+    r"総会|理事会|議決|共用部|専有部|管理費|修繕|大規模修繕"
+)
+_TRIG_CASE = re.compile(
+    r"判例|裁判例|裁判|判決|訴訟|提訴|係争|争い|争っ|揉め|もめ|紛争|"
+    r"過去の事例|他社|よその|事例|ケース|"
+    r"勝て|負け|認められ|認容|棄却|正当事由|立退|立ち退|明渡|明け渡|"
+    r"敷金返還|原状回復.*(争|揉|請求|拒否)|用法違反|無断転貸|又貸し|迷惑行為"
+)
+_TRIG_BOOK = re.compile(
+    r"本に|書籍|蔵書|文献|"
+    r"考え方|なぜ|why|理由|背景|そもそも|本質|"
+    r"一般的に|世間|セオリー|定石|王道|基本的に|原則として|"
+    r"ノウハウ|コツ|進め方|やり方|手法|アプローチ|"
+    r"とは何|の意味|の定義|メリット|デメリット|"
+    r"戦略|マーケティング|ブランディング|事業承継|相続対策|信託"
+)
+
+
+def kinds_from_question(question: str):
+    """質問の言い回しから、見に行く資料の種別を決める。**自社書類は必ず含む。**"""
+    q = unicodedata.normalize("NFKC", question or "")
+    kinds = [KIND_OWN]
+    if _TRIG_LAW.search(q):
+        kinds.append(KIND_LAW)
+    if _TRIG_CASE.search(q):
+        kinds.append(KIND_CASE)
+    if _TRIG_BOOK.search(q):
+        kinds.append(KIND_BOOK)
+    return kinds
+
+
+def _kind_clause(kinds):
+    """d.source_kind の絞り込み SQL 断片と引数を返す。kinds=None なら自社書類のみ。"""
+    if not kinds:
+        return " AND (d.source_kind IS NULL OR d.source_kind = ?) ", [KIND_OWN]
+    marks = ",".join("?" for _ in kinds)
+    # 自社書類を含めたいときは NULL も拾う
+    if KIND_OWN in kinds:
+        return f" AND (d.source_kind IS NULL OR d.source_kind IN ({marks})) ", list(kinds)
+    return f" AND d.source_kind IN ({marks}) ", list(kinds)
+
+
+# 自社書類だけでこの件数に届かなければ、蔵書・法令・判例まで広げる（2026-08-29）
+WIDEN_MIN = 3
+
+
+def search(question: str, top_k: int = TOP_K, kinds=None, widen: bool = True):
+    """関連チャンクを返す。
+
+    kinds を省略すると **質問の言い回しから棚を選び**（kinds_from_question）、
+    それでも自社書類が薄ければ **自動で蔵書・法令・判例まで広げる**（widen）。
+
+    なぜ2段構えか: 合図（「判例では」等）だけに頼ると、言い回しが違うだけで
+    せっかくの資料に届かない。逆に最初から全部見ると業務の質問に一般論が混ざる。
+    **まず自社書類、足りなければ広げる**のが、どちらの失敗も避ける形。
+    """
+    if kinds is None:
+        kinds = kinds_from_question(question)
+    rows = _search_once(question, top_k, kinds)
+    # ★件数ではなく「FTSで強く当たった数」で判定する（2026-08-29）。
+    #   LIKE のフォールバックは「全ファイル一覧」のような弱い一致でも top_k を埋めるので、
+    #   件数で見ると**いつも足りている**ことになり、永久に広がらない（実測で判明）。
+    strong = sum(1 for r in rows if r.get("_via") == "fts")
+    if widen and strong < WIDEN_MIN and set(kinds) <= {KIND_OWN}:
+        # 自社書類では答えられない質問。蔵書・法令・判例まで見に行く
+        rows = _search_once(question, top_k, [KIND_OWN, KIND_LAW, KIND_CASE, KIND_BOOK])
+    return rows
+
+
+def _search_once(question: str, top_k: int, kinds):
+    """1回ぶんの検索（FTS5 trigram + 本文/文書名 LIKE フォールバック、active文書のみ）"""
     terms = _terms(question)
     results = {}   # chunk_id -> row dict
+    kc, kargs = _kind_clause(kinds)
 
     fts_terms = [t for t in terms if len(t) >= 3]
     if fts_terms:
@@ -39,16 +149,18 @@ def search(question: str, top_k: int = TOP_K):
         try:
             rows = query(
                 "SELECT c.id, c.text, c.source_ref, d.title, d.category, "
+                "  d.source_kind, d.pub_date, d.use_scope, "
                 "  bm25(knowledge_fts) AS score "
                 "FROM knowledge_fts "
                 "JOIN knowledge_chunks c ON c.id = knowledge_fts.rowid "
                 "JOIN knowledge_documents d ON d.id = c.doc_id "
-                "WHERE knowledge_fts MATCH ? AND d.active=1 "
+                "WHERE knowledge_fts MATCH ? AND d.active=1 " + kc +
                 "ORDER BY score LIMIT ?",
-                (match_expr, top_k),
+                tuple([match_expr] + kargs + [top_k]),
             )
             for r in rows:
-                results[r["id"]] = dict(r)
+                d = dict(r); d["_via"] = "fts"      # 強く当たった印（広げる判定に使う）
+                results[r["id"]] = d
         except Exception:
             pass  # FTS 構文エラー等は LIKE に委ねる
 
@@ -58,12 +170,13 @@ def search(question: str, top_k: int = TOP_K):
             if len(results) >= top_k * 2:
                 break
             for r in query(
-                "SELECT c.id, c.text, c.source_ref, d.title, d.category "
+                "SELECT c.id, c.text, c.source_ref, d.title, d.category, "
+                "  d.source_kind, d.pub_date, d.use_scope "
                 "FROM knowledge_chunks c JOIN knowledge_documents d ON d.id=c.doc_id "
-                "WHERE d.active=1 AND c.text LIKE ? LIMIT ?",
-                (f"%{t}%", top_k),
+                "WHERE d.active=1 AND c.text LIKE ? " + kc + "LIMIT ?",
+                tuple([f"%{t}%"] + kargs + [top_k]),
             ):
-                results.setdefault(r["id"], dict(r))
+                results.setdefault(r["id"], dict(r, _via="like"))
 
     # 文書名/ファイル名でもヒットさせる（「○○のマニュアルどこ？」対応）
     if len(results) < top_k:
@@ -71,12 +184,14 @@ def search(question: str, top_k: int = TOP_K):
             if len(results) >= top_k * 2:
                 break
             for r in query(
-                "SELECT c.id, c.text, c.source_ref, d.title, d.category "
+                "SELECT c.id, c.text, c.source_ref, d.title, d.category, "
+                "  d.source_kind, d.pub_date, d.use_scope "
                 "FROM knowledge_documents d JOIN knowledge_chunks c ON c.doc_id=d.id "
-                "WHERE d.active=1 AND (d.title LIKE ? OR d.filename LIKE ?) AND c.ord=1 LIMIT 3",
-                (f"%{t}%", f"%{t}%"),
+                "WHERE d.active=1 AND (d.title LIKE ? OR d.filename LIKE ?) AND c.ord=1 " + kc +
+                "LIMIT 3",
+                tuple([f"%{t}%", f"%{t}%"] + kargs),
             ):
-                results.setdefault(r["id"], dict(r))
+                results.setdefault(r["id"], dict(r, _via="like"))
 
     return list(results.values())[:top_k]
 
@@ -240,13 +355,39 @@ def _coverage_rule() -> str:
             "ただし社内業務と明らかに無関係な一般質問はこの限りでない。")
 
 
+def _chunk_header(c) -> str:
+    """資料1件の見出し。**本は発行年と用途を必ず添える**（古い本の法令記述を信じないため）"""
+    kind = c.get("source_kind") or "自社書類"
+    head = f"【{kind}: {c.get('title')}（{c.get('category')}） / 出典: {c.get('source_ref')}】"
+    pub = (c.get("pub_date") or "")[:4]
+    if pub:
+        head += f"\n（発行 {pub}年）"
+    if c.get("use_scope") == "concept":
+        head += " ★この資料は古いので【考え方】だけ使うこと。法律・税率・要件・期限は引かない"
+    elif c.get("use_scope") == "case":
+        head += " ［裁判例・紛争事例］"
+    return head
+
+
+# 「分かりません」で終わらせないための手順（2026-08-29 オーナー指示）
+_EFFORT_RULE = """- **「分かりません」で終わらせない。** 次の順に必ず努力すること。
+  1. **自社書類**（Dropboxの社内資料・レントロール・マニュアル）
+  2. **蔵書・法令・判例**（下の資料に含まれていればそれを使う。無ければ Bash で
+     `python3 /Users/apple/chatwork-ai-manager/kb_search.py "検索語" --kind 法令,判例,本` を実行して探す）
+  3. **外部の一次情報**（それでも足りないとき）
+     - 現行の条文: `python3 -c "import sys;sys.path.insert(0,'/Users/apple');import egov_law_api as e;print(e.search('宅地建物取引業法'))"`
+       条文本文は `e.article(law_id, '35')`。**施行日も一緒に出す**
+     - 国会での議論・運用の実態:
+       `curl -s "https://kokkai.ndl.go.jp/api/speech?any=<語>&recordPacking=json&maximumRecords=3"`
+  - それでも確証が持てないときは「**ここまで調べたが確認できなかった。次はこれを見るとよい**」と
+    **調べた範囲と次の一手**を書く。ただ「分かりません」とだけ返さない。
+- **本と法令が食い違ったら法令が正**。本は発行年を必ず添えて「◯年の本なので考え方として」と断る。"""
+
+
 def build_prompt(question, chunks, room_id=None):
     coverage_rule = _coverage_rule()
     if chunks:
-        kb = "\n\n".join(
-            f"【資料: {c.get('title')}（{c.get('category')}） / 出典: {c.get('source_ref')}】\n{c['text']}"
-            for c in chunks
-        )
+        kb = "\n\n".join(f"{_chunk_header(c)}\n{c['text']}" for c in chunks)
     else:
         kb = "（関連する社内資料は見つかりませんでした）"
     return f"""あなたは日本の不動産会社「大京商事」の社内AIアシスタントです。社員の質問に、会社の資料と業務データに基づいて答えます。
@@ -277,7 +418,8 @@ def build_prompt(question, chunks, room_id=None):
   質問が進捗報告・完了報告・依頼のような「何かを実行してほしい」内容に見えても、
   「反映しました」「更新しました」「完了にしました」「登録しました」等、何かを実行済みであるかのような
   表現を絶対に使わないこと。実行できないので、その旨と「少し時間をおいて再度お知らせください」を正直に伝える。
-{coverage_rule}"""
+{coverage_rule}
+{_EFFORT_RULE}"""
 
 
 APP_DIR = __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__)))

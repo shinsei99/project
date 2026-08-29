@@ -38,19 +38,47 @@ def tokenize(q: str):
     return toks
 
 
-def search(q: str, limit: int = 12, snippet: int = 700):
+# どの棚を見るか（2026-08-29）。**既定は自社書類だけ。**
+# 蔵書68冊・法令21点・判例173本を索引に入れたので、絞らないと業務の検索に
+# 本の一般論が混ざる。必要なときだけ明示的に呼ぶ。
+KINDS = {
+    "自社": ("自社書類", "Dropboxの自社書類（既定）"),
+    "法令": ("法令・ガイドライン", "国交省・国税庁・個情委の一次資料"),
+    "判例": ("判例", "RETIO機関誌の裁判例・紛争事例"),
+    "本": ("本", "蔵書68冊"),
+    "全部": (None, "すべて"),
+}
+
+
+def _kind_sql(kind_keys):
+    """--kind の指定を SQL 断片に。何も指定しなければ自社書類だけ"""
+    if not kind_keys:
+        return " AND (d.source_kind IS NULL OR d.source_kind='自社書類') ", []
+    vals = [KINDS[k][0] for k in kind_keys if k in KINDS and KINDS[k][0]]
+    if "全部" in kind_keys:
+        return " ", []
+    if not vals:
+        return " AND (d.source_kind IS NULL OR d.source_kind='自社書類') ", []
+    marks = ",".join("?" for _ in vals)
+    own = " d.source_kind IS NULL OR" if "自社" in kind_keys else ""
+    return f" AND ({own} d.source_kind IN ({marks})) ", vals
+
+
+def search(q: str, limit: int = 12, snippet: int = 700, kinds=None):
     terms = tokenize(q)
     if not terms:
         return []
+    ks, kargs = _kind_sql(kinds)
     score = defaultdict(int)
     matched = defaultdict(set)
     meta = {}
     for t in terms:
         rows = query(
-            "SELECT c.id, c.text, c.source_ref, d.title, d.category "
+            "SELECT c.id, c.text, c.source_ref, d.title, d.category, "
+            "  d.source_kind, d.pub_date, d.use_scope "
             "FROM knowledge_chunks c JOIN knowledge_documents d ON d.id=c.doc_id "
-            "WHERE d.active=1 AND c.text LIKE ? LIMIT 400",
-            ("%" + t + "%",),
+            "WHERE d.active=1 AND c.text LIKE ? " + ks + "LIMIT 400",
+            tuple(["%" + t + "%"] + kargs),
         )
         for r in rows:
             score[r["id"]] += 1
@@ -60,7 +88,8 @@ def search(q: str, limit: int = 12, snippet: int = 700):
     out = []
     for i in ranked:
         r = meta[i]
-        out.append((r["title"], r["category"], r["source_ref"], len(matched[i]), r["text"][:snippet]))
+        out.append((r["title"], r["category"], r["source_ref"], len(matched[i]),
+                    r["text"][:snippet], r["pub_date"], r["use_scope"]))
     return out
 
 
@@ -78,16 +107,32 @@ def main():
         for r in search_docs(" ".join(args[1:])):
             print(f"- {r['title']}（{r['category']}） file:{r['filename']}")
         return
+    # --kind 法令,判例 のように指定する（省略すると自社書類だけ）
+    kinds = None
+    if "--kind" in args:
+        i = args.index("--kind")
+        kinds = [k.strip() for k in args[i + 1].split(",") if k.strip()]
+        args = args[:i] + args[i + 2:]
     q = " ".join(args)
     if not q.strip():
-        print("使い方: python3 kb_search.py \"検索語1 検索語2\"")
+        print("使い方: python3 kb_search.py \"検索語1 検索語2\" [--kind 法令,判例,本,自社,全部]")
+        for k, (_, note) in KINDS.items():
+            print(f"    {k:<4} … {note}")
         return
-    res = search(q)
+    res = search(q, kinds=kinds)
     if not res:
-        print("（該当なし）検索語を変えて再検索してください。")
+        print("（該当なし）検索語を変えるか、--kind で見る棚を変えてください。")
         return
-    for k, (title, cat, ref, nm, text) in enumerate(res, 1):
-        print(f"[{k}] 資料:{title}（{cat}） 出典:{ref} 一致語数:{nm}")
+    for k, (title, cat, ref, nm, text, pub, scope) in enumerate(res, 1):
+        # **本は出版年と用途を必ず出す。** 古い本の法令記述をそのまま信じないため
+        tag = ""
+        if pub:
+            tag += f" 発行:{pub[:4]}年"
+        if scope == "concept":
+            tag += " ★考え方のみ（法律・数値は一次資料で確認）"
+        elif scope == "case":
+            tag += " ［判例］"
+        print(f"[{k}] 資料:{title}（{cat}） 出典:{ref} 一致語数:{nm}{tag}")
         print(text)
         print("----")
 
