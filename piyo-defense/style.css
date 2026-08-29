@@ -73,4 +73,11 @@ body {
   -webkit-tap-highlight-color: transparent;
   touch-action: none;
   image-rendering: pixelated;
+  /* ★2026-08-29: 盤の枠をシリーズ共通に（2px シアン・角8px。neon-blocks/NEON_STYLE.md）。
+     このゲームだけ canvas が画面いっぱいで枠が無く、切り替えたときに作りが違って見えた。
+     ★比率（390:844）は変えていない。枠のぶんだけ 3% 小さくなる（遊びは等倍縮小なので不変）。 */
+  border: 2px solid rgba(65,227,255,.5);
+  border-radius: 8px;
+  box-shadow: 0 0 22px rgba(65,227,255,.2), inset 0 0 26px rgba(65,227,255,.06);
+  box-sizing: content-box;
 }

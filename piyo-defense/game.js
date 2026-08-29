@@ -9,7 +9,9 @@ canvas.height = H;
 setRenderCtx(ctx, W, H);
 
 function resize() {
-  var vh=window.innerHeight, vw=window.innerWidth;
+  // ★枠（2px×2）と外の余白（4px×2）のぶんを引く。引かないと枠が画面外に出て見えない
+  var PAD = 12;
+  var vh=window.innerHeight-PAD, vw=window.innerWidth-PAD;
   var ratio=W/H, cw=vh*ratio, ch=vh;
   if (cw>vw) { cw=vw; ch=vw/ratio; }
   canvas.style.width=cw+'px'; canvas.style.height=ch+'px';
