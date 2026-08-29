@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#05030f" />
 <meta name="description" content="引いて、離して、重力に任せる。ゲートで色が混ざる宇宙パズル・全20面。" />
-<title>カラー・グラビティ / Color Gravity</title>
+<title>ネオングラビティ</title>
 <!-- タブのアイコン。SVGを直書きしているのはファイルを増やさないため
      （置き忘れると Console に 404 が残り、本物のエラーが埋もれる） -->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2305030f'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='%23ff3b5c' stroke-width='3' opacity='.85'/%3E%3Ccircle cx='32' cy='32' r='23' fill='none' stroke='%237df9ff' stroke-width='3' opacity='.7'/%3E%3Ccircle cx='32' cy='32' r='7' fill='%23ffe14d'/%3E%3C/svg%3E" />
@@ -39,10 +39,10 @@
             calc(14px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left)); }
 
   .title{ text-align:center; margin-bottom:7px; position:relative; }
+  /* ★題字は**レインボー**（6本共通の合図。neon-blocks/NEON_STYLE.md）。
+     ★filter を掛けるので、点滅の animation は外した（両立すると重いうえチラつく） */
   .title h1{ margin:0; font-family:var(--font-en); font-size:clamp(22px,5.4vw,34px); font-weight:900;
-    letter-spacing:.16em; color:#eaffff;
-    text-shadow:0 0 6px var(--cyan),0 0 16px var(--cyan),0 0 34px rgba(125,242,255,.55);
-    animation:hum 4.2s ease-in-out infinite; }
+    letter-spacing:.16em; background:linear-gradient(90deg,#FF2D95,#FFD54F 40%,#FF8A3D 70%,#39FF14);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 16px rgba(0,240,255,.5)); }
   .title p{ margin:3px 0 0; font-size:11px; letter-spacing:.14em; color:var(--cyan-dim); }
   @keyframes hum{ 0%,100%{opacity:1} 47%{opacity:.86} 50%{opacity:.97} }
 
@@ -52,7 +52,7 @@
   .stage{ position:relative; margin:0 auto; max-width:900px;
     width:min(100%, calc((100vh - 260px) * 1.5)); }
   @supports (height:100dvh){ .stage{ width:min(100%, calc((100dvh - 260px) * 1.5)); } }
-  canvas{ width:100%; aspect-ratio:3/2; display:block; border-radius:16px;
+  canvas{ width:100%; aspect-ratio:2/3; display:block; border-radius:16px;
     border:1px solid rgba(60,200,255,.22); box-shadow:0 0 40px rgba(60,200,255,.16),inset 0 0 60px rgba(0,0,0,.6);
     background:#05030f; touch-action:none; }
 
@@ -69,11 +69,18 @@
   .dot{ width:12px; height:12px; border-radius:50%; display:inline-block; }
   .diamond{ width:11px; height:11px; transform:rotate(45deg); display:inline-block; }
 
-  /* 音のオン・オフ。HUDの中で唯一押せるので pointer-events を戻す */
-  #mute{ pointer-events:auto; width:30px; height:30px; padding:0; border-radius:50%;
-    background:rgba(0,0,0,.44); backdrop-filter:blur(6px); border:1px solid rgba(255,255,255,.12);
-    color:#cdefff; font-size:14px; line-height:1; }
-  #mute:hover{ background:rgba(125,242,255,.18); }
+  /* 音のオン・オフ。★2026-08-29: HUDの中（盤の右上・小さい丸）から
+     **画面の右上に固定**へ変えた（シリーズ共通の位置と見た目。neon-blocks/NEON_STYLE.md）。
+     6本のうちここだけ盤の中にあって、切り替えたときに見つからなかった。 */
+  #mute{
+    position:fixed; z-index:40; pointer-events:auto;
+    top:calc(8px + env(safe-area-inset-top)); right:calc(10px + env(safe-area-inset-right));
+    width:44px; height:40px; padding:0; cursor:pointer;
+    border:2px solid rgba(65,227,255,.5); border-radius:6px;
+    font-size:17px; line-height:1;
+    background:rgba(21,14,51,.92); color:#9BE9FF;
+    box-shadow:0 0 12px rgba(65,227,255,.28); }
+  #mute:active{ transform:translateY(1px); }
 
   .flash{ position:absolute; top:31%; left:0; right:0; z-index:20; display:flex; justify-content:center;
     pointer-events:none; }
@@ -96,14 +103,17 @@
 
   .row{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; }
   button{ font-family:inherit; cursor:pointer; border:none; }
-  .btn{ padding:8px 18px; border-radius:12px; font-weight:700; font-size:14px;
-    background:rgba(255,255,255,.1); color:#fff; border:1px solid rgba(255,255,255,.14);
+  /* ★2026-08-29: 角を落とし、決定ボタンを**マゼンタのネオン管**に（シリーズ共通。NEON_STYLE.md）。
+     水色べた塗りの primary は、6本の中でここだけ「塗った面のボタン」で浮いていた。 */
+  .btn{ padding:9px 20px; border-radius:5px; font-weight:900; font-size:14px; letter-spacing:.08em;
+    background:rgba(21,14,51,.92); color:#EAF6FF; border:2px solid rgba(65,227,255,.5);
+    box-shadow:0 0 12px rgba(65,227,255,.22);
     transition:background .15s,transform .1s; }
-  .btn:hover{ background:rgba(255,255,255,.2); }
+  .btn:hover{ background:rgba(30,20,70,.95); }
   .btn:active{ transform:translateY(1px); }
-  .btn.primary{ background:var(--cyan); color:#001016; border-color:var(--cyan);
-    box-shadow:0 0 18px rgba(125,242,255,.45); }
-  .btn.primary:hover{ background:#a6fbff; }
+  .btn.primary{ background:rgba(255,79,195,.18); color:#fff; border-color:#FF4FC3;
+    box-shadow:0 0 14px rgba(255,79,195,.35); }
+  .btn.primary:hover{ background:rgba(255,79,195,.28); }
 
   .hintbar{ width:100%; max-width:900px; margin:9px 0 0; display:flex; justify-content:center; }
   .hintbar div{ padding:7px 14px; border-radius:10px; background:rgba(125,242,255,.06);
@@ -147,7 +157,7 @@
     .pill{ padding:3px 8px; font-size:10.5px; gap:4px; }
     .pill .lbl{ font-size:9px; }
     .star{ font-size:11px; }
-    #mute{ width:26px; height:26px; font-size:12px; }
+    #mute{ width:40px; height:36px; font-size:15px; }
     .hintbar div{ font-size:11px; padding:6px 10px; }
     .lv{ width:30px; height:36px; }
     .note{ font-size:10px; }
@@ -157,8 +167,8 @@
 <body>
 <div id="app">
   <div class="title">
-    <h1>COLOR&nbsp;GRAVITY</h1>
-    <p>カラー・グラビティ ／ 宇宙重力×色合成パズル</p>
+    <h1>NEON&nbsp;GRAVITY</h1>
+    <p>ネオングラビティ ／ 宇宙重力×色合成パズル</p>
   </div>
 
   <div class="stage">
@@ -215,7 +225,7 @@
      stepSim はこの2つを読まないので軌道は1ミリも変わらない。
      最初は反射で `return 'bounce'` にしたが、それだと同じフレームのゲート判定と結晶判定が
      飛ばされて軌道が変わる（＝鏡のある5・7・13・16・19面の sol が外れる）。戻り値は増やさないこと。 */
-const W=900,H=600,STAR_R=7,G_CONST=1.0,MAX_SPEED=16,MAX_PULL=210,LAUNCH_SPEED=12;
+const W=600,H=900,STAR_R=7,G_CONST=1.0,MAX_SPEED=16,MAX_PULL=210,LAUNCH_SPEED=12;
 const PRIMARIES=['R','B','Y'];
 const keyOf=set=>PRIMARIES.filter(c=>set.has(c)).join('');
 
@@ -223,7 +233,7 @@ const keyOf=set=>PRIMARIES.filter(c=>set.has(c)).join('');
 // sol: 正解の発射速度ベクトル(物理ソルバーで探索済・必ずクリアできる)。「正解を見る」で再現。
 const STAGES=[
   { name:'1. 重力で曲げろ',
-    hint:'下から星をスリングショット。赤い惑星の引力で軌道が曲がる。赤い結晶に当てろ！',
+    hint:'右から星をスリングショット。赤い惑星の引力で軌道が曲がる。赤い結晶に当てろ！',
     balls:5, start:['R'], cannon:{x:450,y:558},
     planets:[{x:480,y:320,r:48,mass:6000,color:'R'}], gates:[],
     crystal:{x:235,y:165,r:22,key:'R'}, blackholes:[], reflectors:[],
@@ -243,7 +253,7 @@ const STAGES=[
     crystal:{x:185,y:170,r:24,key:'RB'}, blackholes:[], reflectors:[],
     sol:{vx:4.9075,vy:-2.8333} },
   { name:'4. ブラックホール回避（緑）',
-    hint:'青→黄ゲートを縦に通って緑に。左のブラックホールを避け、黄惑星で右上の結晶へ。',
+    hint:'青→黄ゲートを横に通って緑に。下のブラックホールを避け、黄惑星で左上の結晶へ。',
     balls:5, start:[], cannon:{x:450,y:558},
     planets:[{x:660,y:250,r:38,mass:4200,color:'Y'}],
     gates:[{id:'g1',x:450,y:470,r:40,primary:'B'},{id:'g2',x:450,y:380,r:40,primary:'Y'}],
@@ -251,7 +261,7 @@ const STAGES=[
     blackholes:[{x:300,y:330,r:22,mass:7000}], reflectors:[],
     sol:{vx:3.1257,vy:0.2186} },
   { name:'5. プリズムの試練（白）',
-    hint:'赤・青・黄を縦に通れば白に。左のプリズム(赤を弾く壁)とブラックホールに注意。',
+    hint:'赤・青・黄を横に通れば白に。下のプリズム(赤を弾く壁)とブラックホールに注意。',
     balls:5, start:[], cannon:{x:450,y:558},
     planets:[{x:660,y:300,r:34,mass:3400,color:'Y'}],
     gates:[{id:'g1',x:450,y:480,r:38,primary:'R'},{id:'g2',x:450,y:410,r:38,primary:'B'},{id:'g3',x:450,y:340,r:38,primary:'Y'}],
@@ -260,42 +270,42 @@ const STAGES=[
     reflectors:[{x1:300,y1:430,x2:300,y2:520,color:'R'}],
     sol:{vx:0.7121,vy:-5.4089} },
   { name:'6. 橙の航路（橙）',
-    hint:'赤＋黄＝橙。左右のゲートを弧で通り、黄惑星の引力で上の結晶へ。',
+    hint:'赤＋黄＝橙。上下のゲートを弧で通り、黄惑星の引力で左の結晶へ。',
     balls:5, start:[], cannon:{x:450,y:558},
     planets:[{x:470,y:300,r:42,mass:5000,color:'Y'}],
     gates:[{id:'g1',x:300,y:430,r:40,primary:'R'},{id:'g2',x:620,y:430,r:40,primary:'Y'}],
     crystal:{x:455,y:140,r:24,key:'RY'}, blackholes:[], reflectors:[],
     sol:{vx:3.6986,vy:-1.9666} },
   { name:'7. 鏡で跳ね返せ（赤）',
-    hint:'赤い星を右の鏡で跳ね返し、赤惑星で曲げて左上の結晶へ。',
+    hint:'赤い星を上の鏡で跳ね返し、赤惑星で曲げて左下の結晶へ。',
     balls:5, start:['R'], cannon:{x:200,y:558},
     planets:[{x:560,y:330,r:44,mass:6000,color:'R'}], gates:[],
     crystal:{x:250,y:160,r:24,key:'R'}, blackholes:[],
     reflectors:[{x1:640,y1:200,x2:760,y2:360,color:'R'}],
     sol:{vx:-0.9587,vy:-4.5103} },
   { name:'8. 重力スイングバイ（青）',
-    hint:'青ゲートで染まり、青惑星をスイングバイして右上へ回り込め。',
+    hint:'青ゲートで染まり、青惑星をスイングバイして左上へ回り込め。',
     balls:5, start:[], cannon:{x:450,y:558},
     planets:[{x:450,y:300,r:46,mass:6400,color:'B'}],
     gates:[{id:'g1',x:450,y:470,r:42,primary:'B'}],
     crystal:{x:680,y:200,r:24,key:'B'}, blackholes:[], reflectors:[],
     sol:{vx:-3.317,vy:-6.8009} },
   { name:'9. 紫の二重星',
-    hint:'縦の赤・青ゲートで紫に。右の赤惑星に引かれて右上の結晶へ。',
+    hint:'横の赤・青ゲートで紫に。上の赤惑星に引かれて左上の結晶へ。',
     balls:5, start:[], cannon:{x:450,y:558},
     planets:[{x:560,y:300,r:40,mass:4800,color:'R'}],
     gates:[{id:'g1',x:450,y:470,r:40,primary:'R'},{id:'g2',x:450,y:385,r:40,primary:'B'}],
     crystal:{x:650,y:185,r:24,key:'RB'}, blackholes:[], reflectors:[],
     sol:{vx:-0.0679,vy:-7.7775} },
   { name:'10. 緑の弧を描け',
-    hint:'青い星を右の黄惑星でスイングバイ。緑になって右上へ大きく弧を描け。',
+    hint:'青い星を上の黄惑星でスイングバイ。緑になって左上へ大きく弧を描け。',
     balls:5, start:['B'], cannon:{x:200,y:558},
     planets:[{x:560,y:320,r:44,mass:6000,color:'Y'}],
     gates:[{id:'g1',x:330,y:380,r:40,primary:'Y'}],
     crystal:{x:720,y:170,r:24,key:'BY'}, blackholes:[], reflectors:[],
     sol:{vx:6.3482,vy:-8.1253} },
   { name:'11. 橙と暗黒（橙）',
-    hint:'赤い星を黄ゲートで橙に。中央のブラックホールを避けて右上の結晶へ。',
+    hint:'赤い星を黄ゲートで橙に。中央のブラックホールを避けて左上の結晶へ。',
     balls:5, start:['R'], cannon:{x:200,y:558},
     planets:[{x:620,y:300,r:40,mass:5200,color:'Y'}],
     gates:[{id:'g1',x:360,y:400,r:40,primary:'Y'}],
@@ -303,21 +313,21 @@ const STAGES=[
     blackholes:[{x:470,y:250,r:22,mass:7000}], reflectors:[],
     sol:{vx:4.1959,vy:-1.9122} },
   { name:'12. 白への収束',
-    hint:'赤・青・黄を縦に通って白に。右の黄惑星に導かれて結晶へ。',
+    hint:'赤・青・黄を横に通って白に。上の黄惑星に導かれて結晶へ。',
     balls:6, start:[], cannon:{x:450,y:558},
     planets:[{x:560,y:300,r:36,mass:3800,color:'Y'}],
     gates:[{id:'g1',x:450,y:485,r:40,primary:'R'},{id:'g2',x:450,y:415,r:40,primary:'B'},{id:'g3',x:450,y:345,r:40,primary:'Y'}],
     crystal:{x:650,y:185,r:24,key:'RBY'}, blackholes:[], reflectors:[],
     sol:{vx:1.6791,vy:-10.6012} },
   { name:'13. 反射の回廊（青）',
-    hint:'青い星を右の鏡で反射、青惑星で曲げて左上の結晶へ。',
+    hint:'青い星を上の鏡で反射、青惑星で曲げて左下の結晶へ。',
     balls:6, start:['B'], cannon:{x:450,y:558},
     planets:[{x:450,y:300,r:40,mass:5200,color:'B'}], gates:[],
     crystal:{x:160,y:200,r:24,key:'B'}, blackholes:[],
     reflectors:[{x1:560,y1:260,x2:720,y2:380,color:'B'}],
     sol:{vx:-6.7016,vy:-3.9475} },
   { name:'14. 紫の関門',
-    hint:'左右のゲートで紫に。中央のブラックホールすれすれを抜けろ。',
+    hint:'上下のゲートで紫に。中央のブラックホールすれすれを抜けろ。',
     balls:6, start:[], cannon:{x:450,y:558},
     planets:[{x:230,y:280,r:34,mass:3800,color:'R'},{x:670,y:280,r:34,mass:3800,color:'B'}],
     gates:[{id:'g1',x:300,y:455,r:36,primary:'R'},{id:'g2',x:600,y:455,r:36,primary:'B'}],
@@ -325,14 +335,14 @@ const STAGES=[
     blackholes:[{x:450,y:330,r:20,mass:6000}], reflectors:[],
     sol:{vx:5.1898,vy:2.7594} },
   { name:'15. 緑の周回軌道',
-    hint:'青い星を黄ゲートで緑に。黄惑星をスイングバイして右へ。',
+    hint:'青い星を黄ゲートで緑に。黄惑星をスイングバイして上へ。',
     balls:6, start:['B'], cannon:{x:450,y:558},
     planets:[{x:450,y:300,r:46,mass:6400,color:'Y'}],
     gates:[{id:'g1',x:450,y:460,r:42,primary:'Y'}],
     crystal:{x:700,y:200,r:24,key:'BY'}, blackholes:[], reflectors:[],
     sol:{vx:-3.2494,vy:-7.2982} },
   { name:'16. 橙の跳躍',
-    hint:'黄色い星を赤ゲートで橙に。右の鏡と黄惑星を使って左上へ。',
+    hint:'黄色い星を赤ゲートで橙に。上の鏡と黄惑星を使って左下へ。',
     balls:6, start:['Y'], cannon:{x:200,y:558},
     planets:[{x:560,y:320,r:42,mass:5600,color:'Y'}],
     gates:[{id:'g1',x:340,y:380,r:38,primary:'R'}],
@@ -348,7 +358,7 @@ const STAGES=[
     blackholes:[{x:340,y:250,r:18,mass:5000},{x:560,y:250,r:18,mass:5000}], reflectors:[],
     sol:{vx:7.2079,vy:-1.4665} },
   { name:'18. 双子の暗黒（紫）',
-    hint:'縦のゲートで紫に。双子のブラックホールに挟まれた狭路を突破。',
+    hint:'横のゲートで紫に。双子のブラックホールに挟まれた狭路を突破。',
     balls:6, start:[], cannon:{x:450,y:558},
     planets:[{x:450,y:250,r:38,mass:5200,color:'R'}],
     gates:[{id:'g1',x:300,y:440,r:36,primary:'R'},{id:'g2',x:600,y:440,r:36,primary:'B'}],
@@ -356,7 +366,7 @@ const STAGES=[
     blackholes:[{x:330,y:300,r:18,mass:4600},{x:570,y:300,r:18,mass:4600}], reflectors:[],
     sol:{vx:-5.5901,vy:1.8163} },
   { name:'19. 緑の鏡像',
-    hint:'青い星を黄ゲートで緑に。黄惑星で大きく回し右上の鏡際の結晶へ。',
+    hint:'青い星を黄ゲートで緑に。黄惑星で大きく回し左上の鏡際の結晶へ。',
     balls:6, start:['B'], cannon:{x:200,y:558},
     planets:[{x:540,y:320,r:46,mass:6800,color:'Y'}],
     gates:[{id:'g1',x:340,y:410,r:42,primary:'Y'}],
@@ -364,7 +374,7 @@ const STAGES=[
     reflectors:[{x1:560,y1:120,x2:720,y2:150,color:'Y'}],
     sol:{vx:7.0204,vy:-8.6695} },
   { name:'20. 究極の白（最終）',
-    hint:'最終試練。赤・青・黄を縦に通り白へ。二つの暗黒星を避け抜け！',
+    hint:'最終試練。赤・青・黄を横に通り白へ。二つの暗黒星を避け抜け！',
     balls:7, start:[], cannon:{x:450,y:558},
     planets:[{x:680,y:250,r:30,mass:3000,color:'Y'}],
     gates:[{id:'g1',x:450,y:490,r:38,primary:'R'},{id:'g2',x:450,y:420,r:38,primary:'B'},{id:'g3',x:450,y:350,r:38,primary:'Y'}],
@@ -372,6 +382,34 @@ const STAGES=[
     blackholes:[{x:330,y:300,r:18,mass:4200},{x:600,y:400,r:18,mass:4200}], reflectors:[],
     sol:{vx:-1.3499,vy:-3.5165} },
 ];
+
+/* ★2026-08-29: 横（900×600）→ **縦（600×900）** にした。
+   シリーズ6本のうちここだけ横長で、スマホを縦に持つと盤が小さくなっていた
+   （型は neon-blocks/NEON_STYLE.md）。
+
+   ステージは横長の座標で書いてあるので、**読み込む前に90°回して写す**。
+   ・位置  (x, y) → (y, 900 - x)
+   ・速度  (vx,vy) → (vy, -vx)      ※正解データ sol も同じ規則で回る
+   ・半径・質量・色はそのまま
+   こうすると**物理には一切触らずに**縦になる（軌道は座標ごと回るだけ）。
+   ★確認は tools/verify_solutions.py（物理区間を抜き出して node で実行し、全20面が
+     正解に到達するかを見る）。回し忘れ・回し間違いがあればここで落ちる。 */
+const OLD_W = 900;
+const rotPt = o => { const x = o.x, y = o.y; o.x = y; o.y = OLD_W - x; return o; };
+STAGES.forEach(st => {
+  rotPt(st.cannon);
+  st.planets.forEach(rotPt);
+  (st.gates || []).forEach(rotPt);
+  rotPt(st.crystal);
+  (st.blackholes || []).forEach(rotPt);
+  (st.reflectors || []).forEach(r => {
+    const x1 = r.x1, y1 = r.y1, x2 = r.x2, y2 = r.y2;
+    r.x1 = y1; r.y1 = OLD_W - x1;
+    r.x2 = y2; r.y2 = OLD_W - x2;
+  });
+  if (st.sol){ const vx = st.sol.vx, vy = st.sol.vy; st.sol.vx = vy; st.sol.vy = -vx; }
+});
+
 
 // ------------------ 物理ステップ ------------------
 function stepSim(s, st, triggered){
@@ -412,7 +450,11 @@ function stepSim(s, st, triggered){
     s.x=cr.x+nx*(cr.r+STAR_R+2); s.y=cr.y+ny*(cr.r+STAR_R+2);
     return 'reject';
   }
-  if(s.x<-70||s.x>W+70||s.y>H+70||s.y<-650) return 'out';
+  /* 画面外の判定。★上下左右で余裕が違う点に注意（打ち出した先へ大きく飛ぶのを許すため）。
+     もとは「上に 650px の余裕」だった（下から打ち上げる形だったので、画面上へ大きく外れて
+     戻ってくる軌道を殺さないため）。**盤を90°回したので、その余裕も回して「左」に移した**。
+     ここを回し忘れると、正解のはずの軌道が途中で out になる（実測: 20面中3面が落ちた）。 */
+  if(s.x<-650||s.x>W+70||s.y>H+70||s.y<-70) return 'out';
   return 'none';
 }
 function computeLaunch(cannon,ax,ay){
@@ -456,7 +498,7 @@ function initAudio(){
   try{ audio=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; }
   masterGain=audio.createGain(); masterGain.gain.value=soundOn?1:0; masterGain.connect(audio.destination);
   sfxGain=audio.createGain(); sfxGain.gain.value=0.9; sfxGain.connect(masterGain);
-  musGain=audio.createGain(); musGain.gain.value=0.22; musGain.connect(masterGain);
+  musGain=audio.createGain(); musGain.gain.value=0.24;   // ★シリーズ共通の音量（NEON_STYLE.md） musGain.connect(masterGain);
   // ホワイトノイズ。噴射音・爆発音は正弦波だけでは作れない
   noiseBuf=audio.createBuffer(1, audio.sampleRate*1.2, audio.sampleRate);
   const d=noiseBuf.getChannelData(0);
@@ -571,9 +613,10 @@ function musicTick(){
   if(MUSIC.next<audio.currentTime) MUSIC.next=audio.currentTime+0.05;  // 復帰時の一気鳴り防止
   while(MUSIC.next<audio.currentTime+0.4){
     const t=MUSIC.next, s=MUSIC.step;
-    if(s%8===0) pad(110*Math.pow(2, MUSIC.bass[(s>>3)%MUSIC.bass.length]/12), t, beat*8);
+    // ★2026-08-29: 調を A → **G** に（シリーズ6本で調を分ける決まり。neon-blocks/NEON_STYLE.md）
+    if(s%8===0) pad(98.00*Math.pow(2, MUSIC.bass[(s>>3)%MUSIC.bass.length]/12), t, beat*8);
     if(s%2===0){
-      voice(220*Math.pow(2, MUSIC.bell[(s>>1)%MUSIC.bell.length]/12),
+      voice(196.00*Math.pow(2, MUSIC.bell[(s>>1)%MUSIC.bell.length]/12),
             t, beat*1.4, 'sine', 0.03, musGain);
     }
     MUSIC.next+=beat; MUSIC.step++;
@@ -678,13 +721,18 @@ function showTitle(){
   G.mode='title';
   const total=Object.values(G.stars).reduce((a,b)=>a+b,0);
   const cont=G.maxUnlocked>0;
-  showOverlay('<div class="big" style="color:#eaffff;text-shadow:0 0 10px #7df9ff,0 0 26px #7df9ff">COLOR GRAVITY</div>'
-    +'<div class="sub">カラー・グラビティ</div>'
+  // ★2026-08-29: 見出しの並びをシリーズ共通の型へ（ラテンを小さくマゼンタ・日本語を大きく発光）
+  showOverlay('<div class="sub" style="color:#FF4FC3;letter-spacing:.34em;font-weight:700;'
+    +'text-shadow:0 0 12px rgba(255,79,195,.8)">N E O N &nbsp; G R A V I T Y</div>'
+    +'<div class="big" style="letter-spacing:.18em;'
+    +'background:linear-gradient(90deg,#FF2D95,#FFD54F 40%,#FF8A3D 70%,#39FF14);'
+    +'-webkit-background-clip:text;background-clip:text;color:transparent;'
+    +'filter:drop-shadow(0 0 18px rgba(0,240,255,.5))">ネオングラビティ</div>'
     +'<p class="lead">引いて、離して、重力に任せる。<br>'
     +'ゲートをくぐるたび星の色が混ざり、<br>結晶と同じ色になって当たればクリア。</p>'
     +(cont?'<div class="earn"><span class="star">★</span> '+total+' / '+(STAGES.length*3)+'</div>':'')
     +'<div class="row">'
-    +'<button class="btn primary" id="ov-start">▶ '+(cont?'つづきから':'はじめる')+'</button>'
+    +'<button class="btn primary" id="ov-start">'+(cont?'▶ つづきから':'START')+'</button>'
     +(cont?'<button class="btn" id="ov-first">1面から</button>':'')
     +'</div>');
   $('ov-start').onclick=()=>{ initAudio(); sfx('ui'); init(Math.min(G.maxUnlocked,STAGES.length-1)); };

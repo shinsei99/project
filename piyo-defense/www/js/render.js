@@ -17,6 +17,11 @@ function rrect(x, y, w, h, r, fill, stroke, lw) {
   if (stroke) { _ctx.strokeStyle = stroke; _ctx.lineWidth = lw; _ctx.stroke(); }
 }
 
+/* ★2026-08-29: パネル・ボタンの縁を**ネオン管**にした。
+   画面の中身（敵・ボス・空・地面）はネオンにしたのに、UIだけ
+   「赤いSTART・茶色のボタン・緑の草」の昔のままで浮いていたため。
+   ★ここ1か所で全画面（タイトル／設定／図鑑／実績／ショップ／ゲームオーバー）に効く。
+     呼び出し側が渡す stroke の色をそのまま光らせるので、色の意味（青＝図鑑・金＝実績…）は残る。 */
 function rrectGrd(x, y, w, h, r, grd, stroke, lw) {
   lw = lw === undefined ? 2 : lw;
   _ctx.beginPath();
@@ -27,7 +32,22 @@ function rrectGrd(x, y, w, h, r, grd, stroke, lw) {
   _ctx.lineTo(x, y+r); _ctx.quadraticCurveTo(x, y, x+r, y);
   _ctx.closePath();
   _ctx.fillStyle = grd; _ctx.fill();
-  if (stroke) { _ctx.strokeStyle = stroke; _ctx.lineWidth = lw; _ctx.stroke(); }
+  if (stroke) {
+    _ctx.save();
+    _ctx.shadowColor = _neonGlowOf(stroke); _ctx.shadowBlur = Math.max(8, lw * 5);
+    _ctx.strokeStyle = stroke; _ctx.lineWidth = lw; _ctx.stroke();
+    _ctx.restore();
+  }
+}
+/* 縁の色から「光の色」を作る。rgba(…) は不透明にしないと光って見えない */
+function _neonGlowOf(col) {
+  if (typeof col !== 'string') return 'rgba(65,227,255,.8)';
+  var m = /^rgba?\(([^)]+)\)/.exec(col);
+  if (m) {
+    var p = m[1].split(',');
+    return 'rgba(' + p[0].trim() + ',' + p[1].trim() + ',' + p[2].trim() + ',0.85)';
+  }
+  return col;
 }
 
 // ── Background ───────────────────────────────────────────────────────────────
@@ -38,26 +58,26 @@ function rrectGrd(x, y, w, h, r, grd, stroke, lw) {
 // 明るい下空に黒いカラスが乗ると輪郭が立つので、見た目と遊びやすさが同時に良くなる。
 // ステージが進むと空は禍々しくなるが、**真っ黒にはしない**（暗さ＝緊張感は色で出す）。
 var _SBG = [
-  { t:'#0A1740', m:'#16306B', b:'#4A72B0', g:'#FFC489', n:'#3E63C8', mo:'#FFF4D6' }, //  1 夜明け前
-  { t:'#0A1540', m:'#172C68', b:'#4569A8', g:'#FFB878', n:'#3E63C8', mo:'#FFF0CE' }, //  2
-  { t:'#0C1240', m:'#1B2A66', b:'#4463A2', g:'#FFA96A', n:'#4460C8', mo:'#FFEDC6' }, //  3
-  { t:'#0E1040', m:'#201F64', b:'#46589B', g:'#FF9A62', n:'#5A5AC8', mo:'#FFE9BE' }, //  4
-  { t:'#12083A', m:'#2A1560', b:'#56458F', g:'#FF8FA8', n:'#7A46C8', mo:'#FFE2D2' }, //  5 紫の夜
-  { t:'#150838', m:'#2E1560', b:'#5B4390', g:'#FF85B0', n:'#8446C8', mo:'#FFDCD4' }, //  6
-  { t:'#180636', m:'#331460', b:'#614292', g:'#FF7BB8', n:'#8E46C8', mo:'#FFD6D6' }, //  7
-  { t:'#1B0634', m:'#381360', b:'#664093', g:'#FF71C0', n:'#9846C8', mo:'#FFD0D8' }, //  8
-  { t:'#240826', m:'#4A1236', b:'#7A3A50', g:'#FF7A5A', n:'#C8464A', mo:'#FFC4B0' }, //  9 赤い異変
-  { t:'#260620', m:'#500F30', b:'#80354A', g:'#FF6B4A', n:'#C8383C', mo:'#FFBAA4' }, // 10
-  { t:'#28051C', m:'#560D2A', b:'#863044', g:'#FF5C3A', n:'#C82A2E', mo:'#FFB098' }, // 11
-  { t:'#2A0418', m:'#5B0B24', b:'#8C2B3E', g:'#FF4D2A', n:'#C81C20', mo:'#FFA68C' }, // 12
-  { t:'#1E0A28', m:'#34204A', b:'#4E5C6E', g:'#9BFF7A', n:'#58C86A', mo:'#DCFFCE' }, // 13 毒の空
-  { t:'#1A0C2A', m:'#2E2450', b:'#465F78', g:'#86FF6A', n:'#4AC85E', mo:'#D2FFC4' }, // 14
-  { t:'#160E2C', m:'#282856', b:'#3E6282', g:'#71FF5A', n:'#3CC852', mo:'#C8FFBA' }, // 15
-  { t:'#12102E', m:'#222C5C', b:'#36658C', g:'#5CFF4A', n:'#2EC846', mo:'#BEFFB0' }, // 16
-  { t:'#080A2C', m:'#14184A', b:'#283068', g:'#8FA8FF', n:'#5050D8', mo:'#D6E2FF' }, // 17 深宇宙
-  { t:'#07082E', m:'#121646', b:'#252C66', g:'#9FB4FF', n:'#5A50D8', mo:'#DCE6FF' }, // 18
-  { t:'#060630', m:'#101444', b:'#222964', g:'#AFC0FF', n:'#6450D8', mo:'#E2EAFF' }, // 19
-  { t:'#050432', m:'#0E1242', b:'#1F2662', g:'#C0CCFF', n:'#7050D8', mo:'#E8EEFF' }, // 20
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FFC489', n:'#3E63C8', mo:'#FFF4D6' }, //  1 夜明け前
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FFB878', n:'#3E63C8', mo:'#FFF0CE' }, //  2
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FFA96A', n:'#4460C8', mo:'#FFEDC6' }, //  3
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FF9A62', n:'#5A5AC8', mo:'#FFE9BE' }, //  4
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FF8FA8', n:'#7A46C8', mo:'#FFE2D2' }, //  5 紫の夜
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FF85B0', n:'#8446C8', mo:'#FFDCD4' }, //  6
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FF7BB8', n:'#8E46C8', mo:'#FFD6D6' }, //  7
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FF71C0', n:'#9846C8', mo:'#FFD0D8' }, //  8
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FF7A5A', n:'#C8464A', mo:'#FFC4B0' }, //  9 赤い異変
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FF6B4A', n:'#C8383C', mo:'#FFBAA4' }, // 10
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FF5C3A', n:'#C82A2E', mo:'#FFB098' }, // 11
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#FF4D2A', n:'#C81C20', mo:'#FFA68C' }, // 12
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#9BFF7A', n:'#58C86A', mo:'#DCFFCE' }, // 13 毒の空
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#86FF6A', n:'#4AC85E', mo:'#D2FFC4' }, // 14
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#71FF5A', n:'#3CC852', mo:'#C8FFBA' }, // 15
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#5CFF4A', n:'#2EC846', mo:'#BEFFB0' }, // 16
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#8FA8FF', n:'#5050D8', mo:'#D6E2FF' }, // 17 深宇宙
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#9FB4FF', n:'#5A50D8', mo:'#DCE6FF' }, // 18
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#AFC0FF', n:'#6450D8', mo:'#E2EAFF' }, // 19
+  { t:'#0B0720', m:'#160D33', b:'#241247', g:'#C0CCFF', n:'#7050D8', mo:'#E8EEFF' }, // 20
 ];
 
 // '#RRGGBB' → 'r,g,b'（rgba() に混ぜるため）
@@ -250,8 +270,9 @@ function drawGround(stage) {
   });
 
   // ③ 手前の草地 ────────────────────────────────────────────────────────────
-  var r1 = Math.round(52+t*46), g1 = Math.round(150-t*104), b1 = Math.round(82-t*58);
-  var r2 = Math.round(24+t*38), g2 = Math.round( 86-t* 74), b2 = Math.round(48-t*42);
+  // ★ネオン版: 昼の草地 → 夜の草地。ステージが進むほど紫に寄せる（空と地続きに見せるため）
+  var r1 = Math.round(28+t*30), g1 = Math.round( 70-t*34), b1 = Math.round(62+t*14);
+  var r2 = Math.round(14+t*18), g2 = Math.round( 34-t*16), b2 = Math.round(40+t*10);
   var grd = _ctx.createLinearGradient(0, HL-20, 0, _H);
   grd.addColorStop(0, 'rgb('+r1+','+g1+','+b1+')');
   grd.addColorStop(1, 'rgb('+r2+','+g2+','+b2+')');
@@ -263,22 +284,24 @@ function drawGround(stage) {
   _ctx.lineTo(_W, _H); _ctx.lineTo(0, _H); _ctx.closePath(); _ctx.fill();
 
   // 稜線のハイライト（月あかりが当たっている縁）
-  _ctx.strokeStyle = 'rgba('+_rgb(bg.mo)+',0.30)'; _ctx.lineWidth = 2;
+  // ★稜線はネオン管に（夜の地面と空の境目をはっきりさせる）
+  _ctx.save(); _ctx.shadowColor = '#41E3FF'; _ctx.shadowBlur = 10;
+  _ctx.strokeStyle = 'rgba(65,227,255,0.55)'; _ctx.lineWidth = 2;
   _ctx.beginPath();
   _ctx.moveTo(0, HL);
   _ctx.quadraticCurveTo(_W*0.25, HL-17, _W*0.5, HL-4);
   _ctx.quadraticCurveTo(_W*0.75, HL+8,  _W,    HL-10);
-  _ctx.stroke();
+  _ctx.stroke(); _ctx.restore();
 
   // 草と花（位置は式で決めているので毎フレーム同じ。ちらつかない）
-  _ctx.strokeStyle = 'rgba('+r1+','+Math.min(255,g1+40)+','+b1+',0.34)'; _ctx.lineWidth = 1.6;
+  _ctx.strokeStyle = 'rgba(90,220,150,0.28)'; _ctx.lineWidth = 1.6;   // ★草は淡い蛍光の緑
   for (var i = 0; i < 46; i++) {
     var gx = (i*83+19) % _W;
     var gy = HL + 6 + (i*37 % 84);
     var lean = ((i%5)-2) * 1.6;
     _ctx.beginPath(); _ctx.moveTo(gx, gy); _ctx.quadraticCurveTo(gx+lean, gy-5, gx+lean*1.7, gy-9); _ctx.stroke();
   }
-  var FLOWER = ['#FFD9E8','#FFF0A8','#D8E8FF'];
+  var FLOWER = ['#FF7FD0','#FFE082','#7CE7FF'];   // ★花も発光色に
   for (var j = 0; j < 11; j++) {
     var fx = (j*131+41) % _W, fy = HL + 16 + (j*53 % 70);
     _ctx.fillStyle = FLOWER[j % 3];
@@ -434,7 +457,157 @@ var CROW_COLORS = {
   phantom:   { wing:'#2A2A4A', body:'#3A3A6A', hi:'#6060AA', eye:'#FFFFFF', glow:'rgba(200,200,255,0.70)' },
 };
 
+/* ★2026-08-29: 敵とボスを「ネオンブロックの組み合わせ」で描く。
+   ・ふつうの敵は**2〜3色の市松**にして、同じ形でも色で見分けが付くようにした
+   ・ボスは**モザイク**（ブロックを並べて形を作る）。もとのボスのシルエットに寄せてある
+     （鳥は翼、獣は角と四つ足、爬虫類は長い胴、機械は箱と脚、最終形態は大きく厚い）
+   ・ボス固有の色（BOSS_CONFIG の col / eyeCol）を活かすので、20体それぞれ違う色になる */
+var NEON_PALETTE = ['#41E3FF','#FF4FC3','#FFD54F','#7CFF4F','#B36BFF','#FF8A3D'];
+
+// 種類ごとの「形」と「色の組み合わせ」。色は cells の文字に対応する
+var NEON_SHAPES = {
+  normal:   { cells:[[-1,-1,0],[0,-1,1],[-1,0,1],[0,0,0]],                    cols:['#41E3FF','#7CFF4F'] },
+  fast:     { cells:[[-1,-1,0],[0,-1,1],[0,0,0]],                             cols:['#7CFF4F','#FFD54F'] },
+  sprinter: { cells:[[-1,-1,0],[0,-1,1],[0,0,0]],                             cols:['#AAFF00','#41E3FF'] },
+  tank:     { cells:[[-1,-1,0],[0,-1,1],[1,-1,0],[-1,0,1],[0,0,0],[1,0,1]],   cols:['#FF4FC3','#B36BFF'] },
+  ghost:    { cells:[[-1,-1,0],[0,-1,0],[-1,0,1],[0,0,1]],                    cols:['#B36BFF','#8EF9FF'] },
+  stealth:  { cells:[[-1,-1,0],[0,-1,1],[-1,0,1],[0,0,0]],                    cols:['#8EF9FF','#41E3FF'] },
+  phantom:  { cells:[[-1,-1,0],[0,-1,1],[-1,0,1],[0,0,0]],                    cols:['#C56BFF','#FF4FC3'] },
+  shield:   { cells:[[-1,-1,0],[0,-1,0],[1,-1,0],[0,0,1]],                    cols:['#FFD54F','#FF8A3D'] },
+  bomber:   { cells:[[-1,-1,0],[0,-1,1],[-1,0,1],[0,0,0]],                    cols:['#FF8A3D','#FFD54F'] }
+};
+var NEON_ENEMY = NEON_SHAPES;   // 旧コードとの互換（存在判定に使っている）
+
+// ブロック1個。中は暗く、輪郭が光る（ネオンブロックス本編と同じ描き方）
+function _neonCell(x, y, u, col) {
+  _ctx.fillStyle = 'rgba(10,8,26,0.85)';
+  _ctx.fillRect(x, y, u, u);
+  _ctx.shadowColor = col; _ctx.shadowBlur = Math.max(8, u * 0.9);
+  _ctx.strokeStyle = col; _ctx.lineWidth = Math.max(1.6, u * 0.14);
+  _ctx.strokeRect(x + u*0.09, y + u*0.09, u*0.82, u*0.82);
+  _ctx.shadowBlur = 0;
+  _ctx.strokeStyle = 'rgba(255,255,255,0.5)'; _ctx.lineWidth = Math.max(0.8, u * 0.06);
+  _ctx.strokeRect(x + u*0.24, y + u*0.24, u*0.52, u*0.52);
+}
+
+function drawNeonBlock(e) {
+  var s = e.size;
+  var sh = NEON_SHAPES[e.type] || NEON_SHAPES.normal;
+  var al = (e.hitFlash > 0 && e.hitFlash % 2 === 0) ? 0.35 : 1.0;
+  if (!e.silhouette) {
+    if (e.type === 'ghost') al *= (0.25 + Math.abs(Math.sin(e.wobble * 0.30)) * 0.75);
+    if (e.type === 'stealth' && e.isHidden) al *= 0.08;
+    if (e.type === 'phantom') al *= (0.55 + Math.abs(Math.sin(e.wobble * 0.4)) * 0.45);
+  }
+  var cols = e.silhouette ? ['#2E3659','#2E3659'] : sh.cols;
+
+  _ctx.save();
+  _ctx.translate(e.x, e.y + Math.sin(e.wobble) * 4);
+  _ctx.rotate(Math.sin(e.wobble * 0.5) * 0.10);
+  _ctx.globalAlpha = al;
+  _ctx.globalAlpha = al * 0.30; _ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  _ctx.beginPath(); _ctx.ellipse(0, s * 0.95, s * 0.42, s * 0.10, 0, 0, Math.PI * 2); _ctx.fill();
+  _ctx.globalAlpha = al;
+
+  var u = s * 0.42;
+  _ctx.lineJoin = 'round';
+  for (var i = 0; i < sh.cells.length; i++) {
+    var c = sh.cells[i];
+    _neonCell(c[0] * u, c[1] * u, u, cols[c[2]] || cols[0]);
+  }
+  // 目（「的」だと分かるように）
+  var ey = -u * 0.50;
+  _ctx.shadowColor = cols[0]; _ctx.shadowBlur = 10; _ctx.fillStyle = '#FFFFFF';
+  _ctx.beginPath(); _ctx.arc(-u * 0.38, ey, u * 0.22, 0, Math.PI * 2); _ctx.fill();
+  _ctx.beginPath(); _ctx.arc( u * 0.38, ey, u * 0.22, 0, Math.PI * 2); _ctx.fill();
+  _ctx.shadowBlur = 0; _ctx.fillStyle = '#0A081A';
+  _ctx.beginPath(); _ctx.arc(-u * 0.38, ey, u * 0.10, 0, Math.PI * 2); _ctx.fill();
+  _ctx.beginPath(); _ctx.arc( u * 0.38, ey, u * 0.10, 0, Math.PI * 2); _ctx.fill();
+  _ctx.restore();
+}
+
+/* ボスのモザイク。B=本体色 A=差し色 E=目。もとのボスの形に寄せてある */
+var NEON_BOSS = {
+  bird: ['A.........A',
+         'AB.......BA',
+         'ABB..B..BBA',
+         '.BBBBBBBBB.',
+         '..B.EBE.B..',
+         '....BBB....'],
+  beast:['.A.....A.',
+         '.ABBBBBA.',
+         '.BBEBEBB.',
+         '.BBBBBBB.',
+         '.B.B.B.B.',
+         '.B.....B.'],
+  reptile:['.....BBB.',
+           '....BEBEB',
+           '...BBBBB.',
+           '..BBB....',
+           '.BBB.....',
+           'ABB......'],
+  mech: ['.A.....A.',
+         '.BBBBBBB.',
+         '.BEB.BEB.',
+         '.BBBBBBB.',
+         'A.BBBBB.A',
+         '..B...B..',
+         '..B...B..'],
+  final:['..A.....A..',
+         '.ABBBBBBBA.',
+         '.BBEBBBEBB.',
+         '.BBBBBBBBB.',
+         'A.BBBBBBB.A',
+         '..B.BBB.B..',
+         '..B..B..B..',
+         '.....B.....'],
+  ufo:  ['...BBB...',
+         '..BEBEB..',
+         '.BBBBBBB.',
+         'ABBBBBBBA',
+         '..A...A..']
+};
+
+// ボス固有の色は暗いものが多い（#000011 など）。そのままだと光らないので明るく起こす
+function _neonize(hex, boost) {
+  var m = /^#([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '#41E3FF';
+  var n = parseInt(m[1], 16), r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+  var mx = Math.max(r,g,b) || 1, k = (boost || 210) / mx;
+  r = Math.min(255, Math.round(r*k + 40));
+  g = Math.min(255, Math.round(g*k + 40));
+  b = Math.min(255, Math.round(b*k + 40));
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function drawNeonBoss(e, frame, cfg, kind) {
+  var map = NEON_BOSS[kind] || NEON_BOSS.ufo;
+  var rows = map.length, colsN = map[0].length;
+  var u = (e.size * 2.1) / colsN;                 // 元のボスと同じくらいの見た目の大きさに
+  var body   = _neonize(cfg && cfg.col, 200);
+  var accent = NEON_PALETTE[(e._stageNum || 1) % NEON_PALETTE.length];
+  var eye    = _neonize(cfg && cfg.eyeCol, 245);
+  var al = (e.hitFlash > 0 && e.hitFlash % 2 === 0) ? 0.3 : 1.0;
+
+  _ctx.save();
+  _ctx.translate(e.x, e.y);
+  _ctx.globalAlpha = al;
+  if (typeof _drawBossAuraPhase === 'function' && cfg) _drawBossAuraPhase(e, frame, cfg.aura);
+  var bob = Math.sin(frame * 0.06) * u * 0.18;    // ゆっくり上下（生きている感じ）
+  _ctx.translate(-(colsN * u) / 2, -(rows * u) / 2 + bob);
+  _ctx.lineJoin = 'round';
+  for (var y = 0; y < rows; y++) {
+    for (var x = 0; x < colsN; x++) {
+      var ch = map[y][x];
+      if (ch === '.') continue;
+      _neonCell(x * u, y * u, u, ch === 'B' ? body : (ch === 'A' ? accent : eye));
+    }
+  }
+  _ctx.restore();
+}
+
 function drawCrow(e) {
+  if (typeof NEON_ENEMY !== 'undefined') { drawNeonBlock(e); return; }   // ★ネオン版はこちら
   _ctx.save();
   _ctx.translate(e.x, e.y + Math.sin(e.wobble) * 4);
   var s = e.size;
@@ -635,6 +808,14 @@ function drawCrow(e) {
 
 // ── Boss UFO ─────────────────────────────────────────────────────────────────
 function drawBoss(e, frame) {
+  // ★ネオン版: ボスもブロックのモザイクで描く（形は元のシルエットに寄せてある）
+  if (typeof NEON_BOSS !== 'undefined') {
+    var ncfg = (typeof BOSS_CONFIG !== 'undefined' && e._stageNum) ? BOSS_CONFIG[e._stageNum] : null;
+    var kind = ncfg ? ncfg.arch : (e.type === 'boss_snake' ? 'reptile'
+                    : e.type === 'boss_chicken' ? 'bird' : 'ufo');
+    drawNeonBoss(e, frame, ncfg, kind);
+    return;
+  }
   if (e.type === 'boss_chicken') { drawBossChicken(e, frame); return; }
   if (e.type === 'boss_snake')   { drawBossSnake(e, frame);   return; }
   if (e.type.startsWith('boss_s')) {
@@ -867,16 +1048,16 @@ function _drawBossHpBar(e, s, label, labelCol, barTop, barBot, border) {
     _ctx.fillStyle='rgba(255,255,255,0.26)';
     _ctx.beginPath(); _ctx.moveTo(bx+4,by+2); _ctx.lineTo(bx+bw*ratio-4,by+2); _ctx.lineTo(bx+bw*ratio-4,by+7); _ctx.lineTo(bx+4,by+7); _ctx.closePath(); _ctx.fill();
   }
-  _ctx.fillStyle='#fff'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center';
+  _ctx.fillStyle='#fff'; _ctx.font='bold 11px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center';
   _ctx.fillText(e.hp+'/'+e.maxHp, 0, by+14);
   _ctx.shadowColor=labelCol; _ctx.shadowBlur=12;
-  _ctx.fillStyle=labelCol; _ctx.font='bold 13px "Zen Maru Gothic",sans-serif';
+  _ctx.fillStyle=labelCol; _ctx.font='bold 13px Orbitron,"Zen Kaku Gothic New",sans-serif';
   _ctx.fillText(label, 0, -s*1.06);
   _ctx.shadowBlur=0;
   // フェーズインジケーター
   var ph = e.phase||1;
   if (ph > 1) {
-    _ctx.fillStyle=ph>=3?'#FF4444':'#FF8800'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif';
+    _ctx.fillStyle=ph>=3?'#FF4444':'#FF8800'; _ctx.font='bold 11px Orbitron,"Zen Kaku Gothic New",sans-serif';
     _ctx.fillText('PHASE '+ph, 0, -s*1.06+16);
   }
 }
