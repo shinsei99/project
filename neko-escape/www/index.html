@@ -57,12 +57,12 @@
     /* ★iOSアプリでは画面いっぱいに描くので、ノッチとホームバーを避ける。
        これが無いと上のバッジがステータスバーに潜る（実機シミュレータで確認） */
     padding:calc(8px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right))
-            calc(26px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+            calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
   }
 
   /* ★盤が縦長（2:3）なので、横幅で決めると PC では画面より高くなってスクロールが要る。
      画面の高さからも上限をかけて、1画面に収まるようにする（実測: 1440×900 で はみ出していた） */
-  .wrap{width:100%;max-width:min(760px, 50vh);display:flex;flex-direction:column;align-items:center;}
+  .wrap{width:100%;max-width:min(760px, 44vh);display:flex;flex-direction:column;align-items:center;}
 
   .topbar{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;}
   .logo{font-weight:900;font-size:clamp(16px,4.2vw,23px);letter-spacing:.16em;
@@ -96,7 +96,7 @@
     box-shadow:0 0 22px rgba(65,227,255,.2), inset 0 0 26px rgba(65,227,255,.06);
     padding:9px;
   }
-  canvas#board{display:block;width:100%;aspect-ratio:2/3;border-radius:4px;touch-action:manipulation;}
+  canvas#board{display:block;width:100%;aspect-ratio:9/16;border-radius:4px;touch-action:manipulation;}
 
   /* ステージ名のカットイン（読み込み直後に一度だけ流れる） */
   .cutin{
@@ -113,10 +113,10 @@
   }
 
   .msg{
-    width:100%;min-height:24px;margin-top:8px;text-align:center;
+    width:100%;min-height:22px;margin-top:2px;text-align:center;
     font-weight:500;font-size:14px;line-height:1.4;letter-spacing:.04em;
   }
-  .controls{margin-top:8px;display:flex;gap:9px;flex-wrap:wrap;justify-content:center;}
+  .controls{margin-top:4px;display:flex;gap:9px;flex-wrap:wrap;justify-content:center;}
   button{
     font-family:inherit;font-weight:900;font-size:15px;cursor:pointer;
     background:rgba(255,79,195,.18);color:#fff;border:2px solid var(--accent);
@@ -128,7 +128,7 @@
   button:disabled{opacity:.45;cursor:default;}
 
   .legend{
-    width:100%;margin-top:13px;background:rgba(12,8,32,.8);
+    width:100%;margin-top:2px;background:rgba(12,8,32,.8);
     border:1.5px solid rgba(65,227,255,.28);border-radius:6px;padding:8px 12px;font-size:12.5px;
   }
   .legend summary{font-weight:900;cursor:pointer;list-style:none;}
@@ -182,6 +182,9 @@
   /* スマホでは盤面をできるだけ大きく。マスが小さいと指で押しにくい
      （タップ判定はマスの半径より広く取ってあるが、見えている大きさも効く） */
   @media (max-width:460px){
+    /* ★2026-08-29: 盤を9:16にしたぶん、HUDを1行に収める。
+       ステージ名は開始時のカットインに大きく出るので、札は省いてよい（約33px の節約） */
+    #stageName{display:none;}
     body{padding:calc(6px + env(safe-area-inset-top)) calc(6px + env(safe-area-inset-right))
                 calc(18px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left));}
     .board-wrap{padding:6px;}   /* ★角と枠の太さは上と同じに（狭い画面だけ別の形にしない） */
@@ -207,7 +210,7 @@
     </div>
 
     <div class="board-wrap">
-      <canvas id="board" width="600" height="900"></canvas>
+      <canvas id="board" width="600" height="1067"></canvas>
       <div class="cutin" id="cutin"></div>
     </div>
 
@@ -451,7 +454,7 @@ const STAGES = [
 ];
 
 /* ===================== 画面の座標 =====================
-   canvas は 600×900 の固定座標で描き、CSS 側で幅に合わせて伸ばす。
+   canvas は 600×1067 の固定座標で描き、CSS 側で幅に合わせて伸ばす。
 
    ★2026-08-29: 横（900×600）から**縦**にした。スマホを縦に持って遊ぶため
      （同じアプリに入る ネオンアイス・ネオンサイボーグ も縦）。
@@ -463,7 +466,11 @@ const STAGES = [
    引き伸ばさないと、細長い面が画面の真ん中に小さく縮こまる）。 */
 /* ★上の余白だけ広い。ゴールのワープゲートは**マスより上へ80pxほど伸びる**ので、
    上下同じ余白にすると盤の上ぶちで柱が切れた（実測） */
-const W = 600, H = 900, PADX = 46, PADT = 104, PADB = 56;
+/* ★2026-08-29: 盤を 2:3 → **9:16** に（600×900 → 600×1067）。
+   iPhone(390×844) で盤が画面の64%しか使えていなかった。9:16 にすると **面積が+18%**
+   になり、サイボーグと同じ比率になる（決まりは neon-blocks/NEON_STYLE.md）。
+   ★座標は面ごとに自動で伸縮する（buildFit）ので、ステージの作り直しは不要。 */
+const W = 600, H = 1067, PADX = 46, PADT = 104, PADB = 56;
 let FIT = null;                   // 面ごとの座標の範囲（loadStage で作る）
 function buildFit(){
   const xs = S.nodes.map(n => n[0]), ys = S.nodes.map(n => n[1]);
@@ -1741,7 +1748,7 @@ function stageFromUrl(){
 }
 
 function boot(){
-  // 盤面も実画素で描く（600×900 の論理座標のまま、裏で2倍に持つ）
+  // 盤面も実画素で描く（600×1067 の論理座標のまま、裏で2倍に持つ）
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   if (dpr > 1){
     canvas.width = W*dpr; canvas.height = H*dpr;
