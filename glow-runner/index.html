@@ -54,7 +54,7 @@
 
 <div id="overlay">
   <div id="ov-title">グロウランナー</div>
-  <div id="ov-sub">動物をよけてゴールを目指せ</div>
+  <div id="ov-sub">動物をよけてゴールを目指せ<br><b style="color:#ff8095">光った動物は前方へレーザーを撃つ。赤い線から逃げろ</b></div>
   <button id="ov-btn">スタート</button>
   <div id="hint">PC: ← → / A D キー　　スマホ: 画面を指でなぞる</div>
 </div>
@@ -94,6 +94,18 @@ const CONFIG = {
     zigzagFromStage:  2,     // 横に動く動物が混ざり始めるステージ
     zigzagRatio:      0.45,  // 横移動タイプの割合（上限）
   },
+  // ★レーザーを撃つ動物（ドラゴン）の設定。撃たれる側が反応できる数値にしてある
+  dragon: {
+    rate:        0.10,   // 出現するときにドラゴンになる確率（＝10%くらい）
+    fromStage:   1,
+    charge:      1.5,    // 光ってから撃つまで（秒）
+    fire:        0.6,    // レーザーが出ている時間（秒）
+    cooldown:    2.8,    // 撃ったあと次に撃てるまで（秒）
+    range:       140,    // レーザーの長さ（m）＝前方だけに伸びる
+    halfWidth:   0.95,   // レーザーの半幅（当たり判定）
+    startWithin: 100,    // プレイヤーとの距離がこれ以内になったら溜め始める
+    slow:        0.45,   // 溜めているあいだの速度倍率（狙いを定めて減速する）
+  },
   spawnAhead:    170,        // プレイヤーの何m先に湧かせるか
   despawnBehind: 25,         // 何m後ろに行ったら消すか
 };
@@ -116,7 +128,7 @@ const state = {
 // 開発・確認用の上書き（?stage=3&goal=60 のように付ける）。通常プレイでは付けない
 const qs = new URLSearchParams(location.search);
 const qsNum = (k) => (qs.has(k) ? Number(qs.get(k)) : null);
-const OVERRIDE = { stage: qsNum('stage'), goal: qsNum('goal') };
+const OVERRIDE = { stage: qsNum('stage'), goal: qsNum('goal'), dragon: qs.has('dragon') };  // ?dragon=1 で全部ドラゴン（確認用）
 
 const stageParams = (n) => {
   const s = CONFIG.stage;
@@ -239,38 +251,127 @@ const goalGate = new THREE.Group();
 scene.add(goalGate);
 
 /* =====================================================================
-   4. ファクトリ — 見た目はここだけ見れば差し替えられる
-      createAnimal() をモデル読み込みに置き換えれば全体は無改造で済む
+   4. 動物の図鑑 — 「形・速さ・当たり判定」はこの表だけで決まる
+      増やすときは ANIMAL_TYPES に1行足すだけ。組み立ては createCreature() が共通で行う
    ===================================================================== */
-const ANIMAL_COLORS = [0xff8a5c, 0xffd166, 0xa78bfa, 0x6ee7a8, 0xff6b9d, 0x7dd3fc];
-const rand  = (a, b) => a + Math.random() * (b - a);
-const pick  = (arr) => arr[(Math.random() * arr.length) | 0];
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = (arr) => arr[(Math.random() * arr.length) | 0];
 
-function createAnimal() {
+const ANIMAL_TYPES = [
+  { key: 'usagi', label: 'うさぎ', weight: 16, speed: [12, 16], radius: 0.95, zig: true, hop: 0.5,
+    colors: [0xffd9e8, 0xfff2f7, 0xffb3c9],
+    body: { w: 0.9, h: 0.8, l: 1.2 }, head: { s: 0.72, dy: 0.5, dz: 0.35 },
+    ear: { type: 'long', h: 1.1 }, leg: { h: 0.7, t: 0.24, n: 4 }, tail: { type: 'ball' } },
+
+  { key: 'inu', label: 'いぬ', weight: 18, speed: [9, 13], radius: 1.05, zig: true, hop: 0.16,
+    colors: [0xffb37a, 0xffd166, 0xf1f5f9],
+    body: { w: 1.1, h: 0.9, l: 1.8 }, head: { s: 0.85, dy: 0.5, dz: 0.5 },
+    ear: { type: 'cone', h: 0.5 }, leg: { h: 0.8, t: 0.26, n: 4 }, tail: { type: 'long' } },
+
+  { key: 'kuma', label: 'くま', weight: 12, speed: [5, 8], radius: 1.7, zig: false, hop: 0.1,
+    colors: [0x8b6b4f, 0xa78bfa, 0x6b7280],
+    body: { w: 2.2, h: 1.6, l: 2.6 }, head: { s: 1.2, dy: 0.7, dz: 0.5 },
+    ear: { type: 'cone', h: 0.35 }, leg: { h: 0.8, t: 0.45, n: 4 }, tail: { type: 'ball' } },
+
+  { key: 'tori', label: 'とり', weight: 14, speed: [11, 15], radius: 0.9, zig: true, hop: 0.35,
+    colors: [0x7dd3fc, 0x6ee7a8, 0xfef08a],
+    body: { w: 0.85, h: 0.9, l: 1.1 }, head: { s: 0.6, dy: 0.75, dz: 0.2 },
+    ear: { type: 'none' }, beak: true, leg: { h: 1.2, t: 0.16, n: 2 }, tail: { type: 'long' } },
+
+  { key: 'inoshishi', label: 'いのしし', weight: 14, speed: [15, 19], radius: 1.2, zig: false, hop: 0.12,
+    colors: [0x9a7b5f, 0x6b7280, 0xb45309],
+    body: { w: 1.4, h: 1.0, l: 2.2 }, head: { s: 0.9, dy: 0.25, dz: 0.5 },
+    ear: { type: 'horn', h: 0.45 }, leg: { h: 0.5, t: 0.3, n: 4 }, tail: { type: 'ball' } },
+
+  { key: 'kame', label: 'かめ', weight: 10, speed: [3.5, 5.5], radius: 1.35, zig: false, hop: 0.05,
+    colors: [0x4d7c4f, 0x6ee7a8, 0x86efac],
+    body: { w: 1.8, h: 0.6, l: 2.0 }, head: { s: 0.55, dy: 0.1, dz: 0.45 }, shell: true,
+    ear: { type: 'none' }, leg: { h: 0.35, t: 0.3, n: 4 }, tail: { type: 'none' } },
+];
+
+// ★レーザーを撃ってくるやつ。ANIMAL_TYPES とは別枠（出現率を CONFIG.dragon.rate で決める）
+const DRAGON_TYPE = {
+  key: 'dragon', label: 'ドラゴン', speed: [6, 9], radius: 1.5, zig: false, hop: 0.2, laser: true,
+  colors: [0x9b5cff, 0x37d3ff, 0xff4d6d],
+  body: { w: 1.5, h: 1.2, l: 2.6 }, head: { s: 1.0, dy: 0.75, dz: 0.6 },
+  ear: { type: 'horn', h: 0.8 }, wing: true, leg: { h: 0.75, t: 0.3, n: 4 }, tail: { type: 'long' },
+};
+
+/* 見た目の組み立て。ここをモデル読み込みに差し替えれば、以降の処理は無改造で済む */
+function createCreature(spec) {
   const g = new THREE.Group();
-  const color = pick(ANIMAL_COLORS);
-  const mat  = new THREE.MeshStandardMaterial({ color, roughness: 0.65, metalness: 0.05, emissive: color, emissiveIntensity: 0.45 });
+  const color = pick(spec.colors);
+  const mat  = new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.05, emissive: color, emissiveIntensity: 0.45 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x2b3550, roughness: 0.8, emissive: 0x101828, emissiveIntensity: 0.6 });
   const eyeM = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.0, 2.1), mat); body.position.y = 1.05; g.add(body);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.9, 0.9), mat); head.position.set(0, 1.55, 1.35); g.add(head);
-  for (const sx of [-1, 1]) {                                   // 耳
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.55, 4), mat);
-    ear.position.set(sx * 0.3, 2.15, 1.35); g.add(ear);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), eyeM);   // 目（こちらを見ている）
-    eye.position.set(sx * 0.26, 1.65, 1.82); g.add(eye);
+  const legH = spec.leg.h;
+  const bodyY = legH + spec.body.h / 2;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(spec.body.w, spec.body.h, spec.body.l), mat);
+  body.position.y = bodyY; g.add(body);
+
+  if (spec.shell) {                                   // かめの甲羅
+    const shell = new THREE.Mesh(
+      new THREE.SphereGeometry(spec.body.w * 0.62, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat);
+    shell.position.y = bodyY + spec.body.h / 2 - 0.05; shell.scale.z = 1.25; g.add(shell);
   }
+
+  const headY = bodyY + spec.head.dy;
+  const headZ = spec.body.l / 2 + spec.head.dz;
+  const head = new THREE.Mesh(new THREE.BoxGeometry(spec.head.s, spec.head.s * 0.95, spec.head.s), mat);
+  head.position.set(0, headY, headZ); g.add(head);
+
+  for (const sx of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(spec.head.s * 0.14, 8, 8), eyeM);
+    eye.position.set(sx * spec.head.s * 0.28, headY + spec.head.s * 0.12, headZ + spec.head.s * 0.5);
+    g.add(eye);
+    const e = spec.ear;
+    if (e.type === 'long') {
+      const ear = new THREE.Mesh(new THREE.BoxGeometry(spec.head.s * 0.22, e.h, spec.head.s * 0.18), mat);
+      ear.position.set(sx * spec.head.s * 0.28, headY + spec.head.s * 0.45 + e.h / 2, headZ); g.add(ear);
+    } else if (e.type === 'cone') {
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(spec.head.s * 0.24, e.h, 4), mat);
+      ear.position.set(sx * spec.head.s * 0.3, headY + spec.head.s * 0.45 + e.h / 2, headZ); g.add(ear);
+    } else if (e.type === 'horn') {
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(spec.head.s * 0.16, e.h, 5), dark);
+      horn.position.set(sx * spec.head.s * 0.3, headY + spec.head.s * 0.45 + e.h / 2, headZ - spec.head.s * 0.15);
+      horn.rotation.x = -0.45; g.add(horn);
+    }
+  }
+
+  if (spec.beak) {                                    // とりのくちばし
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(spec.head.s * 0.2, spec.head.s * 0.6, 4),
+      new THREE.MeshStandardMaterial({ color: 0xffb703, emissive: 0xffb703, emissiveIntensity: 0.6 }));
+    beak.rotation.x = Math.PI / 2;
+    beak.position.set(0, headY, headZ + spec.head.s * 0.65); g.add(beak);
+  }
+
+  const wings = [];
+  if (spec.wing) {                                    // ドラゴンの翼（はばたく）
+    for (const sx of [-1, 1]) {
+      const wing = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 1.2), mat);
+      wing.position.set(sx * (spec.body.w / 2 + 0.85), bodyY + 0.5, -0.2);
+      wing.rotation.z = sx * 0.35; wings.push(wing); g.add(wing);
+    }
+  }
+
   const legs = [];
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {          // 脚（走らせる）
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.9, 0.26), dark);
-    leg.position.set(sx * 0.52, 0.45, sz * 0.72);
+  const rows = spec.leg.n === 2 ? [0] : [-1, 1];
+  for (const sx of [-1, 1]) for (const sz of rows) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(spec.leg.t, legH, spec.leg.t), dark);
+    leg.position.set(sx * spec.body.w * 0.4, legH / 2, sz * spec.body.l * 0.3);
     legs.push(leg); g.add(leg);
   }
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.8), mat);
-  tail.position.set(0, 1.35, -1.35); g.add(tail);
 
-  g.userData.legs = legs;
+  if (spec.tail.type === 'ball') {
+    const tail = new THREE.Mesh(new THREE.SphereGeometry(spec.body.w * 0.16, 8, 8), mat);
+    tail.position.set(0, bodyY, -spec.body.l / 2 - 0.15); g.add(tail);
+  } else if (spec.tail.type === 'long') {
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, spec.body.l * 0.55), mat);
+    tail.position.set(0, bodyY + 0.15, -spec.body.l / 2 - spec.body.l * 0.25); g.add(tail);
+  }
+
+  g.userData = { legs, legH, wings, mat, color };
   return g;
 }
 
@@ -281,35 +382,132 @@ function createCoin() { … return group; }
 
 /* =====================================================================
    5. エンティティ管理 — kind で当たり判定の扱いが決まる
-      'hazard'  … 当たるとゲームオーバー
+      'hazard'  … 当たるとゲームオーバー（レーザーも hazard の一種）
       'pickup'  … 当たると取得（コイン用。処理は通してある）
    ===================================================================== */
 const entities = [];
 
-function spawnAnimal(zigzagChance) {
+function pickAnimalType(stage) {
+  const d = CONFIG.dragon;
+  if (OVERRIDE.dragon) return DRAGON_TYPE;
+  if (stage >= d.fromStage && Math.random() < d.rate) return DRAGON_TYPE;
+  let total = 0;
+  for (const t of ANIMAL_TYPES) total += t.weight;
+  let r = Math.random() * total;
+  for (const t of ANIMAL_TYPES) { r -= t.weight; if (r <= 0) return t; }
+  return ANIMAL_TYPES[0];
+}
+
+/* ドラゴンだけが持つ「溜め → 前方へレーザー」の部品を取り付ける */
+function attachLaser(e) {
+  const d = CONFIG.dragon;
+  const mouthY = e.mesh.userData.legH + 1.4;
+
+  // 予告線（地面の赤い帯）— これが無いと避けようがないので必ず出す
+  const warn = new THREE.Mesh(
+    new THREE.PlaneGeometry(d.halfWidth * 2.4, d.range),
+    new THREE.MeshBasicMaterial({ color: 0xffae00, transparent: true, opacity: 0, depthWrite: false })  // 予告は橙（本体の赤と区別する）
+  );
+  warn.rotation.x = -Math.PI / 2;
+  warn.position.set(0, 0.03, d.range / 2);
+  e.mesh.add(warn);
+
+  // レーザー本体（前方だけに伸びる）
+  const beam = new THREE.Group();
+  const core = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.28, 0.28, d.range, 10),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  const aura = new THREE.Mesh(
+    new THREE.CylinderGeometry(d.halfWidth, d.halfWidth, d.range, 12),
+    new THREE.MeshBasicMaterial({ color: 0xff2d55, transparent: true, opacity: 0.4, depthWrite: false })
+  );
+  core.rotation.x = Math.PI / 2; aura.rotation.x = Math.PI / 2;
+  beam.add(core); beam.add(aura);
+  beam.position.set(0, mouthY, d.range / 2);
+  beam.visible = false;
+  e.mesh.add(beam);
+
+  const light = new THREE.PointLight(0xff2d55, 0, 45, 2);
+  light.position.set(0, mouthY, 2);
+  e.mesh.add(light);
+
+  e.laser = { phase: 'run', timer: 0, warn, beam, light, mouthY };
+}
+
+function updateLaser(e, dt) {
+  const d = CONFIG.dragon;
+  const L = e.laser;
+  L.timer += dt;
+  const ahead = ball.position.z - e.mesh.position.z;      // 何m 前にいるか
+
+  if (L.phase === 'run') {
+    e.speedFactor = 1;
+    if (ahead > 4 && ahead < d.startWithin && L.timer > d.cooldown) { L.phase = 'charge'; L.timer = 0; }
+  } else if (L.phase === 'charge') {
+    e.speedFactor = d.slow;                               // 狙いを定めて減速
+    const k = L.timer / d.charge;                         // 0 → 1
+    L.warn.material.opacity = 0.12 + Math.abs(Math.sin(L.timer * 18)) * 0.35;   // 点滅して知らせる
+    L.light.intensity = 40 + k * 260;
+    e.mesh.userData.mat.emissiveIntensity = 0.45 + k * 2.2;                     // 体が光る
+    if (L.timer >= d.charge) { L.phase = 'fire'; L.timer = 0; L.beam.visible = true; L.warn.material.opacity = 0; }
+  } else if (L.phase === 'fire') {
+    e.speedFactor = d.slow;
+    L.light.intensity = 420;
+    L.beam.scale.x = L.beam.scale.y = 1 + Math.sin(L.timer * 40) * 0.15;
+    if (L.timer >= d.fire) {
+      L.phase = 'run'; L.timer = 0; L.beam.visible = false;
+      L.light.intensity = 0; e.mesh.userData.mat.emissiveIntensity = 0.45;
+    }
+  }
+}
+
+/* レーザーに当たったか（円の当たり判定とは別に見る） */
+function laserHit(e) {
+  const d = CONFIG.dragon;
+  if (!e.laser || e.laser.phase !== 'fire') return false;
+  const dz = ball.position.z - e.mesh.position.z;
+  if (dz < 0 || dz > d.range) return false;              // 前方だけ＝ドラゴンの後ろは安全
+  return Math.abs(ball.position.x - e.mesh.position.x) < d.halfWidth + CONFIG.ball.radius * 0.7;
+}
+
+function spawnAnimal(zigzagChance, stage) {
   const half = CONFIG.road.width / 2 - 1.4;
-  const mesh = createAnimal();
-  const isZig = Math.random() < zigzagChance;
+  const spec = pickAnimalType(stage);
+  const mesh = createCreature(spec);
+  const scale = rand(0.92, 1.12);
+  mesh.scale.setScalar(scale);
+
+  const isZig = spec.zig && Math.random() < zigzagChance;
   const x = rand(-half, half);
   mesh.position.set(x, 0, ball.position.z - CONFIG.spawnAhead - rand(0, 40));
   scene.add(mesh);
-  entities.push({
+
+  const e = {
     kind: 'hazard',
-    mesh,
-    radius: 1.1,
-    speed: rand(6, 11),                                  // こちらへ向かってくる速さ
+    spec, mesh,
+    radius: spec.radius * scale,
+    speed: rand(spec.speed[0], spec.speed[1]),          // ★動物ごとに速さが違う
+    speedFactor: 1,
+    legBase: mesh.userData.legH / 2,
     zig: isZig ? { baseX: x, amp: rand(3, half - 1), freq: rand(0.8, 1.6), phase: rand(0, 6.28) } : null,
     update(dt, t) {
-      this.mesh.position.z += this.speed * dt;           // +z ＝ プレイヤー側
+      this.mesh.position.z += this.speed * this.speedFactor * dt;   // +z ＝ プレイヤー側
       if (this.zig) {
         const z = this.zig;
         this.mesh.position.x = THREE.MathUtils.clamp(z.baseX + Math.sin(t * z.freq + z.phase) * z.amp, -half, half);
       }
-      const legs = this.mesh.userData.legs;              // 走っている足踏み
-      for (let i = 0; i < legs.length; i++) legs[i].position.y = 0.45 + Math.sin(t * 14 + i * 1.7) * 0.14;
-      this.mesh.position.y = Math.abs(Math.sin(t * 7 + this.speed)) * 0.12;
+      const legs = this.mesh.userData.legs;             // 走っている足踏み（速い動物ほど速く動く）
+      const rate = 2 + this.speed * this.speedFactor;
+      for (let i = 0; i < legs.length; i++) legs[i].position.y = this.legBase + Math.sin(t * rate + i * 1.7) * 0.14;
+      this.mesh.position.y = Math.abs(Math.sin(t * rate * 0.5 + this.speed)) * this.spec.hop;
+      const wings = this.mesh.userData.wings;           // ドラゴンのはばたき
+      for (let i = 0; i < wings.length; i++) wings[i].rotation.z = (i ? 1 : -1) * (0.35 + Math.sin(t * 8) * 0.5);
+      if (this.laser) updateLaser(this, dt);
     },
-  });
+  };
+  if (spec.laser) attachLaser(e);
+  entities.push(e);
 }
 
 function clearEntities() {
@@ -389,10 +587,11 @@ function startStage() {
   hideOverlay(); updateHud();
 }
 
-function gameOver() {
+function gameOver(cause) {
   state.phase = 'over';
+  const what = cause === 'laser' ? 'レーザーに撃たれた' : '動物にぶつかった';
   showOverlay('ゲームオーバー',
-    `ステージ ${state.stage}・${Math.floor(state.distance)} m 地点で衝突<br>ステージ1からやり直し`,
+    `ステージ ${state.stage}・${Math.floor(state.distance)} m 地点で${what}<br>ステージ1からやり直し`,
     'もう一度');
 }
 
@@ -436,13 +635,14 @@ function tick() {
     if (state.spawnTimer <= 0) {
       const p = stageParams(state.stage);
       state.spawnTimer = p.interval * rand(0.85, 1.2);
-      for (let i = 0; i < p.burst; i++) spawnAnimal(p.zigzag);
+      for (let i = 0; i < p.burst; i++) spawnAnimal(p.zigzag, state.stage);
     }
 
     // エンティティ更新・当たり判定・後始末
     for (let i = entities.length - 1; i >= 0; i--) {
       const e = entities[i];
       e.update(dt, t);
+      if (laserHit(e)) { gameOver('laser'); break; }          // ★レーザーは離れていても当たる
       const dx = e.mesh.position.x - ball.position.x;
       const dz = e.mesh.position.z - ball.position.z;
       if (Math.hypot(dx, dz) < e.radius + CONFIG.ball.radius) {
@@ -450,7 +650,7 @@ function tick() {
           state.coins++; scene.remove(e.mesh); entities.splice(i, 1); continue;
         }
         scene.remove(e.mesh); entities.splice(i, 1);
-        gameOver();
+        gameOver('hit');
         break;
       }
       if (e.mesh.position.z > ball.position.z + CONFIG.despawnBehind) {
