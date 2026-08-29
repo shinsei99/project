@@ -14,7 +14,7 @@
   <link rel="preload" href="assets/fonts/ZenKakuGothicNew-500.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/Orbitron-900.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/Orbitron-700.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=neon14">
+  <link rel="stylesheet" href="style.css?v=neon18">
 <style>
   /* ★2026-08-29: 音ボタンを**画面の右上**に出した（シリーズ共通の位置。neon-blocks/NEON_STYLE.md）。
      これまでは「設定・強化ショップ」の中にしか無く、6本のうちここだけ音を切る場所が違った。
@@ -35,14 +35,22 @@
   <button id="mute" type="button" aria-label="音のオン・オフ">🔊</button>
   <div id="container">
     <canvas id="gameCanvas"></canvas>
+    <!-- ★2026-08-29: 仲間ボタンを**盤の外**へ出した（他5本と同じ作り。neon-blocks/NEON_STYLE.md）。
+         盤の中に描いていたので、①遊びの面にボタンが重なる ②タップ判定が盤の操作とぶつかる
+         ③押せる大きさが端末によって変わる、という3つの問題があった。 -->
+    <div id="skillbar" class="off">
+      <button class="skill" id="sk-gunshi"  data-id="gunshi"  disabled><span class="sn">軍師</span><span class="sc"></span></button>
+      <button class="skill" id="sk-nurse"   data-id="nurse"   disabled><span class="sn">ナース</span><span class="sc"></span></button>
+      <button class="skill" id="sk-barrier" data-id="barrier" disabled><span class="sn">バリア</span><span class="sc"></span></button>
+    </div>
   </div>
-  <script src="js/save.js?v=neon14"></script>
-  <script src="js/sound.js?v=neon14"></script>
-  <script src="js/entities.js?v=neon14"></script>
-  <script src="js/upgrades.js?v=neon14"></script>
-  <script src="js/render.js?v=neon14"></script>
-  <script src="js/ui.js?v=neon14"></script>
-  <script src="game.js?v=neon14"></script>
+  <script src="js/save.js?v=neon18"></script>
+  <script src="js/sound.js?v=neon18"></script>
+  <script src="js/entities.js?v=neon18"></script>
+  <script src="js/upgrades.js?v=neon18"></script>
+  <script src="js/render.js?v=neon18"></script>
+  <script src="js/ui.js?v=neon18"></script>
+  <script src="game.js?v=neon18"></script>
   <script>
     // 音ボタン。BGMと効果音をまとめて切り替える（設定画面の2つのスイッチとも同期する）
     (function(){

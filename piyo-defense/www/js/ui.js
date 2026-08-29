@@ -235,6 +235,10 @@ function drawTitle(frame, hs, bs, bgmOn, seOn, coins) {
   _ctx.restore();
   _ctx.shadowColor='#41E3FF'; _ctx.shadowBlur=10;
   _ctx.fillStyle='#8FE9FF'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('～地球救出大作戦～',_W/2,176+titleBob);
+  // 1行の説明（他の5本と同じ位置づけ）
+  _ctx.shadowBlur=0;
+  _ctx.fillStyle='rgba(178,196,236,0.9)'; _ctx.font='11px Orbitron,"Zen Kaku Gothic New",sans-serif';
+  _ctx.fillText('タワーを置いて敵を撃ち落とせ。全20ステージ × 5Wave',_W/2,196+titleBob);
   _ctx.shadowBlur=0;
 
   // キャラゾーン
@@ -278,25 +282,14 @@ function drawTitle(frame, hs, bs, bgmOn, seOn, coins) {
   _ctx.save(); _ctx.translate(_W/2,288+chickBob); _ctx.scale(chickSc,chickSc); drawChick(0,0,78,false); _ctx.restore();
   drawEarth(_W/2,402,36);
 
-  // スコアパネル（2行が11px間隔で重なっていたので、パネルを広げて行間を15pxに）
-  var spG=_btnGrd(44,441,_W-88,40,'rgba(10,14,40,0.90)','rgba(5,8,24,0.94)');
-  rrectGrd(44,441,_W-88,40,6,spG,'rgba(65,227,255,0.55)',1.5);
-  _ctx.fillStyle='#FFD700'; _ctx.font='bold 12px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center';
-  _ctx.fillText('🏆  ベスト: '+hs+'点  ｜  STAGE '+bs,_W/2,458);
-  var coinTxt='所持コイン: '+coins;
-  _ctx.font='bold 11px Orbitron,"Zen Kaku Gothic New",sans-serif';
-  var ctw=_ctx.measureText(coinTxt).width;
-  drawCoinIcon(_W/2-ctw/2-9,469,7);
-  _ctx.fillStyle='#FFD700'; _ctx.textAlign='left'; _ctx.fillText(coinTxt,_W/2-ctw/2,473);
-  _ctx.textAlign='center';
+  /* ★2026-08-29: トップ画面を他の5本と同じ形に整理した（オーナー指摘「ごちゃごちゃしてる」）。
+     ・**ベスト／STAGE／所持コインのパネルを外した**（情報であって操作ではない。
+       ベストはゲームオーバー画面、コインはショップと戦闘HUDに出るので、ここには要らない）
+     ・図鑑・実績・ショップは**小さいボタン1行**にまとめた（前は2行＋幅いっぱいで主役級に見えていた）
+     ・**主役は START だけ**。他5本と同じ「題名 → 1行 → START」の並びになる
+     ★game.js のタップ判定も同じ数字にそろえること */
 
-  // STARTボタン (y=486-546)
-  // ★2026-08-29: 赤とオレンジのボタンをやめ、**マゼンタのネオン管**にした。
-  //   押せる所だと分かることが第一なので、明るさ（脈動）と太い縁は残している。
-  // ★位置: スコアパネルの下端が y=481。脈動を ±5 のまま y=486 に置くと**1フレームおきに接触**し、
-  //   さらに光（26px）がパネルへかぶって「重なって見える」状態だった（2026-08-29 指摘）。
-  //   → 開始位置を 496 へ下げ、脈動を ±3、光を 18px にして 15px の間を空けた。
-  //   ★game.js のタップ判定（y 490〜558）も同じ数字にそろえること。
+  // STARTボタン（y=496-548）
   var pulse=Math.sin(frame*0.07)*3;
   var glow=0.55+Math.abs(Math.sin(frame*0.07))*0.45;
   var stG=_ctx.createLinearGradient(72,496+pulse,72,552+pulse);
@@ -311,29 +304,22 @@ function drawTitle(frame, hs, bs, bgmOn, seOn, coins) {
   _ctx.fillText('▶  START  ◀',_W/2,530+pulse);
   _ctx.restore();
 
-  // 図鑑ボタン (y=558-604, x=50-190)
-  var bkG=_btnGrd(50,558,136,44,'rgba(16,40,100,0.92)','rgba(8,20,60,0.92)');
-  rrectGrd(50,558,136,44,8,bkG,'rgba(65,227,255,0.85)',2);
-  _ctx.fillStyle='#8FE9FF'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center'; _ctx.fillText('📚 図鑑',118,585);
+  // 副ボタン3つ（y=568-604）。小さく1行に並べる
+  var SUB=[
+    {x:34,  w:104, label:'図鑑', col:'rgba(65,227,255,0.7)',  txt:'#8FE9FF'},
+    {x:143, w:104, label:'実績', col:'rgba(255,213,79,0.7)',  txt:'#FFD54F'},
+    {x:252, w:104, label:'強化', col:'rgba(179,107,255,0.7)', txt:'#C9A8FF'}
+  ];
+  SUB.forEach(function(b){
+    var g=_btnGrd(b.x,568,b.w,36,'','');
+    rrectGrd(b.x,568,b.w,36,6,g,b.col,1.5);
+    _ctx.fillStyle=b.txt; _ctx.font='bold 13px Orbitron,"Zen Kaku Gothic New",sans-serif';
+    _ctx.textAlign='center'; _ctx.fillText(b.label, b.x+b.w/2, 591);
+  });
 
-  // 実績ボタン (y=558-604, x=204-344)
-  var rkG=_btnGrd(204,558,136,44,'rgba(80,60,10,0.92)','rgba(50,30,4,0.92)');
-  rrectGrd(204,558,136,44,8,rkG,'rgba(255,213,79,0.85)',2);
-  _ctx.fillStyle='#FFD54F'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('🏆 実績',272,585);
-
-  // 設定/ショップボタン (y=616-662, x=50-344)
-  var sgG=_btnGrd(50,616,294,44,'rgba(20,20,50,0.92)','rgba(8,8,28,0.92)');
-  rrectGrd(50,616,294,44,8,sgG,'rgba(179,107,255,0.85)',2);
-  _ctx.fillStyle='#C9A8FF'; _ctx.font='bold 14px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.fillText('⚙ 設定・強化ショップ',_W/2,643);
-
-  // フッター
-  // 村の絵と重なって読めなくなったので、下敷きを1枚敷く（2026-08-28）
-  _ctx.font='11px Orbitron,"Zen Kaku Gothic New",sans-serif';
-  var ftxt='全20ステージ × 5Wave構成';
-  var fw=_ctx.measureText(ftxt).width;
-  rrect(_W/2-fw/2-12,664,fw+24,19,9.5,'rgba(6,10,26,0.62)',null);
-  _ctx.fillStyle='rgba(178,196,236,0.86)'; _ctx.fillText(ftxt,_W/2,678);
-  _ctx.fillStyle='rgba(255,255,255,0.34)'; _ctx.font='10px sans-serif'; _ctx.fillText('NEON TOWER  v4.0',_W/2,_H-18);
+  // ★説明は題名の下の1行に移した（他の5本と同じ並び）。フッターは版の表示だけ残す
+  _ctx.fillStyle='rgba(255,255,255,0.28)'; _ctx.font='10px sans-serif';
+  _ctx.textAlign='center'; _ctx.fillText('NEON TOWER  v4.0',_W/2,_H-18);
 }
 
 // ── Settings & Shop（y範囲メモ：各ボタンy記載） ────────────────────────────

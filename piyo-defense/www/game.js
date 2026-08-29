@@ -11,7 +11,10 @@ setRenderCtx(ctx, W, H);
 function resize() {
   // ★枠（2px×2）と外の余白（4px×2）のぶんを引く。引かないと枠が画面外に出て見えない
   var PAD = 12;
-  var vh=window.innerHeight-PAD, vw=window.innerWidth-PAD;
+  // ★盤の下のスキルボタンのぶんも引く（場所は常に取ってあるので、場面で盤の大きさは変わらない）
+  var bar = document.getElementById('skillbar');
+  var barH = bar ? bar.offsetHeight + 36 : 0;   // 6=盤との間 / 30=切り替え帯のぶん
+  var vh=window.innerHeight-PAD-barH, vw=window.innerWidth-PAD;
   var ratio=W/H, cw=vh*ratio, ch=vh;
   if (cw>vw) { cw=vw; ch=vw/ratio; }
   canvas.style.width=cw+'px'; canvas.style.height=ch+'px';
@@ -856,10 +859,32 @@ function drawBattleScr(frozenBg) {
     ctx.shadowBlur=0; ctx.globalAlpha=1;
   }
 
-  drawCompanionBtns(upg,cds,cdCurr,frame);
+  // ★仲間ボタンは盤の外（DOMの #skillbar）へ出した（2026-08-29）
   drawLaneBtns(chickLane, frame);
   if (bossWarnTimer>0) drawBossWarn(bossWarnTimer,BOSS_WARN_FRAMES);
 }
+
+/* ★盤の外のスキルボタン。状態（解放済みか・クールダウン中か）は
+   canvas に描いていたときと同じ `upg` と `cds` をそのまま読む＝遊びの数値は触っていない。 */
+var SKILL_EL = null;
+function syncSkillBar(){
+  if (!SKILL_EL) SKILL_EL = Array.prototype.slice.call(document.querySelectorAll('#skillbar .skill'));
+  var bar = document.getElementById('skillbar');
+  var inBattle = (gs.state==='battle' || gs.state==='stageintro' || gs.state==='paused');
+  bar.classList.toggle('off', !inBattle);
+  if (!inBattle) return;
+  SKILL_EL.forEach(function(b){
+    var id = b.dataset.id, unlocked = !!upg[id], cd = cds[id]||0;
+    b.disabled = !unlocked || cd>0;
+    b.classList.toggle('ready', unlocked && cd<=0);
+    var sc = b.querySelector('.sc');
+    sc.textContent = !unlocked ? '未解放' : (cd>0 ? Math.ceil(cd/60)+'s' : '使える');
+  });
+}
+document.addEventListener('click', function(e){
+  var b = e.target.closest && e.target.closest('#skillbar .skill');
+  if (b && !b.disabled) activateSkill(b.dataset.id);
+});
 
 // ── Input ─────────────────────────────────────────────────────────────────────
 function getCanvasXY(e) {
@@ -873,12 +898,7 @@ function handleBattlePointerDown(tx, ty) {
   // レーン移動ボタン（左端・右端）
   if (tx<48&&ty>H-245&&ty<H-148) { changeLane(-1); return; }
   if (tx>W-48&&ty>H-245&&ty<H-148) { changeLane(1); return; }
-  // スキルボタン
-  var BY=H-65, BR=30, BPOS=[50,W/2,W-50];
-  for (var bi=0; bi<BPOS.length; bi++) {
-    var dx=tx-BPOS[bi], dy=ty-BY;
-    if (Math.sqrt(dx*dx+dy*dy)<BR+8) { activateSkill(['gunshi','nurse','barrier'][bi]); return; }
-  }
+  // ★スキルは盤の外のボタンで撃つ（2026-08-29）。ここで拾うと照準と取り合いになる
   // 照準（発射）
   isHolding=true; holdX=tx; holdY=ty;
 }
@@ -887,10 +907,11 @@ function handleMenuTap(tx, ty) {
   var pulse = Math.sin(frame*0.07)*5;
   switch(gs.state) {
     case 'title':
-      if (ty>=490&&ty<=558&&tx>=72&&tx<=318) { initGame(); SoundManager.startBgm('battle'); }   // ★描画（496±3, 高さ52）に合わせた
-      else if (ty>=556&&ty<=608&&tx>=50&&tx<=190) { gs.state='bestiary'; }
-      else if (ty>=556&&ty<=608&&tx>=200&&tx<=344) { gs.state='achievements'; }
-      else if (ty>=612&&ty<=666&&tx>=50&&tx<=344) { gs.state='settings'; }
+      // ★2026-08-29: トップ画面を整理したので位置も変えた（ui.js drawTitle と同じ数字）
+      if (ty>=490&&ty<=558&&tx>=72&&tx<=318) { initGame(); SoundManager.startBgm('battle'); }   // START
+      else if (ty>=564&&ty<=608&&tx>=34 &&tx<=138) { gs.state='bestiary'; }       // 図鑑
+      else if (ty>=564&&ty<=608&&tx>=143&&tx<=247) { gs.state='achievements'; }   // 実績
+      else if (ty>=564&&ty<=608&&tx>=252&&tx<=356) { gs.state='settings'; }       // 強化
       break;
 
     case 'howto':
@@ -977,5 +998,5 @@ canvas.addEventListener('pointerleave', function(){ isHolding=false; });
 
 // ── Main loop ─────────────────────────────────────────────────────────────────
 SoundManager.startBgm('title');
-function loop(){ update(); draw(); requestAnimationFrame(loop); }
+function loop(){ update(); draw(); syncSkillBar(); requestAnimationFrame(loop); }
 loop();
