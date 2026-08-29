@@ -437,58 +437,152 @@ var CROW_COLORS = {
   phantom:   { wing:'#2A2A4A', body:'#3A3A6A', hi:'#6060AA', eye:'#FFFFFF', glow:'rgba(200,200,255,0.70)' },
 };
 
-/* ★2026-08-29: 敵を「ネオンブロック」に描き替えた。
-   同じアプリに入っている本編（ネオンブロックス）と同じ語彙にして、6本が1つの世界に見えるようにする。
-   ★ひよこ・タワー・弾はそのまま。「生き物は手描きの暖色、モノはネオンで光る」という決まりで統一している。
-   もとの drawCrow は下に残してあるので、戻すときは NEON_ENEMY を消せばよい。 */
-var NEON_ENEMY = {
-  normal:'#41E3FF', fast:'#7CFF4F', tank:'#FF4FC3', ghost:'#B36BFF', stealth:'#8EF9FF',
-  phantom:'#C56BFF', sprinter:'#AAFF00', shield:'#FFD54F', bomber:'#FF8A3D'
+/* ★2026-08-29: 敵とボスを「ネオンブロックの組み合わせ」で描く。
+   ・ふつうの敵は**2〜3色の市松**にして、同じ形でも色で見分けが付くようにした
+   ・ボスは**モザイク**（ブロックを並べて形を作る）。もとのボスのシルエットに寄せてある
+     （鳥は翼、獣は角と四つ足、爬虫類は長い胴、機械は箱と脚、最終形態は大きく厚い）
+   ・ボス固有の色（BOSS_CONFIG の col / eyeCol）を活かすので、20体それぞれ違う色になる */
+var NEON_PALETTE = ['#41E3FF','#FF4FC3','#FFD54F','#7CFF4F','#B36BFF','#FF8A3D'];
+
+// 種類ごとの「形」と「色の組み合わせ」。色は cells の文字に対応する
+var NEON_SHAPES = {
+  normal:   { cells:[[-1,-1,0],[0,-1,1],[-1,0,1],[0,0,0]],                    cols:['#41E3FF','#7CFF4F'] },
+  fast:     { cells:[[-1,-1,0],[0,-1,1],[0,0,0]],                             cols:['#7CFF4F','#FFD54F'] },
+  sprinter: { cells:[[-1,-1,0],[0,-1,1],[0,0,0]],                             cols:['#AAFF00','#41E3FF'] },
+  tank:     { cells:[[-1,-1,0],[0,-1,1],[1,-1,0],[-1,0,1],[0,0,0],[1,0,1]],   cols:['#FF4FC3','#B36BFF'] },
+  ghost:    { cells:[[-1,-1,0],[0,-1,0],[-1,0,1],[0,0,1]],                    cols:['#B36BFF','#8EF9FF'] },
+  stealth:  { cells:[[-1,-1,0],[0,-1,1],[-1,0,1],[0,0,0]],                    cols:['#8EF9FF','#41E3FF'] },
+  phantom:  { cells:[[-1,-1,0],[0,-1,1],[-1,0,1],[0,0,0]],                    cols:['#C56BFF','#FF4FC3'] },
+  shield:   { cells:[[-1,-1,0],[0,-1,0],[1,-1,0],[0,0,1]],                    cols:['#FFD54F','#FF8A3D'] },
+  bomber:   { cells:[[-1,-1,0],[0,-1,1],[-1,0,1],[0,0,0]],                    cols:['#FF8A3D','#FFD54F'] }
 };
+var NEON_ENEMY = NEON_SHAPES;   // 旧コードとの互換（存在判定に使っている）
+
+// ブロック1個。中は暗く、輪郭が光る（ネオンブロックス本編と同じ描き方）
+function _neonCell(x, y, u, col) {
+  _ctx.fillStyle = 'rgba(10,8,26,0.85)';
+  _ctx.fillRect(x, y, u, u);
+  _ctx.shadowColor = col; _ctx.shadowBlur = Math.max(8, u * 0.9);
+  _ctx.strokeStyle = col; _ctx.lineWidth = Math.max(1.6, u * 0.14);
+  _ctx.strokeRect(x + u*0.09, y + u*0.09, u*0.82, u*0.82);
+  _ctx.shadowBlur = 0;
+  _ctx.strokeStyle = 'rgba(255,255,255,0.5)'; _ctx.lineWidth = Math.max(0.8, u * 0.06);
+  _ctx.strokeRect(x + u*0.24, y + u*0.24, u*0.52, u*0.52);
+}
+
 function drawNeonBlock(e) {
-  var s = e.size, col = NEON_ENEMY[e.type] || '#41E3FF';
+  var s = e.size;
+  var sh = NEON_SHAPES[e.type] || NEON_SHAPES.normal;
   var al = (e.hitFlash > 0 && e.hitFlash % 2 === 0) ? 0.35 : 1.0;
   if (!e.silhouette) {
     if (e.type === 'ghost') al *= (0.25 + Math.abs(Math.sin(e.wobble * 0.30)) * 0.75);
     if (e.type === 'stealth' && e.isHidden) al *= 0.08;
     if (e.type === 'phantom') al *= (0.55 + Math.abs(Math.sin(e.wobble * 0.4)) * 0.45);
-  } else { col = '#2E3659'; al = 1; }
+  }
+  var cols = e.silhouette ? ['#2E3659','#2E3659'] : sh.cols;
 
   _ctx.save();
   _ctx.translate(e.x, e.y + Math.sin(e.wobble) * 4);
   _ctx.rotate(Math.sin(e.wobble * 0.5) * 0.10);
   _ctx.globalAlpha = al;
-
-  // 影（地面に落ちる）
   _ctx.globalAlpha = al * 0.30; _ctx.fillStyle = 'rgba(0,0,0,0.55)';
   _ctx.beginPath(); _ctx.ellipse(0, s * 0.95, s * 0.42, s * 0.10, 0, 0, Math.PI * 2); _ctx.fill();
   _ctx.globalAlpha = al;
 
-  // ブロック本体。種類で形を変える（大きさだけの違いだと見分けが付かない）
   var u = s * 0.42;
-  var cells = [[-1,-1],[0,-1],[-1,0],[0,0]];                                  // 2×2
-  if (e.type === 'fast' || e.type === 'sprinter') cells = [[-1,-1],[0,-1],[0,0]];   // L字
-  if (e.type === 'tank') cells = [[-1,-1],[0,-1],[1,-1],[-1,0],[0,0],[1,0]];        // 大きい
   _ctx.lineJoin = 'round';
-  for (var i = 0; i < cells.length; i++) {
-    var cx = cells[i][0] * u, cy = cells[i][1] * u;
-    _ctx.fillStyle = 'rgba(10,8,26,0.85)';
-    _ctx.fillRect(cx, cy, u, u);
-    _ctx.shadowColor = col; _ctx.shadowBlur = 14;
-    _ctx.strokeStyle = col; _ctx.lineWidth = 2.6;
-    _ctx.strokeRect(cx + 1.5, cy + 1.5, u - 3, u - 3);
-    _ctx.shadowBlur = 0;
-    _ctx.strokeStyle = 'rgba(255,255,255,0.55)'; _ctx.lineWidth = 1;
-    _ctx.strokeRect(cx + 4, cy + 4, u - 8, u - 8);
+  for (var i = 0; i < sh.cells.length; i++) {
+    var c = sh.cells[i];
+    _neonCell(c[0] * u, c[1] * u, u, cols[c[2]] || cols[0]);
   }
-  // 目。ブロックのままだと「的」に見えないので、敵だと分かるように入れる
+  // 目（「的」だと分かるように）
   var ey = -u * 0.50;
-  _ctx.shadowColor = col; _ctx.shadowBlur = 10; _ctx.fillStyle = '#FFFFFF';
+  _ctx.shadowColor = cols[0]; _ctx.shadowBlur = 10; _ctx.fillStyle = '#FFFFFF';
   _ctx.beginPath(); _ctx.arc(-u * 0.38, ey, u * 0.22, 0, Math.PI * 2); _ctx.fill();
   _ctx.beginPath(); _ctx.arc( u * 0.38, ey, u * 0.22, 0, Math.PI * 2); _ctx.fill();
   _ctx.shadowBlur = 0; _ctx.fillStyle = '#0A081A';
   _ctx.beginPath(); _ctx.arc(-u * 0.38, ey, u * 0.10, 0, Math.PI * 2); _ctx.fill();
   _ctx.beginPath(); _ctx.arc( u * 0.38, ey, u * 0.10, 0, Math.PI * 2); _ctx.fill();
+  _ctx.restore();
+}
+
+/* ボスのモザイク。B=本体色 A=差し色 E=目。もとのボスの形に寄せてある */
+var NEON_BOSS = {
+  bird: ['A.........A',
+         'AB.......BA',
+         'ABB..B..BBA',
+         '.BBBBBBBBB.',
+         '..B.EBE.B..',
+         '....BBB....'],
+  beast:['.A.....A.',
+         '.ABBBBBA.',
+         '.BBEBEBB.',
+         '.BBBBBBB.',
+         '.B.B.B.B.',
+         '.B.....B.'],
+  reptile:['.....BBB.',
+           '....BEBEB',
+           '...BBBBB.',
+           '..BBB....',
+           '.BBB.....',
+           'ABB......'],
+  mech: ['.A.....A.',
+         '.BBBBBBB.',
+         '.BEB.BEB.',
+         '.BBBBBBB.',
+         'A.BBBBB.A',
+         '..B...B..',
+         '..B...B..'],
+  final:['..A.....A..',
+         '.ABBBBBBBA.',
+         '.BBEBBBEBB.',
+         '.BBBBBBBBB.',
+         'A.BBBBBBB.A',
+         '..B.BBB.B..',
+         '..B..B..B..',
+         '.....B.....'],
+  ufo:  ['...BBB...',
+         '..BEBEB..',
+         '.BBBBBBB.',
+         'ABBBBBBBA',
+         '..A...A..']
+};
+
+// ボス固有の色は暗いものが多い（#000011 など）。そのままだと光らないので明るく起こす
+function _neonize(hex, boost) {
+  var m = /^#([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return '#41E3FF';
+  var n = parseInt(m[1], 16), r = (n>>16)&255, g = (n>>8)&255, b = n&255;
+  var mx = Math.max(r,g,b) || 1, k = (boost || 210) / mx;
+  r = Math.min(255, Math.round(r*k + 40));
+  g = Math.min(255, Math.round(g*k + 40));
+  b = Math.min(255, Math.round(b*k + 40));
+  return 'rgb(' + r + ',' + g + ',' + b + ')';
+}
+
+function drawNeonBoss(e, frame, cfg, kind) {
+  var map = NEON_BOSS[kind] || NEON_BOSS.ufo;
+  var rows = map.length, colsN = map[0].length;
+  var u = (e.size * 2.1) / colsN;                 // 元のボスと同じくらいの見た目の大きさに
+  var body   = _neonize(cfg && cfg.col, 200);
+  var accent = NEON_PALETTE[(e._stageNum || 1) % NEON_PALETTE.length];
+  var eye    = _neonize(cfg && cfg.eyeCol, 245);
+  var al = (e.hitFlash > 0 && e.hitFlash % 2 === 0) ? 0.3 : 1.0;
+
+  _ctx.save();
+  _ctx.translate(e.x, e.y);
+  _ctx.globalAlpha = al;
+  if (typeof _drawBossAuraPhase === 'function' && cfg) _drawBossAuraPhase(e, frame, cfg.aura);
+  var bob = Math.sin(frame * 0.06) * u * 0.18;    // ゆっくり上下（生きている感じ）
+  _ctx.translate(-(colsN * u) / 2, -(rows * u) / 2 + bob);
+  _ctx.lineJoin = 'round';
+  for (var y = 0; y < rows; y++) {
+    for (var x = 0; x < colsN; x++) {
+      var ch = map[y][x];
+      if (ch === '.') continue;
+      _neonCell(x * u, y * u, u, ch === 'B' ? body : (ch === 'A' ? accent : eye));
+    }
+  }
   _ctx.restore();
 }
 
@@ -694,6 +788,14 @@ function drawCrow(e) {
 
 // ── Boss UFO ─────────────────────────────────────────────────────────────────
 function drawBoss(e, frame) {
+  // ★ネオン版: ボスもブロックのモザイクで描く（形は元のシルエットに寄せてある）
+  if (typeof NEON_BOSS !== 'undefined') {
+    var ncfg = (typeof BOSS_CONFIG !== 'undefined' && e._stageNum) ? BOSS_CONFIG[e._stageNum] : null;
+    var kind = ncfg ? ncfg.arch : (e.type === 'boss_snake' ? 'reptile'
+                    : e.type === 'boss_chicken' ? 'bird' : 'ufo');
+    drawNeonBoss(e, frame, ncfg, kind);
+    return;
+  }
   if (e.type === 'boss_chicken') { drawBossChicken(e, frame); return; }
   if (e.type === 'boss_snake')   { drawBossSnake(e, frame);   return; }
   if (e.type.startsWith('boss_s')) {
