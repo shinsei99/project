@@ -33,6 +33,10 @@ SRC = {
     "piyo":    "piyo-defense/www",
 }
 SKIP_FILES = {"support.html", "privacy.html"}      # 必須URLはアプリ側では要らない
+# ★このスクリプトは**余分なファイルは消さない**（コピーするだけ）。
+#   取り出し元で書体を入れ替えたときなど、古いファイルが集合側に残る。
+#   2026-08-29 に ZenMaruGothic-*.woff2 が escape 側に残っていたのを手で外した。
+#   消えていることの確認は `ls neon-blocks/www/games/<名前>/assets/fonts/` で見ること。
 SWITCH_TAG = '<script src="../_switch.js"></script>'
 
 
