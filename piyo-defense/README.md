@@ -18,16 +18,6 @@ tools/          fetch-font.py
 www/            Capacitor の webDir。**上のファイルのコピー**（後述）
 ```
 
-## ★ファイルは2か所にある（www が正）
-
-`www/` が本体（Capacitor の `webDir`・GitHub Pages の取り出し元・集合ゲーム「ネオンブロックス」への
-コピー元）。直下の `index.html` / `game.js` / `style.css` / `js/` / `assets/` は**同じ内容の控え**。
-
-- **直すのは `www/` のほう。** 直したら `cp` で直下にも写す（`tools/fetch-font.py` も `www/` を見る）
-- 2026-08-29 に直下の `index.html` だけ古いまま（題名が「ひよこ防衛軍」・書体の preload も旧）
-  になっていて、**公開ページが古い見た目のままだった**。`deploy.yml` の取り出し元も
-  `piyo-defense` → **`piyo-defense:www`** に直した
-
 ## 動かして確かめる
 
 ```bash

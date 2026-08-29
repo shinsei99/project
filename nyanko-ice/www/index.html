@@ -3,34 +3,35 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>ネオンアイス</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%228%22 fill=%22%230a0720%22/><circle cx=%2232%22 cy=%2220%22 r=%229%22 fill=%22none%22 stroke=%22%23ff4fc3%22 stroke-width=%223%22/><circle cx=%2224%22 cy=%2229%22 r=%229%22 fill=%22none%22 stroke=%22%23ffd54f%22 stroke-width=%223%22/><circle cx=%2240%22 cy=%2229%22 r=%229%22 fill=%22none%22 stroke=%22%2341e3ff%22 stroke-width=%223%22/><path d=%22M18 38 L46 38 L32 58 Z%22 fill=%22none%22 stroke=%22%2341e3ff%22 stroke-width=%223%22 stroke-linejoin=%22round%22/></svg>">
+<title>にゃんこアイス 🍦</title>
 <style>
-  /* ★2026-08-29: 丸ゴシックをやめ、シリーズ共通の 角ゴシック＋Orbitron に。
-     どちらも SIL OFL・使う文字だけ同梱（tools/fetch-font.py）。型は neon-blocks/NEON_STYLE.md */
+  /* 日本語フォント: Zen Maru Gothic（Google Fonts・SIL OFL 1.1／商用可・埋め込み可・再配布可）
+     使う文字だけに絞って同梱している。文言を変えたら tools/fetch-font.py を流し直すこと。 */
   @font-face{
-    font-family:'Zen Kaku Gothic New'; font-style:normal; font-weight:500; font-display:block;
-    src:url('assets/fonts/ZenKakuGothicNew-500.woff2') format('woff2');
+    font-family:'Zen Maru Gothic'; font-style:normal; font-weight:500; font-display:block;
+    src:url('assets/fonts/ZenMaruGothic-500.woff2') format('woff2');
   }
   @font-face{
-    font-family:'Zen Kaku Gothic New'; font-style:normal; font-weight:900; font-display:block;
-    src:url('assets/fonts/ZenKakuGothicNew-900.woff2') format('woff2');
+    font-family:'Zen Maru Gothic'; font-style:normal; font-weight:900; font-display:block;
+    src:url('assets/fonts/ZenMaruGothic-900.woff2') format('woff2');
   }
-  @font-face{
-    font-family:'Orbitron'; font-style:normal; font-weight:700; font-display:block;
-    src:url('assets/fonts/Orbitron-700.woff2') format('woff2');
-  }
-  @font-face{
-    font-family:'Orbitron'; font-style:normal; font-weight:900; font-display:block;
-    src:url('assets/fonts/Orbitron-900.woff2') format('woff2');
+  :root{
+    --cream:#FFF6E6;
+    --wood:#B07B4E;
+    --berry:#FF6F91;
+    --mint:#5FD3C0;
+    --cocoa:#6B4A32;
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ margin:0; padding:0; height:100%; }
   body{
-    background:radial-gradient(circle at 50% 12%, #241247 0%, #120B26 60%, #08050F 100%);
+    background:
+      radial-gradient(circle at 18% 8%,  #FFE3B8 0%, transparent 52%),
+      radial-gradient(circle at 88% 4%,  #FFC7D6 0%, transparent 48%),
+      linear-gradient(165deg, #FFF1DC 0%, #FBD9C0 55%, #F3BEA8 100%);
     display:flex; align-items:center; justify-content:center;
     min-height:100%;
-    font-family:Orbitron,'Zen Kaku Gothic New',"Hiragino Sans",system-ui,sans-serif;
+    font-family:'Zen Maru Gothic',"Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;
     font-weight:500;
     overflow:hidden;
   }
@@ -60,57 +61,21 @@
   }
   #hint{
     flex:1; min-width:0; text-align:center; pointer-events:none;
-    background:rgba(21,14,51,.92); color:#9BE9FF;
+    background:rgba(255,252,244,.9); color:#7A5334;
     font-size:11px; font-weight:500; letter-spacing:.02em;
     padding:6px 10px; border-radius:999px;
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-    box-shadow:0 0 10px rgba(65,227,255,.35);
+    box-shadow:0 2px 6px rgba(120,80,50,.18);
   }
-  /* ★2026-08-29: 音ボタンを**画面の右上**へ（シリーズ共通の位置。NEON_STYLE.md）。
-     下の帯に置いていたが、6本のうちここだけ右下で、切り替えたときに迷子になっていた。 */
   #mute{
-    position:fixed; z-index:40;
-    top:calc(8px + env(safe-area-inset-top)); right:calc(10px + env(safe-area-inset-right));
-    width:44px; height:40px; padding:0; cursor:pointer;
-    border:2px solid rgba(65,227,255,.5); border-radius:6px;
-    font-size:17px; line-height:1;
-    background:rgba(21,14,51,.92); color:#9BE9FF;
-    box-shadow:0 0 12px rgba(65,227,255,.28);
+    flex:none; width:34px; height:34px; border:none; cursor:pointer;
+    border-radius:50%; font-size:16px; line-height:1;
+    background:rgba(255,252,244,.9); color:#7A5334;
+    box-shadow:0 2px 6px rgba(120,80,50,.18);
   }
   #mute:active{ transform:translateY(1px); }
   /* 2026-08-28: 広告（バナー／全画面／リワード）は全部外した。オーナー判断で広告なしで配信する。
      戻すときは git 履歴の 942174fe 以前を見ること（AdMob の呼び出しごと消してある）。 */
-
-  /* ★2026-08-29: タイトル画面を新設（シリーズ共通の入口。NEON_STYLE.md）。
-     これまでは開いた瞬間にゲームが始まっていて、6本のうちここだけ入口が無かった。
-     ★「開いたらすぐ積める」良さは残す: STARTは1回押すだけで、次からも同じ位置。 */
-  #titleScreen{
-    position:fixed; inset:0; z-index:60; display:flex;
-    align-items:center; justify-content:center; padding:16px;
-    background:rgba(4,2,12,.72); backdrop-filter:blur(3px);
-  }
-  #titleScreen.hide{ display:none; }
-  #titleCard{
-    background:#120c28; border:2px solid rgba(65,227,255,.5); border-radius:8px;
-    padding:22px 18px; text-align:center; max-width:400px; width:100%;
-    box-shadow:0 0 26px rgba(65,227,255,.25);
-  }
-  #titleCard .lat{
-    font:700 12px/1 Orbitron,'Zen Kaku Gothic New',sans-serif; letter-spacing:.34em;
-    color:#FF4FC3; text-shadow:0 0 12px rgba(255,79,195,.8);
-  }
-  #titleCard h1{
-    margin:10px 0 6px; font-weight:900; font-size:clamp(24px,6.6vw,36px); letter-spacing:.18em;
-    color:#fff; text-shadow:0 0 12px #41e3ff, 0 0 30px rgba(255,79,195,.5);
-  }
-  #titleCard p{ margin:0 0 16px; font-size:13px; line-height:1.7; color:#9BE9FF; }
-  #titleCard button{
-    font-family:inherit; font-weight:900; font-size:15px; letter-spacing:.08em; cursor:pointer;
-    width:min(280px,100%); padding:11px 20px; border-radius:5px;
-    background:rgba(255,79,195,.18); color:#fff; border:2px solid #FF4FC3;
-    box-shadow:0 0 14px rgba(255,79,195,.35);
-  }
-  #titleCard button:active{ transform:translate(1px,2px); }
 </style>
 </head>
 <body>
@@ -126,14 +91,6 @@
   </div>
 </div>
 
-<div id="titleScreen">
-  <div id="titleCard">
-    <div class="lat">N E O N &nbsp; I C E</div>
-    <h1>ネオンアイス</h1>
-    <p>同じ味を3つ重ねて、注文をさばこう。<br>コーンをタップ → 移動先をタップ</p>
-    <button id="playBtn" type="button">START</button>
-  </div>
-</div>
 <script>
 "use strict";
 (function(){
@@ -163,8 +120,8 @@ const SIGN_H   = 112;
 const CASE_TOP = 344;
 const CASE_BOT = 706;
 
-// 書体（Orbitron＋Zen Kaku Gothic New・どちらも SIL OFL）。読み込めない環境でも豆腐にならないよう既定を並べる
-const FF = 'Orbitron,"Zen Kaku Gothic New","Hiragino Sans",sans-serif';
+// 書体（Zen Maru Gothic・SIL OFL）。読み込めない環境でも豆腐にならないよう既定を並べる
+const FF = '"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif';
 const F  = (px, w) => (w || 900) + ' ' + px + 'px ' + FF;
 
 // 縁取り文字（明るい背景の上でも読めるように）
@@ -178,17 +135,14 @@ function outlined(text, x, y, fill, edge, lw){
 }
 
 // フレーバー定義（後半ほどステージが上がると登場）
-/* 味の色。★2026-08-29 にネオンへ。暗い店の中で光らせるため、彩度を上げて glow を足した。
-   副産物として**色の見分けが良くなった**（前はバニラ #FFF6E0 とレインボー #FFFFFF が
-   淡い水色のケースの中で紛らわしかった）。これは色合わせのパズルなので遊びやすさに直結する。 */
 const FLAV = {
-  vanilla:    { color:'#FFF3B0', shade:'#E8B93A', glow:'#FFD54F' },
-  choco:      { color:'#FFAE6B', shade:'#C1601F', glow:'#FF8A3D' },
-  strawberry: { color:'#FF8ED0', shade:'#D6249A', glow:'#FF4FC3' },
-  mint:       { color:'#8BFFE0', shade:'#12BFA0', glow:'#3DFFD2' },   // STAGE3〜
-  soda:       { color:'#8DE1FF', shade:'#1596E0', glow:'#41E3FF' },   // STAGE5〜
-  grape:      { color:'#C9A6FF', shade:'#7A3DE8', glow:'#A46BFF' },   // STAGE7〜
-  rainbow:    { color:'#FFFFFF', shade:'#CFE9FF', glow:'#FFFFFF' },   // ワイルド
+  vanilla:    { color:'#FFF6E0', shade:'#EBD9AE' },
+  choco:      { color:'#A1715B', shade:'#5D4037' },
+  strawberry: { color:'#FF9EBB', shade:'#EC5F86' },
+  mint:       { color:'#A8E6D5', shade:'#3FAE97' },   // STAGE3〜
+  soda:       { color:'#8FD8FB', shade:'#29B6F6' },   // STAGE5〜
+  grape:      { color:'#BBA4E6', shade:'#7E57C2' },   // STAGE7〜
+  rainbow:    { color:'#FFFFFF', shade:'#DDDDDD' },   // ワイルド（どの色にも化ける）
 };
 const FLAVS = ['vanilla','choco','strawberry','mint','soda','grape']; // rainbowは含めない（注文色にならない）
 // そのステージで使える色数（3色→3,5,7ステージで1色ずつ追加）
@@ -361,7 +315,7 @@ function initAudio(){
   masterGain = audio.createGain(); masterGain.gain.value = soundOn ? 1 : 0;
   masterGain.connect(audio.destination);
   sfxGain = audio.createGain(); sfxGain.gain.value = 0.9;  sfxGain.connect(masterGain);
-  musGain = audio.createGain(); musGain.gain.value = 0.26;   // ★シリーズ共通の音量（NEON_STYLE.md） musGain.connect(masterGain);
+  musGain = audio.createGain(); musGain.gain.value = 0.30; musGain.connect(masterGain);
   if (USE_FILES) loadSfxFiles();
   startMusic();
 }
@@ -439,7 +393,7 @@ function startMusic(){
 // 先読みして予約する方式。setInterval で直接鳴らすとタイミングがぶれる
 function musicTick(){
   if (!audio) return;
-  if (musGain) musGain.gain.setTargetAtTime(0.26, audio.currentTime, 0.05);
+  if (musGain) musGain.gain.setTargetAtTime(0.30, audio.currentTime, 0.05);
   const eighth = 60/MUSIC.bpm/2;
   if (MUSIC.next < audio.currentTime) MUSIC.next = audio.currentTime + 0.05;  // 復帰時の一気鳴り防止
   while (MUSIC.next < audio.currentTime + 0.3){
@@ -667,57 +621,36 @@ function roundRect(x,y,w,h,r){
 }
 
 /* ---- 店内の壁（明るいところ） ---- */
-/* ネオン管を1本引く。芯を白く重ねると「光っているガラス管」に見える */
-function neonLine(x0,y0,x1,y1,color,w){
-  ctx.save(); ctx.lineCap='round';
-  ctx.shadowColor=color; ctx.shadowBlur=16;
-  ctx.strokeStyle=color; ctx.lineWidth=w||4;
-  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
-  ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=(w||4)*0.35; ctx.shadowBlur=6;
-  ctx.beginPath(); ctx.moveTo(x0,y0); ctx.lineTo(x1,y1); ctx.stroke();
-  ctx.restore();
-}
-function neonRect(x,y,w,h,r,color,lw){
-  ctx.save(); ctx.shadowColor=color; ctx.shadowBlur=18;
-  ctx.strokeStyle=color; ctx.lineWidth=lw||4; roundRect(x,y,w,h,r); ctx.stroke();
-  ctx.shadowBlur=5; ctx.strokeStyle='rgba(255,255,255,.8)'; ctx.lineWidth=(lw||4)*0.32;
-  roundRect(x,y,w,h,r); ctx.stroke(); ctx.restore();
-}
-
 function drawShop(){
   const bottom = CASE_TOP + 30;
-  // ★2026-08-29: 昼の店内 → **夜のネオン屋台**へ。ネオンブロックス（同じアプリに入る本編）と
-  //   同じ世界に見せるため。★ネコ店長は変えない（生き物は手描きのまま／モノを光らせる）
   const wg = ctx.createLinearGradient(0,0,0,bottom);
-  wg.addColorStop(0,'#160D2E'); wg.addColorStop(1,'#241247');
+  wg.addColorStop(0,'#FFF6E4'); wg.addColorStop(1,'#FFDCB4');
   ctx.fillStyle=wg; ctx.fillRect(0,0,W,bottom);
 
-  // 奥のビルのシルエット（夜の街）
-  ctx.fillStyle='#0E0822';
-  for (let i=0;i<7;i++){
-    const bw=52+((i*37)%40), bx=i*74-14, bh=70+((i*53)%80);
-    ctx.fillRect(bx, bottom-140-bh, bw, bh+140);
+  // やわらかい縦ストライプ（壁紙）
+  ctx.save(); ctx.globalAlpha=.42; ctx.fillStyle='#FFFFFF';
+  for (let x=8; x<W; x+=58) ctx.fillRect(x, 0, 26, bottom);
+  ctx.restore();
+
+  // 壁の水玉
+  ctx.save(); ctx.globalAlpha=.16; ctx.fillStyle='#FF7FA0';
+  for (let i=0;i<24;i++){
+    const x=(i*83+29)%W, y=(i*57+11)%(bottom-SIGN_H-24)+SIGN_H+14;
+    ctx.beginPath(); ctx.arc(x,y,3.4,0,Math.PI*2); ctx.fill();
   }
-  // 窓あかり
-  ctx.fillStyle='rgba(255,214,120,.55)';
-  for (let i=0;i<70;i++){
-    const x=(i*67+19)%W, y=(i*41+SIGN_H+30)%(bottom-SIGN_H-60)+SIGN_H+24;
-    ctx.fillRect(x, y, 4, 5);
-  }
-  // ネオンの縦チューブ（壁の飾り）
-  for (let x=34; x<W; x+=92){
-    neonLine(x, SIGN_H+18, x, bottom-58, x%184===34 ? '#FF4FC3' : '#41E3FF', 3);
-  }
+  ctx.restore();
 
   drawWindow(64, 215, 42);
   drawWindow(436, 215, 42);
 
   // 腰壁（下half の板張り）。壁だけだと間延びするので、腰の高さで見切る
   const wy = 284;
-  ctx.fillStyle='#1A1038'; ctx.fillRect(0, wy, W, bottom-wy);      // ★屋台の腰板
-  ctx.strokeStyle='rgba(65,227,255,.18)'; ctx.lineWidth=1.6;
+  ctx.fillStyle='#F6E3C9'; ctx.fillRect(0, wy, W, bottom-wy);
+  ctx.fillStyle='rgba(150,100,55,.07)'; ctx.fillRect(0, wy, W, bottom-wy);
+  ctx.strokeStyle='rgba(170,115,62,.30)'; ctx.lineWidth=1.6;
   for (let x=18; x<W; x+=42){ ctx.beginPath(); ctx.moveTo(x, wy+5); ctx.lineTo(x, CASE_TOP-11); ctx.stroke(); }
-  neonLine(0, wy-6, W, wy-6, '#FF4FC3', 3);                        // 見切りのネオン管
+  ctx.fillStyle='#E8CFAC'; ctx.fillRect(0, wy-7, W, 8);
+  ctx.fillStyle='rgba(255,255,255,.55)'; ctx.fillRect(0, wy-7, W, 2.5);
 }
 
 // 丸窓。外の空が見えると「屋内にいる」ことが一目で伝わる
@@ -725,21 +658,19 @@ function drawWindow(x, y, r){
   ctx.save();
   ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.clip();
   const sg=ctx.createLinearGradient(0,y-r,0,y+r);
-  sg.addColorStop(0,'#101A3C'); sg.addColorStop(1,'#2A2060');     // ★夜空
+  sg.addColorStop(0,'#8FD4F5'); sg.addColorStop(1,'#DDF3FF');
   ctx.fillStyle=sg; ctx.fillRect(x-r,y-r,r*2,r*2);
-  // 星
+  // くも
   ctx.fillStyle='rgba(255,255,255,.9)';
-  for (let i=0;i<9;i++) ctx.fillRect(x-r+((i*29)%(r*2)), y-r+((i*17)%(r*2)), 2, 2);
-  // 月（くもの代わり。欠けは背景色で上書きして作る）
-  ctx.fillStyle='rgba(255,240,190,.92)';
-  ctx.beginPath(); ctx.arc(x+9, y-6, 12, 0, Math.PI*2); ctx.fill();
-  ctx.fillStyle='#1B1440';
-  ctx.beginPath(); ctx.arc(x+15, y-11, 11, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x-9, y+4, 11, 0, Math.PI*2);
+  ctx.arc(x+4, y+2, 14, 0, Math.PI*2);
+  ctx.arc(x+17, y+8, 9, 0, Math.PI*2);
+  ctx.fill();
   ctx.restore();
   // 枠
-  ctx.save(); ctx.shadowColor='#41E3FF'; ctx.shadowBlur=16;   // ★窓枠もネオン管に
-  ctx.strokeStyle='#41E3FF'; ctx.lineWidth=5;
-  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke(); ctx.restore();
+  ctx.strokeStyle='#FFF8EC'; ctx.lineWidth=7;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke();
   ctx.strokeStyle='rgba(160,110,65,.35)'; ctx.lineWidth=1.5;
   ctx.beginPath(); ctx.arc(x,y,r+3.5,0,Math.PI*2); ctx.stroke();
   // 桟
@@ -752,20 +683,19 @@ function drawSign(){
   ctx.save();
   ctx.shadowColor='rgba(95,58,30,.34)'; ctx.shadowBlur=16; ctx.shadowOffsetY=6;
   const g=ctx.createLinearGradient(0,-24,0,SIGN_H);
-  g.addColorStop(0,'#1B1140'); g.addColorStop(1,'#0F0A28');   // ★木の看板 → 黒い看板
+  g.addColorStop(0,'#DCA76E'); g.addColorStop(.5,'#BC8350'); g.addColorStop(1,'#9C6837');
   ctx.fillStyle=g;
   roundRect(-18,-28,W+36,SIGN_H+28,26); ctx.fill();
   ctx.restore();
   // 木目
   ctx.save();
   roundRect(-18,-28,W+36,SIGN_H+28,26); ctx.clip();
-  ctx.strokeStyle='rgba(65,227,255,.10)'; ctx.lineWidth=1.4;
+  ctx.strokeStyle='rgba(115,70,36,.18)'; ctx.lineWidth=1.6;
   for (let y=-14;y<SIGN_H;y+=14){
     ctx.beginPath(); ctx.moveTo(-18,y);
     ctx.bezierCurveTo(W*0.32,y-3.5,W*0.68,y+3.5,W+18,y); ctx.stroke();
   }
   ctx.restore();
-  neonRect(6, 4, W-12, SIGN_H-10, 18, '#FF4FC3', 3);   // ★看板を囲むネオン管
   // 下辺のふち
   ctx.strokeStyle='rgba(255,242,220,.55)'; ctx.lineWidth=3;
   ctx.beginPath(); ctx.moveTo(8,SIGN_H-2); ctx.lineTo(W-8,SIGN_H-2); ctx.stroke();
@@ -804,15 +734,16 @@ function drawCase(){
   const x=10, y=CASE_TOP, w=W-20, h=CASE_BOT-CASE_TOP;
   // 外枠（クリーム色の筐体）
   ctx.save();
-  ctx.shadowColor='rgba(0,0,0,.45)'; ctx.shadowBlur=18; ctx.shadowOffsetY=8;
-  ctx.fillStyle='#120C28';                        // ★筐体はクリーム → 黒
+  ctx.shadowColor='rgba(95,58,30,.30)'; ctx.shadowBlur=18; ctx.shadowOffsetY=8;
+  ctx.fillStyle='#FFF8EC';
   roundRect(x-9,y-11,w+18,h+22,28); ctx.fill();
   ctx.restore();
-  neonRect(x-9,y-11,w+18,h+22,28,'#41E3FF',3);    // 縁はシアンの管
+  ctx.strokeStyle='rgba(170,118,70,.30)'; ctx.lineWidth=2;
+  roundRect(x-9,y-11,w+18,h+22,28); ctx.stroke();
 
   // 中（冷たい紺）
   const ig=ctx.createLinearGradient(0,y,0,CASE_BOT);
-  ig.addColorStop(0,'#1B1442'); ig.addColorStop(.45,'#140E33'); ig.addColorStop(1,'#0C0822');   // ★もっと暗く（アイスの発光を活かす）
+  ig.addColorStop(0,'#4C5DA3'); ig.addColorStop(.45,'#36437F'); ig.addColorStop(1,'#232E58');
   ctx.fillStyle=ig; roundRect(x,y,w,h,20); ctx.fill();
 
   ctx.save();
@@ -876,7 +807,7 @@ function drawCounter(){
   ctx.save();
   ctx.shadowColor='rgba(95,58,30,.34)'; ctx.shadowBlur=16; ctx.shadowOffsetY=-5;
   const g=ctx.createLinearGradient(0,CASE_BOT,0,H);
-  g.addColorStop(0,'#150E33'); g.addColorStop(.34,'#F2DFC2'); g.addColorStop(1,'#CFA87B');
+  g.addColorStop(0,'#FFF8EC'); g.addColorStop(.34,'#F2DFC2'); g.addColorStop(1,'#CFA87B');
   ctx.fillStyle=g;
   roundRect(-14, CASE_BOT, W+28, H-CASE_BOT+16, 22); ctx.fill();
   ctx.restore();
@@ -938,7 +869,7 @@ function drawCones(){
     for (let k=0;k<3;k++){ const yy=BASEY+24+k*16; ctx.beginPath(); ctx.moveTo(x-26+k*5, yy); ctx.lineTo(x+26-k*5, yy); ctx.stroke(); }
     ctx.restore();
     // コーンの口（リム）
-    ctx.fillStyle='#5A3C86';   // ★ワッフル → 夜の色
+    ctx.fillStyle='#F6DFB4';
     ctx.beginPath(); ctx.ellipse(x, BASEY+16, 26, 6.5, 0,0,Math.PI*2); ctx.fill();
     ctx.strokeStyle='rgba(150,100,52,.55)'; ctx.lineWidth=1.5; ctx.stroke();
     ctx.fillStyle='rgba(255,255,255,.45)';
@@ -967,9 +898,7 @@ function drawIce(ice){
   const rainbow = ice.flavor==='rainbow';
   // 本体（やわらかい影つき）
   ctx.save();
-  // ★影ではなく「にじみ」。暗い店なので、光ってはじめてアイスに見える
-  ctx.shadowColor = rainbow ? '#9FE8FF' : (FLAV[ice.flavor].glow || '#fff');
-  ctx.shadowBlur = 22; ctx.shadowOffsetY = 0;
+  ctx.shadowColor='rgba(20,24,70,.30)'; ctx.shadowBlur=9; ctx.shadowOffsetY=4;
   if (rainbow){
     ctx.fillStyle = rainbowGrad(ice.x, ice.y, R);
   } else {
@@ -1058,7 +987,7 @@ function miniIce(x,y,flavor,r){
 function drawCard(x,y,w,h){
   ctx.save();
   ctx.shadowColor='rgba(80,48,24,.30)'; ctx.shadowBlur=8; ctx.shadowOffsetY=3;
-  ctx.fillStyle='#150E33'; roundRect(x,y,w,h,14); ctx.fill();
+  ctx.fillStyle='#FFF8EC'; roundRect(x,y,w,h,14); ctx.fill();
   ctx.restore();
   ctx.strokeStyle='rgba(150,100,55,.32)'; ctx.lineWidth=2; roundRect(x,y,w,h,14); ctx.stroke();
   // 留めねじ
@@ -1070,9 +999,9 @@ function drawCard(x,y,w,h){
 function drawUI(){
   // 注文ボード（左上）
   drawCard(12, 26, 152, 76);
-  ctx.fillStyle='#9BE9FF'; ctx.font=F(12,500); ctx.textAlign='left';
+  ctx.fillStyle='#8A6244'; ctx.font=F(12,500); ctx.textAlign='left';
   ctx.fillText('ちゅうもん', 24, 46);
-  ctx.fillStyle= ordersLeft<=2 ? '#E0553F' : '#FFD54F';
+  ctx.fillStyle= ordersLeft<=2 ? '#E0553F' : '#B07B4E';
   ctx.font=F(13,900); ctx.textAlign='right';
   ctx.fillText('のこり '+Math.max(0,ordersLeft), 154, 46);
   ctx.textAlign='left';
@@ -1080,7 +1009,7 @@ function drawUI(){
 
   // つぎ（右上）
   drawCard(W-118, 26, 106, 76);
-  ctx.fillStyle='#9BE9FF'; ctx.font=F(12,500); ctx.textAlign='left';
+  ctx.fillStyle='#8A6244'; ctx.font=F(12,500); ctx.textAlign='left';
   ctx.fillText('つぎ', W-106, 46);
   miniIce(W-65, 76, nextFlav, 16);
 
@@ -1128,7 +1057,7 @@ function drawCatBody(){
   ctx.quadraticCurveTo(cx+82, cy+74, cx+46, cy+30);
   ctx.closePath(); ctx.fill();
   // エプロン（店長の名前を載せる面。あごの下から始める）
-  ctx.fillStyle='#150E33';
+  ctx.fillStyle='#FFFBF2';
   ctx.beginPath();
   ctx.moveTo(cx-36, cy+56);
   ctx.quadraticCurveTo(cx-62, cy+82, cx-60, CASE_TOP+20);
@@ -1246,7 +1175,7 @@ function drawCat(){
   // コック帽（耳のあいだに小さく傾けてのせる。耳を隠さない大きさにする）
   ctx.save();
   ctx.translate(cx-30, cy-42); ctx.rotate(-0.26);
-  ctx.fillStyle='#150E33';
+  ctx.fillStyle='#FFFBF2';
   ctx.beginPath(); ctx.ellipse(0, 6, 21, 7, 0,0,Math.PI*2); ctx.fill();
   ctx.beginPath();
   ctx.arc(-9, -3, 9, 0, Math.PI*2);
@@ -1268,12 +1197,12 @@ function drawCat(){
   const bw = tw + 24, bh = pinchNow ? 25 : 22, by = cy + 102 - bh + 6;
   ctx.save();
   ctx.shadowColor='rgba(120,80,50,.20)'; ctx.shadowBlur=5; ctx.shadowOffsetY=2;
-  ctx.fillStyle = pinchNow ? '#FF6F91' : '#150E33';
+  ctx.fillStyle = pinchNow ? '#FF6F91' : '#FFFBF2';
   roundRect(cx-bw/2, by, bw, bh, 11); ctx.fill();
   ctx.restore();
   ctx.strokeStyle = pinchNow ? '#D9527A' : 'rgba(190,140,95,.45)';
   ctx.lineWidth=2; roundRect(cx-bw/2, by, bw, bh, 11); ctx.stroke();
-  ctx.fillStyle = pinchNow ? '#FFFFFF' : '#9BE9FF';
+  ctx.fillStyle = pinchNow ? '#FFFFFF' : '#8A6244';
   ctx.fillText(label, cx, cy+102);
   if (pinchNow){   // あせの雫
     ctx.fillStyle='rgba(120,200,255,.95)';
@@ -1342,7 +1271,7 @@ function drawButton(x,y,w,h,fill,edge,label,fontPx){
 function drawPanel(y, h, title, titleColor){
   ctx.save();
   ctx.shadowColor='rgba(60,34,16,.45)'; ctx.shadowBlur=24; ctx.shadowOffsetY=10;
-  ctx.fillStyle='#150E33'; roundRect(34, y, W-68, h, 28); ctx.fill();
+  ctx.fillStyle='#FFF8EC'; roundRect(34, y, W-68, h, 28); ctx.fill();
   ctx.restore();
   ctx.strokeStyle='rgba(150,100,55,.30)'; ctx.lineWidth=3; roundRect(34, y, W-68, h, 28); ctx.stroke();
   // 上辺の飾りストライプ
@@ -1359,14 +1288,14 @@ function drawGameOver(){
   ctx.textAlign='center';
   ctx.font=F(40,900);
   outlined('GAME OVER', W/2, 336, '#FF6F91', '#FFFFFF', 7);
-  ctx.fillStyle='#9BE9FF'; ctx.font=F(16,500);
+  ctx.fillStyle='#8A6244'; ctx.font=F(16,500);
   ctx.fillText('STAGE '+stage+' でちからつきた…', W/2, 372);
   ctx.font=F(26,900);
   // クリーム地の上なので、薄い縁取りだと金色が沈む。濃い茶で縁を取る
   outlined('¥'+score, W/2, 412, '#FFC13D', '#7A4A18', 5);
   // コンテニュー（広告を外したので無条件）／ さいしょから
   drawButton(W/2-110, 444, 220, 54, '#FF6F91', '#D9527A', '▶ つづきから', 17);
-  drawButton(W/2-110, 512, 220, 46, '#9BE9FF', '#FFE9B8', 'さいしょから', 17);
+  drawButton(W/2-110, 512, 220, 46, '#8A6244', '#6B4A32', 'さいしょから', 17);
 }
 
 function drawStageClear(){
@@ -1376,10 +1305,10 @@ function drawStageClear(){
   ctx.textAlign='center';
   ctx.font=F(34,900);
   outlined('STAGE '+stage+' CLEAR!', W/2, 352, '#FFB020', '#FFFFFF', 7);
-  ctx.fillStyle='#FFE9B8'; ctx.font=F(19,900);
+  ctx.fillStyle='#6B4A32'; ctx.font=F(19,900);
   ctx.fillText('スコア ¥'+score, W/2, 390);
   // つぎのネコ店長 予告
-  ctx.fillStyle='#9BE9FF'; ctx.font=F(13,500);
+  ctx.fillStyle='#8A6244'; ctx.font=F(13,500);
   ctx.fillText('つぎのてんちょう: '+catOf(stage+1).name, W/2, 416);
   // 色が増える予告
   if (flavCount(stage+1) > flavCount(stage)){
@@ -1454,10 +1383,8 @@ function frame(t){
 // 明示的に load しないと最初の数フレームだけ既定書体で描かれてガタつく。
 if (document.fonts && document.fonts.load){
   Promise.all([
-    document.fonts.load('900 31px "Zen Kaku Gothic New"'),
-    document.fonts.load('500 13px "Zen Kaku Gothic New"'),
-    document.fonts.load('900 31px "Orbitron"'),
-    document.fonts.load('700 13px "Orbitron"'),
+    document.fonts.load('900 31px "Zen Maru Gothic"'),
+    document.fonts.load('500 13px "Zen Maru Gothic"'),
   ]).catch(()=>{});
 }
 
@@ -1471,16 +1398,6 @@ if (muteBtn){
 
 boot();
 requestAnimationFrame(frame);
-
-// タイトルの START。ここで初めて音を起こす（iOSは操作なしでは鳴らせない）
-const titleScreen = document.getElementById('titleScreen');
-const playBtn = document.getElementById('playBtn');
-if (playBtn){
-  playBtn.addEventListener('click', ()=>{
-    initAudio();
-    titleScreen.classList.add('hide');
-  });
-}
 
 })();
 </script>

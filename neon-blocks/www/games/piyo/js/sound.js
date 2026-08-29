@@ -77,13 +77,9 @@ const SoundManager = {
   toggleSe() { this.seOn = !this.seOn; SaveManager.setSe(this.seOn); },
 
   _patterns: {
-    // ★2026-08-29: 調を C → **E** に（+4半音・×1.2599）。
-    //   シリーズ6本で調を分ける決まり（neon-blocks/NEON_STYLE.md）。
-    //   実測でエスケープ・アイスと同じ C だったため、続けて遊ぶと同じ曲に聞こえていた。
-    //   ★音の並び（旋律の形）は変えていない＝曲は同じ、調だけ違う。
-    title:  { n:[330,416,494,416,494,659,622,494], bpm:80,  vol:0.05, w:'sine'     },
-    battle: { n:[416,494,554,494,416,370,416,494], bpm:145, vol:0.07, w:'square'   },
-    boss:   { n:[139,165,139,123,139,155,139,110],  bpm:125, vol:0.09, w:'sawtooth' },
+    title:  { n:[262,330,392,330,392,523,494,392], bpm:80,  vol:0.05, w:'sine'     },
+    battle: { n:[330,392,440,392,330,294,330,392], bpm:145, vol:0.07, w:'square'   },
+    boss:   { n:[110,131,110,98, 110,123,110,87],  bpm:125, vol:0.09, w:'sawtooth' },
   },
 
   _runBgm(type) {

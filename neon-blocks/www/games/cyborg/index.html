@@ -51,10 +51,8 @@
     text-shadow:0 0 8px var(--cyan),0 0 22px rgba(65,227,255,.55); }
   .title p{ margin:3px 0 0; font-size:9.5px; font-weight:500; letter-spacing:.26em;
     color:rgba(65,227,255,.5); }
-  /* ★2026-08-29: 音ボタンの見た目をシリーズ共通に（NEON_STYLE.md） */
-  .iconbtn{ width:44px; height:40px; flex:0 0 44px; border-radius:6px; font-size:17px;
-    background:rgba(21,14,51,.92); border:2px solid rgba(65,227,255,.5); color:#9BE9FF;
-    box-shadow:0 0 12px rgba(65,227,255,.28);
+  .iconbtn{ width:38px; height:38px; flex:0 0 38px; border-radius:11px; font-size:16px;
+    background:rgba(65,227,255,.07); border:1px solid rgba(65,227,255,.28); color:#cdf6ff;
     display:flex; align-items:center; justify-content:center; transition:transform .1s,background .15s; }
   .iconbtn:active{ transform:scale(.92); }
   .iconbtn[aria-pressed="true"]{ opacity:.45; }
@@ -89,10 +87,8 @@
     border:1px solid rgba(65,227,255,.3);
     background:linear-gradient(to bottom,rgba(65,227,255,.09),rgba(4,3,12,.55));
     box-shadow:0 0 30px rgba(65,227,255,.14); }
-  .panel .lat{ font-family:'Orbitron',system-ui; font-size:12px; font-weight:700; letter-spacing:.34em;
-    color:#FF4FC3; text-shadow:0 0 12px rgba(255,79,195,.8); }
-  .panel .big{ font-size:26px; font-weight:900; letter-spacing:.18em;
-    margin:10px 0 12px; color:#fff; text-shadow:0 0 12px #41e3ff, 0 0 30px rgba(255,79,195,.5); }
+  .panel .big{ font-family:'Orbitron',system-ui; font-size:22px; font-weight:900; letter-spacing:.08em;
+    margin-bottom:10px; color:var(--cyan); text-shadow:0 0 14px rgba(65,227,255,.6); }
   .panel .sub{ font-size:12px; color:rgba(255,255,255,.72); margin-bottom:15px; line-height:1.75; text-align:left; }
   .panel .sub b{ color:var(--cyan); }
   /* 遊び方は「1行1要素」で並べたほうが読まれる。段落で書くと誰も読まない */
@@ -107,11 +103,10 @@
     margin-bottom:14px; color:#fff; }
   .panel .score b{ color:var(--gold); font-size:19px; }
   button{ font-family:inherit; cursor:pointer; border:none; }
-  /* ★2026-08-29: 水色べた塗り → **マゼンタのネオン管**（シリーズ共通の決定ボタン。NEON_STYLE.md） */
-  .btn{ padding:11px 26px; border-radius:5px; font-family:'Orbitron',system-ui;
+  .btn{ padding:11px 26px; border-radius:12px; font-family:'Orbitron',system-ui;
     font-weight:900; font-size:15px; letter-spacing:.1em;
-    background:rgba(255,79,195,.18); color:#fff; border:2px solid #FF4FC3;
-    box-shadow:0 0 14px rgba(255,79,195,.35); transition:transform .1s; }
+    background:linear-gradient(180deg,#8af3ff,#41e3ff); color:#00232e; border:1px solid #b6f7ff;
+    box-shadow:0 0 20px rgba(65,227,255,.5); transition:transform .1s; }
   .btn:active{ transform:scale(.94); }
 
   /* ---- 強化ボタン ---- */
@@ -163,9 +158,7 @@
     </div>
     <div class="overlay" id="overlay">
       <div class="panel">
-        <!-- ★2026-08-29: 見出しをシリーズ共通の型へ（ラテン小マゼンタ＋日本語大）。NEON_STYLE.md -->
-        <div class="lat">N E O N &nbsp; C Y B O R G</div>
-        <div class="big" id="ovTitle">ネオンサイボーグ</div>
+        <div class="big" id="ovTitle">NEON CYBORG</div>
         <div class="sub" id="ovSub">
           <div class="rule"><span class="k move">移動</span><span>左右にドラッグ（PCは ← → ）。<b>射撃は自動</b>。</span></div>
           <div class="rule"><span class="k gate">ゲート</span><span>毎回シャッフルの3択。<b>×2 ×3</b> は強いが <b style="color:#ff6b7a">÷2 -N</b> の罠に挟まれる。</span></div>
@@ -299,7 +292,7 @@ function initAudio(){
   try { audio = new (window.AudioContext||window.webkitAudioContext)(); }
   catch(e){ return; }
   masterGain = audio.createGain(); masterGain.gain.value = soundOn?1:0; masterGain.connect(audio.destination);
-  sfxGain = audio.createGain(); sfxGain.gain.value = 0.90;   // ★シリーズ共通の音量（NEON_STYLE.md） sfxGain.connect(masterGain);
+  sfxGain = audio.createGain(); sfxGain.gain.value = 0.85; sfxGain.connect(masterGain);
   musGain = audio.createGain(); musGain.gain.value = 0.26; musGain.connect(masterGain);
   // ノイズ源（電撃・爆発・ハイハットに使う）
   const n = audio.sampleRate*1.0; noiseBuf = audio.createBuffer(1,n,audio.sampleRate);
@@ -395,9 +388,7 @@ function musicTick(){
   if(musGain) musGain.gain.setTargetAtTime(0.26*busy, audio.currentTime, 0.4);
   while(MUSIC.next < audio.currentTime + 0.3){
     const t=MUSIC.next, s=MUSIC.step;
-    // ★2026-08-29: 調を A → **D** に（シリーズ6本で調を分ける決まり。neon-blocks/NEON_STYLE.md）。
-    //   名前は A2 のままだが中身は D3。音型（bass/arp の並び）は変えていない＝曲は同じ、調だけ違う。
-    const A2=146.83;
+    const A2=110;
     voice(A2*Math.pow(2, MUSIC.bass[s % MUSIC.bass.length]/12), t, eighth*1.5, 'sawtooth', 0.055, musGain);
     if(G.running && s%2===0){
       voice(A2*Math.pow(2, MUSIC.arp[(s>>1) % MUSIC.arp.length]/12), t, eighth*1.1, 'square', 0.022, musGain);
@@ -1255,7 +1246,6 @@ function gameOver(){
   const best=Math.max(BEST,G.score); BEST=best;
   try { localStorage.setItem('cyborg_best',best); } catch(e){}
   el('ovTitle').textContent='防衛ライン突破';
-  { const lat = document.querySelector('.panel .lat'); if (lat) lat.style.display='none'; }   // 結果画面ではラテンの題名を隠す
   el('ovSub').innerHTML='<div style="text-align:center;line-height:1.9">部隊は全滅した…<br>もう一度、迎撃しますか？</div>';
   el('ovScore').style.display='block';
   el('ovScore').innerHTML=`SCORE <b>${G.score}</b> &nbsp;/&nbsp; BEST <b>${best}</b>`;

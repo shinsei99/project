@@ -68,11 +68,10 @@
   .logo{font-weight:900;font-size:clamp(16px,4.2vw,23px);letter-spacing:.16em;color:#fff;
     text-shadow:0 0 10px #41e3ff,0 0 24px rgba(65,227,255,.55);display:flex;align-items:center;gap:7px;}
   .iconc{display:block;image-rendering:auto;}
-  /* 音ボタン。大きさ・色はシリーズ共通（neon-blocks/NEON_STYLE.md） */
   .iconbtn{
-    background:rgba(21,14,51,.92);border:2px solid rgba(65,227,255,.5);border-radius:6px;
-    width:44px;height:40px;font-size:17px;line-height:1;padding:0;color:#9BE9FF;
-    box-shadow:0 0 12px rgba(65,227,255,.28);
+    background:rgba(21,14,51,.9);border:2px solid rgba(65,227,255,.5);border-radius:6px;
+    width:42px;height:38px;font-size:16px;line-height:1;padding:0;
+    box-shadow:2px 3px 0 rgba(0,0,0,.25);
   }
 
   .hud{
@@ -159,9 +158,6 @@
   .card p{margin:6px 0 14px;font-size:14.5px;line-height:1.6;}
   .card .btns{display:flex;flex-direction:column;gap:9px;align-items:center;}
   .card .btns button{width:min(280px,100%);}
-  /* シリーズ共通のラテン行（小さくマゼンタ）。日本語の題名の上に置く。NEON_STYLE.md */
-  .titlelat{font:700 12px/1 Orbitron,'Zen Kaku Gothic New',sans-serif;letter-spacing:.34em;
-    color:#FF4FC3;text-shadow:0 0 12px rgba(255,79,195,.8);margin:6px 0 2px;}
   .titlelogo{font-weight:900;font-size:clamp(24px,6.6vw,36px);letter-spacing:.18em;margin:2px 0 0;
     color:#fff;text-shadow:0 0 12px #41e3ff,0 0 30px rgba(255,79,195,.5);}
   .titlesub{font-size:13px;opacity:.75;margin:4px 0 6px;}
@@ -237,7 +233,6 @@
   <div class="screen show" id="titleScreen">
     <div class="card">
       <canvas id="titleArt" width="380" height="150" style="width:100%;max-width:340px;height:auto"></canvas>
-      <div class="titlelat">N E O N &nbsp; E S C A P E</div>
       <h1 class="titlelogo">ネオンエスケープ</h1>
       <div class="titlesub">追撃機をかわし、ワープゲートへ到達せよ。<br>全40ステージ</div>
       <div class="btns">
@@ -646,13 +641,10 @@ function musicTick(){
   if (MUSIC.next < audio.currentTime) MUSIC.next = audio.currentTime + 0.05;
   while (MUSIC.next < audio.currentTime + 0.3){
     const t = MUSIC.next, s = MUSIC.step;
-    // ★2026-08-29: 調を C → **F** に（シリーズ6本で調を分ける決まり。neon-blocks/NEON_STYLE.md）。
-    //   実測で エスケープ・アイス・タワーが同じ C、グラビティ・サイボーグ・ブロックスが同じ A で、
-    //   続けて遊ぶと「同じ曲の別バージョン」に聞こえていた。音階と楽器は変えない＝シリーズの音は保つ。
-    voice(698.46 * Math.pow(2, MUSIC.mel[s % MUSIC.mel.length]/12),
+    voice(523.25 * Math.pow(2, MUSIC.mel[s % MUSIC.mel.length]/12),
           t, eighth*1.5, 'triangle', 0.05, musGain);
     if (s % 2 === 0){
-      voice(174.61 * Math.pow(2, MUSIC.bass[(s>>1) % MUSIC.bass.length]/12),
+      voice(130.81 * Math.pow(2, MUSIC.bass[(s>>1) % MUSIC.bass.length]/12),
             t, eighth*1.7, 'sine', 0.07, musGain);
     }
     MUSIC.next += eighth; MUSIC.step++;

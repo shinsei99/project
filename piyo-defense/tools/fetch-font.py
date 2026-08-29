@@ -33,26 +33,20 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-# ★実体は www/ のほう（Capacitor と集合ゲームが読むのはここ）。
-#   直下の index.html / js/ は同じ内容の控え。文言を変えたら両方そろえること。
-SRC_ROOT = ROOT / "www"
-# 画面に文字を出すのはこの本数（描画は canvas なので DOM には文字が無い）
+# 画面に文字を出すのはこの5本（描画は canvas なので DOM には文字が無い）
 SOURCES = [
-    SRC_ROOT / "index.html",
-    SRC_ROOT / "game.js",
-    SRC_ROOT / "js" / "ui.js",
-    SRC_ROOT / "js" / "render.js",
-    SRC_ROOT / "js" / "entities.js",
-    SRC_ROOT / "js" / "upgrades.js",
-    SRC_ROOT / "js" / "save.js",
+    ROOT / "index.html",
+    ROOT / "game.js",
+    ROOT / "js" / "ui.js",
+    ROOT / "js" / "render.js",
+    ROOT / "js" / "entities.js",
+    ROOT / "js" / "upgrades.js",
+    ROOT / "js" / "save.js",
 ]
-OUT_DIR = SRC_ROOT / "assets" / "fonts"
+OUT_DIR = ROOT / "assets" / "fonts"
 
-# ★2026-08-29: 丸ゴシックをやめ、角ゴシック＋Orbitron へ（画面をネオンにしたため）
-FAMILIES = [
-    ("Zen Kaku Gothic New", ["500", "900"], "ZenKakuGothicNew", False),
-    ("Orbitron",            ["700", "900"], "Orbitron",         True),   # True = ASCII だけ
-]
+FAMILY = "Zen Maru Gothic"
+WEIGHTS = ["500", "900"]          # 本文と、タイトル・スコアの極太
 CSS_URL = "https://fonts.googleapis.com/css2?family={fam}:wght@{w}&text={text}"
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -135,18 +129,16 @@ def main() -> None:
         return
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    ascii_only = "".join(c for c in chars if ord(c) < 0x80)
-    for family, weights, stem, only_ascii in FAMILIES:
-        quoted = urllib.parse.quote(ascii_only if only_ascii else "".join(chars))
-        for weight in weights:
-            css = fetch(CSS_URL.format(fam=family.replace(" ", "+"), w=weight, text=quoted)).decode()
-            mm = re.search(r"src:\s*url\((https://[^)]+)\)", css)
-            if not mm:
-                sys.exit("CSSからフォントURLを取り出せなかった（%s weight=%s）" % (family, weight))
-            data = fetch(mm.group(1))
-            dest = OUT_DIR / ("%s-%s.woff2" % (stem, weight))
-            dest.write_bytes(data)
-            print("  %s  %.1f KB" % (dest.relative_to(ROOT), len(data) / 1024))
+    quoted = urllib.parse.quote("".join(chars))
+    for weight in WEIGHTS:
+        css = fetch(CSS_URL.format(fam=FAMILY.replace(" ", "+"), w=weight, text=quoted)).decode()
+        m = re.search(r"src:\s*url\((https://[^)]+)\)", css)
+        if not m:
+            sys.exit("CSSからフォントURLを取り出せなかった（weight=%s）" % weight)
+        data = fetch(m.group(1))
+        dest = OUT_DIR / ("ZenMaruGothic-%s.woff2" % weight)
+        dest.write_bytes(data)
+        print("  %s  %.1f KB" % (dest.relative_to(ROOT), len(data) / 1024))
 
     print("\n★ style.css の @font-face が上のファイルを指していることを確認すること")
 

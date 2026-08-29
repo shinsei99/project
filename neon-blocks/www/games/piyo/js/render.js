@@ -17,11 +17,6 @@ function rrect(x, y, w, h, r, fill, stroke, lw) {
   if (stroke) { _ctx.strokeStyle = stroke; _ctx.lineWidth = lw; _ctx.stroke(); }
 }
 
-/* ★2026-08-29: パネル・ボタンの縁を**ネオン管**にした。
-   画面の中身（敵・ボス・空・地面）はネオンにしたのに、UIだけ
-   「赤いSTART・茶色のボタン・緑の草」の昔のままで浮いていたため。
-   ★ここ1か所で全画面（タイトル／設定／図鑑／実績／ショップ／ゲームオーバー）に効く。
-     呼び出し側が渡す stroke の色をそのまま光らせるので、色の意味（青＝図鑑・金＝実績…）は残る。 */
 function rrectGrd(x, y, w, h, r, grd, stroke, lw) {
   lw = lw === undefined ? 2 : lw;
   _ctx.beginPath();
@@ -32,22 +27,7 @@ function rrectGrd(x, y, w, h, r, grd, stroke, lw) {
   _ctx.lineTo(x, y+r); _ctx.quadraticCurveTo(x, y, x+r, y);
   _ctx.closePath();
   _ctx.fillStyle = grd; _ctx.fill();
-  if (stroke) {
-    _ctx.save();
-    _ctx.shadowColor = _neonGlowOf(stroke); _ctx.shadowBlur = Math.max(8, lw * 5);
-    _ctx.strokeStyle = stroke; _ctx.lineWidth = lw; _ctx.stroke();
-    _ctx.restore();
-  }
-}
-/* 縁の色から「光の色」を作る。rgba(…) は不透明にしないと光って見えない */
-function _neonGlowOf(col) {
-  if (typeof col !== 'string') return 'rgba(65,227,255,.8)';
-  var m = /^rgba?\(([^)]+)\)/.exec(col);
-  if (m) {
-    var p = m[1].split(',');
-    return 'rgba(' + p[0].trim() + ',' + p[1].trim() + ',' + p[2].trim() + ',0.85)';
-  }
-  return col;
+  if (stroke) { _ctx.strokeStyle = stroke; _ctx.lineWidth = lw; _ctx.stroke(); }
 }
 
 // ── Background ───────────────────────────────────────────────────────────────
@@ -1048,16 +1028,16 @@ function _drawBossHpBar(e, s, label, labelCol, barTop, barBot, border) {
     _ctx.fillStyle='rgba(255,255,255,0.26)';
     _ctx.beginPath(); _ctx.moveTo(bx+4,by+2); _ctx.lineTo(bx+bw*ratio-4,by+2); _ctx.lineTo(bx+bw*ratio-4,by+7); _ctx.lineTo(bx+4,by+7); _ctx.closePath(); _ctx.fill();
   }
-  _ctx.fillStyle='#fff'; _ctx.font='bold 11px Orbitron,"Zen Kaku Gothic New",sans-serif'; _ctx.textAlign='center';
+  _ctx.fillStyle='#fff'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif'; _ctx.textAlign='center';
   _ctx.fillText(e.hp+'/'+e.maxHp, 0, by+14);
   _ctx.shadowColor=labelCol; _ctx.shadowBlur=12;
-  _ctx.fillStyle=labelCol; _ctx.font='bold 13px Orbitron,"Zen Kaku Gothic New",sans-serif';
+  _ctx.fillStyle=labelCol; _ctx.font='bold 13px "Zen Maru Gothic",sans-serif';
   _ctx.fillText(label, 0, -s*1.06);
   _ctx.shadowBlur=0;
   // フェーズインジケーター
   var ph = e.phase||1;
   if (ph > 1) {
-    _ctx.fillStyle=ph>=3?'#FF4444':'#FF8800'; _ctx.font='bold 11px Orbitron,"Zen Kaku Gothic New",sans-serif';
+    _ctx.fillStyle=ph>=3?'#FF4444':'#FF8800'; _ctx.font='bold 11px "Zen Maru Gothic",sans-serif';
     _ctx.fillText('PHASE '+ph, 0, -s*1.06+16);
   }
 }
