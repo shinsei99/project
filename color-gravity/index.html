@@ -52,8 +52,9 @@
   .stage{ position:relative; margin:0 auto; max-width:900px;
     width:min(100%, calc((100vh - 260px) * 1.5)); }
   @supports (height:100dvh){ .stage{ width:min(100%, calc((100dvh - 260px) * 1.5)); } }
-  canvas{ width:100%; aspect-ratio:2/3; display:block; border-radius:16px;
-    border:1px solid rgba(60,200,255,.22); box-shadow:0 0 40px rgba(60,200,255,.16),inset 0 0 60px rgba(0,0,0,.6);
+  /* ★盤の枠はシリーズ共通（2px シアン・角8px。neon-blocks/NEON_STYLE.md） */
+  canvas{ width:100%; aspect-ratio:2/3; display:block; border-radius:8px;
+    border:2px solid rgba(65,227,255,.5); box-shadow:0 0 22px rgba(65,227,255,.2),inset 0 0 26px rgba(65,227,255,.06);
     background:#05030f; touch-action:none; }
 
   .hud{ position:absolute; top:0; left:0; right:0; z-index:10; display:flex;
@@ -166,9 +167,11 @@
 </head>
 <body>
 <div id="app">
+  <!-- ★2026-08-29: 常時の題名は**日本語1行だけ**に（シリーズ共通。neon-blocks/NEON_STYLE.md）。
+       ラテン表記と副題はタイトル画面に出るので、遊んでいる間ずっと出す必要がない。
+       実測で45px あった帯が縮み、その分だけ盤が広くなる。 -->
   <div class="title">
-    <h1>NEON&nbsp;GRAVITY</h1>
-    <p>ネオングラビティ ／ 宇宙重力×色合成パズル</p>
+    <h1>ネオングラビティ</h1>
   </div>
 
   <div class="stage">
