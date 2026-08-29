@@ -170,7 +170,37 @@ function ok(a, want){
   return true;
 }
 
-const WANTS = [
+/* ★2026-08-29: 高難度パック（--hard）。
+   実測で 1〜30面は「最短6.7手・勝ち筋率61%」＝**打てる手の6割が正解**だった。
+   つまり考えれば間違えにくい。歯ごたえを足すため、31面以降は
+   **敵4台・最短12手以上・勝ち筋率50%未満**（＝半分以上の手が負け筋）を狙う。 */
+const HARD_WANTS = [
+  // ★敵4台は捨てた。実測で **398面中 解ける面は3面**（初手で詰む面ばかり）。
+  //   台数ではなく「道のりの長さ」と「逃げ道の少なさ」で難しくする。
+  //   3台・10〜12列だと 最短11手前後まで伸び、勝ち筋率は最小40%まで落ちる（実測）。
+  { tag:'H1 長距離',     cols:[10,12], robots:3, sofa:1, yarn:1, fish:1, trap:1, catOnly:0, doors:0,
+    minBest:10, maxBest:16, maxGood:0.58, minStates:90 },
+  { tag:'H2 特異点',     cols:[10,12], robots:3, sofa:1, yarn:1, fish:1, trap:2, catOnly:0, doors:0,
+    minBest:10, maxBest:16, maxGood:0.56, minStates:90 },
+  { tag:'H3 スリット',   cols:[10,12], robots:3, sofa:1, yarn:1, fish:1, trap:1, catOnly:2, doors:0,
+    minBest:10, maxBest:16, maxGood:0.56, minStates:100 },
+  { tag:'H4 ゲート',     cols:[10,12], robots:3, sofa:1, yarn:1, fish:1, trap:1, catOnly:0, doors:1,
+    minBest:10, maxBest:16, maxGood:0.56, minStates:100 },
+  { tag:'H5 機雷原',     cols:[10,12], robots:3, sofa:0, yarn:3, fish:1, trap:2, catOnly:0, doors:0,
+    minBest:11, maxBest:17, maxGood:0.54, minStates:100 },
+  { tag:'H6 特異点帯',   cols:[10,12], robots:3, sofa:1, yarn:1, fish:1, trap:3, catOnly:1, doors:0,
+    minBest:11, maxBest:17, maxGood:0.54, minStates:110 },
+  { tag:'H7 迷路',       cols:[10,12], robots:3, sofa:1, yarn:1, fish:1, trap:1, catOnly:3, doors:0,
+    minBest:11, maxBest:17, maxGood:0.52, minStates:110 },
+  { tag:'H8 封鎖',       cols:[10,12], robots:3, sofa:1, yarn:2, fish:1, trap:1, catOnly:1, doors:1,
+    minBest:11, maxBest:18, maxGood:0.52, minStates:120, loose:true },
+  { tag:'H9 総力戦',     cols:[11,12], robots:3, sofa:1, yarn:2, fish:1, trap:2, catOnly:2, doors:1,
+    minBest:12, maxBest:18, maxGood:0.50, minStates:120, loose:true },
+  { tag:'H10 最終',      cols:[12,12], robots:3, sofa:1, yarn:2, fish:1, trap:2, catOnly:2, doors:1,
+    minBest:12, maxBest:20, maxGood:0.50, minStates:130, loose:true },
+];
+
+const NORMAL_WANTS = [
   // 21〜22面は新ギミックの紹介。やさしめ（手数は短め・勝ち筋率はゆるく）
   { tag:'ぬけ道・紹介',   cols:[6,8],  robots:2, sofa:1, yarn:0, fish:1, trap:0, catOnly:1, doors:0,
     minBest:6, maxBest:9, maxGood:0.72, minStates:60 },
@@ -199,6 +229,23 @@ const WANTS = [
    同じ試行回数でも、条件を通った中から良いものを選ぶほうが面がそろう。
    良い面 = 手数が長い ＆ 一手が重い（勝ち筋率が低い）＆ 考えどころが多い（状態数） */
 const score = a => a.best*1.5 + (0.70 - a.goodRate)*20 + Math.min(a.states, 600)/300;
+
+/* --hard2 … --hard で見つからなかった型（ゲート・特異点だらけ・総力戦・最終）を
+   条件をゆるめて拾い直すための組。**条件を緩めたことは採った面の実測値で分かる**ので、
+   ゆるめた事実は SESSION_LOG に残すこと。 */
+const HARD_WANTS2 = [
+  { tag:'H4 ゲート',   cols:[9,11],  robots:3, sofa:1, yarn:1, fish:1, trap:1, catOnly:0, doors:1,
+    minBest:9,  maxBest:17, maxGood:0.62, minStates:70, loose:true },
+  { tag:'H6 特異点帯', cols:[9,11],  robots:3, sofa:1, yarn:1, fish:1, trap:3, catOnly:0, doors:0,
+    minBest:9,  maxBest:17, maxGood:0.62, minStates:70 },
+  { tag:'H9 総力戦',   cols:[10,11], robots:3, sofa:1, yarn:2, fish:1, trap:2, catOnly:1, doors:1,
+    minBest:10, maxBest:18, maxGood:0.55, minStates:90, loose:true },
+  { tag:'H10 最終',    cols:[10,12], robots:3, sofa:1, yarn:2, fish:1, trap:2, catOnly:2, doors:1,
+    minBest:11, maxBest:20, maxGood:0.58, minStates:80, loose:true },
+];
+
+const WANTS = process.argv.includes('--hard2') ? HARD_WANTS2
+            : process.argv.includes('--hard')  ? HARD_WANTS : NORMAL_WANTS;
 
 const found = [];
 for (const want0 of WANTS){

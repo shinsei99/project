@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""にゃんこ大脱出の日本語フォントを取ってきて、使う文字だけに絞って同梱する。
+"""ネオンエスケープの書体を取ってきて、使う文字だけに絞って同梱する。
 
 （にゃんこアイスの tools/fetch-font.py と同じ作り。パスだけ違う）
 
@@ -36,8 +36,16 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "www" / "index.html"
 OUT_DIR = ROOT / "www" / "assets" / "fonts"
 
-FAMILY = "Zen Maru Gothic"
-WEIGHTS = ["500", "900"]          # 本文と、スコア・見出しの極太
+# ★2026-08-29: 丸ゴシック（Zen Maru Gothic）から**角ゴシック**へ替えた。
+#   世界観を「ネコの家出」から「宇宙の脱出行」に変えたので、丸い書体だと幼く見えた。
+#   ・日本語 … Zen Kaku Gothic New（SIL OFL・商用可／埋め込み可／再配布可）
+#   ・英数字 … Orbitron（SIL OFL）。HUDの数字と見出しに使う＝機械的な字面になる
+#     並び順を 'Orbitron','Zen Kaku Gothic New' にすると、
+#     英数字は Orbitron・日本語はそこに無いので Zen Kaku へ落ちる（1行で両立する）
+FAMILIES = [
+    ("Zen Kaku Gothic New", ["500", "900"], "ZenKakuGothicNew", False),
+    ("Orbitron",            ["700", "900"], "Orbitron",         True),   # True = ASCII だけ
+]
 CSS_URL = "https://fonts.googleapis.com/css2?family={fam}:wght@{w}&text={text}"
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -116,16 +124,18 @@ def main() -> None:
         return
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    quoted = urllib.parse.quote("".join(chars))
-    for weight in WEIGHTS:
-        css = fetch(CSS_URL.format(fam=FAMILY.replace(" ", "+"), w=weight, text=quoted)).decode()
-        m = re.search(r"src:\s*url\((https://[^)]+)\)", css)
-        if not m:
-            sys.exit("CSSからフォントURLを取り出せなかった（weight=%s）" % weight)
-        data = fetch(m.group(1))
-        dest = OUT_DIR / ("ZenMaruGothic-%s.woff2" % weight)
-        dest.write_bytes(data)
-        print("  %s  %.1f KB" % (dest.relative_to(ROOT), len(data) / 1024))
+    ascii_only = "".join(c for c in chars if ord(c) < 0x80)
+    for family, weights, stem, only_ascii in FAMILIES:
+        quoted = urllib.parse.quote(ascii_only if only_ascii else "".join(chars))
+        for weight in weights:
+            css = fetch(CSS_URL.format(fam=family.replace(" ", "+"), w=weight, text=quoted)).decode()
+            m = re.search(r"src:\s*url\((https://[^)]+)\)", css)
+            if not m:
+                sys.exit("CSSからフォントURLを取り出せなかった（%s weight=%s）" % (family, weight))
+            data = fetch(m.group(1))
+            dest = OUT_DIR / ("%s-%s.woff2" % (stem, weight))
+            dest.write_bytes(data)
+            print("  %s  %.1f KB" % (dest.relative_to(ROOT), len(data) / 1024))
 
     print("\n★ www/index.html の @font-face が上のファイルを指していることを確認すること")
 

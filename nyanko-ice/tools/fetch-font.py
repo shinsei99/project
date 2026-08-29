@@ -34,8 +34,12 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "www" / "index.html"
 OUT_DIR = ROOT / "www" / "assets" / "fonts"
 
-FAMILY = "Zen Maru Gothic"
-WEIGHTS = ["500", "900"]          # 本文と、スコア・見出しの極太
+# ★2026-08-29: 丸ゴシックをやめ、シリーズ共通の 角ゴシック＋Orbitron へ
+#   （型は neon-blocks/NEON_STYLE.md）。どちらも SIL OFL。
+FAMILIES = [
+    ("Zen Kaku Gothic New", ["500", "900"], "ZenKakuGothicNew", False),
+    ("Orbitron",            ["700", "900"], "Orbitron",         True),   # True = ASCII だけ
+]
 CSS_URL = "https://fonts.googleapis.com/css2?family={fam}:wght@{w}&text={text}"
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
@@ -115,15 +119,18 @@ def main() -> None:
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     quoted = urllib.parse.quote("".join(chars))
-    for weight in WEIGHTS:
-        css = fetch(CSS_URL.format(fam=FAMILY.replace(" ", "+"), w=weight, text=quoted)).decode()
-        m = re.search(r"src:\s*url\((https://[^)]+)\)", css)
-        if not m:
-            sys.exit("CSSからフォントURLを取り出せなかった（weight=%s）" % weight)
-        data = fetch(m.group(1))
-        dest = OUT_DIR / ("ZenMaruGothic-%s.woff2" % weight)
-        dest.write_bytes(data)
-        print("  %s  %.1f KB" % (dest.relative_to(ROOT), len(data) / 1024))
+    ascii_only = "".join(c for c in chars if ord(c) < 0x80)
+    for family, weights, stem, only_ascii in FAMILIES:
+        quoted2 = urllib.parse.quote(ascii_only if only_ascii else "".join(chars))
+        for weight in weights:
+            css = fetch(CSS_URL.format(fam=family.replace(" ", "+"), w=weight, text=quoted2)).decode()
+            mm = re.search(r"src:\s*url\((https://[^)]+)\)", css)
+            if not mm:
+                sys.exit("CSSからフォントURLを取り出せなかった（%s weight=%s）" % (family, weight))
+            data = fetch(mm.group(1))
+            dest = OUT_DIR / ("%s-%s.woff2" % (stem, weight))
+            dest.write_bytes(data)
+            print("  %s  %.1f KB" % (dest.relative_to(ROOT), len(data) / 1024))
 
     print("\n★ www/index.html の @font-face が上のファイルを指していることを確認すること")
 

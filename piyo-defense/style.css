@@ -2,20 +2,36 @@
    理由: Capacitor でiOSアプリにすると通信できる保証がなく、機内モードだと豆腐になる。
    字種は tools/fetch-font.py で「画面に出る文字」だけに絞ってある。
    **画面の文言を増やしたら fetch-font.py を流し直すこと。**
-   Zen Maru Gothic / SIL Open Font License 1.1（商用可・埋め込み可・再配布可） */
+   ★2026-08-29: 丸ゴシック（Zen Maru Gothic）をやめた。画面をネオンに作り替えたのに
+   書体だけ丸いままだと幼く見えたため。日本語＝Zen Kaku Gothic New（角）、
+   英数字＝Orbitron。どちらも SIL Open Font License 1.1（商用可・埋め込み可・再配布可）。 */
 @font-face {
-  font-family: 'Zen Maru Gothic';
+  font-family: 'Zen Kaku Gothic New';
   font-style: normal;
   font-weight: 500;
   font-display: block;
-  src: url('assets/fonts/ZenMaruGothic-500.woff2') format('woff2');
+  src: url('assets/fonts/ZenKakuGothicNew-500.woff2') format('woff2');
 }
 @font-face {
-  font-family: 'Zen Maru Gothic';
+  font-family: 'Zen Kaku Gothic New';
   font-style: normal;
   font-weight: 900;
   font-display: block;
-  src: url('assets/fonts/ZenMaruGothic-900.woff2') format('woff2');
+  src: url('assets/fonts/ZenKakuGothicNew-900.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url('assets/fonts/Orbitron-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Orbitron';
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url('assets/fonts/Orbitron-900.woff2') format('woff2');
 }
 
 * {

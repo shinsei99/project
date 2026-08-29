@@ -23,8 +23,11 @@ SoundManager.init();
 // （DOMに文字が無いため）。明示的に load() を呼ぶ必要がある。
 // 描画は毎フレームやり直しているので、読み終わった時点から自動で切り替わる。
 if (document.fonts && document.fonts.load) {
-  document.fonts.load('500 16px "Zen Maru Gothic"');
-  document.fonts.load('900 16px "Zen Maru Gothic"');
+  // ★canvas の ctx.font だけでは Web フォントが読み込まれない（実測）ので明示的に読む
+  document.fonts.load('500 16px "Zen Kaku Gothic New"');
+  document.fonts.load('900 16px "Zen Kaku Gothic New"');
+  document.fonts.load('700 16px "Orbitron"');
+  document.fonts.load('900 16px "Orbitron"');
 }
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -802,7 +805,7 @@ function drawBattleScr(frozenBg) {
 
   floats.forEach(function(ft){
     ctx.globalAlpha=Math.min(1,ft.life/25);
-    ctx.fillStyle=ft.color; ctx.font='bold '+ft.size+'px "Zen Maru Gothic",sans-serif'; ctx.textAlign='center';
+    ctx.fillStyle=ft.color; ctx.font='bold '+ft.size+'px Orbitron,"Zen Kaku Gothic New",sans-serif'; ctx.textAlign='center';
     ctx.strokeStyle='rgba(0,0,0,0.7)'; ctx.lineWidth=4;
     ctx.strokeText(ft.text,ft.x,ft.y); ctx.fillText(ft.text,ft.x,ft.y);
     ctx.globalAlpha=1;
@@ -882,7 +885,7 @@ function handleMenuTap(tx, ty) {
   var pulse = Math.sin(frame*0.07)*5;
   switch(gs.state) {
     case 'title':
-      if (ty>=476&&ty<=556&&tx>=72&&tx<=318) { initGame(); SoundManager.startBgm('battle'); }
+      if (ty>=490&&ty<=558&&tx>=72&&tx<=318) { initGame(); SoundManager.startBgm('battle'); }   // ★描画（496±3, 高さ52）に合わせた
       else if (ty>=556&&ty<=608&&tx>=50&&tx<=190) { gs.state='bestiary'; }
       else if (ty>=556&&ty<=608&&tx>=200&&tx<=344) { gs.state='achievements'; }
       else if (ty>=612&&ty<=666&&tx>=50&&tx<=344) { gs.state='settings'; }
