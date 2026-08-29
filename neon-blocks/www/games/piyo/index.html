@@ -14,19 +14,51 @@
   <link rel="preload" href="assets/fonts/ZenKakuGothicNew-500.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/Orbitron-900.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/Orbitron-700.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=neon11">
+  <link rel="stylesheet" href="style.css?v=neon12">
+<style>
+  /* ★2026-08-29: 音ボタンを**画面の右上**に出した（シリーズ共通の位置。neon-blocks/NEON_STYLE.md）。
+     これまでは「設定・強化ショップ」の中にしか無く、6本のうちここだけ音を切る場所が違った。
+     ★canvas の外に置く。中に描くとタワーの設置タップと当たり判定がぶつかる。 */
+  #mute{
+    position:fixed; z-index:40;
+    top:calc(8px + env(safe-area-inset-top)); right:calc(10px + env(safe-area-inset-right));
+    width:44px; height:40px; padding:0; cursor:pointer;
+    border:2px solid rgba(65,227,255,.5); border-radius:6px;
+    font-size:17px; line-height:1;
+    background:rgba(21,14,51,.92); color:#9BE9FF;
+    box-shadow:0 0 12px rgba(65,227,255,.28);
+  }
+  #mute:active{ transform:translateY(1px); }
+</style>
 </head>
 <body>
+  <button id="mute" type="button" aria-label="音のオン・オフ">🔊</button>
   <div id="container">
     <canvas id="gameCanvas"></canvas>
   </div>
-  <script src="js/save.js?v=neon11"></script>
-  <script src="js/sound.js?v=neon11"></script>
-  <script src="js/entities.js?v=neon11"></script>
-  <script src="js/upgrades.js?v=neon11"></script>
-  <script src="js/render.js?v=neon11"></script>
-  <script src="js/ui.js?v=neon11"></script>
-  <script src="game.js?v=neon11"></script>
+  <script src="js/save.js?v=neon12"></script>
+  <script src="js/sound.js?v=neon12"></script>
+  <script src="js/entities.js?v=neon12"></script>
+  <script src="js/upgrades.js?v=neon12"></script>
+  <script src="js/render.js?v=neon12"></script>
+  <script src="js/ui.js?v=neon12"></script>
+  <script src="game.js?v=neon12"></script>
+  <script>
+    // 音ボタン。BGMと効果音をまとめて切り替える（設定画面の2つのスイッチとも同期する）
+    (function(){
+      var b = document.getElementById('mute');
+      if (!b || typeof SoundManager === 'undefined') return;
+      var sync = function(){ var on = SoundManager.bgmOn || SoundManager.seOn;
+        b.textContent = on ? '🔊' : '🔇'; b.setAttribute('aria-pressed', String(!on)); };
+      sync();
+      b.addEventListener('click', function(){
+        var on = SoundManager.bgmOn || SoundManager.seOn;   // 片方でも鳴っていれば「消す」
+        if (on){ if (SoundManager.bgmOn) SoundManager.toggleBgm(); if (SoundManager.seOn) SoundManager.toggleSe(); }
+        else   { SoundManager.toggleBgm(); SoundManager.toggleSe(); }
+        sync();
+      });
+    })();
+  </script>
 <script src="../_switch.js"></script>
 </body>
 </html>

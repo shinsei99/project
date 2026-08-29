@@ -272,6 +272,11 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 
 ### ゲーム（6本）※社内LAN共有なし
 
+**★6本は「ネオンブロックス」の中に同居し、画面下の帯で行き来する。**
+色・書体・タイトル・音ボタン・音の調・画面の向きを**揃える決まりは
+`neon-blocks/NEON_STYLE.md`**（2026-08-29 制定）。どれか1本を触るときは先にそこを読むこと。
+直したら `python3 neon-blocks/tools/sync-games.py` で集合側へ入れ直す。
+
 | アプリ名 | フォルダ名 | 外部公開 |
 |---|---|---|
 | **ネオンタワー**（旧 ひよこ防衛軍） | piyo-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28。`com.shinsei99.piyodefense`・1.0/build2 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `piyo-defense/RELEASE.md`）。**2026-08-28 まで gh-pages に存在しなかった**（「GitHub Pages」は誤記だった）。`DEPLOY_FOLDERS` は **`piyo-defense:www`**（2026-08-29 に `piyo-defense` から変更。直下の控えが古く、公開ページだけ旧デザイン・旧題名のままだった）。**2026-08-29: UIをネオンに統一**（タイトル・ボタン・書体・草・HUD・ゲームオーバー。ひよこ本体は残す）。**スクショは旧デザインのまま**＝提出再開時に撮り直す |

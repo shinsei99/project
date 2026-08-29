@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""にゃんこアイスの日本語フォントを取ってきて、使う文字だけに絞って同梱する。
+"""ネオンブロックスの書体を取ってきて、使う文字だけに絞って同梱する。
+
+（ネオンエスケープの tools/fetch-font.py と同じ作り。パスだけ違う）
 
 なぜ要るか:
   ゲームの印象は書体でほぼ決まる。OS標準の sans-serif は日本語がヒラギノ／游ゴシックになり、
-  「かわいいアイス屋ゲーム」の見た目にならない。かといって日本語フォントは丸ごとだと 2〜5MB あり、
-  iOSアプリに同梱するには重すぎる。
+  「かわいいネコのゲーム」の見た目にならない。かといって日本語フォントは丸ごとだと 2〜5MB あり、
+  ゲーム1本に同梱するには重すぎる。
 
 なぜサーバ側サブセットか:
   Google Fonts の css2 API は `text=` を付けると **その文字だけを含むフォント** を返す。
@@ -34,8 +36,12 @@ ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / "www" / "index.html"
 OUT_DIR = ROOT / "www" / "assets" / "fonts"
 
-# ★2026-08-29: 丸ゴシックをやめ、シリーズ共通の 角ゴシック＋Orbitron へ
-#   （型は neon-blocks/NEON_STYLE.md）。どちらも SIL OFL。
+# ★2026-08-29: 丸ゴシック（Zen Maru Gothic）から**角ゴシック**へ替えた。
+#   世界観を「ネコの家出」から「宇宙の脱出行」に変えたので、丸い書体だと幼く見えた。
+#   ・日本語 … Zen Kaku Gothic New（SIL OFL・商用可／埋め込み可／再配布可）
+#   ・英数字 … Orbitron（SIL OFL）。HUDの数字と見出しに使う＝機械的な字面になる
+#     並び順を 'Orbitron','Zen Kaku Gothic New' にすると、
+#     英数字は Orbitron・日本語はそこに無いので Zen Kaku へ落ちる（1行で両立する）
 FAMILIES = [
     ("Zen Kaku Gothic New", ["500", "900"], "ZenKakuGothicNew", False),
     ("Orbitron",            ["700", "900"], "Orbitron",         True),   # True = ASCII だけ
@@ -118,16 +124,15 @@ def main() -> None:
         return
 
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    quoted = urllib.parse.quote("".join(chars))
     ascii_only = "".join(c for c in chars if ord(c) < 0x80)
     for family, weights, stem, only_ascii in FAMILIES:
-        quoted2 = urllib.parse.quote(ascii_only if only_ascii else "".join(chars))
+        quoted = urllib.parse.quote(ascii_only if only_ascii else "".join(chars))
         for weight in weights:
-            css = fetch(CSS_URL.format(fam=family.replace(" ", "+"), w=weight, text=quoted2)).decode()
-            mm = re.search(r"src:\s*url\((https://[^)]+)\)", css)
-            if not mm:
+            css = fetch(CSS_URL.format(fam=family.replace(" ", "+"), w=weight, text=quoted)).decode()
+            m = re.search(r"src:\s*url\((https://[^)]+)\)", css)
+            if not m:
                 sys.exit("CSSからフォントURLを取り出せなかった（%s weight=%s）" % (family, weight))
-            data = fetch(mm.group(1))
+            data = fetch(m.group(1))
             dest = OUT_DIR / ("%s-%s.woff2" % (stem, weight))
             dest.write_bytes(data)
             print("  %s  %.1f KB" % (dest.relative_to(ROOT), len(data) / 1024))

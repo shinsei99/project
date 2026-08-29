@@ -5,13 +5,27 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="NEON BLOCKS">
 <meta name="theme-color" content="#101018">
-<title>NEON BLOCKS — 100 STAGES</title>
+<title>ネオンブロックス</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%228%22 fill=%22%230a0720%22/><g fill=%22none%22 stroke-width=%223%22><rect x=%2210%22 y=%2210%22 width=%2218%22 height=%2218%22 stroke=%22%2341e3ff%22/><rect x=%2236%22 y=%2210%22 width=%2218%22 height=%2218%22 stroke=%22%23ff4fc3%22/><rect x=%2210%22 y=%2236%22 width=%2218%22 height=%2218%22 stroke=%22%23ffd54f%22/><rect x=%2236%22 y=%2236%22 width=%2218%22 height=%2218%22 stroke=%22%237cff4f%22/></g></svg>">
 <style>
+  /* 書体（どちらも SIL OFL・商用可／埋め込み可／再配布可）。使う文字だけ同梱（tools/fetch-font.py）。
+     ★2026-08-29: これまで同梱しておらず端末任せ（ヒラギノ等）だったため、
+     6本の中でここだけ字面が変わっていた。シリーズ共通の 角ゴシック＋Orbitron に揃えた。
+     ★文言を足したら tools/fetch-font.py を流し直すこと（忘れると □ になる）。 */
+  @font-face{ font-family:'Zen Kaku Gothic New'; font-style:normal; font-weight:500; font-display:block;
+    src:url('assets/fonts/ZenKakuGothicNew-500.woff2') format('woff2'); }
+  @font-face{ font-family:'Zen Kaku Gothic New'; font-style:normal; font-weight:900; font-display:block;
+    src:url('assets/fonts/ZenKakuGothicNew-900.woff2') format('woff2'); }
+  @font-face{ font-family:'Orbitron'; font-style:normal; font-weight:700; font-display:block;
+    src:url('assets/fonts/Orbitron-700.woff2') format('woff2'); }
+  @font-face{ font-family:'Orbitron'; font-style:normal; font-weight:900; font-display:block;
+    src:url('assets/fonts/Orbitron-900.woff2') format('woff2'); }
+
   :root{ --bg:#101018; --panel:rgba(255,255,255,.04); --line:rgba(255,255,255,.10); }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; height:100%;}
   body{
-    font-family:'Hiragino Kaku Gothic ProN','Segoe UI',system-ui,sans-serif;
+    font-family:Orbitron,'Zen Kaku Gothic New','Hiragino Sans','Segoe UI',system-ui,sans-serif;
     color:#e9e9f5;
     background:
       radial-gradient(1100px 640px at 15% -10%, rgba(176,38,255,.16), transparent 60%),
@@ -31,12 +45,16 @@
     mask-image:radial-gradient(circle at 50% 40%,#000,transparent 78%);
   }
 
+  /* ★2026-08-29: 音ボタン（と ? ボタン）の見た目をシリーズ共通に（NEON_STYLE.md） */
   .mute{position:fixed; top:calc(env(safe-area-inset-top) + 8px); right:12px; z-index:130;
-    width:40px; height:40px; border-radius:12px; font-size:18px; cursor:pointer;
-    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); color:#e9e9f5;}
-  .mute:hover{background:rgba(255,255,255,.13);}
+    width:44px; height:40px; border-radius:6px; font-size:17px; cursor:pointer;
+    background:rgba(21,14,51,.92); border:2px solid rgba(65,227,255,.5); color:#9BE9FF;
+    box-shadow:0 0 12px rgba(65,227,255,.28);}
+  .mute:hover{background:rgba(30,20,70,.95);}
   .mute.help{left:12px; right:auto; font-size:20px; font-weight:800;}
-  header{position:relative; z-index:2; text-align:center; padding:6px 12px 0;}
+  /* ★2026-08-29: 左右に 58px の余白。画面の角に固定した ? と 🔊（44px）の下に
+     題名と STAGE 行が潜っていた（`va.sh check` が overlapping_text 3件として検出）。 */
+  header{position:relative; z-index:2; text-align:center; padding:6px 58px 0;}
   h1{
     margin:0; font-size:clamp(18px,4.2vw,26px); font-weight:800; letter-spacing:.16em;
     background:linear-gradient(90deg,#39ff14,#00f0ff 40%,#b026ff 70%,#ff2d95);
@@ -45,8 +63,12 @@
   }
 
   .hud{position:relative; z-index:2; max-width:560px; margin:6px auto 2px; padding:0 16px;}
+  .hud-top{padding:0 44px;}   /* ★同じ理由。STAGE 行と残り時間が角のボタンに潜っていた */
   .hud-top{display:flex; align-items:baseline; justify-content:space-between; gap:12px;}
-  .stg{font-size:15px; font-weight:800; letter-spacing:.05em; flex-shrink:0;}
+  /* ★2026-08-29: flex-shrink:0 のままだと、左右に余白を入れたときに行が縮まず、
+     右端の残り時間が画面外（＝音ボタンの下）へはみ出していた。縮んでよいことにする。 */
+  .stg{font-size:15px; font-weight:800; letter-spacing:.05em; flex-shrink:1; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .stg b{color:#00f0ff; font-size:18px;}
   .stgname{font-size:13px; color:#9a9ab8; letter-spacing:.12em;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; text-align:right;}
@@ -118,13 +140,17 @@
   @keyframes sparkbad{0%,100%{filter:none;}25%,75%{filter:brightness(1.2) drop-shadow(0 0 9px #ff3b5c);}}
 
   .actionbar{position:relative; z-index:2; display:flex; gap:8px; justify-content:center; flex-wrap:wrap; max-width:400px; margin:6px auto 2px;}
+  /* ★2026-08-29: 角を落として**ネオンの縁**に（シリーズ共通。NEON_STYLE.md）。
+     .key（続きから＝主たる操作）はマゼンタ、その他はシアン。 */
   button.btn{
-    font:inherit; font-size:13px; letter-spacing:.05em; color:#e9e9f5;
-    padding:8px 13px; border-radius:11px; cursor:pointer;
-    background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); transition:.15s;
+    font:inherit; font-size:13px; font-weight:900; letter-spacing:.08em; color:#EAF6FF;
+    padding:9px 16px; border-radius:5px; cursor:pointer;
+    background:rgba(21,14,51,.92); border:2px solid rgba(65,227,255,.5);
+    box-shadow:0 0 12px rgba(65,227,255,.22); transition:.15s;
   }
-  button.btn:hover{background:rgba(255,255,255,.13); transform:translateY(-1px);}
-  button.btn.key{border-color:rgba(0,240,255,.5); box-shadow:0 0 10px rgba(0,240,255,.25);}
+  button.btn:hover{background:rgba(30,20,70,.95); transform:translateY(-1px);}
+  button.btn.key{background:rgba(255,79,195,.18); border-color:#FF4FC3;
+    box-shadow:0 0 14px rgba(255,79,195,.35); color:#fff;}
   .hint{position:relative; z-index:2; text-align:center; font-size:11px; color:#7a7a98; margin:5px 12px 14px; line-height:1.5;}
   kbd{background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.2); border-radius:5px; padding:1px 6px; font-size:11px;}
 
@@ -167,7 +193,10 @@
     box-shadow:0 0 60px rgba(0,240,255,.25); animation:rise .4s cubic-bezier(.2,1.3,.4,1);
   }
   @keyframes rise{from{transform:translateY(24px) scale(.9);opacity:0}to{transform:none;opacity:1}}
-  .card .big{font-size:clamp(26px,7vw,46px); font-weight:900; letter-spacing:.08em; margin:0 0 6px;
+  /* ★2026-08-29: シリーズ共通のラテン行（小さくマゼンタ）。日本語の題名の上に置く */
+  .card .lat{font:700 12px/1 Orbitron,'Zen Kaku Gothic New',sans-serif; letter-spacing:.34em;
+    color:#FF4FC3; text-shadow:0 0 12px rgba(255,79,195,.8); margin:0 0 10px;}
+  .card .big{font-size:clamp(24px,6.6vw,40px); font-weight:900; letter-spacing:.18em; margin:0 0 6px;
     background:linear-gradient(90deg,#39ff14,#00f0ff,#b026ff,#ff2d95);
     -webkit-background-clip:text; background-clip:text; color:transparent;
     filter:drop-shadow(0 0 20px rgba(0,240,255,.5));}
@@ -245,11 +274,13 @@
 </div></div>
 
 <div id="title"><div class="card">
-  <p class="big">NEON BLOCKS</p>
+  <!-- ★2026-08-29: 見出しをシリーズ共通の型へ（ラテン小マゼンタ＋日本語大）。NEON_STYLE.md -->
+  <p class="lat">N E O N &nbsp; B L O C K S</p>
+  <p class="big">ネオンブロックス</p>
   <div id="titleArt"></div>
   <div style="display:flex;flex-direction:column;gap:10px;align-items:center">
     <button class="btn key" id="btnResume">続きから ▶</button>
-    <button class="btn" id="btnNew">最初から ▶</button>
+    <button class="btn key" id="btnNew">最初から ▶</button>
   </div>
 </div></div>
 
@@ -272,7 +303,7 @@ const Sound=(function(){
     if(ctx)return true;
     try{ ctx=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return false; }
     master=ctx.createGain(); master.gain.value=muted?0:1; master.connect(ctx.destination);
-    bgm=ctx.createGain(); bgm.gain.value=0.22; bgm.connect(master);
+    bgm=ctx.createGain(); bgm.gain.value=0.24;   // ★シリーズ共通の音量（NEON_STYLE.md） bgm.connect(master);
     sfx=ctx.createGain(); sfx.gain.value=0.5; sfx.connect(master);
     return true;
   }
