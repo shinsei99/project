@@ -120,6 +120,27 @@ def staff_alias() -> list:
     return out
 
 
+def redact_retired(text: str) -> str:
+    """退職者の名前を、現在の担当に置き換える（2026-08-29 オーナー指示）。
+
+    **プロンプトで頼むだけでは漏れる**ので、回答の文字列そのものを最後に直す。
+
+    ★誤爆を避けるため「敬称付きのときだけ」置き換える。
+      実データを見ると、旧担当は「杉田さん」「服部さん」の形で書かれている一方、
+      同じ姓が**物件名**（`杉田ビル 片町`・24チャンク）や**別人のフルネーム**
+      （`服部雅輝`・15チャンク。オーナー/取引先）にも出てくる。
+      素朴に置換すると「松本ビル」になってしまう。
+    """
+    alias = staff_alias()
+    if not alias or not text:
+        return text
+    for old, new in alias:
+        # 「杉田さん」「杉田氏」「杉田様」「杉田君」だけを対象にする。
+        # フルネーム（杉田太郎さん）や物件名（杉田ビル）には当たらない
+        text = re.sub(rf"(?<![一-鿿]){re.escape(old)}(さん|氏|様|君|殿)", rf"{new}\1", text)
+    return text
+
+
 def _expand_terms(terms: list) -> list:
     """検索語を旧担当者名にも広げる。
 
@@ -474,9 +495,13 @@ def _effort_rule() -> str:
     alias = staff_alias()
     if alias:
         pairs = " / ".join(f"{o}さん→**{n}さん**" for o, n in alias)
-        rule = (f"  **旧担当者は次のとおり読み替えて案内する**: {pairs}\n"
-                f"  書き方は「資料（◯年時点）では◯◯さんと記載。**現在の担当は△△さん**です」。\n"
-                f"  資料の記載を消さずに、現在の担当を並べて書く（過去の記録は事実なので残す）。\n")
+        olds = "・".join(f"{o}さん" for o, _ in alias)
+        rule = (f"  **★次の人は退職済み。名前を一切出さないこと**: {olds}\n"
+                f"  資料にこの名前が出てきたら、**現在の担当に置き換えて書く**: {pairs}\n"
+                f"  「資料では◯◯さんと記載」のような**併記もしない**（退職者なので出す意味がない）。\n"
+                f"  ★**物件名はそのまま使う**。『杉田ビル 片町』は**建物の名前**であって人ではない。\n"
+                f"  ★**別人のフルネームも置き換えない**（『服部雅輝』はオーナー/取引先の方）。\n"
+                f"  置き換えるのは『◯◯さん』のように**敬称が付いた社員の呼び方だけ**。\n")
     else:
         rule = ("  書くなら「**資料（◯年時点）では◯◯さんと記載**。"
                 "現在の担当は確認してください」の形にする。\n")
@@ -837,6 +862,9 @@ def answer(question: str, room_id=None, asker=None, channel="chatwork",
         claude_health.note_success()   # 通ったので、詰まりフラグが残っていれば解除
     _check_workspace_untouched(snapshot, question, room_id)
     text, dropped = strip_english_preamble(text)
+    # ★退職者の名前を最後に落とす（2026-08-29）。プロンプトで頼むだけでは漏れるため。
+    #   物件名（杉田ビル）と別人のフルネーム（服部雅輝）には当たらない実装。
+    text = redact_retired(text)
     if dropped:
         # 何を落としたかは残す（過剰に消していないか後から検証できるように）
         _log(room_id, f"[前置き除去] {question}", "落とした行: " + " / ".join(dropped), None, [])
