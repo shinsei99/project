@@ -502,3 +502,8 @@ mail-archiver/static/att/
 # 本のPDFそのものは Dropbox にあり、ここには入れない（著作物・容量）。
 !bookshelf/
 !bookshelf/**
+
+# chatwork-ai-manager の DB は data/app.db が本物。db/app.db は0バイトの残骸で、
+# 2026-08-29 に `git add -A -- db` で誤って追跡してしまった。DBはgitに入れない
+chatwork-ai-manager/db/*.db
+chatwork-ai-manager/data/*.db
