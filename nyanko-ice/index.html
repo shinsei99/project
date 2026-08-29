@@ -4,23 +4,25 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>ネオンアイス</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%228%22 fill=%22%230a0720%22/><circle cx=%2232%22 cy=%2220%22 r=%229%22 fill=%22none%22 stroke=%22%23ff4fc3%22 stroke-width=%223%22/><circle cx=%2224%22 cy=%2229%22 r=%229%22 fill=%22none%22 stroke=%22%23ffd54f%22 stroke-width=%223%22/><circle cx=%2240%22 cy=%2229%22 r=%229%22 fill=%22none%22 stroke=%22%2341e3ff%22 stroke-width=%223%22/><path d=%22M18 38 L46 38 L32 58 Z%22 fill=%22none%22 stroke=%22%2341e3ff%22 stroke-width=%223%22 stroke-linejoin=%22round%22/></svg>">
 <style>
-  /* 日本語フォント: Zen Maru Gothic（Google Fonts・SIL OFL 1.1／商用可・埋め込み可・再配布可）
-     使う文字だけに絞って同梱している。文言を変えたら tools/fetch-font.py を流し直すこと。 */
+  /* ★2026-08-29: 丸ゴシックをやめ、シリーズ共通の 角ゴシック＋Orbitron に。
+     どちらも SIL OFL・使う文字だけ同梱（tools/fetch-font.py）。型は neon-blocks/NEON_STYLE.md */
   @font-face{
-    font-family:'Zen Maru Gothic'; font-style:normal; font-weight:500; font-display:block;
-    src:url('assets/fonts/ZenMaruGothic-500.woff2') format('woff2');
+    font-family:'Zen Kaku Gothic New'; font-style:normal; font-weight:500; font-display:block;
+    src:url('assets/fonts/ZenKakuGothicNew-500.woff2') format('woff2');
   }
   @font-face{
-    font-family:'Zen Maru Gothic'; font-style:normal; font-weight:900; font-display:block;
-    src:url('assets/fonts/ZenMaruGothic-900.woff2') format('woff2');
+    font-family:'Zen Kaku Gothic New'; font-style:normal; font-weight:900; font-display:block;
+    src:url('assets/fonts/ZenKakuGothicNew-900.woff2') format('woff2');
   }
-  :root{
-    --cream:#FFF6E6;
-    --wood:#B07B4E;
-    --berry:#FF6F91;
-    --mint:#5FD3C0;
-    --cocoa:#6B4A32;
+  @font-face{
+    font-family:'Orbitron'; font-style:normal; font-weight:700; font-display:block;
+    src:url('assets/fonts/Orbitron-700.woff2') format('woff2');
+  }
+  @font-face{
+    font-family:'Orbitron'; font-style:normal; font-weight:900; font-display:block;
+    src:url('assets/fonts/Orbitron-900.woff2') format('woff2');
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ margin:0; padding:0; height:100%; }
@@ -28,7 +30,7 @@
     background:radial-gradient(circle at 50% 12%, #241247 0%, #120B26 60%, #08050F 100%);
     display:flex; align-items:center; justify-content:center;
     min-height:100%;
-    font-family:'Zen Maru Gothic',"Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;
+    font-family:Orbitron,'Zen Kaku Gothic New',"Hiragino Sans",system-ui,sans-serif;
     font-weight:500;
     overflow:hidden;
   }
@@ -64,15 +66,51 @@
     overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
     box-shadow:0 0 10px rgba(65,227,255,.35);
   }
+  /* ★2026-08-29: 音ボタンを**画面の右上**へ（シリーズ共通の位置。NEON_STYLE.md）。
+     下の帯に置いていたが、6本のうちここだけ右下で、切り替えたときに迷子になっていた。 */
   #mute{
-    flex:none; width:34px; height:34px; border:none; cursor:pointer;
-    border-radius:50%; font-size:16px; line-height:1;
+    position:fixed; z-index:40;
+    top:calc(8px + env(safe-area-inset-top)); right:calc(10px + env(safe-area-inset-right));
+    width:44px; height:40px; padding:0; cursor:pointer;
+    border:2px solid rgba(65,227,255,.5); border-radius:6px;
+    font-size:17px; line-height:1;
     background:rgba(21,14,51,.92); color:#9BE9FF;
-    box-shadow:0 0 10px rgba(65,227,255,.35);
+    box-shadow:0 0 12px rgba(65,227,255,.28);
   }
   #mute:active{ transform:translateY(1px); }
   /* 2026-08-28: 広告（バナー／全画面／リワード）は全部外した。オーナー判断で広告なしで配信する。
      戻すときは git 履歴の 942174fe 以前を見ること（AdMob の呼び出しごと消してある）。 */
+
+  /* ★2026-08-29: タイトル画面を新設（シリーズ共通の入口。NEON_STYLE.md）。
+     これまでは開いた瞬間にゲームが始まっていて、6本のうちここだけ入口が無かった。
+     ★「開いたらすぐ積める」良さは残す: STARTは1回押すだけで、次からも同じ位置。 */
+  #titleScreen{
+    position:fixed; inset:0; z-index:60; display:flex;
+    align-items:center; justify-content:center; padding:16px;
+    background:rgba(4,2,12,.72); backdrop-filter:blur(3px);
+  }
+  #titleScreen.hide{ display:none; }
+  #titleCard{
+    background:#120c28; border:2px solid rgba(65,227,255,.5); border-radius:8px;
+    padding:22px 18px; text-align:center; max-width:400px; width:100%;
+    box-shadow:0 0 26px rgba(65,227,255,.25);
+  }
+  #titleCard .lat{
+    font:700 12px/1 Orbitron,'Zen Kaku Gothic New',sans-serif; letter-spacing:.34em;
+    color:#FF4FC3; text-shadow:0 0 12px rgba(255,79,195,.8);
+  }
+  #titleCard h1{
+    margin:10px 0 6px; font-weight:900; font-size:clamp(24px,6.6vw,36px); letter-spacing:.18em;
+    color:#fff; text-shadow:0 0 12px #41e3ff, 0 0 30px rgba(255,79,195,.5);
+  }
+  #titleCard p{ margin:0 0 16px; font-size:13px; line-height:1.7; color:#9BE9FF; }
+  #titleCard button{
+    font-family:inherit; font-weight:900; font-size:15px; letter-spacing:.08em; cursor:pointer;
+    width:min(280px,100%); padding:11px 20px; border-radius:5px;
+    background:rgba(255,79,195,.18); color:#fff; border:2px solid #FF4FC3;
+    box-shadow:0 0 14px rgba(255,79,195,.35);
+  }
+  #titleCard button:active{ transform:translate(1px,2px); }
 </style>
 </head>
 <body>
@@ -88,6 +126,14 @@
   </div>
 </div>
 
+<div id="titleScreen">
+  <div id="titleCard">
+    <div class="lat">N E O N &nbsp; I C E</div>
+    <h1>ネオンアイス</h1>
+    <p>同じ味を3つ重ねて、注文をさばこう。<br>コーンをタップ → 移動先をタップ</p>
+    <button id="playBtn" type="button">START</button>
+  </div>
+</div>
 <script>
 "use strict";
 (function(){
@@ -117,8 +163,8 @@ const SIGN_H   = 112;
 const CASE_TOP = 344;
 const CASE_BOT = 706;
 
-// 書体（Zen Maru Gothic・SIL OFL）。読み込めない環境でも豆腐にならないよう既定を並べる
-const FF = '"Zen Maru Gothic","Hiragino Maru Gothic ProN","Hiragino Sans",sans-serif';
+// 書体（Orbitron＋Zen Kaku Gothic New・どちらも SIL OFL）。読み込めない環境でも豆腐にならないよう既定を並べる
+const FF = 'Orbitron,"Zen Kaku Gothic New","Hiragino Sans",sans-serif';
 const F  = (px, w) => (w || 900) + ' ' + px + 'px ' + FF;
 
 // 縁取り文字（明るい背景の上でも読めるように）
@@ -315,7 +361,7 @@ function initAudio(){
   masterGain = audio.createGain(); masterGain.gain.value = soundOn ? 1 : 0;
   masterGain.connect(audio.destination);
   sfxGain = audio.createGain(); sfxGain.gain.value = 0.9;  sfxGain.connect(masterGain);
-  musGain = audio.createGain(); musGain.gain.value = 0.30; musGain.connect(masterGain);
+  musGain = audio.createGain(); musGain.gain.value = 0.26;   // ★シリーズ共通の音量（NEON_STYLE.md） musGain.connect(masterGain);
   if (USE_FILES) loadSfxFiles();
   startMusic();
 }
@@ -393,7 +439,7 @@ function startMusic(){
 // 先読みして予約する方式。setInterval で直接鳴らすとタイミングがぶれる
 function musicTick(){
   if (!audio) return;
-  if (musGain) musGain.gain.setTargetAtTime(0.30, audio.currentTime, 0.05);
+  if (musGain) musGain.gain.setTargetAtTime(0.26, audio.currentTime, 0.05);
   const eighth = 60/MUSIC.bpm/2;
   if (MUSIC.next < audio.currentTime) MUSIC.next = audio.currentTime + 0.05;  // 復帰時の一気鳴り防止
   while (MUSIC.next < audio.currentTime + 0.3){
@@ -1408,8 +1454,10 @@ function frame(t){
 // 明示的に load しないと最初の数フレームだけ既定書体で描かれてガタつく。
 if (document.fonts && document.fonts.load){
   Promise.all([
-    document.fonts.load('900 31px "Zen Maru Gothic"'),
-    document.fonts.load('500 13px "Zen Maru Gothic"'),
+    document.fonts.load('900 31px "Zen Kaku Gothic New"'),
+    document.fonts.load('500 13px "Zen Kaku Gothic New"'),
+    document.fonts.load('900 31px "Orbitron"'),
+    document.fonts.load('700 13px "Orbitron"'),
   ]).catch(()=>{});
 }
 
@@ -1423,6 +1471,16 @@ if (muteBtn){
 
 boot();
 requestAnimationFrame(frame);
+
+// タイトルの START。ここで初めて音を起こす（iOSは操作なしでは鳴らせない）
+const titleScreen = document.getElementById('titleScreen');
+const playBtn = document.getElementById('playBtn');
+if (playBtn){
+  playBtn.addEventListener('click', ()=>{
+    initAudio();
+    titleScreen.classList.add('hide');
+  });
+}
 
 })();
 </script>
