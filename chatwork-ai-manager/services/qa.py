@@ -99,6 +99,18 @@ def kinds_from_question(question: str):
     return kinds
 
 
+def _with_year(d: dict) -> dict:
+    """元ファイルの更新年を足す。**いつの資料かを回答に出すため**（_chunk_header 参照）"""
+    mt = d.get("source_mtime")
+    if mt:
+        try:
+            import datetime
+            d["mtime_year"] = datetime.datetime.fromtimestamp(float(mt)).year
+        except Exception:
+            pass
+    return d
+
+
 def _kind_clause(kinds):
     """d.source_kind の絞り込み SQL 断片と引数を返す。kinds=None なら自社書類のみ。"""
     if not kinds:
@@ -126,6 +138,24 @@ def search(question: str, top_k: int = TOP_K, kinds=None, widen: bool = True):
     """
     if kinds is None:
         kinds = kinds_from_question(question)
+
+    # ★種別ごとに枠を確保して混ぜる（2026-08-29）。
+    #   まとめて1回で引くと、自社書類が上位を全部埋めて**法令や判例が押し出される**。
+    #   実際「解約〜原状回復の手順」で、棚判定は法令を選んでいたのに、渡った12件は
+    #   全部が自社書類だった。種別ごとに引いてから混ぜれば必ず届く。
+    if len(kinds) > 1:
+        rows, seen = [], set()
+        extra = [k for k in kinds if k != KIND_OWN]
+        share = max(2, top_k // (len(extra) + 2))     # 自社に厚め、他は最低2件
+        for k in extra:
+            for r in _search_once(question, share, [k]):
+                if r["id"] not in seen:
+                    seen.add(r["id"]); rows.append(r)
+        for r in _search_once(question, top_k - len(rows), [KIND_OWN]):
+            if r["id"] not in seen:
+                seen.add(r["id"]); rows.append(r)
+        return rows[:top_k]
+
     rows = _search_once(question, top_k, kinds)
     # ★件数ではなく「FTSで強く当たった数」で判定する（2026-08-29）。
     #   LIKE のフォールバックは「全ファイル一覧」のような弱い一致でも top_k を埋めるので、
@@ -149,7 +179,7 @@ def _search_once(question: str, top_k: int, kinds):
         try:
             rows = query(
                 "SELECT c.id, c.text, c.source_ref, d.title, d.category, "
-                "  d.source_kind, d.pub_date, d.use_scope, "
+                "  d.source_kind, d.pub_date, d.use_scope, d.source_mtime, "
                 "  bm25(knowledge_fts) AS score "
                 "FROM knowledge_fts "
                 "JOIN knowledge_chunks c ON c.id = knowledge_fts.rowid "
@@ -159,7 +189,7 @@ def _search_once(question: str, top_k: int, kinds):
                 tuple([match_expr] + kargs + [top_k]),
             )
             for r in rows:
-                d = dict(r); d["_via"] = "fts"      # 強く当たった印（広げる判定に使う）
+                d = _with_year(dict(r)); d["_via"] = "fts"   # 強く当たった印（広げる判定に使う）
                 results[r["id"]] = d
         except Exception:
             pass  # FTS 構文エラー等は LIKE に委ねる
@@ -171,12 +201,12 @@ def _search_once(question: str, top_k: int, kinds):
                 break
             for r in query(
                 "SELECT c.id, c.text, c.source_ref, d.title, d.category, "
-                "  d.source_kind, d.pub_date, d.use_scope "
+                "  d.source_kind, d.pub_date, d.use_scope, d.source_mtime "
                 "FROM knowledge_chunks c JOIN knowledge_documents d ON d.id=c.doc_id "
                 "WHERE d.active=1 AND c.text LIKE ? " + kc + "LIMIT ?",
                 tuple([f"%{t}%"] + kargs + [top_k]),
             ):
-                results.setdefault(r["id"], dict(r, _via="like"))
+                results.setdefault(r["id"], _with_year(dict(r, _via="like")))
 
     # 文書名/ファイル名でもヒットさせる（「○○のマニュアルどこ？」対応）
     if len(results) < top_k:
@@ -185,13 +215,13 @@ def _search_once(question: str, top_k: int, kinds):
                 break
             for r in query(
                 "SELECT c.id, c.text, c.source_ref, d.title, d.category, "
-                "  d.source_kind, d.pub_date, d.use_scope "
+                "  d.source_kind, d.pub_date, d.use_scope, d.source_mtime "
                 "FROM knowledge_documents d JOIN knowledge_chunks c ON c.doc_id=d.id "
                 "WHERE d.active=1 AND (d.title LIKE ? OR d.filename LIKE ?) AND c.ord=1 " + kc +
                 "LIMIT 3",
                 tuple([f"%{t}%", f"%{t}%"] + kargs),
             ):
-                results.setdefault(r["id"], dict(r, _via="like"))
+                results.setdefault(r["id"], _with_year(dict(r, _via="like")))
 
     return list(results.values())[:top_k]
 
@@ -356,12 +386,21 @@ def _coverage_rule() -> str:
 
 
 def _chunk_header(c) -> str:
-    """資料1件の見出し。**本は発行年と用途を必ず添える**（古い本の法令記述を信じないため）"""
+    """資料1件の見出し。**いつの資料かを必ず添える**。
+
+    本だけでなく**自社書類にも日付を出す**（2026-08-29）。
+    実害があった: 各ビルのマニュアルに書かれた担当者名（すでに在籍していない人）を、
+    AIが「現在の担当」として断定して答えた。ファイルの更新日は新しく見えても、
+    それはコピー・移動の日付で**中身の鮮度ではない**。
+    日付が見えれば「◯年時点の記載です」と言えるし、人も気づける。
+    """
     kind = c.get("source_kind") or "自社書類"
     head = f"【{kind}: {c.get('title')}（{c.get('category')}） / 出典: {c.get('source_ref')}】"
     pub = (c.get("pub_date") or "")[:4]
     if pub:
         head += f"\n（発行 {pub}年）"
+    elif c.get("mtime_year"):
+        head += f"\n（この資料の更新: {c['mtime_year']}年 ※中身はそれより古いことがある）"
     if c.get("use_scope") == "concept":
         head += " ★この資料は古いので【考え方】だけ使うこと。法律・税率・要件・期限は引かない"
     elif c.get("use_scope") == "case":
@@ -381,7 +420,14 @@ _EFFORT_RULE = """- **「分かりません」で終わらせない。** 次の�
        `curl -s "https://kokkai.ndl.go.jp/api/speech?any=<語>&recordPacking=json&maximumRecords=3"`
   - それでも確証が持てないときは「**ここまで調べたが確認できなかった。次はこれを見るとよい**」と
     **調べた範囲と次の一手**を書く。ただ「分かりません」とだけ返さない。
-- **本と法令が食い違ったら法令が正**。本は発行年を必ず添えて「◯年の本なので考え方として」と断る。"""
+- **本と法令が食い違ったら法令が正**。本は発行年を必ず添えて「◯年の本なので考え方として」と断る。
+- **資料に書かれた「担当者名」を、現在の担当として断定しない。**
+  マニュアルの人名は書かれた当時のもので、退職・異動で変わる。実例（2026-08-29）:
+  マニュアルの担当者を「立会い担当は◯◯さん」と答えたが、その人は直近90日の
+  やり取りに一度も出てこなかった。
+  書くなら「**資料（◯年時点）では◯◯さんと記載**。現在の担当は確認してください」の形にする。
+  同じ理由で、資料に出てくる**様式ファイル名・帳票名も「◯年時点の名称」**として扱う。
+- 資料の見出しにある年（発行 / この資料の更新）を見て、**古ければその旨を必ず添える**。"""
 
 
 def build_prompt(question, chunks, room_id=None):
