@@ -5,38 +5,52 @@
 <!-- ★viewport-fit=cover が無いと env(safe-area-inset-*) が 0 のままで、
      iOSアプリのときヘッダーが Dynamic Island の下に潜る（シミュレータで確認） -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<meta name="theme-color" content="#e3c79b">
+<meta name="theme-color" content="#0a0720">
 <title>ネオンエスケープ</title>
 <!-- タブのアイコン。外部ファイルにすると 404 が Console に残り、
      本物のエラーが埋もれるので data URI で埋め込んでいる -->
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2214%22 fill=%22%23f3e3c4%22/><path d=%22M12 27 L15 8 L30 18 Z%22 fill=%22%23fdf3e2%22 stroke=%22%233a2e26%22 stroke-width=%224%22 stroke-linejoin=%22round%22/><path d=%22M52 27 L49 8 L34 18 Z%22 fill=%22%23fdf3e2%22 stroke=%22%233a2e26%22 stroke-width=%224%22 stroke-linejoin=%22round%22/><path d=%22M16 23 L18 13 L25 19 Z%22 fill=%22%23f0a9a0%22/><path d=%22M48 23 L46 13 L39 19 Z%22 fill=%22%23f0a9a0%22/><ellipse cx=%2232%22 cy=%2237%22 rx=%2223%22 ry=%2220%22 fill=%22%23fdf3e2%22 stroke=%22%233a2e26%22 stroke-width=%224%22/><path d=%22M22 19 q10 3 12 12 q-9 5 -16 -1 z%22 fill=%22%23e8a33d%22/><ellipse cx=%2224%22 cy=%2235%22 rx=%223.6%22 ry=%224.4%22 fill=%22%233a2e26%22/><ellipse cx=%2241%22 cy=%2235%22 rx=%223.6%22 ry=%224.4%22 fill=%22%233a2e26%22/><circle cx=%2225.2%22 cy=%2233.4%22 r=%221.3%22 fill=%22%23fff%22/><circle cx=%2242.2%22 cy=%2233.4%22 r=%221.3%22 fill=%22%23fff%22/><path d=%22M29 43 h6 l-3 3.4 z%22 fill=%22%23e58a86%22/><path d=%22M32 46.4 q-3.4 3.4 -6.6 1 M32 46.4 q3.4 3.4 6.6 1%22 stroke=%22%233a2e26%22 stroke-width=%222.4%22 fill=%22none%22 stroke-linecap=%22round%22/><path d=%22M6 34 l11 2 M6 43 l11 -1 M58 34 l-11 2 M58 43 l-11 -1%22 stroke=%22%233a2e26%22 stroke-width=%222.4%22 stroke-linecap=%22round%22/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%228%22 fill=%22%230a0720%22/><g fill=%22none%22 stroke=%22%2341e3ff%22 stroke-width=%223%22><rect x=%2227%22 y=%2211%22 width=%2210%22 height=%2210%22/><rect x=%2217%22 y=%2221%22 width=%2210%22 height=%2210%22/><rect x=%2227%22 y=%2221%22 width=%2210%22 height=%2210%22/><rect x=%2237%22 y=%2221%22 width=%2210%22 height=%2210%22/><rect x=%227%22 y=%2231%22 width=%2210%22 height=%2210%22/><rect x=%2217%22 y=%2231%22 width=%2210%22 height=%2210%22/><rect x=%2227%22 y=%2231%22 width=%2210%22 height=%2210%22/><rect x=%2237%22 y=%2231%22 width=%2210%22 height=%2210%22/><rect x=%2247%22 y=%2231%22 width=%2210%22 height=%2210%22/><rect x=%2217%22 y=%2241%22 width=%2210%22 height=%2210%22/><rect x=%2237%22 y=%2241%22 width=%2210%22 height=%2210%22/></g><circle cx=%2232%22 cy=%2226%22 r=%223.4%22 fill=%22%23ff4fc3%22/><path d=%22M22 52 l0 7 M42 52 l0 7%22 stroke=%22%2341e3ff%22 stroke-width=%224%22 stroke-linecap=%22round%22/></svg>">
 <style>
-  /* 書体は Zen Maru Gothic（SIL OFL・商用可／埋め込み可／再配布可）。
+  /* 書体（どちらも SIL OFL・商用可／埋め込み可／再配布可）。
      画面に出る文字だけに絞って同梱してある（tools/fetch-font.py）。
-     ★文言を足したら必ず流し直すこと。忘れると増やした字が □ になる。 */
+     ★文言を足したら必ず流し直すこと。忘れると増やした字が □ になる。
+     ★2026-08-29: 丸ゴシック（Zen Maru Gothic）をやめた。世界観を宇宙の脱出行に変えたのに、
+       丸い書体のままだと幼く見えたため。日本語＝Zen Kaku Gothic New（角ゴシック）、
+       英数字＝Orbitron（機械的な字面。HUDの数字が締まる）。 */
   @font-face{
-    font-family:'Zen Maru Gothic'; font-style:normal; font-weight:500;
-    src:url('assets/fonts/ZenMaruGothic-500.woff2') format('woff2'); font-display:swap;
+    font-family:'Zen Kaku Gothic New'; font-style:normal; font-weight:500;
+    src:url('assets/fonts/ZenKakuGothicNew-500.woff2') format('woff2'); font-display:swap;
   }
   @font-face{
-    font-family:'Zen Maru Gothic'; font-style:normal; font-weight:900;
-    src:url('assets/fonts/ZenMaruGothic-900.woff2') format('woff2'); font-display:swap;
+    font-family:'Zen Kaku Gothic New'; font-style:normal; font-weight:900;
+    src:url('assets/fonts/ZenKakuGothicNew-900.woff2') format('woff2'); font-display:swap;
+  }
+  @font-face{
+    font-family:'Orbitron'; font-style:normal; font-weight:700;
+    src:url('assets/fonts/Orbitron-700.woff2') format('woff2'); font-display:swap;
+  }
+  @font-face{
+    font-family:'Orbitron'; font-style:normal; font-weight:900;
+    src:url('assets/fonts/Orbitron-900.woff2') format('woff2'); font-display:swap;
   }
 
   :root{
-    --ink:#3a2e26; --paper:#fffdf5; --wall1:#f0e3cd; --wall2:#e6d4b6;
-    --accent:#c85a3a; --accent2:#5a8f6b; --gold:#e0a83c;
+    /* ★2026-08-29: ネオンの世界へ（ネオンブロックスと同じ夜の配色）。
+       ★ねこは手描きの暖色のまま＝生き物は変えず、光らせるのは床・道・道具のほう */
+    --ink:#0a0720; --paper:#150e33; --wall1:#241247; --wall2:#120b26;
+    --accent:#ff4fc3; --accent2:#41e3ff; --gold:#ffd54f; --text:#eaf6ff;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;height:100%;}
   body{
-    font-family:'Zen Maru Gothic',"Hiragino Maru Gothic ProN","Hiragino Sans","Yu Gothic",sans-serif;
-    font-weight:500; color:var(--ink);
-    /* ページの地は「部屋のかべ」。腰壁の線を1本入れるだけで室内に見える */
+    /* 英数字は Orbitron → 日本語はそこに無いので Zen Kaku へ落ちる */
+    font-family:'Orbitron','Zen Kaku Gothic New',"Hiragino Sans","Yu Gothic",sans-serif;
+    font-weight:500; color:var(--text);
+    /* ページの地は「夜の部屋」。うすいネオンの方眼を敷いて、上から光が落ちてくるように */
     background:
-      linear-gradient(180deg, rgba(0,0,0,0) 0 62%, rgba(120,90,60,.10) 62% 63%, rgba(0,0,0,0) 63%),
-      repeating-linear-gradient(90deg, transparent 0 46px, rgba(120,90,60,.045) 46px 48px),
-      linear-gradient(170deg,var(--wall1),var(--wall2));
+      repeating-linear-gradient(0deg, rgba(65,227,255,.045) 0 1px, transparent 1px 48px),
+      repeating-linear-gradient(90deg, rgba(65,227,255,.045) 0 1px, transparent 1px 48px),
+      radial-gradient(circle at 50% -10%, #2a1b5e 0%, #150e33 46%, #08050f 100%);
     background-attachment:fixed;
     min-height:100%;
     display:flex;flex-direction:column;align-items:center;
@@ -46,14 +60,16 @@
             calc(26px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
   }
 
-  .wrap{width:100%;max-width:760px;display:flex;flex-direction:column;align-items:center;}
+  /* ★盤が縦長（2:3）なので、横幅で決めると PC では画面より高くなってスクロールが要る。
+     画面の高さからも上限をかけて、1画面に収まるようにする（実測: 1440×900 で はみ出していた） */
+  .wrap{width:100%;max-width:min(760px, 50vh);display:flex;flex-direction:column;align-items:center;}
 
   .topbar{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;}
-  .logo{font-weight:900;font-size:clamp(17px,4.4vw,24px);letter-spacing:.04em;
-    text-shadow:2px 2px 0 #fff;display:flex;align-items:center;gap:7px;}
+  .logo{font-weight:900;font-size:clamp(16px,4.2vw,23px);letter-spacing:.16em;color:#fff;
+    text-shadow:0 0 10px #41e3ff,0 0 24px rgba(65,227,255,.55);display:flex;align-items:center;gap:7px;}
   .iconc{display:block;image-rendering:auto;}
   .iconbtn{
-    background:var(--paper);border:3px solid var(--ink);border-radius:12px;
+    background:rgba(21,14,51,.9);border:2px solid rgba(65,227,255,.5);border-radius:6px;
     width:42px;height:38px;font-size:16px;line-height:1;padding:0;
     box-shadow:2px 3px 0 rgba(0,0,0,.25);
   }
@@ -63,9 +79,9 @@
     margin:6px 0 5px;flex-wrap:wrap;
   }
   .badge{
-    background:var(--paper);border:3px solid var(--ink);border-radius:13px;
-    padding:4px 11px;font-weight:900;font-size:13px;
-    box-shadow:2px 3px 0 rgba(0,0,0,.22);
+    background:rgba(21,14,51,.9);border:1.5px solid rgba(65,227,255,.45);border-radius:4px;
+    padding:4px 11px;font-weight:700;font-size:12.5px;letter-spacing:.06em;color:var(--text);
+    box-shadow:0 0 10px rgba(65,227,255,.22);
     display:flex;align-items:center;gap:5px;white-space:nowrap;
   }
   .badge.turn-cat{color:var(--accent2);} .badge.turn-robot{color:var(--accent);}
@@ -73,18 +89,18 @@
 
   .board-wrap{
     width:100%;position:relative;
-    background:var(--paper);
-    border:5px solid var(--ink);border-radius:22px;
-    box-shadow:5px 7px 0 rgba(0,0,0,.28);
+    background:#0b0720;
+    border:2px solid rgba(65,227,255,.5);border-radius:8px;
+    box-shadow:0 0 22px rgba(65,227,255,.2), inset 0 0 26px rgba(65,227,255,.06);
     padding:9px;
   }
-  canvas#board{display:block;width:100%;aspect-ratio:3/2;border-radius:14px;touch-action:manipulation;}
+  canvas#board{display:block;width:100%;aspect-ratio:2/3;border-radius:4px;touch-action:manipulation;}
 
   /* ステージ名のカットイン（読み込み直後に一度だけ流れる） */
   .cutin{
     position:absolute;left:0;right:0;top:44%;pointer-events:none;text-align:center;
     font-weight:900;font-size:clamp(20px,5.4vw,32px);color:#fff;opacity:0;
-    text-shadow:0 3px 0 rgba(58,46,38,.9),0 0 18px rgba(58,46,38,.6);
+    letter-spacing:.12em;text-shadow:0 0 14px #41e3ff,0 0 34px rgba(255,79,195,.6);
   }
   .cutin.play{animation:cut 1.5s ease-out;}
   @keyframes cut{
@@ -96,21 +112,22 @@
 
   .msg{
     width:100%;min-height:24px;margin-top:8px;text-align:center;
-    font-weight:900;font-size:15px;line-height:1.35;
+    font-weight:500;font-size:14px;line-height:1.4;letter-spacing:.04em;
   }
   .controls{margin-top:8px;display:flex;gap:9px;flex-wrap:wrap;justify-content:center;}
   button{
     font-family:inherit;font-weight:900;font-size:15px;cursor:pointer;
-    background:var(--accent);color:#fff;border:3px solid var(--ink);
-    border-radius:14px;padding:9px 18px;box-shadow:2px 3px 0 rgba(0,0,0,.3);
+    background:rgba(255,79,195,.18);color:#fff;border:2px solid var(--accent);
+    border-radius:5px;padding:10px 20px;letter-spacing:.08em;box-shadow:0 0 14px rgba(255,79,195,.35);
   }
-  button.ghost{background:var(--paper);color:var(--ink);}
+  button.ghost{background:rgba(21,14,51,.9);color:var(--text);
+    border-color:rgba(65,227,255,.5);box-shadow:0 0 12px rgba(65,227,255,.22);}
   button:active{transform:translate(1px,2px);box-shadow:1px 1px 0 rgba(0,0,0,.3);}
   button:disabled{opacity:.45;cursor:default;}
 
   .legend{
-    width:100%;margin-top:13px;background:var(--paper);
-    border:3px dashed var(--ink);border-radius:14px;padding:8px 12px;font-size:13px;
+    width:100%;margin-top:13px;background:rgba(12,8,32,.8);
+    border:1.5px solid rgba(65,227,255,.28);border-radius:6px;padding:8px 12px;font-size:12.5px;
   }
   .legend summary{font-weight:900;cursor:pointer;list-style:none;}
   .legend summary::-webkit-details-marker{display:none;}
@@ -127,30 +144,31 @@
   .screen{
     position:fixed;inset:0;z-index:60;display:none;
     align-items:center;justify-content:center;padding:16px;
-    background:rgba(58,46,38,.62);backdrop-filter:blur(2px);
+    background:rgba(4,2,12,.72);backdrop-filter:blur(3px);
   }
   .screen.show{display:flex;}
   .card{
-    background:var(--paper);border:5px solid var(--ink);border-radius:24px;
+    background:#120c28;border:2px solid rgba(65,227,255,.5);border-radius:8px;color:var(--text);
     padding:20px 18px;text-align:center;max-width:440px;width:100%;
-    box-shadow:6px 8px 0 rgba(0,0,0,.35);animation:pop .28s;
+    box-shadow:0 0 26px rgba(65,227,255,.25);animation:pop .28s;
     max-height:92vh;overflow:auto;
   }
   @keyframes pop{0%{transform:scale(.72);opacity:0}100%{transform:scale(1);opacity:1}}
-  .card h2{margin:6px 0 4px;font-size:23px;font-weight:900;}
+  .card h2{margin:6px 0 4px;font-size:22px;font-weight:900;letter-spacing:.10em;}
   .card p{margin:6px 0 14px;font-size:14.5px;line-height:1.6;}
   .card .btns{display:flex;flex-direction:column;gap:9px;align-items:center;}
   .card .btns button{width:min(280px,100%);}
-  .titlelogo{font-weight:900;font-size:clamp(26px,7.2vw,38px);letter-spacing:.03em;margin:2px 0 0;
-    color:var(--ink);text-shadow:3px 3px 0 var(--gold);}
+  .titlelogo{font-weight:900;font-size:clamp(24px,6.6vw,36px);letter-spacing:.18em;margin:2px 0 0;
+    color:#fff;text-shadow:0 0 12px #41e3ff,0 0 30px rgba(255,79,195,.5);}
   .titlesub{font-size:13px;opacity:.75;margin:4px 0 6px;}
 
   .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:6px 0 14px;}
   .grid button{
-    padding:7px 0;font-size:15px;border-radius:12px;background:var(--paper);color:var(--ink);
-    box-shadow:2px 2px 0 rgba(0,0,0,.25);display:flex;flex-direction:column;align-items:center;gap:1px;
+    padding:7px 0;font-size:15px;border-radius:12px;background:rgba(21,14,51,.92);color:var(--text);
+    border-color:rgba(65,227,255,.4);box-shadow:0 0 8px rgba(65,227,255,.18);
+    display:flex;flex-direction:column;align-items:center;gap:1px;
   }
-  .grid button.cleared{background:var(--accent2);color:#fff;}
+  .grid button.cleared{background:rgba(65,227,255,.18);border-color:#41e3ff;color:#fff;}
   .grid button .best{font-size:9.5px;font-weight:500;opacity:.9;}
   .hint{font-size:12px;opacity:.72;line-height:1.5;}
 
@@ -175,38 +193,38 @@
     </div>
 
     <div class="hud">
-      <span class="badge"><span class="num" id="stageBadge">Stage 1 / 20</span></span>
+      <span class="badge"><span class="num" id="stageBadge">Stage 1 / 40</span></span>
       <span class="badge" id="stageName">最初の一歩</span>
-      <span class="badge" id="turnBadge"><canvas class="iconc" data-icon="cat" width="22" height="22"></canvas>きみのターン</span>
+      <span class="badge" id="turnBadge"><canvas class="iconc" data-icon="cat" width="22" height="22"></canvas>あなたの手番</span>
       <span class="badge" id="moveBadge">0手</span>
     </div>
 
     <div class="board-wrap">
-      <canvas id="board" width="900" height="600"></canvas>
+      <canvas id="board" width="600" height="900"></canvas>
       <div class="cutin" id="cutin"></div>
     </div>
 
-    <div class="msg" id="msg">となりのマスをタップして、うごこう！</div>
+    <div class="msg" id="msg">隣接ノードをタップして移動</div>
 
     <div class="controls">
-      <button class="ghost" id="resetBtn">やり直す</button>
-      <button class="ghost" id="selBtn">ステージをえらぶ</button>
+      <button class="ghost" id="resetBtn">リトライ</button>
+      <button class="ghost" id="selBtn">ステージ選択</button>
     </div>
 
     <details class="legend" id="legend">
-      <summary>あそびかた・アイコンの意味</summary>
+      <summary>ルールと記号</summary>
       <div class="items">
-        <div class="it"><canvas class="iconc" data-icon="cat" width="34" height="34"></canvas>ねこ（きみ）。となりのマスへ1つずつ</div>
-        <div class="it"><canvas class="iconc" data-icon="robot" width="34" height="34"></canvas>おそうじロボット。まっすぐ近づいてくる</div>
-        <div class="it"><canvas class="iconc" data-icon="tower" width="34" height="34"></canvas>キャットタワー。ここに着けばクリア</div>
-        <div class="it"><canvas class="iconc" data-icon="sofa" width="34" height="34"></canvas>ソファ。ロボットは通れない安全地帯</div>
-        <div class="it"><canvas class="iconc" data-icon="yarn" width="34" height="34"></canvas>毛糸玉。ロボットが乗ると1ターン止まる</div>
-        <div class="it"><canvas class="iconc" data-icon="fish" width="34" height="34"></canvas>おさかな。ねこがもう1マスうごける</div>
-        <div class="it"><canvas class="iconc" data-icon="trap" width="34" height="34"></canvas>落とし穴。ロボットだけ落ちて退場</div>
-        <div class="it"><canvas class="iconc" data-icon="catdoor" width="34" height="34"></canvas>ねこのぬけ道。ねこだけ通れる（ロボットは回り道）</div>
-        <div class="it"><canvas class="iconc" data-icon="sw" width="34" height="34"></canvas>スイッチ。ふむとドアが開く（一度きり）</div>
-        <div class="it"><canvas class="iconc" data-icon="gate" width="34" height="34"></canvas>ドア。スイッチを踏むまで通れない</div>
-        <div class="it"><span class="dashkey"></span>赤い点線のマスは「つぎにロボットが来られる所」</div>
+        <div class="it"><canvas class="iconc" data-icon="cat" width="34" height="34"></canvas>自機。となりのノードへ1つずつ移動</div>
+        <div class="it"><canvas class="iconc" data-icon="robot" width="34" height="34"></canvas>追撃機。つねに最短経路で寄せてくる</div>
+        <div class="it"><canvas class="iconc" data-icon="tower" width="34" height="34"></canvas>ワープゲート。到達で離脱成功</div>
+        <div class="it"><canvas class="iconc" data-icon="sofa" width="34" height="34"></canvas>ブロック壁。追撃機は進入できない</div>
+        <div class="it"><canvas class="iconc" data-icon="yarn" width="34" height="34"></canvas>EMP機雷。踏んだ追撃機を1ターン停止</div>
+        <div class="it"><canvas class="iconc" data-icon="fish" width="34" height="34"></canvas>ブースター。取得でもう1マス移動できる</div>
+        <div class="it"><canvas class="iconc" data-icon="trap" width="34" height="34"></canvas>特異点。追撃機だけ吸い込まれて消滅</div>
+        <div class="it"><canvas class="iconc" data-icon="catdoor" width="34" height="34"></canvas>スリット。自機だけ通過可（追撃機は迂回）</div>
+        <div class="it"><canvas class="iconc" data-icon="sw" width="34" height="34"></canvas>起動パネル。踏むとゲートが開く（一度きり）</div>
+        <div class="it"><canvas class="iconc" data-icon="gate" width="34" height="34"></canvas>エナジーゲート。パネルを踏むまで閉鎖</div>
+        <div class="it"><span class="dashkey"></span>点線のノードは「次に追撃機が到達できる範囲」</div>
       </div>
     </details>
   </div>
@@ -216,10 +234,10 @@
     <div class="card">
       <canvas id="titleArt" width="380" height="150" style="width:100%;max-width:340px;height:auto"></canvas>
       <h1 class="titlelogo">ネオンエスケープ</h1>
-      <div class="titlesub">おじいちゃんの家から、キャットタワーをめざそう！<br>ぜんぶで30ステージ</div>
+      <div class="titlesub">追撃機をかわし、ワープゲートへ到達せよ。<br>全40ステージ</div>
       <div class="btns">
-        <button id="playBtn">あそぶ</button>
-        <button class="ghost" id="selBtn2">ステージをえらぶ</button>
+        <button id="playBtn">START</button>
+        <button class="ghost" id="selBtn2">ステージ選択</button>
       </div>
     </div>
   </div>
@@ -227,10 +245,10 @@
   <!-- ステージ選択 -->
   <div class="screen" id="selScreen">
     <div class="card">
-      <h2>ステージをえらぶ</h2>
+      <h2>ステージ選択</h2>
       <div class="grid" id="stageGrid"></div>
-      <p class="hint">緑はクリア済み。<b>★★★は最短手数ぴったりでクリア</b>／★★は+2手まで。</p>
-      <div class="btns"><button class="ghost" id="selClose">とじる</button></div>
+      <p class="hint">緑＝突破済み。<b>★★★ は最短手数ちょうど</b>／★★ は +1手まで。</p>
+      <div class="btns"><button class="ghost" id="selClose">閉じる</button></div>
     </div>
   </div>
 
@@ -238,11 +256,11 @@
   <div class="screen" id="overlay">
     <div class="card">
       <canvas id="ovArt" width="150" height="120" style="width:130px;height:104px"></canvas>
-      <h2 id="ovTitle">ステージクリア！</h2>
+      <h2 id="ovTitle">突破</h2>
       <p id="ovText"></p>
       <div class="btns">
-        <button id="ovBtn">次のステージへ</button>
-        <button class="ghost" id="ovSub">ステージをえらぶ</button>
+        <button id="ovBtn">次のステージ</button>
+        <button class="ghost" id="ovSub">ステージ選択</button>
       </div>
     </div>
   </div>
@@ -262,71 +280,71 @@ const STAGES = [
     nodes:[[5,50],[22,50],[40,50],[56,32],[56,68],[85,50]],
     edges:[[0,1],[1,2],[2,3],[2,4],[3,5],[4,5]] },
 
-  { name:"二択の迷路", opt:4, cat:1, goal:7, robots:[0], sofa:[5], yarn:[], fish:[],
+  { name:"二つの分岐", opt:4, cat:1, goal:7, robots:[0], sofa:[5], yarn:[], fish:[],
     nodes:[[5,50],[18,50],[32,50],[48,26],[64,26],[48,74],[64,74],[85,50]],
     edges:[[0,1],[1,2],[2,3],[2,5],[3,4],[5,6],[4,7],[6,7]] },
 
-  { name:"ロボットの習性", opt:6, cat:0, goal:7, robots:[8], sofa:[3], yarn:[], fish:[],
+  { name:"追撃機の習性", opt:6, cat:0, goal:7, robots:[8], sofa:[3], yarn:[], fish:[],
     nodes:[[8,50],[24,28],[24,72],[44,50],[62,28],[62,72],[80,50],[93,50],[62,50]],
     edges:[[0,1],[0,2],[1,3],[2,3],[3,4],[3,5],[1,4],[2,5],[4,6],[5,6],[6,7],[8,4],[8,5],[8,6]] },
 
-  { name:"散らかった部屋", opt:6, cat:1, goal:8, robots:[0], sofa:[], yarn:[9,4], fish:[],
+  { name:"散乱区画", opt:6, cat:1, goal:8, robots:[0], sofa:[], yarn:[9,4], fish:[],
     nodes:[[5,50],[18,50],[34,50],[50,28],[50,72],[68,28],[68,72],[82,50],[94,50],[50,50]],
     edges:[[0,1],[1,2],[2,3],[2,4],[3,9],[4,9],[9,5],[9,6],[5,7],[6,7],[7,8]] },
 
-  { name:"おやつでダッシュ", opt:6, cat:1, goal:10, robots:[0], sofa:[], yarn:[], fish:[2],
+  { name:"ブースト加速", opt:6, cat:1, goal:10, robots:[0], sofa:[], yarn:[], fish:[2],
     nodes:[[5,50],[16,50],[30,50],[44,30],[44,70],[60,30],[60,70],[74,50],[86,30],[86,70],[96,50]],
     edges:[[0,1],[1,2],[2,3],[2,4],[3,5],[4,6],[5,7],[6,7],[7,8],[7,9],[8,10],[9,10]] },
 
-  { name:"ロボット2台の恐怖", opt:6, cat:2, goal:11, robots:[0,1], sofa:[7], yarn:[], fish:[],
+  { name:"二機の追撃", opt:6, cat:2, goal:11, robots:[0,1], sofa:[7], yarn:[], fish:[],
     nodes:[[4,35],[4,65],[16,50],[30,35],[30,65],[44,50],[58,32],[58,68],[72,50],[86,35],[86,65],[95,50]],
     edges:[[0,2],[1,2],[2,3],[2,4],[3,5],[4,5],[5,6],[5,7],[6,8],[7,8],[8,9],[8,10],[9,11],[10,11]] },
 
-  { name:"障害物レース", opt:5, cat:1, goal:11, robots:[0], sofa:[4], yarn:[5,6], fish:[],
+  { name:"障害区域", opt:5, cat:1, goal:11, robots:[0], sofa:[4], yarn:[5,6], fish:[],
     nodes:[[5,50],[16,50],[30,32],[30,68],[46,50],[46,18],[46,82],[62,32],[62,68],[78,50],[90,28],[93,62]],
     edges:[[0,1],[1,2],[1,3],[2,5],[3,6],[5,7],[6,8],[2,4],[3,4],[4,7],[4,8],[7,9],[8,9],[9,11],[9,10],[10,11]] },
 
-  { name:"キャットウォーク", opt:4, cat:1, goal:12, robots:[0], sofa:[7], yarn:[], fish:[4],
+  { name:"狭い通路", opt:4, cat:1, goal:12, robots:[0], sofa:[7], yarn:[], fish:[4],
     nodes:[[10,25],[10,50],[10,75],[30,25],[30,50],[30,75],[50,25],[50,50],[50,75],[70,25],[70,50],[70,75],[92,50]],
     edges:[[0,3],[3,6],[6,9],[9,12],[1,4],[4,7],[7,10],[10,12],[2,5],[5,8],[8,11],[11,12],
            [0,1],[1,2],[3,4],[4,5],[6,7],[7,8],[9,10],[10,11]] },
 
-  { name:"挟み撃ち", opt:4, cat:2, goal:10, robots:[0,1], sofa:[6], yarn:[], fish:[3],
+  { name:"挟撃", opt:4, cat:2, goal:10, robots:[0,1], sofa:[6], yarn:[], fish:[3],
     nodes:[[30,15],[30,85],[30,50],[46,50],[46,25],[46,75],[62,50],[62,25],[62,75],[78,50],[92,50],[16,50],[16,25],[16,75]],
     edges:[[2,3],[2,11],[11,12],[11,13],[12,0],[13,1],[2,4],[2,5],[0,4],[1,5],[3,7],[3,8],[3,6],[4,7],[5,8],[7,9],[8,9],[6,9],[9,10]] },
 
-  { name:"最後の牙城", opt:6, cat:2, goal:14, robots:[0,1], sofa:[8], yarn:[6,7], fish:[3,11],
+  { name:"封鎖区画", opt:6, cat:2, goal:14, robots:[0,1], sofa:[8], yarn:[6,7], fish:[3,11],
     nodes:[[8,25],[8,75],[8,50],[24,50],[24,20],[24,80],[40,35],[40,65],[56,50],[56,20],[56,80],[72,35],[72,65],[88,50],[96,50]],
     edges:[[0,4],[1,5],[2,3],[2,4],[2,5],[4,6],[5,7],[3,6],[3,7],[6,8],[7,8],[6,9],[7,10],[8,9],[8,10],[9,11],[10,12],[11,13],[12,13],[13,14],[3,8]] },
 
-  { name:"毛糸まみれの廊下", opt:6, cat:2, goal:11, robots:[0,1], sofa:[], yarn:[5,6,7], fish:[], trap:[],
+  { name:"機雷の回廊", opt:6, cat:2, goal:11, robots:[0,1], sofa:[], yarn:[5,6,7], fish:[], trap:[],
     nodes:[[4,38],[4,62],[14,50],[26,35],[26,65],[40,50],[54,32],[54,68],[68,50],[80,35],[80,65],[90,50],[40,20],[40,80]],
     edges:[[0,2],[1,2],[2,3],[2,4],[3,5],[4,5],[3,12],[4,13],[12,6],[13,7],[5,6],[5,7],[6,8],[7,8],[8,9],[8,10],[9,11],[10,11]] },
-  { name:"さかな街道", opt:6, cat:2, goal:10, robots:[0,1], sofa:[6], yarn:[], fish:[3,7], trap:[],
+  { name:"ブースト回廊", opt:6, cat:2, goal:10, robots:[0,1], sofa:[6], yarn:[], fish:[3,7], trap:[],
     nodes:[[4,40],[4,60],[14,50],[26,50],[40,32],[40,68],[54,50],[68,32],[68,68],[82,50],[92,50],[26,22],[26,78],[54,18]],
     edges:[[0,2],[1,2],[2,3],[3,4],[3,5],[3,11],[3,12],[11,4],[12,5],[4,6],[5,6],[6,7],[6,8],[7,9],[8,9],[9,10],[6,13],[13,7]] },
-  { name:"落とし穴の間", opt:6, cat:2, goal:11, robots:[0,1], sofa:[8], yarn:[], fish:[], trap:[5],
+  { name:"特異点の間", opt:6, cat:2, goal:11, robots:[0,1], sofa:[8], yarn:[], fish:[], trap:[5],
     nodes:[[4,38],[4,62],[14,50],[26,35],[26,65],[40,50],[54,35],[54,65],[68,50],[80,35],[80,65],[90,50],[40,20],[40,80],[54,50]],
     edges:[[0,2],[1,2],[2,3],[2,4],[3,5],[4,5],[3,12],[4,13],[12,6],[13,7],[5,14],[14,6],[14,7],[6,8],[7,8],[8,9],[8,10],[9,11],[10,11]] },
-  { name:"3台の追跡", opt:6, cat:3, goal:12, robots:[0,1,2], sofa:[], yarn:[], fish:[], trap:[6],
+  { name:"三機の追跡", opt:6, cat:3, goal:12, robots:[0,1,2], sofa:[], yarn:[], fish:[], trap:[6],
     nodes:[[4,30],[4,50],[4,70],[14,50],[26,35],[26,65],[40,50],[54,35],[54,65],[68,50],[80,35],[80,65],[90,50],[40,22],[40,78]],
     edges:[[0,3],[1,3],[2,3],[3,4],[3,5],[4,6],[5,6],[4,13],[5,14],[13,7],[14,8],[6,7],[6,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12]] },
-  { name:"3台とおやつ", opt:6, cat:3, goal:11, robots:[0,1,2], sofa:[7], yarn:[], fish:[4,10], trap:[],
+  { name:"三機と加速路", opt:6, cat:3, goal:11, robots:[0,1,2], sofa:[7], yarn:[], fish:[4,10], trap:[],
     nodes:[[4,30],[4,50],[4,70],[14,50],[26,50],[40,35],[40,65],[54,50],[68,35],[68,65],[80,50],[90,50],[54,20],[54,80]],
     edges:[[0,3],[1,3],[2,3],[3,4],[4,5],[4,6],[5,7],[6,7],[5,12],[6,13],[12,8],[13,9],[7,8],[7,9],[8,10],[9,10],[10,11]] },
-  { name:"毛糸と落とし穴", opt:6, cat:3, goal:12, robots:[0,1,2], sofa:[], yarn:[6], fish:[], trap:[7,8],
+  { name:"機雷と特異点", opt:6, cat:3, goal:12, robots:[0,1,2], sofa:[], yarn:[6], fish:[], trap:[7,8],
     nodes:[[4,30],[4,50],[4,70],[14,50],[26,35],[26,65],[40,50],[54,35],[54,65],[68,50],[80,35],[80,65],[90,50],[40,20],[40,80],[68,20]],
     edges:[[0,3],[1,3],[2,3],[3,4],[3,5],[4,6],[5,6],[4,13],[5,14],[13,7],[14,8],[6,7],[6,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[9,15],[15,10]] },
-  { name:"迷宮の3台", opt:7, cat:3, goal:13, robots:[0,1,2], sofa:[7], yarn:[8], fish:[6], trap:[9],
+  { name:"迷宮の三機", opt:7, cat:3, goal:13, robots:[0,1,2], sofa:[7], yarn:[8], fish:[6], trap:[9],
     nodes:[[4,25],[4,50],[4,75],[13,50],[24,32],[24,68],[36,50],[48,30],[48,70],[60,50],[72,32],[72,68],[84,50],[92,50],[36,20],[36,80],[60,22],[60,78]],
     edges:[[0,3],[1,3],[2,3],[3,4],[3,5],[4,6],[5,6],[4,14],[5,15],[14,7],[15,8],[6,7],[6,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[12,13],[7,16],[8,17],[16,10],[17,11]] },
-  { name:"終盤の猛攻", opt:7, cat:3, goal:14, robots:[0,1,5], sofa:[9], yarn:[6], fish:[4,11], trap:[7,8],
+  { name:"集中砲火", opt:7, cat:3, goal:14, robots:[0,1,5], sofa:[9], yarn:[6], fish:[4,11], trap:[7,8],
     nodes:[[4,28],[4,50],[4,72],[14,50],[26,50],[38,33],[38,67],[52,33],[52,67],[64,50],[76,33],[76,67],[86,50],[92,30],[95,60],[38,15],[38,85]],
     edges:[[0,3],[1,3],[2,3],[3,4],[4,5],[4,6],[5,7],[6,8],[5,15],[6,16],[15,7],[16,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[12,13],[12,14],[13,14]] },
-  { name:"大脱走", opt:7, cat:3, goal:14, robots:[0,1,7], sofa:[9], yarn:[5,6], fish:[4,12], trap:[10],
+  { name:"強行突破", opt:7, cat:3, goal:14, robots:[0,1,7], sofa:[9], yarn:[5,6], fish:[4,12], trap:[10],
     nodes:[[4,28],[4,50],[4,72],[14,50],[26,50],[40,33],[40,67],[54,33],[54,67],[66,50],[78,33],[78,67],[88,50],[95,50],[93,25],[40,15],[40,85],[66,20],[66,80]],
     edges:[[0,3],[1,3],[2,3],[3,4],[4,5],[4,6],[5,7],[6,8],[5,15],[6,16],[15,7],[16,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[12,13],[12,14],[9,17],[9,18],[17,10],[18,11]] },
-  { name:"最後の牙城・改", opt:9, cat:3, goal:16, robots:[0,1,5], sofa:[9], yarn:[6], fish:[4,12], trap:[7,8],
+  { name:"封鎖区画・改", opt:9, cat:3, goal:16, robots:[0,1,5], sofa:[9], yarn:[6], fish:[4,12], trap:[7,8],
     nodes:[[4,28],[4,50],[4,72],[13,50],[24,50],[36,33],[36,67],[50,33],[50,67],[62,50],[74,33],[74,67],[84,50],[90,32],[90,68],[95,50],[97,50],[36,15],[36,85],[62,20],[62,80]],
     edges:[[0,3],[1,3],[2,3],[3,4],[4,5],[4,6],[5,7],[6,8],[5,17],[6,18],[17,7],[18,8],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[12,13],[12,14],[13,15],[14,15],[15,16],[9,19],[9,20],[19,10],[20,11]] },
 
@@ -335,55 +353,120 @@ const STAGES = [
      ねらいは「1〜20面より長くて、一手が重い」こと（実測: 最短8.5手・勝ち筋率55%。
      1〜20面は 5.8手・64.5%）。新ギミック（ぬけ道 / スイッチとドア）はここだけに出る。
      ★opt は最短手数。★3の判定に使うので、面を触ったら --opt で貼り直すこと。 */
-  { name:"ねこの ぬけ道", opt:6, cat:0, goal:13, robots:[2,3],
+  { name:"スリット", opt:6, cat:0, goal:13, robots:[2,3],
     sofa:[11], yarn:[], fish:[7], trap:[], catOnly:[[7,10]],
     nodes:[[5,50],[20,22],[20,50],[20,78],[35,22],[35,50],[35,78],[50,22],[50,50],[50,78],[65,34],[65,66],[80,50],[95,50]],
     edges:[[10,11],[0,1],[0,2],[0,3],[1,4],[2,5],[3,6],[4,7],[5,8],[5,9],[6,9],[7,10],[8,11],[9,11],[10,12],[11,12],[12,13]] },
-  { name:"スイッチと ドア", opt:7, cat:0, goal:14, robots:[2,3],
+  { name:"パネルとゲート", opt:7, cat:0, goal:14, robots:[2,3],
     sofa:[], yarn:[2], fish:[], trap:[], sw:[8], doors:[[9,10]],
     nodes:[[5,50],[18,22],[18,50],[18,78],[31,34],[31,66],[44,22],[44,50],[44,78],[56,50],[69,50],[82,22],[82,50],[82,78],[95,50]],
     edges:[[11,12],[12,13],[0,1],[0,2],[0,3],[1,4],[2,4],[2,5],[3,5],[4,6],[5,6],[5,7],[5,8],[6,9],[7,9],[8,9],[9,10],[10,11],[10,12],[10,13],[11,14],[12,14],[13,14]] },
-  { name:"ぬけ道づたいに", opt:8, cat:0, goal:19, robots:[1,5,2],
+  { name:"スリット伝い", opt:8, cat:0, goal:19, robots:[1,5,2],
     sofa:[7], yarn:[14], fish:[12], trap:[], catOnly:[[16,18],[6,9]],
     nodes:[[5,22],[5,50],[5,78],[16,22],[16,50],[16,78],[28,22],[28,50],[28,78],[39,34],[39,66],[50,22],[50,50],[50,78],[61,34],[61,66],[73,34],[73,66],[84,50],[95,50]],
     edges:[[0,1],[9,10],[0,3],[0,4],[1,5],[2,5],[3,6],[4,7],[5,7],[5,8],[6,9],[7,9],[8,9],[8,10],[9,11],[9,12],[10,12],[10,13],[11,14],[12,15],[13,15],[14,16],[14,17],[15,17],[16,18],[17,18],[18,19]] },
-  { name:"とびらの むこう", opt:8, cat:2, goal:17, robots:[1,3,0],
+  { name:"ゲートの向こう", opt:8, cat:2, goal:17, robots:[1,3,0],
     sofa:[3], yarn:[], fish:[10], trap:[6], sw:[12], doors:[[14,15],[15,16]],
     nodes:[[5,22],[5,50],[5,78],[16,34],[16,66],[28,22],[28,50],[28,78],[39,22],[39,50],[39,78],[50,22],[50,50],[50,78],[61,50],[73,50],[84,50],[95,50]],
     edges:[[0,1],[5,6],[8,9],[11,12],[12,13],[0,3],[1,3],[2,3],[2,4],[3,5],[4,5],[4,6],[4,7],[5,8],[5,9],[6,9],[6,10],[7,10],[8,11],[8,12],[9,13],[10,13],[11,14],[12,14],[13,14],[14,15],[15,16],[16,17]] },
-  { name:"あなだらけの 廊下", opt:9, cat:2, goal:21, robots:[0,1,3],
+  { name:"特異点の回廊", opt:9, cat:2, goal:21, robots:[0,1,3],
     sofa:[], yarn:[20,3], fish:[4], trap:[9,13],
     nodes:[[5,22],[5,50],[5,78],[15,34],[15,66],[25,22],[25,50],[25,78],[35,22],[35,50],[35,78],[45,22],[45,50],[45,78],[55,22],[55,50],[55,78],[65,50],[75,34],[75,66],[85,50],[95,50]],
     edges:[[0,1],[3,4],[5,6],[9,10],[12,13],[0,3],[1,3],[2,3],[2,4],[3,5],[4,5],[4,6],[4,7],[5,8],[6,8],[7,8],[7,9],[7,10],[8,11],[9,11],[10,11],[10,12],[10,13],[11,14],[12,15],[13,15],[13,16],[14,17],[15,17],[16,17],[17,18],[17,19],[18,20],[19,20],[20,21]] },
-  { name:"ぬけ道と 落とし穴", opt:9, cat:2, goal:22, robots:[3,0,5],
+  { name:"スリットと特異点", opt:9, cat:2, goal:22, robots:[3,0,5],
     sofa:[5], yarn:[13], fish:[], trap:[7,11], catOnly:[[7,8],[10,13]],
     nodes:[[5,22],[5,50],[5,78],[15,22],[15,50],[15,78],[25,34],[25,66],[35,50],[45,22],[45,50],[45,78],[55,22],[55,50],[55,78],[65,22],[65,50],[65,78],[75,50],[85,22],[85,50],[85,78],[95,50]],
     edges:[[9,10],[12,13],[16,17],[0,3],[1,4],[2,4],[2,5],[3,6],[4,7],[5,7],[6,8],[7,8],[8,9],[8,10],[8,11],[9,12],[9,13],[10,13],[10,14],[11,14],[12,15],[13,16],[13,17],[14,17],[15,18],[16,18],[17,18],[18,19],[18,20],[18,21],[19,22],[20,22],[21,22]] },
-  { name:"スイッチを さがせ", opt:9, cat:0, goal:17, robots:[3,1,4],
+  { name:"パネルを探せ", opt:9, cat:0, goal:17, robots:[3,1,4],
     sofa:[8], yarn:[6], fish:[11], trap:[2], sw:[7], doors:[[15,16]], catOnly:[[5,6]],
     nodes:[[5,34],[5,66],[15,22],[15,50],[15,78],[25,34],[25,66],[35,22],[35,50],[35,78],[45,50],[55,34],[55,66],[65,34],[65,66],[75,50],[85,50],[95,50]],
     edges:[[5,6],[7,8],[13,14],[0,2],[0,3],[1,4],[2,5],[3,5],[3,6],[4,6],[5,7],[6,8],[6,9],[7,10],[8,10],[9,10],[10,11],[10,12],[11,13],[11,14],[12,14],[13,15],[14,15],[15,16],[16,17]] },
-  { name:"ぬけ道の めいろ", opt:9, cat:0, goal:21, robots:[2,3,1],
+  { name:"スリットの迷路", opt:9, cat:0, goal:21, robots:[2,3,1],
     sofa:[6], yarn:[3], fish:[11], trap:[5], catOnly:[[10,13],[14,17],[5,8]],
     nodes:[[5,50],[15,22],[15,50],[15,78],[25,22],[25,50],[25,78],[35,34],[35,66],[45,34],[45,66],[55,22],[55,50],[55,78],[65,22],[65,50],[65,78],[75,22],[75,50],[75,78],[85,50],[95,50]],
     edges:[[12,13],[14,15],[17,18],[0,1],[0,2],[0,3],[1,4],[2,4],[2,5],[3,6],[4,7],[5,8],[6,8],[7,9],[8,9],[8,10],[9,11],[10,12],[10,13],[11,14],[12,14],[13,15],[13,16],[14,17],[15,18],[16,19],[17,20],[18,20],[19,20],[20,21]] },
-  { name:"おうちじゅう 大さわぎ", opt:10, cat:0, goal:17, robots:[2,3,1],
+  { name:"全区画警戒", opt:10, cat:0, goal:17, robots:[2,3,1],
     sofa:[15], yarn:[2], fish:[7], trap:[6,9], sw:[8], doors:[[11,12]], catOnly:[[7,8],[12,13]],
     nodes:[[5,50],[15,22],[15,50],[15,78],[25,22],[25,50],[25,78],[35,34],[35,66],[45,34],[45,66],[55,50],[65,50],[75,34],[75,66],[85,34],[85,66],[95,50]],
     edges:[[5,6],[7,8],[15,16],[0,1],[0,2],[0,3],[1,4],[2,5],[2,6],[3,6],[4,7],[5,8],[6,8],[7,9],[7,10],[8,10],[9,11],[10,11],[11,12],[12,13],[12,14],[13,15],[14,16],[15,17],[16,17]] },
-  { name:"にゃんこ 大脱出", opt:10, cat:1, goal:19, robots:[3,2,4],
+  { name:"ネオンエスケープ", opt:10, cat:1, goal:19, robots:[3,2,4],
     sofa:[5], yarn:[4,10], fish:[15], trap:[17], sw:[13], doors:[[17,18]], catOnly:[[16,17]],
     nodes:[[5,34],[5,66],[15,22],[15,50],[15,78],[25,34],[25,66],[35,22],[35,50],[35,78],[45,22],[45,50],[45,78],[55,22],[55,50],[55,78],[65,50],[75,50],[85,50],[95,50]],
     edges:[[0,1],[7,8],[11,12],[13,14],[14,15],[0,2],[1,3],[1,4],[2,5],[3,5],[4,6],[5,7],[5,8],[6,9],[7,10],[8,11],[9,12],[10,13],[11,13],[11,14],[11,15],[12,15],[13,16],[14,16],[15,16],[16,17],[17,18],[18,19]] },
+
+  /* ===== 31〜40面：高難度パック（2026-08-29 追加）=====
+     1〜30面の実測が「最短6.7手・勝ち筋率61%」＝**打てる手の6割が正解**で、
+     考えれば間違えにくかった。そこで tools/gen-stages.js --hard / --hard2 で
+     **最短9〜11手・勝ち筋率44〜54%**（＝半分近くが負け筋）の面だけを採った。
+     ★敵4台は試したが捨てた: 398面作って解ける面が3面しかなく（初手で詰む）、
+       台数ではなく「道のりの長さ」と「逃げ道の少なさ」で難しくしている。 */
+  { name:"外周ルート", opt:11, cat:2, goal:25, robots:[1,3,0],
+    sofa:[10], yarn:[6], fish:[15], trap:[19],
+    nodes:[[5,22],[5,50],[5,78],[13,22],[13,50],[13,78],[21,34],[21,66],[30,22],[30,50],[30,78],[38,34],[38,66],[46,22],[46,50],[46,78],[54,22],[54,50],[54,78],[62,34],[62,66],[70,50],[79,34],[79,66],[87,50],[95,50]],
+    edges:[[0,1],[6,7],[9,10],[14,15],[16,17],[19,20],[0,3],[1,3],[2,3],[2,4],[2,5],[3,6],[4,6],[5,6],[5,7],[6,8],[7,9],[7,10],[8,11],[9,12],[10,12],[11,13],[11,14],[12,14],[12,15],[13,16],[13,17],[14,17],[15,18],[16,19],[17,20],[18,20],[19,21],[20,21],[21,22],[21,23],[22,24],[23,24],[24,25]] },
+  { name:"特異点の海", opt:10, cat:1, goal:25, robots:[0,2,5],
+    sofa:[12], yarn:[4], fish:[22], trap:[18,23],
+    nodes:[[5,22],[5,50],[5,78],[14,22],[14,50],[14,78],[23,34],[23,66],[32,22],[32,50],[32,78],[41,34],[41,66],[50,22],[50,50],[50,78],[59,22],[59,50],[59,78],[68,50],[77,34],[77,66],[86,22],[86,50],[86,78],[95,50]],
+    edges:[[0,1],[1,2],[3,4],[4,5],[11,12],[13,14],[16,17],[20,21],[23,24],[0,3],[1,3],[1,4],[1,5],[2,5],[3,6],[4,7],[5,7],[6,8],[7,8],[7,9],[7,10],[8,11],[9,12],[10,12],[11,13],[12,13],[12,14],[12,15],[13,16],[14,17],[14,18],[15,18],[16,19],[17,19],[18,19],[19,20],[19,21],[20,22],[21,22],[21,23],[21,24],[22,25],[23,25],[24,25]] },
+  { name:"細い抜け道", opt:11, cat:2, goal:23, robots:[3,4,1],
+    sofa:[13], yarn:[19], fish:[4], trap:[5], catOnly:[[8,9],[15,19]],
+    nodes:[[5,22],[5,50],[5,78],[13,22],[13,50],[13,78],[21,22],[21,50],[21,78],[30,50],[38,34],[38,66],[46,34],[46,66],[54,50],[62,22],[62,50],[62,78],[70,34],[70,66],[79,50],[87,34],[87,66],[95,50]],
+    edges:[[6,7],[10,11],[15,16],[18,19],[0,3],[1,3],[2,4],[2,5],[3,6],[3,7],[4,8],[5,8],[6,9],[7,9],[8,9],[9,10],[9,11],[10,12],[11,13],[12,14],[13,14],[14,15],[14,16],[14,17],[15,18],[15,19],[16,19],[17,19],[18,20],[19,20],[20,21],[20,22],[21,23],[22,23]] },
+  { name:"封鎖ゲート", opt:9, cat:2, goal:19, robots:[3,4,0],
+    sofa:[6], yarn:[4], fish:[3], trap:[14], sw:[5], doors:[[15,16]],
+    nodes:[[5,22],[5,50],[5,78],[15,22],[15,50],[15,78],[25,34],[25,66],[35,34],[35,66],[45,34],[45,66],[55,22],[55,50],[55,78],[65,50],[75,50],[85,34],[85,66],[95,50]],
+    edges:[[0,1],[3,4],[6,7],[10,11],[12,13],[0,3],[1,4],[2,4],[2,5],[3,6],[4,7],[5,7],[6,8],[7,9],[8,10],[9,11],[10,12],[11,13],[11,14],[12,15],[13,15],[14,15],[15,16],[16,17],[16,18],[17,19],[18,19]] },
+  { name:"機雷原", opt:11, cat:2, goal:21, robots:[3,1,0],
+    sofa:[], yarn:[15,16,7], fish:[5], trap:[8,17],
+    nodes:[[5,22],[5,50],[5,78],[13,22],[13,50],[13,78],[21,22],[21,50],[21,78],[30,50],[38,34],[38,66],[46,50],[54,50],[62,34],[62,66],[70,34],[70,66],[79,50],[87,34],[87,66],[95,50]],
+    edges:[[0,1],[1,2],[0,3],[1,3],[2,4],[2,5],[3,6],[3,7],[4,7],[5,7],[5,8],[6,9],[7,9],[8,9],[9,10],[9,11],[10,12],[11,12],[12,13],[13,14],[13,15],[14,16],[14,17],[15,17],[16,18],[17,18],[18,19],[18,20],[19,21],[20,21]] },
+  { name:"特異点帯", opt:10, cat:2, goal:23, robots:[1,3,4],
+    sofa:[4], yarn:[5], fish:[12], trap:[14,18,10],
+    nodes:[[5,22],[5,50],[5,78],[14,22],[14,50],[14,78],[23,22],[23,50],[23,78],[32,34],[32,66],[41,50],[50,22],[50,50],[50,78],[59,50],[68,22],[68,50],[68,78],[77,22],[77,50],[77,78],[86,50],[95,50]],
+    edges:[[0,1],[3,4],[13,14],[16,17],[0,3],[1,4],[2,4],[2,5],[3,6],[4,6],[5,6],[5,7],[5,8],[6,9],[7,10],[8,10],[9,11],[10,11],[11,12],[11,13],[11,14],[12,15],[13,15],[14,15],[15,16],[15,17],[15,18],[16,19],[17,20],[17,21],[18,21],[19,22],[20,22],[21,22],[22,23]] },
+  { name:"立体迷路", opt:11, cat:1, goal:23, robots:[4,0,3],
+    sofa:[6], yarn:[3], fish:[8], trap:[12], catOnly:[[20,21],[21,22],[8,11]],
+    nodes:[[5,34],[5,66],[13,22],[13,50],[13,78],[21,34],[21,66],[30,50],[38,22],[38,50],[38,78],[46,22],[46,50],[46,78],[54,22],[54,50],[54,78],[62,22],[62,50],[62,78],[70,50],[79,50],[87,50],[95,50]],
+    edges:[[8,9],[11,12],[15,16],[17,18],[0,2],[1,2],[1,3],[1,4],[2,5],[3,6],[4,6],[5,7],[6,7],[7,8],[7,9],[7,10],[8,11],[9,11],[9,12],[9,13],[10,13],[11,14],[11,15],[11,16],[12,16],[13,16],[14,17],[15,18],[16,18],[16,19],[17,20],[18,20],[19,20],[20,21],[21,22],[22,23]] },
+  { name:"完全封鎖", opt:11, cat:0, goal:24, robots:[4,5,2],
+    sofa:[7], yarn:[18,21], fish:[14], trap:[20], sw:[3], doors:[[16,17]], catOnly:[[17,20]],
+    nodes:[[5,22],[5,50],[5,78],[13,22],[13,50],[13,78],[21,22],[21,50],[21,78],[30,34],[30,66],[38,34],[38,66],[46,22],[46,50],[46,78],[54,50],[62,50],[70,22],[70,50],[70,78],[79,34],[79,66],[87,50],[95,50]],
+    edges:[[0,1],[4,5],[7,8],[11,12],[13,14],[14,15],[18,19],[19,20],[0,3],[1,4],[2,4],[2,5],[3,6],[3,7],[4,7],[5,8],[6,9],[6,10],[7,10],[8,10],[9,11],[10,12],[11,13],[12,14],[12,15],[13,16],[14,16],[15,16],[16,17],[17,18],[17,19],[17,20],[18,21],[18,22],[19,22],[20,22],[21,23],[22,23],[23,24]] },
+  { name:"総力戦", opt:10, cat:0, goal:20, robots:[2,4,1],
+    sofa:[10], yarn:[14,15], fish:[3], trap:[5,18], sw:[11], doors:[[12,13]], catOnly:[[6,7]],
+    nodes:[[5,22],[5,50],[5,78],[14,22],[14,50],[14,78],[23,34],[23,66],[32,50],[41,22],[41,50],[41,78],[50,50],[59,50],[68,34],[68,66],[77,50],[86,22],[86,50],[86,78],[95,50]],
+    edges:[[0,1],[1,2],[3,4],[4,5],[6,7],[14,15],[17,18],[0,3],[1,4],[1,5],[2,5],[3,6],[3,7],[4,7],[5,7],[6,8],[7,8],[8,9],[8,10],[8,11],[9,12],[10,12],[11,12],[12,13],[13,14],[13,15],[14,16],[15,16],[16,17],[16,18],[16,19],[17,20],[18,20],[19,20]] },
+  { name:"最終防衛線", opt:11, cat:0, goal:24, robots:[2,5,4],
+    sofa:[7], yarn:[3,19], fish:[14], trap:[23,11], sw:[8], doors:[[22,23]], catOnly:[[18,20],[14,16]],
+    nodes:[[5,22],[5,50],[5,78],[13,22],[13,50],[13,78],[21,22],[21,50],[21,78],[30,50],[38,22],[38,50],[38,78],[46,34],[46,66],[54,34],[54,66],[62,34],[62,66],[70,22],[70,50],[70,78],[79,50],[87,50],[95,50]],
+    edges:[[0,1],[1,2],[3,4],[4,5],[7,8],[17,18],[19,20],[20,21],[0,3],[0,4],[0,5],[1,5],[2,5],[3,6],[3,7],[3,8],[4,8],[5,8],[6,9],[7,9],[8,9],[9,10],[9,11],[9,12],[10,13],[10,14],[11,14],[12,14],[13,15],[14,15],[14,16],[15,17],[16,17],[16,18],[17,19],[17,20],[18,20],[18,21],[19,22],[20,22],[21,22],[22,23],[23,24]] },
 ];
 
 /* ===================== 画面の座標 =====================
-   canvas は 900×600 の固定座標で描き、CSS 側で幅に合わせて伸ばす。
-   マスの座標（0〜100）は、外周に余白を残して写す。余白が無いと
-   端のマスのタイルとキャットタワーが切れる。 */
-const W = 900, H = 600, PADX = 44, PADY = 52;
-const NX = i => PADX + S.nodes[i][0] / 100 * (W - PADX * 2);
-const NY = i => PADY + S.nodes[i][1] / 100 * (H - PADY * 2);
+   canvas は 600×900 の固定座標で描き、CSS 側で幅に合わせて伸ばす。
+
+   ★2026-08-29: 横（900×600）から**縦**にした。スマホを縦に持って遊ぶため
+     （同じアプリに入る ネオンアイス・ネオンサイボーグ も縦）。
+     ステージの座標は 0〜100 の「横長」で書いてあるので、**90°回して写す**。
+     もとの「左→右へ逃げる」が、画面では「下→上へ逃げる」になる。
+     ステージ表と解析器（tools/engine.js）は座標を見ないので、作り直しは要らない。
+
+   さらに、その面が実際に使っている範囲へ引き伸ばす（面ごとに端の余りが違うため。
+   引き伸ばさないと、細長い面が画面の真ん中に小さく縮こまる）。 */
+/* ★上の余白だけ広い。ゴールのワープゲートは**マスより上へ80pxほど伸びる**ので、
+   上下同じ余白にすると盤の上ぶちで柱が切れた（実測） */
+const W = 600, H = 900, PADX = 46, PADT = 104, PADB = 56;
+let FIT = null;                   // 面ごとの座標の範囲（loadStage で作る）
+function buildFit(){
+  const xs = S.nodes.map(n => n[0]), ys = S.nodes.map(n => n[1]);
+  // 幅がほとんど無い面（1列に並ぶ面）は、引き伸ばさず中央に置く
+  const span = (lo,hi) => (hi - lo < 8) ? [(lo+hi)/2 - 4, (lo+hi)/2 + 4] : [lo,hi];
+  const [x0,x1] = span(Math.min(...xs), Math.max(...xs));
+  const [y0,y1] = span(Math.min(...ys), Math.max(...ys));
+  FIT = { x0, x1, y0, y1 };
+}
+const NX = i => PADX + (S.nodes[i][1] - FIT.y0) / (FIT.y1 - FIT.y0) * (W - PADX * 2);
+const NY = i => PADT + (FIT.x1 - S.nodes[i][0]) / (FIT.x1 - FIT.x0) * (H - PADT - PADB);
 const R  = 27;                    // マス（座布団）の半径
 
 /* ===================== ゲーム状態 ===================== */
@@ -400,6 +483,12 @@ let turn = 'cat', busy = false, over = false, cleared = false;
 let moves = 0;
 let timers = [], parts = [], shakeT = 0, shakeP = 0;
 let started = false;              // タイトルを抜けたか
+/* ★2026-08-29: 手が止まっているあいだ、敵がじわじわ迫る。
+   1手＝1歩というルール自体は変えていない（変えると ★の最短手数と解析器が成り立たない）。
+   ためている時間が満ちたら「敵だけが1ターン動く」＝考え込むほど追い詰められる。
+   ★その面の**最初の1手を打つまでは動かない**（盤面を読む時間は取れるように）。 */
+const ALERT_SEC = 2.6;
+let alert = 0;                    // 0〜ALERT_SEC。盤の上のゲージに出る
 let clock = 0;
 
 const canvas = document.getElementById('board');
@@ -423,7 +512,10 @@ function starsFor(i){
   if (!b) return 0;
   const opt = STAGES[i].opt;
   if (!opt) return 1;
-  return b <= opt ? 3 : (b <= opt + 2 ? 2 : 1);
+  // ★2026-08-29: ★★ の幅を +2手 → **+1手** に狭めた。
+  //   実測で「打てる手の6割が正解」＝ざっくり動いても ★★ が付いていて、
+  //   最短をねらう理由が弱かった。
+  return b <= opt ? 3 : (b <= opt + 1 ? 2 : 1);
 }
 const starText = n => '★'.repeat(n) + '☆'.repeat(3 - n);
 
@@ -587,349 +679,393 @@ function rnd(i){ const s = Math.sin(i*127.1+311.7)*43758.5453; return s - Math.f
 
 /* ---- 床（毎フレーム描くと重いので、1枚に焼いて使い回す） ---- */
 let floorCache = null;
+/* ★2026-08-29: 木の床 → **ネオンの床**へ。ネオンブロックス（同じアプリの本編）と同じ世界に見せる。
+   ★ねこは手描きの暖色のまま。光らせるのは床・道・道具のほう。
+   （もとの木目・ラグ・窓の光は、暗い地の上では読めないので全部やめた） */
 function buildFloor(){
   const c = document.createElement('canvas');
   c.width = W; c.height = H;
   const g = c.getContext('2d');
 
-  // 床板（横向きの板を張った、おじいちゃんの家のフローリング）
-  const base = g.createLinearGradient(0,0,0,H);
-  base.addColorStop(0,'#efdcbb'); base.addColorStop(1,'#e0c295');
+  // 地。中央がわずかに明るい暗い紫
+  const base = g.createRadialGradient(W/2, H*0.42, 40, W/2, H*0.5, W*0.75);
+  base.addColorStop(0,'#1c1140'); base.addColorStop(1,'#0a0720');
   g.fillStyle = base; g.fillRect(0,0,W,H);
-  const plank = 66;
-  for (let y = 0; y < H; y += plank){
-    g.fillStyle = 'rgba(255,255,255,' + (0.05 + rnd(y)*0.06) + ')';
-    g.fillRect(0, y+2, W, plank-6);
-    g.strokeStyle = 'rgba(140,105,66,.35)'; g.lineWidth = 2;
-    g.beginPath(); g.moveTo(0,y+.5); g.lineTo(W,y+.5); g.stroke();
-    // 板の継ぎ目（縦）と木目
-    for (let k = 0; k < 4; k++){
-      const x = (rnd(y+k*7)*W + k*230) % W;
-      g.strokeStyle = 'rgba(140,105,66,.28)'; g.lineWidth = 2;
-      g.beginPath(); g.moveTo(x, y); g.lineTo(x, y+plank); g.stroke();
-    }
-    for (let k = 0; k < 6; k++){
-      const yy = y + 8 + rnd(y*3+k)*(plank-16);
-      g.strokeStyle = 'rgba(150,112,70,.14)'; g.lineWidth = 1.6;
-      g.beginPath(); g.moveTo(0,yy);
-      g.bezierCurveTo(W*0.3, yy - 5, W*0.7, yy + 5, W, yy); g.stroke();
-    }
+
+  // 床のグリッド（遠近は付けない。盤面の位置関係が読みにくくなるため）
+  g.strokeStyle = 'rgba(65,227,255,.10)'; g.lineWidth = 1;
+  for (let x = 0; x <= W; x += 45){ g.beginPath(); g.moveTo(x+.5,0); g.lineTo(x+.5,H); g.stroke(); }
+  for (let y = 0; y <= H; y += 45){ g.beginPath(); g.moveTo(0,y+.5); g.lineTo(W,y+.5); g.stroke(); }
+
+  // 盤の上ぶち。★ここは警戒ゲージが伸びる線なので、地は暗くしておく
+  //   （明るいまま置いたら、ゲージが伸びても見分けが付かなかった）
+  g.strokeStyle = 'rgba(65,227,255,.16)'; g.lineWidth = 3;
+  g.beginPath(); g.moveTo(0, 26.5); g.lineTo(W, 26.5); g.stroke();
+
+  // 床にうっすら光だまり（真っ平らだと寒々しいので、明かりの気配だけ置く）
+  for (const [cx, cy, r, col] of [[W*0.22,H*0.3,190,'65,227,255'], [W*0.78,H*0.7,210,'255,79,195']]){
+    const gl = g.createRadialGradient(cx,cy,0,cx,cy,r);
+    gl.addColorStop(0,'rgba('+col+',.10)'); gl.addColorStop(1,'rgba('+col+',0)');
+    g.fillStyle = gl; g.fillRect(0,0,W,H);
   }
 
-  // ラグ（部屋の真ん中に敷いた楕円のじゅうたん）。道とマスの下地になって画面が締まる
-  g.save();
-  ell(g, W/2, H/2 + 6, W*0.44, H*0.39);
-  g.fillStyle = 'rgba(198,222,206,.55)'; g.fill();
-  g.lineWidth = 10; g.strokeStyle = 'rgba(150,183,162,.55)'; g.stroke();
-  g.lineWidth = 3;  g.strokeStyle = 'rgba(255,255,255,.5)'; g.stroke();
-  g.clip();
-  for (let i = 0; i < 90; i++){          // 毛足の点々
-    const x = rnd(i)*W, y = rnd(i+50)*H;
-    g.fillStyle = 'rgba(255,255,255,.35)';
-    g.beginPath(); g.arc(x,y,2.2,0,Math.PI*2); g.fill();
-  }
-  g.restore();
-
-  // 幅木（部屋のいちばん奥の壁ぎわ）
-  g.fillStyle = '#c9a877'; g.fillRect(0,0,W,26);
-  g.fillStyle = 'rgba(255,255,255,.35)'; g.fillRect(0,20,W,4);
-  g.strokeStyle = 'rgba(90,66,40,.5)'; g.lineWidth = 2;
-  g.beginPath(); g.moveTo(0,26.5); g.lineTo(W,26.5); g.stroke();
-
-  // 窓からの光（左上から差し込む帯）。斜めに2本入れるだけで室内の空気が出る
-  g.save(); g.globalCompositeOperation = 'lighter';
-  for (const b of [[-60,150],[120,110]]){
-    const grd = g.createLinearGradient(b[0], 0, b[0]+420, H);
-    grd.addColorStop(0,'rgba(255,248,214,.34)');
-    grd.addColorStop(1,'rgba(255,248,214,0)');
-    g.fillStyle = grd;
-    g.beginPath();
-    g.moveTo(b[0],26); g.lineTo(b[0]+b[1],26); g.lineTo(b[0]+b[1]+300,H); g.lineTo(b[0]+300,H);
-    g.closePath(); g.fill();
-  }
-  g.restore();
-
-  // 四隅を落として、部屋の奥行きを出す
-  const vig = g.createRadialGradient(W/2,H/2,H*0.35, W/2,H/2,H*0.92);
-  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(60,40,20,.30)');
+  // 四隅を落として奥行きを出す
+  const vig = g.createRadialGradient(W/2,H/2,H*0.35, W/2,H/2,H*0.95);
+  vig.addColorStop(0,'rgba(0,0,0,0)'); vig.addColorStop(1,'rgba(0,0,0,.45)');
   g.fillStyle = vig; g.fillRect(0,0,W,H);
 
   floorCache = c;
 }
 
-/* ===================== 絵（ぜんぶ手描き） =====================
+/* ===================== 絵（ぜんぶ手描き・ネオンブロック）=====================
+   ★2026-08-29: 世界観を「ネコの家出」から **宇宙の脱出行** に変えた。
+   ネオンブロックス／ネオンタワーと同じ「ブロックの組み合わせ」で描く。
+
+   ★データ上の名前（cat / robots / sofa / yarn / fish / trap / catOnly）は**変えていない**。
+     ステージ表と tools/engine.js が同じ名前で書かれていて、変えると解析器とズレるため。
+     見た目・呼び名だけを次のように読み替えている:
+
+       cat     → 自機（プレイヤー機）        robots → 追撃機（ブロック体）
+       tower   → ワープゲート（ゴール）      sofa   → ブロック壁（追撃機が入れない）
+       yarn    → EMP機雷（踏むと1ターン停止） fish  → ブースター（もう1マス動ける）
+       trap    → 特異点（追撃機だけ落ちる）   catOnly→ スリット（自機だけ通れる細い隙間）
+
    どの関数も (g, x, y, s) を取る。x,y は「足元」。s は大きさの倍率。
    HUD と凡例の小さいアイコンでも同じ関数を使うので、絵柄が食い違わない。 */
 
+// ブロック1個。中は暗く、輪郭が光る（ネオンブロックス本編と同じ描き方）
+function nCell(g, cx, cy, u, col){
+  const x = cx*u - u/2, y = cy*u - u/2;
+  g.fillStyle = 'rgba(10,8,26,.85)';
+  g.fillRect(x, y, u, u);
+  g.save();
+  g.shadowColor = col; g.shadowBlur = Math.max(8, u*0.9);
+  g.strokeStyle = col; g.lineWidth = Math.max(1.6, u*0.14);
+  g.strokeRect(x + u*0.09, y + u*0.09, u*0.82, u*0.82);
+  g.restore();
+  g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = Math.max(0.8, u*0.06);
+  g.strokeRect(x + u*0.24, y + u*0.24, u*0.52, u*0.52);
+}
+// セルの並び。[x, y, 色番号] で書く
+function nShape(g, cells, u, cols){
+  g.lineJoin = 'round';
+  for (const c of cells) nCell(g, c[0], c[1], u, cols[c[2]] || cols[0]);
+}
+// 光る線・光る円（サイバーな輪郭に使う）
+function nStroke(g, col, w, blur){
+  g.shadowColor = col; g.shadowBlur = blur == null ? 12 : blur;
+  g.strokeStyle = col; g.lineWidth = w;
+}
+
+/* 自機。ブロックで組んだ小型機。
+   ★**上向き**で描く。縦画面では移動のほとんどが上下方向で、左右向きの機体だと
+     「どっちへ逃げているのか」が読めなかった（脱出口はいつも画面の上）。 */
+const SHIP_CELLS = [
+                        [ 0,-2,1],                        // 機首
+             [-1,-1,0], [ 0,-1,0], [ 1,-1,0],             // 前部
+  [-2, 0,0], [-1, 0,1], [ 0, 0,1], [ 1, 0,1], [ 2, 0,0],  // 主翼
+             [-1, 1,0],            [ 1, 1,0]              // 機関部（左右）
+];
 function drawCat(g,x,y,s,o){
   o = o || {};
-  const dir = o.dir || 1, t = o.t || 0;
-  g.save(); g.translate(x,y); g.scale(s*dir, s);
-  const sq = o.squash || 0;                       // 着地のつぶれ
-  g.scale(1 + sq*0.18, 1 - sq*0.18);
+  const t = o.t || 0;
+  g.save(); g.translate(x, y-26); g.scale(s, s);
+  const sq = o.squash || 0;                        // 着地のつぶれ（減速の踏ん張り）
+  g.scale(1 + sq*0.14, 1 - sq*0.14);
+  if (o.dizzy) g.rotate(0.6);                      // 撃墜されたときは傾ける
+  // 進む向きへわずかに傾ける（左右に動いたことが分かる程度）
+  else g.rotate((o.dir === -1 ? 0.10 : (o.dir === 1 ? -0.10 : 0)) * 0);
 
-  // しっぽ（ゆらゆら）
-  const sw = Math.sin(t*2.4) * 7;
-  g.lineCap = 'round';
-  g.beginPath(); g.moveTo(-12,-14);
-  g.quadraticCurveTo(-30,-20 + sw*0.4, -26,-42 + sw);
-  g.lineWidth = 11; g.strokeStyle = INK; g.stroke();
-  g.lineWidth = 6.5; g.strokeStyle = '#fdf3e2'; g.stroke();
+  const u = 9;
+  const cols = o.dizzy ? ['#FF4FC3','#FF8A3D'] : ['#41E3FF','#EAF6FF'];
 
-  // からだ
-  ell(g,0,-17,17,15); fillStroke(g,'#fdf3e2',3.2);
-  // 前足
-  ell(g,-8,-5,6.5,4.5); fillStroke(g,'#fdf3e2',3);
-  ell(g, 8,-5,6.5,4.5); fillStroke(g,'#fdf3e2',3);
-  // 体のぶち（キジトラ）
-  g.save(); ell(g,0,-17,17,15); g.clip();
-  g.fillStyle = '#e8a33d';
-  ell(g,7,-26,11,8); g.fill();
-  ell(g,-9,-14,7,5); g.fill();
+  // 推進の炎（下向き）。止まっていても小さく揺れる
+  const fl = 0.55 + Math.abs(Math.sin(t*9))*0.45;
+  g.save();
+  g.shadowColor = '#41E3FF'; g.shadowBlur = 16;
+  for (const ex of [-1, 1]){
+    const fg = g.createLinearGradient(0, 1.5*u, 0, 1.5*u + 20*fl);
+    fg.addColorStop(0,'rgba(255,255,255,.9)');
+    fg.addColorStop(0.4,'rgba(65,227,255,.65)');
+    fg.addColorStop(1,'rgba(65,227,255,0)');
+    g.fillStyle = fg;
+    g.beginPath();
+    g.moveTo(ex*u - u*0.34, 1.5*u); g.lineTo(ex*u, 1.5*u + 20*fl); g.lineTo(ex*u + u*0.34, 1.5*u);
+    g.closePath(); g.fill();
+  }
   g.restore();
 
-  // あたま
-  ell(g,0,-40,15.5,14); fillStroke(g,'#fdf3e2',3.2);
-  // 耳
-  for (const ex of [-1,1]){
-    g.beginPath();
-    g.moveTo(ex*5,-50); g.lineTo(ex*13,-58); g.lineTo(ex*14,-46); g.closePath();
-    fillStroke(g,'#fdf3e2',3);
-    g.beginPath();
-    g.moveTo(ex*7,-50.5); g.lineTo(ex*11.5,-55); g.lineTo(ex*12,-48); g.closePath();
-    g.fillStyle = '#f0a9a0'; g.fill();
-  }
-  // 頭のぶち
-  g.save(); ell(g,0,-40,15.5,14); g.clip();
-  g.fillStyle = '#e8a33d';
-  ell(g,-8,-50,9,7); g.fill();
-  g.restore();
+  nShape(g, SHIP_CELLS, u, cols);
 
-  // 顔
-  const blink = o.blink ? 1 : 0;
-  g.fillStyle = INK;
-  for (const ex of [-1,1]){
-    if (o.dizzy){                                  // つかまったとき（×_×）
-      g.lineWidth = 2.6; g.strokeStyle = INK; g.lineCap='round';
-      g.beginPath(); g.moveTo(ex*6-3,-45); g.lineTo(ex*6+3,-39);
-      g.moveTo(ex*6+3,-45); g.lineTo(ex*6-3,-39); g.stroke();
-    } else if (blink){
-      g.lineWidth = 2.4; g.strokeStyle = INK; g.lineCap='round';
-      g.beginPath(); g.moveTo(ex*6-3.4,-42); g.quadraticCurveTo(ex*6,-39.4,ex*6+3.4,-42); g.stroke();
-    } else {
-      ell(g,ex*6,-42,2.9,3.4); g.fill();
-      g.fillStyle='#fff'; ell(g,ex*6+1,-43.4,1.1,1.2); g.fill(); g.fillStyle=INK;
-    }
-  }
-  g.beginPath();                                    // 鼻
-  g.moveTo(-2.6,-35.6); g.lineTo(2.6,-35.6); g.lineTo(0,-33.2); g.closePath();
-  g.fillStyle = '#e58a86'; g.fill();
-  g.lineWidth = 1.8; g.strokeStyle = INK; g.lineCap='round';
-  g.beginPath();                                    // 口
-  g.moveTo(0,-33); g.quadraticCurveTo(-3,-30.6,-5.6,-32.6);
-  g.moveTo(0,-33); g.quadraticCurveTo( 3,-30.6, 5.6,-32.6); g.stroke();
-  g.lineWidth = 1.5;                                // ひげ
-  for (const ex of [-1,1]) for (let k=0;k<2;k++){
-    g.beginPath(); g.moveTo(ex*11,-38+k*4); g.lineTo(ex*23,-41+k*6); g.stroke();
-  }
+  // コクピット。機首の下に置くと「前」が分かる
+  g.save();
+  g.shadowColor = '#FF4FC3'; g.shadowBlur = 12; g.fillStyle = '#FF4FC3';
+  g.beginPath(); g.arc(0, -u*0.9, u*0.26, 0, Math.PI*2); g.fill();
+  g.restore();
   g.restore();
 }
 
+/* 追撃機。ネオンタワー（ひよこ）の敵と同じ「2色の市松ブロック」 */
+const CHASER_CELLS = [
+  [-1.5,-1,0],[-0.5,-1,1],[0.5,-1,1],[1.5,-1,0],   // 肩（横に広い＝スリットに入れない体格）
+             [-0.5, 0,1],[0.5, 0,1],
+  [-1.5, 1,0],                        [1.5, 1,0]   // 爪
+];
 function drawRobot(g,x,y,s,o){
   o = o || {};
   const t = o.t || 0, stun = o.stun, tilt = o.tilt || 0;
-  g.save(); g.translate(x,y);
-  const f = o.fall ? (1 - o.fall) : 1;              // 落とし穴に吸い込まれる
+  g.save(); g.translate(x, y-26);
+  const f = o.fall ? (1 - o.fall) : 1;              // 特異点に吸い込まれる
   g.scale(s*f, s*f);
-  g.rotate(tilt + (o.fall ? o.fall*0.8 : 0));
+  g.rotate(tilt + (o.fall ? o.fall*1.6 : 0));
 
-  // ブラシ（下でくるくる回る）
-  g.save(); g.translate(0,-6); g.rotate(t*6);
-  for (let k=0;k<6;k++){
-    g.rotate(Math.PI/3);
-    g.strokeStyle = '#d8b98a'; g.lineWidth = 3; g.lineCap='round';
-    g.beginPath(); g.moveTo(0,0); g.lineTo(20,0); g.stroke();
-  }
-  g.restore();
+  const u = 12;
+  // ★止まっているときは色を落とす（動けないことを色でも伝える）
+  const cols = stun ? ['#6A4A7A','#4A3A6A'] : ['#FF4FC3','#B36BFF'];
+  g.save();
+  g.translate(0, Math.sin(t*2.2)*1.6);              // わずかに浮遊
+  nShape(g, CHASER_CELLS, u, cols);
 
-  // 本体（お掃除ロボの円盤）
-  ell(g,0,-16,25,17);
-  const gr = g.createLinearGradient(0,-33,0,0);
-  gr.addColorStop(0,'#a7b7c4'); gr.addColorStop(1,'#5f6e7b');
-  fillStroke(g,gr,3.2);
-  ell(g,0,-22,19,11.5); fillStroke(g,'#cddae4',2.6);   // 天板
-  // バンパーの帯
-  g.save(); ell(g,0,-16,25,17); g.clip();
-  g.fillStyle = 'rgba(58,46,38,.22)'; g.fillRect(-26,-8,52,10);
-  g.restore();
-
-  // 目
+  // センサー（目）。「追ってくるもの」だと分かるように
+  const ey = -u*1.0;
   if (stun){
-    g.strokeStyle = '#e2544a'; g.lineWidth = 3; g.lineCap='round';
+    g.save(); nStroke(g,'#FF8A3D',2.4,10); g.lineCap='round';
     for (const ex of [-1,1]){
-      g.beginPath(); g.moveTo(ex*8-4,-26); g.lineTo(ex*8+4,-20);
-      g.moveTo(ex*8+4,-26); g.lineTo(ex*8-4,-20); g.stroke();
+      g.beginPath();
+      g.moveTo(ex*u*0.5-4, ey-4); g.lineTo(ex*u*0.5+4, ey+4);
+      g.moveTo(ex*u*0.5+4, ey-4); g.lineTo(ex*u*0.5-4, ey+4); g.stroke();
     }
+    g.restore();
   } else {
-    for (const ex of [-1,1]){
-      rr(g, ex*8-5, -26, 10, 6, 3);
-      g.fillStyle = '#ff6b57'; g.fill();
-      g.lineWidth = 2; g.strokeStyle = INK; g.stroke();
-      g.fillStyle = 'rgba(255,255,255,.75)';
-      rr(g, ex*8-3, -25, 4, 2, 1); g.fill();
-    }
+    g.save();
+    g.shadowColor = cols[0]; g.shadowBlur = 10; g.fillStyle = '#FFFFFF';
+    for (const ex of [-1,1]){ g.beginPath(); g.arc(ex*u*0.5, ey, u*0.30, 0, Math.PI*2); g.fill(); }
+    g.restore();
+    g.fillStyle = '#0A081A';
+    for (const ex of [-1,1]){ g.beginPath(); g.arc(ex*u*0.5, ey, u*0.14, 0, Math.PI*2); g.fill(); }
   }
-  // アンテナ（点滅）
-  g.strokeStyle = INK; g.lineWidth = 2.6; g.lineCap='round';
-  g.beginPath(); g.moveTo(11,-30); g.lineTo(15,-42); g.stroke();
-  g.beginPath(); g.arc(15,-44,3.4,0,Math.PI*2);
-  g.fillStyle = (Math.sin(t*7) > 0 || stun) ? '#ffd24a' : '#a3663a'; g.fill();
-  g.lineWidth = 2; g.strokeStyle = INK; g.stroke();
 
-  // 毛糸がからまっている
+  // 走査の輪（追跡中であることの気配）。三角の光は「スカート」に見えたのでやめた
+  if (!stun && !o.fall){
+    g.save();
+    const sc = 0.25 + Math.abs(Math.sin(t*3))*0.25;
+    nStroke(g, 'rgba(255,79,195,' + sc.toFixed(2) + ')', 2, 10);
+    g.beginPath(); g.ellipse(0, u*0.2, u*2.6, u*1.5, 0, 0, Math.PI*2); g.stroke();
+    g.restore();
+  }
+
+  // EMPで止まっているあいだ回る輪
   if (stun){
-    g.strokeStyle = '#e4695a'; g.lineWidth = 2.6;
+    g.save(); nStroke(g,'#FF8A3D',2.2,12);
     for (let k=0;k<3;k++){
       g.beginPath();
-      g.ellipse(0,-18, 22-k*3, 13-k*3, k*0.7 + t, 0, Math.PI*1.7);
+      g.ellipse(0,0, 20-k*4, 13-k*3, k*0.7 + t, 0, Math.PI*1.7);
       g.stroke();
     }
+    g.restore();
   }
+  g.restore();
   g.restore();
 }
 
+/* ゴール＝ワープゲート。柱2本と、あいだで回る光の環 */
 function drawTower(g,x,y,s){
   g.save(); g.translate(x,y); g.scale(s,s);
-  ell(g,0,-3,29,10); fillStroke(g,'#c98a4b',3);         // 台座
-  g.fillStyle = 'rgba(255,255,255,.25)'; ell(g,0,-5,22,6); g.fill();
-  rr(g,-9,-52,18,50,4); fillStroke(g,'#deb98a',3);      // 支柱
-  g.strokeStyle = '#b9884f'; g.lineWidth = 2.2;         // 麻縄
-  for (let k=0;k<9;k++){
-    g.beginPath(); g.moveTo(-9,-8-k*5); g.quadraticCurveTo(0,-11-k*5,9,-8-k*5); g.stroke();
+  const u = 12, t = (typeof clock === 'number' ? clock : 0);
+  const PX = 3.0;                  // 柱の左右の位置（近すぎると門に見えない）
+
+  // 奥の光。ゲートが「開いている」ことを見せる
+  const pl = g.createRadialGradient(0,-30,2, 0,-30,44);
+  pl.addColorStop(0,'rgba(255,255,255,.55)');
+  pl.addColorStop(0.35,'rgba(255,213,79,.40)');
+  pl.addColorStop(1,'rgba(255,213,79,0)');
+  g.fillStyle = pl; g.beginPath(); g.ellipse(0,-34,26,46,0,0,Math.PI*2); g.fill();
+
+  // ★あいだを**上へ昇る光の柱**にする（横帯を並べたら「たが」に見えて樽になった）
+  g.save();
+  const bw = PX*u - u*0.55;
+  const col = g.createLinearGradient(0,-2,0,-96);
+  col.addColorStop(0,'rgba(255,255,255,.50)');
+  col.addColorStop(0.35,'rgba(255,213,79,.28)');
+  col.addColorStop(1,'rgba(255,213,79,0)');
+  g.fillStyle = col;
+  g.beginPath(); g.moveTo(-bw,-2); g.lineTo(bw,-2); g.lineTo(bw*0.55,-96); g.lineTo(-bw*0.55,-96);
+  g.closePath(); g.fill();
+  // 昇っていく粒
+  g.beginPath(); g.rect(-bw,-96,bw*2,94); g.clip();
+  for (let k=0;k<7;k++){
+    const ph = ((t*0.5 + k/7) % 1);
+    const yy = -4 - ph*88, xx = Math.sin(k*2.1 + t) * bw * 0.55 * (1-ph);
+    g.save(); g.shadowColor='#FFD54F'; g.shadowBlur=10;
+    g.fillStyle = 'rgba(255,240,190,' + (0.85*(1-ph)).toFixed(2) + ')';
+    g.beginPath(); g.arc(xx, yy, 2.6*(1-ph*0.5), 0, Math.PI*2); g.fill(); g.restore();
   }
-  ell(g,0,-56,27,10); fillStroke(g,'#f3e0bc',3);        // 上の台
-  ell(g,0,-63,18,8); fillStroke(g,'#e4695a',3);         // クッション
-  g.strokeStyle = INK; g.lineWidth = 2.6; g.lineCap='round';
-  g.beginPath(); g.moveTo(16,-62); g.lineTo(16,-88); g.stroke();   // 旗ざお
-  g.beginPath(); g.moveTo(16,-88); g.lineTo(42,-81); g.lineTo(16,-74); g.closePath();
-  fillStroke(g,'#5a8f6b',2.6);
+  g.restore();
+
+  // 柱（ブロック4段ずつ）
+  const cols = ['#FFD54F','#FF8A3D'];
+  for (const px of [-PX, PX]){
+    for (let k=0;k<6;k++) nCell(g, px, -0.6 - k, u, cols[k%2]);
+  }
+  // ★上は閉じない（梁を渡すと箱＝樽に見える）。柱の先だけ内側へ折る
+  for (const px of [-PX, PX]) nCell(g, px - Math.sign(px)*0.9, -6.4, u, cols[0]);
+
+  // 足元は**閉じない**（輪を描くと樽に見えた）。左右に短い脚を出すだけ
+  g.save(); nStroke(g,'#FFD54F',2.4,10);
+  g.beginPath(); g.moveTo(-PX*u - u*0.6, -2); g.lineTo(-PX*u + u*0.6, -2);
+  g.moveTo( PX*u - u*0.6, -2); g.lineTo( PX*u + u*0.6, -2); g.stroke(); g.restore();
   g.restore();
 }
 
+/* ブロック壁。追撃機は入れない（自機は入れる＝盾になる） */
 function drawSofa(g,x,y,s){
-  g.save(); g.translate(x,y); g.scale(s,s);
-  rr(g,-27,-42,54,24,9); fillStroke(g,'#6e9c7e',3);      // 背もたれ
-  rr(g,-33,-30,12,24,6); fillStroke(g,'#5d8a6d',3);      // 肘掛け（左）
-  rr(g, 21,-30,12,24,6); fillStroke(g,'#5d8a6d',3);      // 肘掛け（右）
-  rr(g,-24,-26,48,20,7); fillStroke(g,'#8ab897',3);      // 座面
-  g.strokeStyle = 'rgba(58,46,38,.5)'; g.lineWidth = 2;
-  g.beginPath(); g.moveTo(0,-24); g.lineTo(0,-8); g.stroke();
+  g.save(); g.translate(x, y-16); g.scale(s,s);
+  const u = 15, cols = ['#7CFF4F','#41E3FF'];
+  nShape(g, [[-1,0,0],[0,0,1],[1,0,0],[-1,-1,1],[0,-1,0],[1,-1,1]], u, cols);
   g.restore();
 }
 
+/* EMP機雷。追撃機が乗ると1ターン止まる */
 function drawYarn(g,x,y,s,t){
-  g.save(); g.translate(x,y); g.scale(s,s);
-  g.beginPath(); g.arc(0,-15,13,0,Math.PI*2); fillStroke(g,'#e4695a',3);
-  // 巻いてある筋。細いと盤面では「ただの赤い丸」に見えるので、はっきり描く
-  g.strokeStyle = '#a83c33'; g.lineWidth = 2.8;
-  for (let k=-1;k<=1;k++){
-    g.beginPath(); g.ellipse(0,-15,11.5,5.5,k*0.9 + 0.4,0,Math.PI*2); g.stroke();
-  }
-  g.strokeStyle = 'rgba(255,255,255,.5)'; g.lineWidth = 2.2;
-  g.beginPath(); g.arc(-3,-19,6,Math.PI*1.05,Math.PI*1.75); g.stroke();
-  g.strokeStyle = INK; g.lineWidth = 2.4; g.lineCap='round';   // ほどけた糸
-  g.beginPath(); g.moveTo(11,-10);
-  g.quadraticCurveTo(20,-4 + Math.sin((t||0)*2)*2, 26,-8); g.stroke();
+  t = t || 0;
+  g.save(); g.translate(x, y-15); g.scale(s,s);
+  const u = 9, cols = ['#FF8A3D','#FFD54F'];
+  // 広がる輪（危険なものが「動いている」ように見せる）
+  const ph = (t*0.8) % 1;
+  g.save(); nStroke(g,'#FF8A3D',2, 10); g.globalAlpha = 1 - ph;
+  g.beginPath(); g.arc(0,0, 10 + ph*16, 0, Math.PI*2); g.stroke(); g.restore();
+  g.save(); g.rotate(Math.PI/4);
+  nShape(g, [[0,-1,0],[-1,0,1],[1,0,1],[0,1,0]], u, cols);
+  g.restore();
+  g.save(); g.shadowColor='#FFD54F'; g.shadowBlur=12; g.fillStyle='#FFF3D0';
+  g.beginPath(); g.arc(0,0,3.2,0,Math.PI*2); g.fill(); g.restore();
   g.restore();
 }
 
+/* ブースター。取ると もう1マス動ける */
 function drawFish(g,x,y,s,t){
-  g.save(); g.translate(x,y + Math.sin((t||0)*2.2)*1.5); g.scale(s,s);
-  ell(g,2,-15,15,9); fillStroke(g,'#7fb6d9',3);           // 胴
-  g.save(); ell(g,2,-15,15,9); g.clip();
-  g.fillStyle = '#d9eef8'; ell(g,3,-10,14,5); g.fill();   // 腹
-  g.fillStyle = 'rgba(255,255,255,.5)'; ell(g,0,-19,9,3); g.fill();
+  t = t || 0;
+  g.save(); g.translate(x, y-15 + Math.sin(t*2.2)*1.5); g.scale(s,s);
+  // ★上向きの二重の山形。「もう1マス進める」ことを向きで見せる
+  g.save(); g.lineCap='round'; g.lineJoin='round';
+  for (let k=0;k<2;k++){
+    const a = 0.55 + Math.abs(Math.sin(t*3 - k*0.9))*0.45;
+    nStroke(g, 'rgba(65,227,255,' + a.toFixed(2) + ')', 3.4, 14);
+    g.beginPath(); g.moveTo(-11, 2 + k*10); g.lineTo(0, -8 + k*10); g.lineTo(11, 2 + k*10); g.stroke();
+  }
   g.restore();
-  g.beginPath();                                          // 尾
-  g.moveTo(-12,-15); g.lineTo(-22,-22); g.lineTo(-22,-8); g.closePath();
-  fillStroke(g,'#5f9dc4',3);
-  g.beginPath(); g.moveTo(2,-23); g.lineTo(8,-27); g.lineTo(10,-21); g.closePath();
-  fillStroke(g,'#5f9dc4',2.4);                            // 背びれ
-  g.beginPath(); g.arc(9,-17,2.2,0,Math.PI*2); g.fillStyle = INK; g.fill();
   g.restore();
 }
 
 /* 道の上に置くもの。ang は道の向き（この向きに直交するように立てる）。
    マスではなく「道」に付くギミックなので、ほかと描き方が違う。 */
+
+/* スリット。自機だけが通れる細い隙間（追撃機は機体が大きくて入れない） */
 function drawCatDoor(g,x,y,ang,s){
   s = s || 1;
   g.save(); g.translate(x,y); g.rotate(ang); g.scale(s,s);
-  // ★枠は明るい木にする。濃い木にすると、中のネコ形の穴（濃い色）が沈んで
-  //   盤面では「茶色いかたまり」にしか見えなかった
-  rr(g,-10,-23,20,46,6); fillStroke(g,'#eccb9c',3);
-  g.save(); rr(g,-10,-23,20,46,6); g.clip();                // ねこの形の穴
-  g.fillStyle = '#3a2e26';
-  ell(g,0,3,7.5,8.5); g.fill();
-  g.beginPath(); g.moveTo(-7.5,-4); g.lineTo(-3,-13); g.lineTo(1,-4); g.closePath(); g.fill();
-  g.beginPath(); g.moveTo( 7.5,-4); g.lineTo( 3,-13); g.lineTo(-1,-4); g.closePath(); g.fill();
+  const u = 10;
+  // 上下の壁。あいだが「通れる隙間」
+  for (const sy of [-1,1]){
+    nCell(g, 0, sy*2.1, u, '#41E3FF');
+    nCell(g, 0, sy*3.1, u, '#7CFF4F');
+  }
+  // 隙間の光（細いことを見せる）
+  g.save(); nStroke(g,'#41E3FF',2,12);
+  g.beginPath(); g.moveTo(-5,-14); g.lineTo(-5,14);
+  g.moveTo(5,-14); g.lineTo(5,14); g.stroke();
+  g.globalAlpha = .5;
+  g.beginPath(); g.moveTo(0,-11); g.lineTo(0,11); g.stroke();
   g.restore();
-  g.strokeStyle = 'rgba(255,255,255,.55)'; g.lineWidth = 2;
-  g.beginPath(); g.moveTo(-6,-20); g.lineTo(-6,20); g.stroke();
   g.restore();
 }
+
+/* エナジーゲート。起動パネルを踏むまで閉じている */
 function drawGate(g,x,y,ang,open,s){
   s = s || 1;
   g.save(); g.translate(x,y); g.rotate(ang); g.scale(s,s);
-  // 柱は開いていても残す（「ここに戸がある」と分かるように）
-  rr(g,-9,-34,18,9,3); fillStroke(g,'#9c7346',2.8);
-  rr(g,-9, 25,18,9,3); fillStroke(g,'#9c7346',2.8);
-  if (open){                                                 // 開いた戸は柱の内側へ引き込む
-    g.globalAlpha = 0.9;
-    rr(g,-7,-25,14,9,3); fillStroke(g,'#c99a63',2.6);
-    rr(g,-7, 16,14,9,3); fillStroke(g,'#c99a63',2.6);
-    g.globalAlpha = 1;
-    g.strokeStyle = '#5a8f6b'; g.lineWidth = 4; g.lineCap = 'round';
-    g.beginPath(); g.moveTo(-6,-1); g.lineTo(-2,4); g.lineTo(7,-8); g.stroke();  // ✓
+  const u = 11;
+  // 柱は開いていても残す（「ここに関門がある」と分かるように）
+  nCell(g, 0,-2.9, u, '#B36BFF'); nCell(g, 0, 2.9, u, '#B36BFF');
+  if (open){
+    g.save(); nStroke(g,'#7CFF4F',3,14); g.lineCap='round'; g.lineJoin='round';
+    g.beginPath(); g.moveTo(-7,-1); g.lineTo(-2,4); g.lineTo(8,-9); g.stroke();
+    g.restore();
   } else {
-    rr(g,-8,-26,16,52,4); fillStroke(g,'#c99a63',3);         // 閉じた戸
-    g.strokeStyle = '#8a6236'; g.lineWidth = 2.6;
-    for (let k=-2;k<=2;k++){ g.beginPath(); g.moveTo(-7,k*10); g.lineTo(7,k*10); g.stroke(); }
-    g.beginPath(); g.arc(0,0,4.4,0,Math.PI*2);               // かんぬき
-    fillStroke(g,'#e0a83c',2.6);
-  }
-  g.restore();
-}
-function drawSwitch(g,x,y,s,pressed){
-  g.save(); g.translate(x,y); g.scale(s,s);
-  ell(g,0,-6,18,10.5); fillStroke(g,'#b9b1a2',3);            // 床の板（毛糸と見分けるため灰色）
-  ell(g,0,pressed ? -8 : -13, 11.5, 7);
-  // ★ボタンは山吹色。赤にすると毛糸玉と同じ色になって、盤面で見分けが付かなかった
-  fillStroke(g, pressed ? '#5a8f6b' : '#e0a83c', 3);
-  if (!pressed){
-    g.fillStyle = 'rgba(255,255,255,.45)'; ell(g,-3,-13.5,4.5,2); g.fill();
-  } else {
-    g.strokeStyle = '#fff'; g.lineWidth = 2.6; g.lineCap = 'round';
-    g.beginPath(); g.moveTo(-4,-8); g.lineTo(-1,-5); g.lineTo(5,-11); g.stroke();
+    // 閉じている＝光の帯が張ってある
+    g.save();
+    nStroke(g,'#FF4FC3',2.6,14);
+    for (let k=-2;k<=2;k++){
+      g.beginPath(); g.moveTo(-8, k*9); g.lineTo(8, k*9); g.stroke();
+    }
+    g.globalAlpha = .18; g.fillStyle = '#FF4FC3';
+    g.fillRect(-8,-24,16,48);
+    g.restore();
   }
   g.restore();
 }
 
-function drawTrap(g,x,y,s){
-  g.save(); g.translate(x,y); g.scale(s,s);
-  ell(g,0,-6,30,20);
-  const gr = g.createRadialGradient(0,-6,3,0,-6,30);
-  gr.addColorStop(0,'#100c0a'); gr.addColorStop(0.75,'#241c17'); gr.addColorStop(1,'#4a382c');
-  fillStroke(g,gr,3);
-  g.strokeStyle = 'rgba(255,240,210,.45)'; g.lineWidth = 2.4;   // 穴のふち
-  g.beginPath(); g.ellipse(0,-6,29,19,0,Math.PI*0.15,Math.PI*0.85); g.stroke();
-  g.strokeStyle = 'rgba(58,46,38,.55)'; g.lineWidth = 2;        // 割れた床板
-  for (let k=0;k<4;k++){
-    const a = 0.5 + k*1.5;
-    g.beginPath();
-    g.moveTo(Math.cos(a)*30, -6 + Math.sin(a)*20);
-    g.lineTo(Math.cos(a)*39, -6 + Math.sin(a)*26); g.stroke();
+/* 起動パネル。踏むとゲートが開く（一度きり） */
+function drawSwitch(g,x,y,s,pressed){
+  g.save(); g.translate(x, y-10); g.scale(s,s);
+  const col = pressed ? '#7CFF4F' : '#FFD54F';
+  // 床のパネル（菱形）
+  g.save(); nStroke(g, col, 2.4, 12);
+  g.fillStyle = 'rgba(10,8,26,.85)';
+  g.beginPath(); g.moveTo(0,-11); g.lineTo(17,0); g.lineTo(0,11); g.lineTo(-17,0); g.closePath();
+  g.fill(); g.stroke(); g.restore();
+  g.save(); nStroke(g, col, 2, 10);
+  if (pressed){
+    g.lineCap='round'; g.lineJoin='round';
+    g.beginPath(); g.moveTo(-5,0); g.lineTo(-1,4); g.lineTo(6,-5); g.stroke();
+  } else {
+    g.beginPath(); g.moveTo(0,-5); g.lineTo(8,0); g.lineTo(0,5); g.lineTo(-8,0); g.closePath(); g.stroke();
   }
   g.restore();
+  g.restore();
+}
+
+/* 特異点。追撃機だけが吸い込まれて消える */
+function drawTrap(g,x,y,s){
+  const t = (typeof clock === 'number' ? clock : 0);
+  g.save(); g.translate(x,y); g.scale(s,s);
+  ell(g,0,-6,30,20);
+  const gr = g.createRadialGradient(0,-6,2,0,-6,30);
+  gr.addColorStop(0,'#000000'); gr.addColorStop(0.7,'#170a2a'); gr.addColorStop(1,'#3a1552');
+  g.fillStyle = gr; g.fill();
+  // 吸い込まれる渦
+  g.save(); g.translate(0,-6); g.scale(1,0.66);
+  nStroke(g,'rgba(255,79,195,.55)',1.8,8);
+  for (let k=0;k<3;k++){
+    g.beginPath();
+    for (let a=0;a<Math.PI*1.9;a+=0.2){
+      const r = 6 + a*4.4;
+      const an = a + t*1.1 + k*2.1;
+      if (a===0) g.moveTo(Math.cos(an)*r, Math.sin(an)*r);
+      else g.lineTo(Math.cos(an)*r, Math.sin(an)*r);
+    }
+    g.stroke();
+  }
+  g.restore();
+  // ふち（あぶない色）
+  g.save(); nStroke(g,'rgba(255,79,195,.9)',2.6,14);
+  g.beginPath(); g.ellipse(0,-6,29,19,0,0,Math.PI*2); g.stroke(); g.restore();
+  g.restore();
+}
+
+
+/* 足元にひろがる光。暗い床の上で手描きのモノを浮かせるために敷く */
+function glowPool(g,x,y,r,color,a){
+  const gr = g.createRadialGradient(x,y,0,x,y,r);
+  gr.addColorStop(0, hexA(color, a));
+  gr.addColorStop(0.55, hexA(color, a*0.42));
+  gr.addColorStop(1, hexA(color, 0));
+  g.save(); g.fillStyle = gr;
+  g.beginPath(); g.ellipse(x,y,r,r*0.62,0,0,Math.PI*2); g.fill(); g.restore();
+}
+function hexA(hex,a){
+  const n = parseInt(hex.slice(1),16);
+  return 'rgba('+((n>>16)&255)+','+((n>>8)&255)+','+(n&255)+','+a.toFixed(3)+')';
 }
 
 /* ===================== 盤面の描画 ===================== */
@@ -942,6 +1078,20 @@ function drawBoard(){
   }
   ctx.drawImage(floorCache, 0, 0);
 
+  // ★警戒ゲージ。盤の上ぶちのネオン管が、手が止まるほど右へ伸びて色が変わる
+  if (started && !over && !cleared && turn === 'cat' && moves > 0){
+    const p = Math.min(1, alert / ALERT_SEC);
+    if (p > 0.02){
+      const col = p < 0.6 ? '65,227,255' : '255,79,195';
+      ctx.save();
+      ctx.shadowColor = 'rgba(' + col + ',.9)'; ctx.shadowBlur = 14;
+      ctx.strokeStyle = 'rgba(' + col + ',' + (0.55 + p*0.45).toFixed(2) + ')';
+      ctx.lineWidth = 3 + p*2;
+      ctx.beginPath(); ctx.moveTo(0, 26.5); ctx.lineTo(W * p, 26.5); ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   // ---- 道（マスとマスをつなぐ廊下） ----
   //   ふつうの道／ねこのぬけ道（細い）／ドアのある道 の3種類を描き分ける
   const doorSet = new Set(S.doors.map(e => edgeKey(e[0],e[1])));
@@ -953,9 +1103,12 @@ function drawBoard(){
     const k = edgeKey(e[0],e[1]);
     const narrow = onlyCat.has(k);
     ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(q[0],q[1]);
-    ctx.strokeStyle = 'rgba(58,46,38,.18)'; ctx.lineWidth = narrow ? 20 : 30; ctx.stroke();
-    ctx.strokeStyle = '#fdf3dc'; ctx.lineWidth = narrow ? 14 : 24; ctx.stroke();
-    ctx.strokeStyle = '#e0c79c'; ctx.lineWidth = 3;
+    // ★ネオン版: 白い廊下 → 光る道。太い薄光の上に細い芯を重ねる
+    ctx.strokeStyle = 'rgba(65,227,255,.10)'; ctx.lineWidth = narrow ? 18 : 26; ctx.stroke();
+    ctx.save(); ctx.shadowColor = '#41e3ff'; ctx.shadowBlur = 12;
+    ctx.strokeStyle = 'rgba(65,227,255,.55)'; ctx.lineWidth = narrow ? 3 : 5; ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = narrow ? 1 : 1.6;
     ctx.setLineDash([9,11]); ctx.stroke(); ctx.setLineDash([]);
     if (narrow || doorSet.has(k)){
       const mx = (p[0]+q[0])/2, my = (p[1]+q[1])/2;
@@ -985,39 +1138,54 @@ function drawBoard(){
   S.nodes.forEach((_,i)=>{
     const [x,y] = tileAt(i);
     if (trapLeft.has(i)){ drawTrap(ctx,x,y+6,1); return; }   // 穴は座布団を描かない
-    shadowEll(ctx, x+3, y+5, R, R*0.9, 0.18);
+    // ★ネオン版: 座布団 → 床に埋まった光るパネル
     ctx.beginPath(); ctx.arc(x,y,R,0,Math.PI*2);
-    fillStroke(ctx, '#fffdf6', 3.2);
-    ctx.beginPath(); ctx.arc(x,y,R-7,0,Math.PI*2);           // 座布団のステッチ
-    ctx.strokeStyle = 'rgba(58,46,38,.16)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'rgba(18,12,40,.92)'; ctx.fill();
+    ctx.save(); ctx.shadowColor = '#41e3ff'; ctx.shadowBlur = 10;
+    ctx.strokeStyle = 'rgba(65,227,255,.55)'; ctx.lineWidth = 2.6; ctx.stroke(); ctx.restore();
+    ctx.beginPath(); ctx.arc(x,y,R-7,0,Math.PI*2);
+    ctx.strokeStyle = 'rgba(65,227,255,.16)'; ctx.lineWidth = 2; ctx.stroke();
 
     if (danger.has(i)){
       ctx.beginPath(); ctx.arc(x,y,R+5,0,Math.PI*2);
       ctx.setLineDash([6,7]); ctx.lineWidth = 3;
-      ctx.strokeStyle = 'rgba(200,90,58,.75)'; ctx.stroke(); ctx.setLineDash([]);
+      ctx.strokeStyle = 'rgba(255,79,195,.85)'; ctx.stroke(); ctx.setLineDash([]);   // ★ネオンの赤紫
     }
     if (reach.has(i)){
       const p = 0.5 + 0.5*Math.sin(clock*4);
       ctx.beginPath(); ctx.arc(x,y,R + 3 + p*4,0,Math.PI*2);
-      ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(90,143,107,' + (0.45 + p*0.4) + ')'; ctx.stroke();
+      ctx.save(); ctx.shadowColor = '#7cff4f'; ctx.shadowBlur = 12;
+      ctx.lineWidth = 3.4; ctx.strokeStyle = 'rgba(124,255,79,' + (0.5 + p*0.4) + ')'; ctx.stroke();
+      ctx.restore();
       ctx.beginPath(); ctx.arc(x,y,R-3,0,Math.PI*2);
-      ctx.fillStyle = 'rgba(90,143,107,' + (0.08 + p*0.08) + ')'; ctx.fill();
+      ctx.fillStyle = 'rgba(124,255,79,' + (0.07 + p*0.07) + ')'; ctx.fill();
     }
   });
 
   // ---- 置いてあるもの ----
+  // ★暗い床では手描きのモノが沈むので、足元に「光だまり」を敷いてから描く。
+  //   モノ自体は塗り替えない（手描きの見た目を残したいので、光は下に置くだけ）
   S.nodes.forEach((_,i)=>{
     const [x,y] = tileAt(i);
     // 毛糸とさかなは、盤面に置くと小さく見える（タイルの直径は 54）。1.2倍で置く
-    if (S.sofa.includes(i)) drawSofa(ctx,x,y+8,1);
-    if (yarnLeft.has(i))    drawYarn(ctx,x,y+10,1.2,clock);
-    if (fishLeft.has(i))    drawFish(ctx,x,y+10,1.2,clock);
-    if (S.sw.includes(i))   drawSwitch(ctx,x,y+8,1.1,!swLeft.has(i));
+    if (S.sofa.includes(i)){ glowPool(ctx,x,y+6,34,'#7cff4f',.30); drawSofa(ctx,x,y+8,1); }
+    if (yarnLeft.has(i)){    glowPool(ctx,x,y+2,26,'#ff8a3d',.36); drawYarn(ctx,x,y+10,1.2,clock); }
+    if (fishLeft.has(i)){    glowPool(ctx,x,y+2,26,'#41e3ff',.34); drawFish(ctx,x,y+10,1.2,clock); }
+    if (S.sw.includes(i)){   glowPool(ctx,x,y+4,28,'#ffd54f',.34); drawSwitch(ctx,x,y+8,1.1,!swLeft.has(i)); }
   });
   // ゴールのキャットタワー（猫より先に描く＝猫が手前に立つ）
   {
     const [x,y] = tileAt(S.goal);
-    shadowEll(ctx, x+4, y+7, 30, 10, 0.2);
+    // ★ゴールは「光の柱」で目立たせる。どこへ行けば終わりかを一目で分からせるため
+    const gp = 0.55 + Math.sin(clock*2.2)*0.16;
+    const beam = ctx.createLinearGradient(0, y-102, 0, y+8);
+    beam.addColorStop(0,'rgba(255,213,79,0)');
+    beam.addColorStop(1,'rgba(255,213,79,'+(0.20*gp).toFixed(3)+')');
+    ctx.save(); ctx.fillStyle = beam;
+    ctx.beginPath(); ctx.moveTo(x-14,y-102); ctx.lineTo(x+14,y-102);
+    ctx.lineTo(x+34,y+8); ctx.lineTo(x-34,y+8); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    glowPool(ctx, x, y+6, 44, '#ffd54f', 0.34*gp + 0.16);
     drawTower(ctx,x,y+7,1);
   }
 
@@ -1064,9 +1232,10 @@ function burst(x,y,kind,n){
       x, y, vx: Math.cos(a)*sp, vy: Math.sin(a)*sp - (kind==='confetti'?120:40),
       life: 1, kind,
       r: 2 + Math.random()*3, rot: Math.random()*6, vr: (Math.random()-0.5)*8,
+      // ★色もネオンへ。破片＝暖色のままだと、夜の盤面で泥はねに見えた
       color: kind === 'confetti'
-        ? ['#e4695a','#e0a83c','#5a8f6b','#7fb6d9','#fdf3e2'][(Math.random()*5)|0]
-        : (kind === 'sparkle' ? '#ffd85e' : 'rgba(120,95,70,.8)'),
+        ? ['#41E3FF','#FF4FC3','#FFD54F','#7CFF4F','#B36BFF'][(Math.random()*5)|0]
+        : (kind === 'sparkle' ? '#41E3FF' : 'rgba(255,79,195,.75)'),
     });
   }
 }
@@ -1136,6 +1305,7 @@ function loadStage(i){
   S.sofa = S.sofa || []; S.yarn = S.yarn || []; S.fish = S.fish || []; S.trap = S.trap || [];
   S.sw = S.sw || []; S.doors = S.doors || []; S.catOnly = S.catOnly || [];
   swLeft = new Set(S.sw); doorsOpen = false;
+  buildFit();                     // ★NX/NY より先に。座標の写し方が面ごとに変わるため
   buildAdj();
   cat.node = S.cat; cat.x = NX(S.cat); cat.y = NY(S.cat);
   cat.dir = 1; cat.hop = 0; cat.anim = null; cat.squash = 0;
@@ -1143,12 +1313,12 @@ function loadStage(i){
   robots = S.robots.map((n,k) => ({ id:k, node:n, x:NX(n), y:NY(n), stun:0, err:0, fall:0, tilt:0, anim:null }));
   fishLeft = new Set(S.fish); yarnLeft = new Set(S.yarn); trapLeft = new Set(S.trap);
   turn = 'cat'; over = false; cleared = false; busy = false; moves = 0;
-  timers = []; parts = []; shakeT = 0;
+  timers = []; parts = []; shakeT = 0; alert = 0;
 
   document.getElementById('stageBadge').textContent = 'Stage ' + (i+1) + ' / ' + STAGES.length;
   document.getElementById('stageName').textContent = S.name;
   updateHud();
-  setMsg('となりのマスをタップして、うごこう！');
+  setMsg('隣接ノードをタップして移動');
   cutin('Stage ' + (i+1) + '　' + S.name);
 }
 function cutin(text){
@@ -1162,7 +1332,7 @@ function updateHud(){
   const icon = b.querySelector('canvas');
   paintIcon(icon, turn === 'cat' ? 'cat' : 'robot');
   b.className = 'badge ' + (turn === 'cat' ? 'turn-cat' : 'turn-robot');
-  b.lastChild.nodeValue = turn === 'cat' ? 'きみのターン' : 'ロボットのターン';
+  b.lastChild.nodeValue = turn === 'cat' ? 'あなたの手番' : 'ロボットのターン';
   const opt = STAGES[stageIdx].opt;
   document.getElementById('moveBadge').textContent =
     moves + '手' + (opt ? '　最短 ' + opt : '');       // ★3の目標を最初から見せる
@@ -1172,26 +1342,26 @@ function updateHud(){
 function onCatMove(n){
   if (turn !== 'cat' || over || busy) return;
   if (!adj[cat.node].includes(n)) return;
-  busy = true; moves++;
+  busy = true; moves++; alert = 0;
   const tx = NX(n), ty = NY(n);
   cat.dir = tx >= cat.x ? 1 : -1;
   cat.node = n;
   sfx('step');
   updateHud();
-  tween(cat, tx, ty, 0.26, 26, ()=>{
+  tween(cat, tx, ty, 0.20, 26, ()=>{
     busy = false;
     if (cat.node === S.goal){ win(); return; }
     if (fishLeft.has(cat.node)){                    // おさかな：もう1マス動ける
       fishLeft.delete(cat.node);
       sfx('fish'); burst(cat.x, cat.y - 20, 'sparkle', 14);
-      setMsg('おさかなゲット！ <b>もう1マスうごけるよ</b>');
+      setMsg('ブースター取得。<b>もう1マス移動できる</b>');
       return;
     }
     if (swLeft.has(cat.node)){                      // スイッチ：閉じていたドアが開く
       swLeft.delete(cat.node);
       doorsOpen = true; buildAdj();
       sfx('door'); burst(cat.x, cat.y - 16, 'sparkle', 12);
-      setMsg('スイッチを ふんだ！ <b>ドアが ひらいたよ</b>');
+      setMsg('起動パネル作動。<b>ゲート開放</b>');
     }
     startRobotTurn();
   });
@@ -1268,39 +1438,55 @@ function applyRobotTurnNow(){
 
 function startRobotTurn(){
   turn = 'robot'; busy = true; updateHud();
-  setMsg('ロボットが うごくよ…');
+  setMsg('追撃機、行動中…');
   const plan = planRobotTurn();
   let k = 0;
 
   const play = ()=>{
     if (over) return;
     if (k >= plan.ev.length){ endRobotTurn(); return; }
+
+    /* ★2026-08-29: 移動は**まとめて同時に**動かす。
+       1台ずつ待たせていたので、敵3台だと 0.3 + 0.32×3 = 1.26秒 も見ているだけの時間があった
+       （そのあと自機の移動 0.26秒。1手あたり約1.5秒）。同時にすると約0.35秒で済む。
+       ★順番に意味がある出来事（EMP・撃墜・特異点）は、これまでどおり1つずつ見せる。
+         計算（planRobotTurn）は触っていないので、ルールと ★の最短手数は変わらない。 */
+    const batch = [];
+    while (k < plan.ev.length && plan.ev[k].t === 'move') batch.push(plan.ev[k++]);
+    if (batch.length){
+      let done = 0; sfx('robot');
+      for (const b of batch){
+        const rr2 = robots.find(x => x.id === b.id);
+        if (!rr2){ done++; continue; }
+        rr2.node = b.to;
+        tween(rr2, NX(b.to), NY(b.to), 0.22, 0, ()=>{ if (++done === batch.length) play(); });
+      }
+      if (done === batch.length) play();       // 全部いなかったとき（落とし穴の直後など）
+      return;
+    }
+
     const e = plan.ev[k++];
     const r = robots.find(x => x.id === e.id);
     if (!r){ play(); return; }
     switch (e.t){
       case 'stun':
         r.stun--; r.err = 1; sfx('yarn');
-        setMsg('ロボット「エラー…うごけない！」');
-        after(0.6, play); break;
-      case 'move':
-        r.node = e.to; sfx('robot');
-        tween(r, NX(e.to), NY(e.to), 0.3, 0, ()=>after(0.02, play));
-        break;
+        setMsg('追撃機、機能停止中');
+        after(0.38, play); break;
       case 'yarn':
         yarnLeft.delete(e.node); r.stun = 1; r.err = 1;
         sfx('yarn'); burst(r.x, r.y - 16, 'dust', 10);
-        setMsg('ロボット「エラー…毛糸が からまった！」');
-        after(0.75, play); break;
+        setMsg('EMP命中。<b>追撃機を1ターン停止</b>');
+        after(0.46, play); break;
       case 'caught':
         over = true; sfx('caught'); shake(13);
         burst(cat.x, cat.y - 24, 'dust', 18);
-        setMsg('つかまっちゃった…！');
+        setMsg('接触。撃墜された');
         after(0.7, lose); break;
       case 'fall':
-        sfx('trap'); setMsg('ロボットが 落とし穴に 落ちた！');
+        sfx('trap'); setMsg('追撃機が特異点に呑まれた');
         r.falling = true;
-        after(0.55, ()=>{
+        after(0.4, ()=>{
           const j = robots.indexOf(r);
           if (j >= 0) robots.splice(j, 1);
           burst(r.x, r.y - 6, 'dust', 14);
@@ -1309,14 +1495,14 @@ function startRobotTurn(){
         break;
     }
   };
-  after(0.3, play);
+  after(0.08, play);
 }
 function endRobotTurn(){
   if (over) return;
-  turn = 'cat'; busy = false;
+  turn = 'cat'; busy = false; alert = 0;
   robots.forEach(r => { r.err = 0; });
   const near = robots.some(r => adj[cat.node].includes(r.node));
-  setMsg(near ? '<b>あぶない！</b> ロボットが すぐそこ！' : 'きみのターン！ にげきろう！');
+  setMsg(near ? '<b>あぶない！</b> ロボットが すぐそこ！' : 'あなたの手番！ にげきろう！');
   updateHud();
 }
 
@@ -1334,14 +1520,14 @@ function win(){
   after(0.55, ()=>{
     if (last){
       const got = STAGES.reduce((a,_,i)=>a + starsFor(i), 0);
-      showResult('tower', '完全脱出せいこう！',
-        starLine(isBest) + '<br>ぜんぶのステージを クリアしたよ！おめでとう！' +
-        '<br>あつめた★ <b>' + got + ' / ' + (STAGES.length*3) + '</b>',
-        'もう一度あそぶ', ()=>{ hide('overlay'); loadStage(0); });
+      showResult('tower', 'ALL CLEAR',
+        starLine(isBest) + '<br>全ステージ突破。' +
+        '<br>獲得★ <b>' + got + ' / ' + (STAGES.length*3) + '</b>',
+        '最初から', ()=>{ hide('overlay'); loadStage(0); });
     } else {
-      showResult('tower', 'ステージクリア！',
-        starLine(isBest) + '<br>つぎは Stage ' + (stageIdx + 2),
-        '次のステージへ', ()=>{ hide('overlay'); loadStage(stageIdx + 1); });
+      showResult('tower', '離脱成功',
+        starLine(isBest) + '<br>次は Stage ' + (stageIdx + 2),
+        '次のステージ', ()=>{ hide('overlay'); loadStage(stageIdx + 1); });
     }
   });
 }
@@ -1350,16 +1536,16 @@ function win(){
 function starLine(isBest){
   const st = starsFor(stageIdx), opt = STAGES[stageIdx].opt;
   let s = '<b style="font-size:22px;letter-spacing:2px">' + starText(st) + '</b><br>' +
-          '<b>' + moves + '手</b>でクリア！' + (isBest ? '（自己ベスト更新）' : '');
-  if (opt && st < 3) s += '<br>最短は <b>' + opt + '手</b>。ぴったりで ★★★';
+          '<b>' + moves + '手</b>で突破' + (isBest ? '（自己ベスト更新）' : '');
+  if (opt && st < 3) s += '<br>最短 <b>' + opt + '手</b>。ちょうどで ★★★';
   return s;
 }
 function lose(){
-  const lines = ['お尻を すわれそうになった！','ロボットに つかまっちゃった！',
-                 'あわや、丸のみ！','ヒゲが はさまった！'];
+  const lines = ['退路を読まれた。','包囲された。',
+                 '一歩、遅かった。','逃げ場を失った。'];
   const t = lines[(cat.node + stageIdx) % lines.length];
-  showResult('robot', 'つかまっちゃった！', t + '<br>もう一度チャレンジ！',
-    'このステージを やり直す', ()=>{ hide('overlay'); loadStage(stageIdx); });
+  showResult('robot', '撃墜', t + '<br>もう一度、経路を組み直せ。',
+    'このステージをリトライ', ()=>{ hide('overlay'); loadStage(stageIdx); });
 }
 
 /* ===================== 画面（タイトル・選択・結果） ===================== */
@@ -1379,17 +1565,17 @@ function showResult(art, title, text, btn, cb){
 /* HUD・凡例・結果の小さい絵。盤面と同じ描画関数を使うので絵柄が食い違わない。
    絵ごとに「原点からどれだけ上／下に伸びるか」を持たせて、箱いっぱいに収める。 */
 const ART = {
-  cat:   { w:50, up:62, dn:2,  f:(g,s)=>drawCat(g,0,0,s,{dir:1,t:0.5}) },
-  robot: { w:54, up:50, dn:4,  f:(g,s)=>drawRobot(g,0,0,s,{t:0.3}) },
-  tower: { w:74, up:92, dn:6,  f:(g,s)=>drawTower(g,0,0,s) },
-  sofa:  { w:68, up:44, dn:4,  f:(g,s)=>drawSofa(g,0,0,s) },
-  yarn:  { w:42, up:30, dn:2,  f:(g,s)=>drawYarn(g,0,0,s,0) },
-  fish:  { w:46, up:28, dn:4,  f:(g,s)=>drawFish(g,0,0,s,0) },
+  cat:   { w:48, up:56, dn:14, f:(g,s)=>drawCat(g,0,0,s,{dir:1,t:0.5}) },
+  robot: { w:56, up:48, dn:6,  f:(g,s)=>drawRobot(g,0,0,s,{t:0.3}) },
+  tower: { w:84, up:96, dn:6,  f:(g,s)=>drawTower(g,0,0,s) },
+  sofa:  { w:54, up:42, dn:4,  f:(g,s)=>drawSofa(g,0,0,s) },
+  yarn:  { w:44, up:34, dn:6,  f:(g,s)=>drawYarn(g,0,0,s,0) },
+  fish:  { w:30, up:30, dn:6,  f:(g,s)=>drawFish(g,0,0,s,0) },
   trap:  { w:80, up:28, dn:16, f:(g,s)=>drawTrap(g,0,0,s) },
   // 道に付くギミックは横向きに寝かせて（ang=π/2）箱に収める
-  catdoor:{ w:46, up:24, dn:24, f:(g,s)=>drawCatDoor(g,0,0,Math.PI/2,s) },
-  gate:  { w:46, up:26, dn:26, f:(g,s)=>drawGate(g,0,0,Math.PI/2,false,s) },
-  sw:    { w:38, up:20, dn:6,  f:(g,s)=>drawSwitch(g,0,0,s,false) },
+  catdoor:{ w:80, up:16, dn:16, f:(g,s)=>drawCatDoor(g,0,0,Math.PI/2,s) },
+  gate:  { w:60, up:20, dn:20, f:(g,s)=>drawGate(g,0,0,Math.PI/2,false,s) },
+  sw:    { w:40, up:22, dn:2,  f:(g,s)=>drawSwitch(g,0,0,s,false) },
 };
 // 小さい絵ほど粗が見えるので、実画素で描いて CSS で縮める
 function ensureHiDPI(cv){
@@ -1428,13 +1614,22 @@ function paintTitleArt(){
   g.clearRect(0,0,w,h);
   g.save();
   const grd = g.createLinearGradient(0,0,0,h);
-  grd.addColorStop(0,'#f6e7c8'); grd.addColorStop(1,'#e5cda3');
+  // ★2026-08-29: タイトルの絵も夜へ。地はネオンの方眼、下に光の帯を敷いて床に見せる
+  grd.addColorStop(0,'#241247'); grd.addColorStop(1,'#0b0720');
   g.fillStyle = grd; rr(g,0,0,w,h,16); g.fill();
-  g.lineWidth = 4; g.strokeStyle = INK; g.stroke();
+  g.lineWidth = 4; g.strokeStyle = 'rgba(65,227,255,.55)'; g.stroke();
   g.save(); rr(g,0,0,w,h,16); g.clip();
-  g.strokeStyle = 'rgba(140,105,66,.25)'; g.lineWidth = 2;
+  g.strokeStyle = 'rgba(65,227,255,.16)'; g.lineWidth = 1.5;
   for (let y=28;y<h;y+=26){ g.beginPath(); g.moveTo(0,y); g.lineTo(w,y); g.stroke(); }
+  for (let x=26;x<w;x+=26){ g.beginPath(); g.moveTo(x,0); g.lineTo(x,h); g.stroke(); }
   const base = h - 22;
+  g.save();                                   // 床のライン（キャラクターが立つ高さ）
+  g.shadowColor = 'rgba(255,79,195,.8)'; g.shadowBlur = 12;
+  g.strokeStyle = 'rgba(255,79,195,.75)'; g.lineWidth = 2.4;
+  g.beginPath(); g.moveTo(0, base+8); g.lineTo(w, base+8); g.stroke(); g.restore();
+  glowPool(g, 316, base+4, 46, '#ffd54f', .34);
+  glowPool(g, 194, base+4, 30, '#41e3ff', .22);
+  glowPool(g,  82, base+4, 34, '#ff4fc3', .26);
   shadowEll(g, 316, base+4, 26, 8, 0.18); drawTower(g, 316, base, 0.85);
   shadowEll(g, 196, base+6, 15, 5);       drawCat(g, 194, base, 0.95, {dir:1,t:0.6});
   shadowEll(g,  84, base+6, 22, 7);       drawRobot(g, 82, base, 0.95, {t:0.3});
@@ -1474,7 +1669,7 @@ canvas.addEventListener('pointerdown', e=>{
   });
   if (best < 0 || bd > (R + 16)*(R + 16)) return;
   if (adj[cat.node].includes(best)) onCatMove(best);
-  else if (best !== cat.node) setMsg('そこへは いけないよ。<b>となりのマス</b>をタップ！');
+  else if (best !== cat.node) setMsg('そこへは移動できない。<b>隣接ノード</b>をタップ');
 });
 
 document.getElementById('mute').onclick = ()=>{ initAudio(); setSound(!soundOn); sfx('ui'); };
@@ -1505,6 +1700,16 @@ function frame(ts){
   updateParts(dt);
   if (shakeT > 0){ shakeT -= dt; shakeP *= 0.93; }
   if (cat.squash) cat.squash = Math.max(0, cat.squash - dt*5);
+  // 警戒ゲージ（自機の番に、手が止まっているあいだだけ たまる）
+  if (started && !over && !cleared && !busy && turn === 'cat' && moves > 0){
+    alert += dt;
+    if (alert >= ALERT_SEC){
+      alert = 0;
+      setMsg('<b>警戒限界。追撃機が前進した</b>');
+      startRobotTurn();            // 手数は増えない（＝★の基準は変わらない）
+    }
+  }
+
   // まばたき
   cat.blinkT -= dt;
   if (cat.blinkT <= 0){ cat.blink = 0.13; cat.blinkT = 2 + Math.random()*3; }
@@ -1525,7 +1730,7 @@ function stageFromUrl(){
 }
 
 function boot(){
-  // 盤面も実画素で描く（900×600 の論理座標のまま、裏で2倍に持つ）
+  // 盤面も実画素で描く（600×900 の論理座標のまま、裏で2倍に持つ）
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   if (dpr > 1){
     canvas.width = W*dpr; canvas.height = H*dpr;
