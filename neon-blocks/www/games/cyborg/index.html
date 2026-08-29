@@ -61,9 +61,10 @@
   /* ---- 盤面 ---- */
   /* 幅は「画面の高さ」からも決める。決めないと縦長のPCで強化ボタンが画面の下に隠れる */
   .stage{ position:relative; width:var(--stage-w); }
-  canvas{ width:100%; aspect-ratio:9/16; display:block; border-radius:18px;
-    border:1px solid rgba(65,227,255,.22); background:#06040f; touch-action:none;
-    box-shadow:0 0 48px rgba(65,227,255,.16), inset 0 0 40px rgba(0,0,0,.6); }
+  /* ★盤の枠はシリーズ共通（2px シアン・角8px。neon-blocks/NEON_STYLE.md） */
+  canvas{ width:100%; aspect-ratio:9/16; display:block; border-radius:8px;
+    border:2px solid rgba(65,227,255,.5); background:#06040f; touch-action:none;
+    box-shadow:0 0 22px rgba(65,227,255,.2), inset 0 0 26px rgba(65,227,255,.06); }
   .hud{ position:absolute; top:0; left:0; right:0; z-index:10; display:flex;
     justify-content:space-between; padding:9px 11px; pointer-events:none; }
   .col{ display:flex; flex-direction:column; gap:6px; }
@@ -93,6 +94,7 @@
   /* ★題字は**レインボー**（6本共通の合図。neon-blocks/NEON_STYLE.md） */
   .panel .big{ font-size:26px; font-weight:900; letter-spacing:.18em;
     margin:10px 0 12px; background:linear-gradient(90deg,#00F0FF,#B026FF 40%,#FF2D95 70%,#FFD54F);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 18px rgba(0,240,255,.5)); }
+  .panel .lead{ font-size:12.5px; line-height:1.8; color:#9BE9FF; margin:0 0 14px; }
   .panel .sub{ font-size:12px; color:rgba(255,255,255,.72); margin-bottom:15px; line-height:1.75; text-align:left; }
   .panel .sub b{ color:var(--cyan); }
   /* 遊び方は「1行1要素」で並べたほうが読まれる。段落で書くと誰も読まない */
@@ -134,10 +136,16 @@
 <div id="safeProbe"></div>
 <div id="app">
   <div class="topbar">
+    <!-- ★2026-08-29: 常時の題名は**日本語1行だけ**に（シリーズ共通。neon-blocks/NEON_STYLE.md）。
+         ラテン表記と副題はタイトル画面に出るので、遊んでいる間ずっと出す必要がない。
+         その分（約16px）盤面が広くなる。 -->
     <div class="title">
-      <h1>NEON CYBORG</h1>
-      <p>ネオンサイボーグ</p>
+      <h1>ネオンサイボーグ</h1>
     </div>
+    <!-- ★2026-08-29: 遊び方は「?」に入れた（ブロックスと同じ位置・同じ役割）。
+         このゲームだけタイトルに4行の表を直書きしていて、6本の中で密度が違った。
+         ★初めての人には自動で開く（下の JS。localStorage で判定） -->
+    <button class="iconbtn" id="helpBtn" aria-label="遊び方" style="margin-left:auto">?</button>
     <!-- 音のオン・オフ。絵文字だと環境ごとに形と大きさが変わるので、図形で描く -->
     <button class="iconbtn" id="mute" aria-label="音のオン・オフ" aria-pressed="false">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -166,6 +174,7 @@
         <!-- ★2026-08-29: 見出しをシリーズ共通の型へ（ラテン小マゼンタ＋日本語大）。NEON_STYLE.md -->
         <div class="lat">N E O N &nbsp; C Y B O R G</div>
         <div class="big" id="ovTitle">ネオンサイボーグ</div>
+        <p class="lead" id="ovLead">左右にドラッグして部隊を動かす。射撃は自動。<br>ゲートで数を増やし、防衛ラインを守れ。</p>
         <div class="sub" id="ovSub">
           <div class="rule"><span class="k move">移動</span><span>左右にドラッグ（PCは ← → ）。<b>射撃は自動</b>。</span></div>
           <div class="rule"><span class="k gate">ゲート</span><span>毎回シャッフルの3択。<b>×2 ×3</b> は強いが <b style="color:#ff6b7a">÷2 -N</b> の罠に挟まれる。</span></div>
@@ -1250,6 +1259,25 @@ function reset(){
   syncHUD();
 }
 function start(){ initAudio(); el('overlay').classList.add('hidden'); reset(); }
+
+/* 遊び方の出し方。★初めての人には自動で開き、2回目からは畳んでおく（「?」で開く）。
+   このゲームは「射撃が自動」「ゲートの罠」を知らないと理解できないので、
+   初回だけは黙って隠さない。判定は localStorage の1つのキーだけ。 */
+(function(){
+  var KEY = 'cyborg_seen_help';
+  var seen = false;
+  try { seen = localStorage.getItem(KEY) === '1'; } catch(e){}
+  var sub = el('ovSub'), btn = el('helpBtn');
+  if (seen && sub) sub.style.display = 'none';
+  try { localStorage.setItem(KEY, '1'); } catch(e){}
+  if (btn) btn.addEventListener('click', function(){
+    if (!sub) return;
+    var open = sub.style.display === 'none';
+    sub.style.display = open ? '' : 'none';
+    // 遊んでいる最中に押したときは、説明が見えるようにタイトル画面ごと出す
+    if (open && el('overlay').classList.contains('hidden')) el('overlay').classList.remove('hidden');
+  });
+})();
 function gameOver(){
   G.running=false; G.over=true;
   const best=Math.max(BEST,G.score); BEST=best;

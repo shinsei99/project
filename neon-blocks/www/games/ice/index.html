@@ -38,19 +38,22 @@
   #wrap{
     position:relative;
     /* 2026-08-28: iPad で盤面が小さすぎたので上限を上げた。
-       盤面は 500:760（=0.658）なので、高さいっぱいに置くなら幅は 65.8vh 必要。
+       盤面は 500:750（=2:3）なので、高さいっぱいに置くなら幅は 66.7vh 必要。
        50vh・max 470px では iPad(1032×1376pt)で 470px にしかならず、
        画面の半分以上が余白だった（App Store のスクショで気づいた）。
        ★iPhone の見え方は変えていない: 402pt 幅の端末では 100vw のほうが小さく、
          上限（720px）にも 62vh にも当たらないため、従来どおり画面幅いっぱい。 */
     width:min(100vw, 62vh);
     max-width:720px;
-    aspect-ratio:500/760;
-    box-shadow:0 18px 44px rgba(150,90,60,.34), 0 0 0 5px #fff, 0 0 0 8px rgba(255,255,255,.45);
-    border-radius:26px;
+    aspect-ratio:2/3;   /* ★グラビティ・エスケープと同じ比率（NEON_STYLE.md） */
+    /* ★2026-08-29: 白い二重リング＋茶色い影（暖色時代の残り）をやめ、
+       シリーズ共通の枠に（2px シアン・角8px・シアンの光。neon-blocks/NEON_STYLE.md）。
+       6本の中でここだけ「白い額縁」で、切り替えたときに一番浮いていた。 */
+    border:2px solid rgba(65,227,255,.5); border-radius:8px;
+    box-shadow:0 0 22px rgba(65,227,255,.2), inset 0 0 26px rgba(65,227,255,.06);
     overflow:hidden;
   }
-  canvas{ display:block; width:100%; height:100%; border-radius:26px; cursor:pointer; }
+  canvas{ display:block; width:100%; height:100%; border-radius:6px; cursor:pointer; }
   /* ヒントと音ボタンはキャンバスの外に出す。
      中に置くとコーンやカウンターに重なって読めないうえ、
      音ボタンは canvas の当たり判定を増やすことになり、ゲーム操作と競合する */
@@ -117,7 +120,7 @@
 <body>
 <div id="stage">
   <div id="wrap">
-    <canvas id="game" width="500" height="760"></canvas>
+    <canvas id="game" width="500" height="750"></canvas>
 
   </div>
 
@@ -140,7 +143,10 @@
 (function(){
 
 /* ===================== 定数・設定 ===================== */
-const W = 500, H = 760;
+// ★2026-08-29: 高さを 760 → **750** に（＝ちょうど 2:3）。
+// シリーズでグラビティ・エスケープが 2:3 なので、比率を合わせた（0.658 → 0.667）。
+// 減るのは手前のカウンターの10pxだけ（drawCounter は CASE_BOT と H から描くので自動で詰まる）。
+const W = 500, H = 750;
 const LANES = 5;          // コーンの本数
 const MAXH  = 7;          // 1コーンの最大段数
 const R     = 20;         // アイスの半径（直径40px）
@@ -155,7 +161,7 @@ const ORDER_BOARD = { x: 78, y: 66 };             // 星が飛んでいく先
      0〜112      木の看板（スコア・注文・つぎ が載る）
      112〜300    明るい店内の壁（丸窓・ペンダントライト・ネコ店長）
      300〜706    冷凍ショーケース（★ここだけ意図的に暗い）
-     706〜760    手前のカウンター
+     706〜750    手前のカウンター
    ショーケースの中を暗くしているのは装飾ではなく必要から。アイスはぜんぶ淡い色
    （バニラ #FFF6E0 など）なので、明るい背景に置くと輪郭が消える。
    逆に画面ぜんぶを暗くすると「アイス屋」に見えない。だから上を明るく、
