@@ -1,9 +1,0 @@
-node_modules/
-
-# ビルド生成物。ipa は 6.8MB あり、いつでも作り直せるので git には入れない
-# （作り方は RELEASE.md）
-build/
-build-sim/
-
-# 目視確認用に撮ったもの
-.see/
