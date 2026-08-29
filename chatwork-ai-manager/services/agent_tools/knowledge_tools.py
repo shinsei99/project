@@ -4,8 +4,22 @@ import os
 import kb_search as _kb
 
 
-def kb_search(query: str, limit: int = 12):
-    rows = _kb.search(query, limit=limit)
+def kb_search(query: str, limit: int = 12, kinds=None):
+    """社内資料を検索する。
+
+    kinds: 見に行く棚。省略すると**自社書類だけ**（従来と同じ）。
+        "法令" … 国交省・国税庁・個情委の一次資料（最新版・そのまま根拠にできる）
+        "判例" … RETIO機関誌の裁判例・紛争事例
+        "本"   … 蔵書68冊（★発行年に注意。古い本は考え方だけ使う）
+        "全部" … すべて
+        例) kinds=["法令","判例"] / kinds="法令"
+
+    **質問が制度・法律・трабルの話なら、必ず kinds を指定して呼び直すこと。**
+    自社書類だけでは「うちのやり方」しか出てこず、根拠を示せない。
+    """
+    if isinstance(kinds, str):
+        kinds = [k.strip() for k in kinds.split(",") if k.strip()]
+    rows = _kb.search(query, limit=limit, kinds=kinds)
     results = [
         {
             "title": t, "category": cat, "source": ref, "matched_terms": nm, "text": text,
