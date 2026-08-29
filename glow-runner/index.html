@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#05060f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='9' fill='%2366e0ff'/%3E%3C/svg%3E">
+<title>グロウランナー</title>
+<style>
+  :root { --accent:#66e0ff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#05060f;
+    font-family:"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic",system-ui,sans-serif;
+    color:#e8f4ff; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+  #app { position:fixed; inset:0; }
+  canvas { display:block; touch-action:none; }
+
+  /* ---- HUD（常時表示） ---- */
+  #hud { position:fixed; top:0; left:0; right:0; padding:14px 18px calc(14px);
+    display:flex; justify-content:space-between; align-items:flex-start; pointer-events:none;
+    text-shadow:0 0 12px rgba(0,0,0,.9); font-variant-numeric:tabular-nums; }
+  .hud-item { font-size:13px; letter-spacing:.08em; color:#8fa8c4; }
+  .hud-item b { display:block; font-size:26px; color:#fff; letter-spacing:.02em; line-height:1.15; }
+  #hud-right { text-align:right; }
+  #bar { position:fixed; left:18px; right:18px; top:74px; height:4px; border-radius:2px;
+    background:rgba(255,255,255,.12); overflow:hidden; pointer-events:none; }
+  #bar-fill { height:100%; width:0%; border-radius:2px;
+    background:linear-gradient(90deg,#3aa8ff,var(--accent)); box-shadow:0 0 14px var(--accent); transition:width .1s linear; }
+
+  /* ---- オーバーレイ（開始・クリア・ゲームオーバー） ---- */
+  #overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:18px; text-align:center; padding:24px; background:rgba(4,6,16,.72); backdrop-filter:blur(6px); }
+  #overlay.hidden { display:none; }
+  #ov-title { font-size:clamp(30px,8vw,54px); font-weight:800; letter-spacing:.06em;
+    color:#fff; text-shadow:0 0 28px var(--accent); }
+  #ov-sub { font-size:clamp(14px,3.6vw,17px); color:#a9c2dc; line-height:1.8; }
+  #ov-btn { pointer-events:auto; border:none; cursor:pointer; font:inherit; font-weight:700; font-size:18px;
+    padding:15px 46px; border-radius:999px; color:#04121c; background:linear-gradient(180deg,#8beaff,#38b6ff);
+    box-shadow:0 0 32px rgba(90,200,255,.55); letter-spacing:.06em; }
+  #ov-btn:active { transform:scale(.96); }
+  #hint { font-size:12px; color:#6f86a3; letter-spacing:.06em; }
+  #err { position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:32px;
+    text-align:center; font-size:15px; line-height:2; color:#ffb4b4; background:#05060f; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="hud">
+  <div class="hud-item">STAGE<b id="hud-stage">1</b></div>
+  <div class="hud-item" id="hud-right">DISTANCE<b><span id="hud-dist">0</span> / <span id="hud-goal">0</span> m</b></div>
+</div>
+<div id="bar"><div id="bar-fill"></div></div>
+
+<div id="overlay">
+  <div id="ov-title">グロウランナー</div>
+  <div id="ov-sub">動物をよけてゴールを目指せ</div>
+  <button id="ov-btn">スタート</button>
+  <div id="hint">PC: ← → / A D キー　　スマホ: 画面を指でなぞる</div>
+</div>
+
+<div id="err">Three.js（CDN）を読み込めませんでした。<br>ネット接続を確認して、ページを再読み込みしてください。</div>
+
+<script type="importmap">
+{ "imports": { "three": "https://unpkg.com/three@0.180.0/build/three.module.js" } }
+</script>
+
+<script>
+  // CDN が落ちている／オフラインのときに白画面で終わらせない
+  window.__booted = false;
+  setTimeout(() => { if (!window.__booted) document.getElementById('err').style.display = 'flex'; }, 8000);
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* =====================================================================
+   1. 設定 — 難易度・見た目の数値はすべてここに集約
+   ===================================================================== */
+const CONFIG = {
+  road:  { width: 18, tileLength: 60, tileCount: 8 },
+  ball:  { radius: 0.9, lateralSpeed: 15, color: 0x66e0ff, lightRange: 60 },
+  camera:{ height: 5.2, back: 11, lookAhead: 14 },
+  stage: {
+    baseSpeed:        22,    // ステージ1の前進速度（m/秒）
+    speedPerStage:    3.2,   // 1ステージごとの加速
+    baseGoal:         500,   // ステージ1のゴール距離（m）
+    goalPerStage:     150,
+    baseInterval:     1.05,  // 出現間隔（秒）
+    intervalPerStage: 0.08,
+    minInterval:      0.34,
+    baseBurst:        1,     // 1回の出現でまとめて出す数
+    burstPerStage:    0.34,  // ステージごとの増分（切り捨てて使う）
+    zigzagFromStage:  2,     // 横に動く動物が混ざり始めるステージ
+    zigzagRatio:      0.45,  // 横移動タイプの割合（上限）
+  },
+  spawnAhead:    170,        // プレイヤーの何m先に湧かせるか
+  despawnBehind: 25,         // 何m後ろに行ったら消すか
+};
+
+/* =====================================================================
+   2. 状態
+   ===================================================================== */
+const state = {
+  phase: 'ready',   // ready | playing | clear | over
+  stage: 1,
+  distance: 0,
+  goal: 0,
+  speed: 0,
+  spawnTimer: 0,
+  targetX: 0,       // プレイヤーが向かおうとしている左右位置
+  time: 0,
+  coins: 0,         // ★将来のコイン用（HUDは未表示）
+};
+
+// 開発・確認用の上書き（?stage=3&goal=60 のように付ける）。通常プレイでは付けない
+const qs = new URLSearchParams(location.search);
+const qsNum = (k) => (qs.has(k) ? Number(qs.get(k)) : null);
+const OVERRIDE = { stage: qsNum('stage'), goal: qsNum('goal') };
+
+const stageParams = (n) => {
+  const s = CONFIG.stage;
+  if (OVERRIDE.goal) return Object.assign(stageParamsRaw(n), { goal: OVERRIDE.goal });
+  return stageParamsRaw(n);
+};
+const stageParamsRaw = (n) => {
+  const s = CONFIG.stage;
+  return {
+    speed:    s.baseSpeed + s.speedPerStage * (n - 1),
+    goal:     s.baseGoal  + s.goalPerStage  * (n - 1),
+    interval: Math.max(s.minInterval, s.baseInterval - s.intervalPerStage * (n - 1)),
+    burst:    Math.floor(s.baseBurst + s.burstPerStage * (n - 1)),
+    zigzag:   n >= s.zigzagFromStage ? Math.min(s.zigzagRatio, 0.15 * (n - 1)) : 0,
+  };
+};
+
+/* =====================================================================
+   3. シーン（暗い世界・ボールの光だけが頼り）
+   ===================================================================== */
+const container = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05060f);
+scene.fog = new THREE.FogExp2(0x05060f, 0.011);   // 遠くは闇に溶ける＝湧き出しが見えない
+
+const camera = new THREE.PerspectiveCamera(62, innerWidth / innerHeight, 0.1, 400);
+// 縦画面（スマホ）は横の視野が狭くなり走路の端が見えないので画角を広げる
+const fitCamera = () => {
+  const aspect = innerWidth / innerHeight;
+  camera.aspect = aspect;
+  camera.fov = aspect < 1 ? 82 : 62;
+  camera.updateProjectionMatrix();
+};
+fitCamera();
+
+scene.add(new THREE.AmbientLight(0x2a3550, 0.55));            // 最低限の環境光
+const moon = new THREE.DirectionalLight(0x94b8ff, 0.35);
+moon.position.set(-6, 14, -4);
+scene.add(moon);
+
+/* --- 走路（タイルを使い回して無限に見せる） --- */
+const roadTiles = [];
+{
+  const w = CONFIG.road.width, L = CONFIG.road.tileLength;
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x1d2745, roughness: 0.8, metalness: 0.1 });
+  const edgeMat  = new THREE.MeshStandardMaterial({ color: 0x0a2740, emissive: 0x2f8fff, emissiveIntensity: 1.2, roughness: 0.4 });
+  const lineMat  = new THREE.MeshStandardMaterial({ color: 0x0a1a2a, emissive: 0x1b4c74, emissiveIntensity: 0.7 });
+  for (let i = 0; i < CONFIG.road.tileCount; i++) {
+    const tile = new THREE.Group();
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, L), floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    tile.add(floor);
+    for (const sx of [-1, 1]) {                       // 光る縁石
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, L), edgeMat);
+      edge.position.set(sx * (w / 2), 0.17, 0);
+      tile.add(edge);
+    }
+    for (let k = 0; k < 5; k++) {                     // センターライン（速度感）
+      const dash = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 5), lineMat);
+      dash.position.set(0, 0.01, -L / 2 + 6 + k * 12);
+      tile.add(dash);
+    }
+    tile.position.z = -i * L;
+    scene.add(tile);
+    roadTiles.push(tile);
+  }
+}
+
+/* --- プレイヤー（光るボール） --- */
+const ball = new THREE.Group();
+const ballMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(CONFIG.ball.radius, 32, 24),
+  new THREE.MeshStandardMaterial({
+    color: CONFIG.ball.color, emissive: CONFIG.ball.color, emissiveIntensity: 1.5,
+    roughness: 0.25, metalness: 0.1,
+  })
+);
+ball.add(ballMesh);
+const glow = new THREE.Mesh(                                   // 外側のふんわりした光
+  new THREE.SphereGeometry(CONFIG.ball.radius * 2.1, 20, 16),
+  new THREE.MeshBasicMaterial({ color: CONFIG.ball.color, transparent: true, opacity: 0.12, depthWrite: false })
+);
+ball.add(glow);
+const ballLight = new THREE.PointLight(CONFIG.ball.color, 260, CONFIG.ball.lightRange, 1.7);
+ball.add(ballLight);
+const headLight = new THREE.SpotLight(CONFIG.ball.color, 700, 95, Math.PI / 5.5, 0.55, 1.4);
+headLight.position.set(0, 6, 4);          // ボールの少し上・後ろから前方を照らす
+ball.add(headLight);
+headLight.target.position.set(0, 0, -40); // 進行方向（-z）
+ball.add(headLight.target);
+ball.position.set(0, CONFIG.ball.radius, 0);
+scene.add(ball);
+
+/* --- ゴールゲート --- */
+const goalGate = new THREE.Group();
+{
+  const mat = new THREE.MeshStandardMaterial({ color: 0x11331f, emissive: 0x3dff9e, emissiveIntensity: 1.6 });
+  const w = CONFIG.road.width;
+  for (const sx of [-1, 1]) {
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.5, 7, 0.5), mat);
+    pole.position.set(sx * (w / 2 - 0.4), 3.5, 0);
+    goalGate.add(pole);
+  }
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 0.5), mat);
+  beam.position.y = 7;
+  goalGate.add(beam);
+  const curtain = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, 7),
+    new THREE.MeshBasicMaterial({ color: 0x3dff9e, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false })
+  );
+  curtain.position.y = 3.5;
+  goalGate.add(curtain);
+  goalGate.add(new THREE.PointLight(0x3dff9e, 40, 40, 2).translateY(4));
+}
+scene.add(goalGate);
+
+/* =====================================================================
+   4. ファクトリ — 見た目はここだけ見れば差し替えられる
+      createAnimal() をモデル読み込みに置き換えれば全体は無改造で済む
+   ===================================================================== */
+const ANIMAL_COLORS = [0xff8a5c, 0xffd166, 0xa78bfa, 0x6ee7a8, 0xff6b9d, 0x7dd3fc];
+const rand  = (a, b) => a + Math.random() * (b - a);
+const pick  = (arr) => arr[(Math.random() * arr.length) | 0];
+
+function createAnimal() {
+  const g = new THREE.Group();
+  const color = pick(ANIMAL_COLORS);
+  const mat  = new THREE.MeshStandardMaterial({ color, roughness: 0.65, metalness: 0.05, emissive: color, emissiveIntensity: 0.45 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x2b3550, roughness: 0.8, emissive: 0x101828, emissiveIntensity: 0.6 });
+  const eyeM = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+  const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.0, 2.1), mat); body.position.y = 1.05; g.add(body);
+  const head = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.9, 0.9), mat); head.position.set(0, 1.55, 1.35); g.add(head);
+  for (const sx of [-1, 1]) {                                   // 耳
+    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.55, 4), mat);
+    ear.position.set(sx * 0.3, 2.15, 1.35); g.add(ear);
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.11, 8, 8), eyeM);   // 目（こちらを見ている）
+    eye.position.set(sx * 0.26, 1.65, 1.82); g.add(eye);
+  }
+  const legs = [];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {          // 脚（走らせる）
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.9, 0.26), dark);
+    leg.position.set(sx * 0.52, 0.45, sz * 0.72);
+    legs.push(leg); g.add(leg);
+  }
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.8), mat);
+  tail.position.set(0, 1.35, -1.35); g.add(tail);
+
+  g.userData.legs = legs;
+  return g;
+}
+
+/* ★将来ここに足すだけで増やせる（今回は未使用）
+function createRock() { … return group; }
+function createCoin() { … return group; }
+*/
+
+/* =====================================================================
+   5. エンティティ管理 — kind で当たり判定の扱いが決まる
+      'hazard'  … 当たるとゲームオーバー
+      'pickup'  … 当たると取得（コイン用。処理は通してある）
+   ===================================================================== */
+const entities = [];
+
+function spawnAnimal(zigzagChance) {
+  const half = CONFIG.road.width / 2 - 1.4;
+  const mesh = createAnimal();
+  const isZig = Math.random() < zigzagChance;
+  const x = rand(-half, half);
+  mesh.position.set(x, 0, ball.position.z - CONFIG.spawnAhead - rand(0, 40));
+  scene.add(mesh);
+  entities.push({
+    kind: 'hazard',
+    mesh,
+    radius: 1.1,
+    speed: rand(6, 11),                                  // こちらへ向かってくる速さ
+    zig: isZig ? { baseX: x, amp: rand(3, half - 1), freq: rand(0.8, 1.6), phase: rand(0, 6.28) } : null,
+    update(dt, t) {
+      this.mesh.position.z += this.speed * dt;           // +z ＝ プレイヤー側
+      if (this.zig) {
+        const z = this.zig;
+        this.mesh.position.x = THREE.MathUtils.clamp(z.baseX + Math.sin(t * z.freq + z.phase) * z.amp, -half, half);
+      }
+      const legs = this.mesh.userData.legs;              // 走っている足踏み
+      for (let i = 0; i < legs.length; i++) legs[i].position.y = 0.45 + Math.sin(t * 14 + i * 1.7) * 0.14;
+      this.mesh.position.y = Math.abs(Math.sin(t * 7 + this.speed)) * 0.12;
+    },
+  });
+}
+
+function clearEntities() {
+  for (const e of entities) scene.remove(e.mesh);
+  entities.length = 0;
+}
+
+/* =====================================================================
+   6. 入力（キーボード＋タッチ／マウスドラッグ）
+   ===================================================================== */
+const keys = { left: false, right: false };
+addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') keys.left  = true;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onAction(); }
+});
+addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') keys.left  = false;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+});
+
+// 指／マウスでなぞった位置に横移動（押している間だけ追従）
+let dragging = false;
+const pointerToX = (clientX) => (clientX / innerWidth - 0.5) * CONFIG.road.width * 1.05;
+const cv = renderer.domElement;
+cv.addEventListener('pointerdown', (e) => { dragging = true; state.targetX = pointerToX(e.clientX); cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', (e) => { if (dragging) state.targetX = pointerToX(e.clientX); });
+cv.addEventListener('pointerup',     () => { dragging = false; });
+cv.addEventListener('pointercancel', () => { dragging = false; });
+
+/* =====================================================================
+   7. UI
+   ===================================================================== */
+const ui = {
+  stage: document.getElementById('hud-stage'),
+  dist:  document.getElementById('hud-dist'),
+  goal:  document.getElementById('hud-goal'),
+  bar:   document.getElementById('bar-fill'),
+  overlay: document.getElementById('overlay'),
+  title: document.getElementById('ov-title'),
+  sub:   document.getElementById('ov-sub'),
+  btn:   document.getElementById('ov-btn'),
+};
+
+function showOverlay(title, sub, btn) {
+  ui.title.textContent = title; ui.sub.innerHTML = sub; ui.btn.textContent = btn;
+  ui.overlay.classList.remove('hidden');
+}
+const hideOverlay = () => ui.overlay.classList.add('hidden');
+
+function updateHud() {
+  ui.stage.textContent = state.stage;
+  ui.dist.textContent  = Math.floor(state.distance);
+  ui.goal.textContent  = Math.floor(state.goal);
+  ui.bar.style.width   = Math.min(100, (state.distance / state.goal) * 100) + '%';
+}
+
+ui.btn.addEventListener('click', onAction);
+function onAction() {
+  if (state.phase === 'playing') return;
+  if (state.phase === 'clear') state.stage += 1;
+  if (state.phase === 'over')  state.stage = 1;
+  startStage();
+}
+
+/* =====================================================================
+   8. 進行
+   ===================================================================== */
+function startStage() {
+  const p = stageParams(state.stage);
+  state.speed = p.speed; state.goal = p.goal;
+  state.distance = 0; state.spawnTimer = 0.6; state.targetX = 0;
+  clearEntities();
+  ball.position.set(0, CONFIG.ball.radius, 0);
+  goalGate.position.z = -p.goal;
+  state.phase = 'playing';
+  hideOverlay(); updateHud();
+}
+
+function gameOver() {
+  state.phase = 'over';
+  showOverlay('ゲームオーバー',
+    `ステージ ${state.stage}・${Math.floor(state.distance)} m 地点で衝突<br>ステージ1からやり直し`,
+    'もう一度');
+}
+
+function stageClear() {
+  state.phase = 'clear';
+  showOverlay('ステージクリア！',
+    `ステージ ${state.stage} 突破（${Math.floor(state.goal)} m）<br>次はスピードも動物も増えます`,
+    `ステージ ${state.stage + 1} へ`);
+}
+
+/* =====================================================================
+   9. メインループ
+   ===================================================================== */
+const clock = new THREE.Clock();
+
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05);     // タブ復帰時に飛ばさない
+  state.time += dt;
+  const t = state.time;
+
+  if (state.phase === 'playing') {
+    // 前進
+    state.distance += state.speed * dt;
+    ball.position.z -= state.speed * dt;
+
+    // 左右移動（キーは押し続けで移動、ドラッグは指の位置へ）
+    const half = CONFIG.road.width / 2 - CONFIG.ball.radius;
+    if (keys.left)  state.targetX -= CONFIG.ball.lateralSpeed * dt;
+    if (keys.right) state.targetX += CONFIG.ball.lateralSpeed * dt;
+    state.targetX = THREE.MathUtils.clamp(state.targetX, -half, half);
+    ball.position.x += (state.targetX - ball.position.x) * Math.min(1, dt * 12);
+
+    // 転がり演出
+    ballMesh.rotation.x -= (state.speed * dt) / CONFIG.ball.radius;
+    ballMesh.rotation.z = -(state.targetX - ball.position.x) * 0.4;
+    glow.scale.setScalar(1 + Math.sin(t * 4) * 0.06);
+
+    // 出現
+    state.spawnTimer -= dt;
+    if (state.spawnTimer <= 0) {
+      const p = stageParams(state.stage);
+      state.spawnTimer = p.interval * rand(0.85, 1.2);
+      for (let i = 0; i < p.burst; i++) spawnAnimal(p.zigzag);
+    }
+
+    // エンティティ更新・当たり判定・後始末
+    for (let i = entities.length - 1; i >= 0; i--) {
+      const e = entities[i];
+      e.update(dt, t);
+      const dx = e.mesh.position.x - ball.position.x;
+      const dz = e.mesh.position.z - ball.position.z;
+      if (Math.hypot(dx, dz) < e.radius + CONFIG.ball.radius) {
+        if (e.kind === 'pickup') {                    // ★コイン等はここで取得処理
+          state.coins++; scene.remove(e.mesh); entities.splice(i, 1); continue;
+        }
+        scene.remove(e.mesh); entities.splice(i, 1);
+        gameOver();
+        break;
+      }
+      if (e.mesh.position.z > ball.position.z + CONFIG.despawnBehind) {
+        scene.remove(e.mesh); entities.splice(i, 1);
+      }
+    }
+
+    if (state.phase === 'playing' && state.distance >= state.goal) stageClear();
+    updateHud();
+  }
+
+  // 走路タイルの使い回し
+  const L = CONFIG.road.tileLength;
+  for (const tile of roadTiles) {
+    if (tile.position.z > ball.position.z + L) tile.position.z -= L * roadTiles.length;
+  }
+
+  // カメラ追従
+  const c = CONFIG.camera;
+  camera.position.set(ball.position.x * 0.4, c.height, ball.position.z + c.back);
+  camera.lookAt(ball.position.x * 0.5, 1.2, ball.position.z - c.lookAhead);
+
+  goalGate.rotation.y = 0;
+  renderer.render(scene, camera);
+}
+
+addEventListener('resize', () => {
+  fitCamera();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// 初期表示（タイトルの裏で世界が動いて見えるように1フレーム分整える）
+goalGate.position.z = -stageParams(state.stage).goal;
+state.goal = stageParams(state.stage).goal;
+updateHud();
+if (OVERRIDE.stage && OVERRIDE.stage > 0) state.stage = OVERRIDE.stage;
+window.__booted = true;
+tick();
+</script>
+</body>
+</html>

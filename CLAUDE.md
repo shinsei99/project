@@ -210,7 +210,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全53本）※不動産31・ツール16・ゲーム6  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全54本）※不動産31・ツール16・ゲーム7  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
 ### 不動産（31本）
@@ -270,7 +270,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | AIツールベース（Claude Code主軸の比較メディア＋制作記録） | ai-tools-base | 3004 | Vercel（**ai-tools-base.vercel.app**・手動 `npx vercel --prod`） |
 | メールアーカイバ（IMAP容量対策・ローカル保管＋全文検索） | mail-archiver | 8535 | — |
 
-### ゲーム（6本）※社内LAN共有なし
+### ゲーム（7本）※社内LAN共有なし
 
 **★6本は「ネオンブロックス」の中に同居し、画面下の帯で行き来する。**
 色・書体・タイトル・音ボタン・音の調・画面の向きを**揃える決まりは
@@ -284,6 +284,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | **ネオンサイボーグ**（旧 サイボーグ防衛軍） | cyborg-defense | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.cyborgdefense`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `cyborg-defense/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `cyborg-defense:www` |
 | **ネオンエスケープ**（旧 にゃんこ大脱出・**全40面**・★評価つき。2026-08-29 に世界観を「宇宙の脱出行」へ作り替え＝自機／追撃機／ワープゲート・**縦画面**・角ゴシック＋Orbitron） | neko-escape | GitHub Pages ／ **App Store は提出直前**（2026-08-28 に iOSアプリ化。`com.daikyo.nekoescape`・1.0/build1 の ipa まで書き出し済み。**残りは ASC で App 記録を作ること**＝APIでは作れない。手順は `neko-escape/RELEASE.md`）。**本体は `www/` へ移した**ので gh-pages の取り出し元は `neko-escape:www` |
 | **ネオンアイス**（旧 にゃんこのアイス屋さん） | nyanko-ice | **2026-08-29: 4.3(a) でリジェクト → App 記録を削除した**（未配信のまま終了。**バンドルIDは再利用できない**）。手順は3段階で、**①提出物から項目を削除（Rejected → DEVELOPER_REJECTED になる）②配信可能状況を全地域でオフ（ここが本当の詰まり所。未配信でも米日が残っていた）③Appを削除**。詳細は `nyanko-ice/TODO.md`。**Web版（gh-pages）はそのまま公開中**。中身はネオンブロックスへ統合予定 |
+| **グロウランナー**（3Dランゲーム・Three.js 1枚。光るボールで動物をよける） | glow-runner | **未公開**（2026-08-29 新規。GitHub Pages への公開はオーナー判断待ち） |
 | ネオンブロック | neon-blocks | iOS App Store ✅（**1.0.3 build4 が配信中**・2026-08-24 に API で確認） |
 
 ## ★ 公開サイト（5つ）
