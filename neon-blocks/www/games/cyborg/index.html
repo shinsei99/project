@@ -219,7 +219,9 @@ function fitStage(){
   const safe = probe ? probe.offsetHeight : 0;      // ノッチ＋ホームバーの合計
   const vh = window.innerHeight - safe, vw = window.innerWidth;
   // 上限は iPad のため 620。iPhone は vw-20 のほうが小さいので見え方は変わらない
-  const w = Math.min(620, vw-20, Math.max(220, (vh-210)*9/16));
+  // 210 は「上の題名＋下の強化ボタン」に取っておく高さ。
+  // ★2026-08-29: 題名を1行（日本語のみ）にしたので 210 → 194 に詰めた＝盤がその分大きくなる。
+  const w = Math.min(620, vw-20, Math.max(220, (vh-194)*9/16));
   document.documentElement.style.setProperty('--stage-w', w+'px');
   // 「CYBORG DEFENSE」＋音ボタンが1行に収まる大きさ（14文字＋字間から逆算）
   document.documentElement.style.setProperty('--title-size',
