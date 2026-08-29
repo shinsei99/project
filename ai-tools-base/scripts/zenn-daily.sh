@@ -54,7 +54,16 @@ try:
 except Exception:
     print("")            # Zennを見に行けないときは止めない（従来どおり出す）
     raise SystemExit
-stuck = [f.stem for f in sorted(pathlib.Path("../articles").glob("*.md")) if f.stem not in live]
+# ★published: true のものだけを見る（2026-08-30）。下書き（published: false）は
+#   Zenn の API に**永久に出てこない**ので、articles/ の全 .md を見ると
+#   下書きが1本あるだけで「ずっと詰まっている」判定になり、二度と次を出さなくなる。
+#   実際 8/29 に search-fallback-fills-topk.md（下書き）が articles/ へ入って、
+#   この関門が恒久的に閉じていた。
+def is_published(p):
+    head = p.read_text(encoding="utf-8", errors="replace").split("---", 2)
+    return len(head) > 1 and "published: true" in head[1]
+stuck = [f.stem for f in sorted(pathlib.Path("../articles").glob("*.md"))
+         if is_published(f) and f.stem not in live]
 print(" ".join(stuck))
 PYCHK
 )"
