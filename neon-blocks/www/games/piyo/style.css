@@ -81,3 +81,31 @@ body {
   box-shadow: 0 0 22px rgba(65,227,255,.2), inset 0 0 26px rgba(65,227,255,.06);
   box-sizing: content-box;
 }
+
+
+/* ★2026-08-29: 盤の下のスキルボタン（仲間）。盤の中から出した。
+   色の役割は canvas に描いていたときと同じ: 軍師=黄 / ナース=マゼンタ / バリア=シアン。 */
+#container { flex-direction: column; gap: 6px; }
+#skillbar {
+  display: flex; gap: 8px; justify-content: center; width: 100%;
+  padding: 0 8px;
+  /* ★下の「ほかのあそび」タブ（切り替え帯・高さ27px）と重ならないように空ける。
+     ボタンは押す物なので、帯に半分かぶるとタップを取り合う（実測で 軍師 の下半分がかぶっていた） */
+  margin-bottom: 30px;
+}
+/* ★menu では隠すが**場所は取る**。display:none にすると盤の大きさが場面ごとに変わってしまう */
+#skillbar.off { visibility: hidden; }
+.skill {
+  flex: 1 1 0; max-width: 132px; min-height: 46px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px;
+  font: 900 13px/1.1 Orbitron,'Zen Kaku Gothic New',sans-serif; letter-spacing: .06em;
+  color: #9FB0D8; cursor: pointer;
+  background: rgba(22,16,54,.94);
+  border: 2px solid rgba(70,75,110,.45); border-radius: 6px;
+}
+.skill .sc { font-size: 10px; color: #8891B8; min-height: 11px; }
+.skill:disabled { opacity: .5; cursor: default; }
+.skill.ready#sk-gunshi  { border-color:#FFD54F; color:#FFD54F; box-shadow:0 0 12px rgba(255,213,79,.35); }
+.skill.ready#sk-nurse   { border-color:#FF4FC3; color:#FF4FC3; box-shadow:0 0 12px rgba(255,79,195,.35); }
+.skill.ready#sk-barrier { border-color:#41E3FF; color:#41E3FF; box-shadow:0 0 12px rgba(65,227,255,.35); }
+.skill:active { transform: translateY(1px); }
