@@ -42,8 +42,9 @@ What we have done since:
 - We have stopped submitting new apps. Four other apps that were ready have been withheld.
 - From now on we will submit one item at a time and wait for the result before the next one.
 
-Our two priorities are this bug-fix update and, after it is resolved, the resubmission of
-KeyTag. We are not planning any other submissions.
+We would like to start with this update. We are resubmitting version 1.0.5 now, and we ask
+that you review it. We will wait for your decision on it before we resubmit anything else,
+including KeyTag. We are not planning any other submissions.
 
 If anything in this update needs to change, please tell us and we will fix it.
 
@@ -73,8 +74,8 @@ Shinichi Washimi
 ・新規アプリの提出は止めました。準備できていた他の4本も出さずに保留しています
 ・今後は**1件ずつ提出し、結果が出てから次に進みます**
 
-優先しているのは、この不具合修正の更新と、それが片付いたあとの KeyTag の再提出の2つだけです。
-ほかに提出の予定はありません。
+まずはこの更新から再開させてください。**1.0.5 をいま再提出しますので、審査をお願いします。**
+その結果が出るまで、KeyTag を含め、ほかのものは再提出しません。ほかに提出の予定もありません。
 
 この更新に直すべき点があれば、教えていただければ直します。
 ```
@@ -85,8 +86,8 @@ Shinichi Washimi
 
 | 順 | やること |
 |---|---|
-| 1 | この返信を送る |
-| 2 | **1.0.5 を審査へ提出**（1件だけ） |
+| 1 | この返信を送る（**文中で「いま再提出します」と書いているので、間を空けない**） |
+| 2 | **1.0.5 を審査へ提出**（1件だけ・返信の直後に） |
 | 3 | 結果を見る `python3 ../appstore_api.py --review com.shinsei99.scrapmemo` |
 | 4 | **通ってから** KeyTag を再提出（`../keyline/keytag/`） |
 
