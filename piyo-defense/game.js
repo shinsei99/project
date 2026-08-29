@@ -3,7 +3,9 @@
 // ── Canvas setup ─────────────────────────────────────────────────────────────
 var canvas = document.getElementById('gameCanvas');
 var ctx    = canvas.getContext('2d');
-var W = 390, H = 844;
+// ★2026-08-29: HUDと仲間ボタンを盤の外へ出し、草原を108→40pxに詰めた結果、
+// canvas は 390×694 ＝ **ちょうど 9:16**（他5本と同じ）。**空は654pxのままなので遊びは不変**。
+var W = 390, H = 694;
 canvas.width  = W;
 canvas.height = H;
 setRenderCtx(ctx, W, H);
@@ -37,7 +39,9 @@ if (document.fonts && document.fonts.load) {
 
 // ── Constants ────────────────────────────────────────────────────────────────
 var CHICK_X = W/2;      // 毎フレーム chickCurrentX から更新
-var CHICK_Y = H - 148;
+// ★草原を108→40pxに詰めたので、地面まわりの数値も「稜線からの距離」で置き直した
+// （稜線 HL=H-40／ひよこ HL-40=H-80／敵の到達線 HL-52=H-92／レーン帯 HL-137=H-177）
+var CHICK_Y = H - 80;
 var TOTAL_STAGES = 20;
 var WAVES_PER_STAGE = 5;
 
@@ -584,14 +588,14 @@ function updateBattle() {
       } else if (er.type==='beam'||er.type==='reach') {
         gs.earthHP=Math.max(0,gs.earthHP-er.dmg);
         chickHitFx=22; shakeMag=er.type==='beam'?9:6;
-        spawnP(e.x,er.type==='beam'?e.y+e.size*0.5:H-160,'hit_earth',5);
+        spawnP(e.x,er.type==='beam'?e.y+e.size*0.5:H-92,'hit_earth',5);
         if (er.type==='beam') { addFloat(W/2,H*0.45,'ドゴーン！','#9B59B6',22); spawnP(e.x,e.y+e.size*0.5,'boss_beam',6); }
         else addFloat(e.x,H-170,'-'+er.dmg,'#FF4444',13);
       } else if (er.type==='poison_reach') {
         gs.earthHP=Math.max(0,gs.earthHP-er.dmg);
         poisonDebuff=480;
         chickHitFx=22; shakeMag=5;
-        spawnP(e.x,H-160,'poison_fx',10);
+        spawnP(e.x,H-92,'poison_fx',10);
         addFloat(W/2,H*0.4,'毒！攻撃速度ダウン！','#88FF44',20);
         addFloat(e.x,H-170,'-'+er.dmg,'#88FF44',13);
       } else if (er.type==='rangedbullet') {
@@ -624,7 +628,7 @@ function updateBattle() {
       } else if (er.type==='bomb') {
         gs.earthHP=Math.max(0,gs.earthHP-er.dmg);
         chickHitFx=22; shakeMag=16;
-        spawnP(e.x,H-150,'explosion',22); spawnP(e.x,H-150,'hit_earth',8);
+        spawnP(e.x,H-82,'explosion',22); spawnP(e.x,H-82,'hit_earth',8);
         addFloat(e.x,H-168,'BOOM!! -'+er.dmg,'#FF5500',22); SoundManager.killBig();
       } else if (er.type==='barrier') {
         addFloat(e.x,H-170,'バリア！','#00FFFF',13);
@@ -641,9 +645,9 @@ function updateBattle() {
     if (ebr&&ebr.type==='hit_earth') {
       gs.earthHP=Math.max(0,gs.earthHP-ebr.dmg);
       chickHitFx=22; shakeMag=6;
-      spawnP(eb.x,H-160,'hit_earth',4);
+      spawnP(eb.x,H-92,'hit_earth',4);
       addFloat(eb.x,H-172,'-'+ebr.dmg,eb.color==='#88FF44'?'#88FF44':'#FF6600',13);
-      if (eb.color==='#88FF44') { poisonDebuff=300; addFloat(W/2,H*0.42,'毒攻撃！','#88FF44',16); spawnP(eb.x,H-160,'poison_fx',6); }
+      if (eb.color==='#88FF44') { poisonDebuff=300; addFloat(W/2,H*0.42,'毒攻撃！','#88FF44',16); spawnP(eb.x,H-92,'poison_fx',6); }
     }
   }
   enemyBullets=enemyBullets.filter(function(eb){return !eb.dead;});
@@ -780,7 +784,7 @@ function drawBattleScr(frozenBg) {
   drawLaneIndicators(chickLane, laneWarnings, frame);
   drawEvoBar(gs.evoGauge,gs.isEvolved,gs.evoTimer,gs.isAngel,gs.angelTimer);
   var cdCurr = {gunshi:getCdMax('gunshi'),nurse:getCdMax('nurse'),barrier:getCdMax('barrier')};
-  drawHudTop(gs.earthHP,gs.maxEarthHP,gs.barrierActive,stage,wave,WAVES_PER_STAGE,score,level,xp,xpToNext(level),kills,SaveManager.getHigh().score,frame,runCoins,poisonDebuff);
+  // ★HUD は盤の外（DOM の #hudbar）へ出した（2026-08-29）
   TOWER_SLOTS.forEach(function(slot){drawTower(slot,!!frozenBg,frame);});
 
   enemies.forEach(function(e){
@@ -866,6 +870,32 @@ function drawBattleScr(frozenBg) {
 
 /* ★盤の外のスキルボタン。状態（解放済みか・クールダウン中か）は
    canvas に描いていたときと同じ `upg` と `cds` をそのまま読む＝遊びの数値は触っていない。 */
+/* ★盤の外の HUD。値は canvas に描いていたときと同じものを読むだけ＝遊びの数値は触っていない。 */
+var HUD_EL = null;
+function syncHudBar(){
+  if (!HUD_EL) HUD_EL = {
+    bar: document.getElementById('hudbar'),
+    fill: document.getElementById('hp-fill'), txt: document.getElementById('hp-txt'),
+    stage: document.getElementById('hb-stage'), score: document.getElementById('hb-score'),
+    lv: document.getElementById('hb-lv'), coin: document.getElementById('hb-coin')
+  };
+  var inBattle = (gs.state==='battle' || gs.state==='stageintro' || gs.state==='paused');
+  HUD_EL.bar.classList.toggle('off', !inBattle);
+  if (!inBattle) return;
+  var r = Math.max(0, gs.earthHP / gs.maxEarthHP);
+  HUD_EL.fill.style.width = (r*100).toFixed(1)+'%';
+  // 体力の色はシリーズ共通（緑→金→マゼンタ）
+  HUD_EL.fill.style.background = r>0.55 ? '#7CFF4F' : (r>0.3 ? '#FFD54F' : '#FF4FC3');
+  HUD_EL.txt.textContent = gs.earthHP + '/' + gs.maxEarthHP;
+  HUD_EL.stage.textContent = 'STAGE ' + stage + ' / WAVE ' + wave;
+  HUD_EL.score.textContent = 'SCORE ' + score;
+  HUD_EL.lv.textContent = 'Lv.' + level;
+  HUD_EL.coin.textContent = runCoins;
+}
+document.addEventListener('click', function(e){
+  if (e.target && e.target.id === 'hb-pause' && gs.state === 'battle') { gs.state = 'paused'; isHolding = false; }
+});
+
 var SKILL_EL = null;
 function syncSkillBar(){
   if (!SKILL_EL) SKILL_EL = Array.prototype.slice.call(document.querySelectorAll('#skillbar .skill'));
@@ -894,10 +924,10 @@ function getCanvasXY(e) {
 
 function handleBattlePointerDown(tx, ty) {
   // ポーズ
-  if (tx>W-52&&ty<48) { gs.state='paused'; isHolding=false; return; }
+  // ★一時停止は盤の外のボタンへ（2026-08-29）。ここで拾うと空の右上がタップできない
   // レーン移動ボタン（左端・右端）
-  if (tx<48&&ty>H-245&&ty<H-148) { changeLane(-1); return; }
-  if (tx>W-48&&ty>H-245&&ty<H-148) { changeLane(1); return; }
+  if (tx<48&&ty>H-177&&ty<H-80) { changeLane(-1); return; }
+  if (tx>W-48&&ty>H-177&&ty<H-80) { changeLane(1); return; }
   // ★スキルは盤の外のボタンで撃つ（2026-08-29）。ここで拾うと照準と取り合いになる
   // 照準（発射）
   isHolding=true; holdX=tx; holdY=ty;
@@ -998,5 +1028,5 @@ canvas.addEventListener('pointerleave', function(){ isHolding=false; });
 
 // ── Main loop ─────────────────────────────────────────────────────────────────
 SoundManager.startBgm('title');
-function loop(){ update(); draw(); syncSkillBar(); requestAnimationFrame(loop); }
+function loop(){ update(); draw(); syncHudBar(); syncSkillBar(); requestAnimationFrame(loop); }
 loop();

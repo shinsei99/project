@@ -14,7 +14,7 @@
   <link rel="preload" href="assets/fonts/ZenKakuGothicNew-500.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/Orbitron-900.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/Orbitron-700.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css?v=neon18">
+  <link rel="stylesheet" href="style.css?v=neon21">
 <style>
   /* ★2026-08-29: 音ボタンを**画面の右上**に出した（シリーズ共通の位置。neon-blocks/NEON_STYLE.md）。
      これまでは「設定・強化ショップ」の中にしか無く、6本のうちここだけ音を切る場所が違った。
@@ -34,6 +34,19 @@
 <body>
   <button id="mute" type="button" aria-label="音のオン・オフ">🔊</button>
   <div id="container">
+    <!-- ★2026-08-29: HUD も盤の外へ（他5本と同じ作り）。
+         盤の中で 82px を占めていたので、外に出したぶん**草原を108→40pxに詰めて**
+         canvas をちょうど 9:16 にした。**空（＝敵の落下距離）は654pxのまま**＝難易度は不変。 -->
+    <div id="hudbar" class="off">
+      <div class="hp"><span class="earth"></span><div class="hpbar"><i id="hp-fill"></i></div><span id="hp-txt">100/100</span></div>
+      <div class="stats">
+        <span class="chip" id="hb-stage">STAGE 1 / WAVE 1</span>
+        <span class="chip" id="hb-score">SCORE 0</span>
+        <span class="chip lv" id="hb-lv">Lv.1</span>
+        <span class="chip coin" id="hb-coin">0</span>
+        <button class="chip pause" id="hb-pause" aria-label="一時停止">❚❚</button>
+      </div>
+    </div>
     <canvas id="gameCanvas"></canvas>
     <!-- ★2026-08-29: 仲間ボタンを**盤の外**へ出した（他5本と同じ作り。neon-blocks/NEON_STYLE.md）。
          盤の中に描いていたので、①遊びの面にボタンが重なる ②タップ判定が盤の操作とぶつかる
@@ -44,13 +57,13 @@
       <button class="skill" id="sk-barrier" data-id="barrier" disabled><span class="sn">バリア</span><span class="sc"></span></button>
     </div>
   </div>
-  <script src="js/save.js?v=neon18"></script>
-  <script src="js/sound.js?v=neon18"></script>
-  <script src="js/entities.js?v=neon18"></script>
-  <script src="js/upgrades.js?v=neon18"></script>
-  <script src="js/render.js?v=neon18"></script>
-  <script src="js/ui.js?v=neon18"></script>
-  <script src="game.js?v=neon18"></script>
+  <script src="js/save.js?v=neon21"></script>
+  <script src="js/sound.js?v=neon21"></script>
+  <script src="js/entities.js?v=neon21"></script>
+  <script src="js/upgrades.js?v=neon21"></script>
+  <script src="js/render.js?v=neon21"></script>
+  <script src="js/ui.js?v=neon21"></script>
+  <script src="game.js?v=neon21"></script>
   <script>
     // 音ボタン。BGMと効果音をまとめて切り替える（設定画面の2つのスイッチとも同期する）
     (function(){

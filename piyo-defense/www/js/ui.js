@@ -253,14 +253,14 @@ function drawTitle(frame, hs, bs, bgmOn, seOn, coins) {
   var walkCycle=Math.sin(frame*0.15)*0.12;
   var w1x=((frame*0.8+100)%(_W+80))-40;
   var w2x=_W-((frame*0.55+50)%(_W+80))+40;
-  _ctx.save(); _ctx.translate(w1x, _H-148); _ctx.scale(1+Math.abs(walkCycle)*0.08,1); drawChick(0,walkCycle*20,24,false); _ctx.restore();
-  _ctx.save(); _ctx.translate(w2x, _H-138); _ctx.scale(-1,1); drawChick(0,walkCycle*20,20,false); _ctx.restore();
+  _ctx.save(); _ctx.translate(w1x, _H-80); _ctx.scale(1+Math.abs(walkCycle)*0.08,1); drawChick(0,walkCycle*20,24,false); _ctx.restore();
+  _ctx.save(); _ctx.translate(w2x, _H-70); _ctx.scale(-1,1); drawChick(0,walkCycle*20,20,false); _ctx.restore();
 
   // 手前で揺れる光の穂（もとは緑の草。夜のネオンの地面に緑の草だけ残って浮いていた）
   for (var gi=0;gi<22;gi++) {
     var gx=(gi*43+17)%_W;
     var sway=Math.sin(frame*0.03+gi*0.7)*4;
-    var gby=_H-96+(gi*29)%54;
+    var gby=_H-28+(gi*29)%54;
     _ctx.globalAlpha=0.30+Math.abs(Math.sin(frame*0.04+gi))*0.18;
     _ctx.save();
     _ctx.shadowColor=gi%3===0?'#FF4FC3':'#41E3FF'; _ctx.shadowBlur=8;

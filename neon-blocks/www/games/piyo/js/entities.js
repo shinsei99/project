@@ -427,11 +427,11 @@ class Enemy {
       this.x += this.vx + Math.sin(this.wobble * 1.5) * 0.9;
       this.y += this.vy;
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
-      if (this.y > H - 160) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
+      if (this.y > H - 92) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
     } else if (this.type === 'bomber') {
       this.x += Math.sin(this.wobble * 0.3) * 0.3;
       this.y += this.vy;
-      if (this.y > H - 150) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'bomb', dmg:this.dmg }; }
+      if (this.y > H - 82) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'bomb', dmg:this.dmg }; }
     } else if (this.type === 'sprinter') {
       this.sprintTimer++;
       if (this.sprintPhase === 0) {
@@ -442,44 +442,44 @@ class Enemy {
         if (this.sprintTimer >= 16) { this.sprintTimer = 0; this.sprintPhase = 0; }
       }
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
-      if (this.y > H - 160) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
+      if (this.y > H - 92) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
     } else if (this.type === 'regen') {
       this.x += this.vx + Math.sin(this.wobble) * 0.4; this.y += this.vy;
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
       this.regenTimer++;
       if (this.regenTimer >= 85) { this.regenTimer = 0; this.hp = Math.min(this.maxHp, this.hp + 2); }
-      if (this.y > H - 160) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
+      if (this.y > H - 92) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
     } else if (this.type === 'poison') {
       this.x += this.vx + Math.sin(this.wobble) * 0.6; this.y += this.vy;
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
       this.bubbleTimer++;
-      if (this.y > H - 160) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'poison_reach', dmg:this.dmg }; }
+      if (this.y > H - 92) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'poison_reach', dmg:this.dmg }; }
     } else if (this.type === 'stealth') {
       this.stealthTimer++;
       if (this.stealthTimer >= 120) { this.stealthTimer = 0; this.isHidden = !this.isHidden; }
       this.x += this.vx + Math.sin(this.wobble) * 0.5; this.y += this.vy;
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
-      if (this.y > H - 160) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
+      if (this.y > H - 92) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
     } else if (this.type === 'berserker') {
       if (!this.enraged && this.hp < this.maxHp * 0.5) {
         this.enraged = true; this.vy *= 2.0; this.vx *= 1.5;
       }
       this.x += this.vx + Math.sin(this.wobble) * 0.5; this.y += this.vy;
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
-      if (this.y > H - 160) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg * (this.enraged ? 2 : 1) }; }
+      if (this.y > H - 92) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg * (this.enraged ? 2 : 1) }; }
     } else if (this.type === 'titan') {
       this.x += this.vx + Math.sin(this.wobble * 0.3) * 0.2; this.y += this.vy;
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
-      if (this.y > H - 160) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
+      if (this.y > H - 92) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
     } else if (this.type === 'leech') {
       this.x += this.vx + Math.sin(this.wobble) * 0.5; this.y += this.vy;
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
       this.leechTimer++; if (this.leechTimer >= 120) { this.leechTimer = 0; this.hp = Math.min(this.maxHp, this.hp + 1); }
-      if (this.y > H - 160) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
+      if (this.y > H - 92) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
     } else if (this.type === 'necro') {
       this.x += this.vx + Math.sin(this.wobble) * 0.5; this.y += this.vy;
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
-      if (this.y > H - 160) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
+      if (this.y > H - 92) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
     } else if (this.type === 'phantom') {
       this.phantomTimer++;
       if (this.phantomTimer >= 90) {
@@ -489,11 +489,11 @@ class Enemy {
       }
       this.x += this.vx + Math.sin(this.wobble) * 0.8; this.y += this.vy;
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
-      if (this.y > H - 160) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
+      if (this.y > H - 92) { this.dead = true; return barrierActive ? { type:'barrier' } : { type:'reach', dmg:this.dmg }; }
     } else {
       this.x += this.vx + Math.sin(this.wobble) * 0.4; this.y += this.vy;
       if (this.x < this.size || this.x > 390 - this.size) this.vx *= -1;
-      if (this.y > H - 160) {
+      if (this.y > H - 92) {
         this.dead = true;
         return barrierActive ? { type: 'barrier' } : { type: 'reach', dmg: this.dmg };
       }
