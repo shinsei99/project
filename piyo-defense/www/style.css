@@ -109,3 +109,37 @@ body {
 .skill.ready#sk-nurse   { border-color:#FF4FC3; color:#FF4FC3; box-shadow:0 0 12px rgba(255,79,195,.35); }
 .skill.ready#sk-barrier { border-color:#41E3FF; color:#41E3FF; box-shadow:0 0 12px rgba(65,227,255,.35); }
 .skill:active { transform: translateY(1px); }
+
+
+/* ★2026-08-29: 盤の外に出した HUD（体力・ステージ・スコア・Lv・コイン・一時停止）。
+   盤の中で 82px 使っていたので、外に出したぶん草原を詰めて canvas を 9:16 にできた。 */
+/* ★右上の音ボタン（固定・44×40）と重ならないように右を空ける。
+   実測で HP の数字と一時停止ボタンが音ボタンの下に潜っていた（2026-08-29）。 */
+#hudbar { width: 100%; padding: 0 8px 0 8px; display: flex; flex-direction: column; gap: 4px; }
+#hudbar .hp { padding-right: 52px; }
+#hudbar.off { visibility: hidden; }
+#hudbar .hp { display: flex; align-items: center; gap: 6px; }
+#hudbar .earth {
+  width: 16px; height: 16px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 35% 32%, #6fd3ff, #1f7fd0 60%, #0b3f78);
+  box-shadow: 0 0 8px rgba(65,227,255,.5);
+}
+#hudbar .hpbar {
+  flex: 1; height: 12px; border-radius: 3px; overflow: hidden;
+  background: rgba(8,5,20,.9); border: 1px solid rgba(65,227,255,.35);
+}
+#hudbar .hpbar i { display: block; height: 100%; width: 100%; background: #7CFF4F;
+  box-shadow: 0 0 10px currentColor; transition: width .18s; }
+#hudbar #hp-txt { font: 700 10px Orbitron,'Zen Kaku Gothic New',sans-serif; color: #9FB0D8; min-width: 54px; text-align: right; }
+#hudbar .stats { display: flex; gap: 5px; align-items: center; padding-right: 52px; }   /* ★右上の音ボタンを避ける */
+#hudbar .hp { align-items: center; }
+#hudbar .chip {
+  flex: 1 1 auto; text-align: center; padding: 3px 6px; border-radius: 4px;
+  font: 700 10px Orbitron,'Zen Kaku Gothic New',sans-serif; letter-spacing: .04em;
+  color: #9FB0D8; background: rgba(22,16,54,.94); border: 1px solid rgba(65,227,255,.3);
+  white-space: nowrap;
+}
+#hudbar .chip.lv { color: #C9A8FF; border-color: rgba(179,107,255,.45); }
+#hudbar .chip.coin { color: #FFD54F; border-color: rgba(255,213,79,.45); }
+#hudbar .chip.coin::before { content: '◈ '; }
+#hudbar .chip.pause { flex: 0 0 40px; cursor: pointer; color: #8FE9FF; }
