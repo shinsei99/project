@@ -280,11 +280,16 @@ def _file_hash(path) -> str:
 
 
 def ingest_file(path, category=None, title=None, force=False, ocr_fallback=False,
-                 ocr_max_pages=15) -> dict:
+                 ocr_max_pages=15, company=None) -> dict:
     """1 ファイルを取込。増分更新: 内容ハッシュが前回と同じならスキップ（変更なし）。
 
     バージョン管理は filepath 単位（同じ物理ファイルの旧版を無効化し version+1）。
     ocr_fallback=True の場合、テキスト層の無い PDF は claude vision で OCR して取込む。
+
+    company … その文書がどの会社のものか（会社の壁。services/company_scope.py 参照）。
+      省略すると DB の既定（大京商事株式会社）になる。
+      ★別会社の資料を取り込むときは**必ず指定する**。指定を忘れると大京商事の資料として
+        索引され、全体チャットワークから読めてしまう（＝壁を越える）。
     """
     ext = os.path.splitext(path)[1].lower()
     if ext not in SUPPORTED_EXT:
@@ -328,11 +333,19 @@ def ingest_file(path, category=None, title=None, force=False, ocr_fallback=False
 
     with get_conn() as conn:
         conn.execute("UPDATE knowledge_documents SET active=0 WHERE filepath=?", (path,))
-        cur = conn.execute(
-            "INSERT INTO knowledge_documents (category, title, version, filename, filepath, mime, "
-            "content_hash, source_mtime, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
-            (category, title, version, filename, path, mime, fhash, mtime),
-        )
+        if company:
+            cur = conn.execute(
+                "INSERT INTO knowledge_documents (category, title, version, filename, filepath, "
+                "mime, content_hash, source_mtime, active, company) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?)",
+                (category, title, version, filename, path, mime, fhash, mtime, company),
+            )
+        else:
+            cur = conn.execute(
+                "INSERT INTO knowledge_documents (category, title, version, filename, filepath, "
+                "mime, content_hash, source_mtime, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)",
+                (category, title, version, filename, path, mime, fhash, mtime),
+            )
         doc_id = cur.lastrowid
         ord_i, total = 0, 0
         for text, ref in sections:
@@ -407,8 +420,16 @@ def prune_missing(root) -> int:
     return n
 
 
-def ingest_folder(root, incremental=True, limit=None, progress=None) -> dict:
-    """フォルダを走査し増分取込。incremental=True なら変更ファイルのみ再取込。"""
+def ingest_folder(root, incremental=True, limit=None, progress=None, company=None) -> dict:
+    """フォルダを走査し増分取込。incremental=True なら変更ファイルのみ再取込。
+
+    company を渡すと、そのフォルダの文書すべてをその会社のものとして索引する
+    （会社の壁。省略時は DB 既定＝大京商事株式会社）。
+    ★別会社のフォルダを取り込むときは必ず指定する。
+    ★company を指定したときは knowledge_source_root を上書きしない。
+      あれは「日次リフレッシュの対象＝大京商事の共有フォルダ」を指す状態なので、
+      別会社のフォルダで塗り替えると毎日の取込先が変わってしまう。
+    """
     from services.settings import set_state
     root = os.path.abspath(root)
     files = iter_supported(root, limit)
@@ -416,7 +437,8 @@ def ingest_folder(root, incremental=True, limit=None, progress=None) -> dict:
            "failed": 0, "chunks": 0, "errors": []}
     for i, p in enumerate(files, 1):
         try:
-            r = ingest_file(p, category=category_of(root, p), force=not incremental)
+            r = ingest_file(p, category=category_of(root, p), force=not incremental,
+                            company=company)
             if r.get("unchanged"):
                 res["unchanged"] += 1
             elif r.get("skipped"):
@@ -431,7 +453,8 @@ def ingest_folder(root, incremental=True, limit=None, progress=None) -> dict:
             progress(i, len(files), p)
     res["pruned"] = prune_missing(root)
     set_state("knowledge_last_refresh", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-    set_state("knowledge_source_root", root)
+    if not company:
+        set_state("knowledge_source_root", root)
     return res
 
 

@@ -30,11 +30,14 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--limit", type=int)
     ap.add_argument("--full", action="store_true", help="変更なしでも全ファイル再取込")
+    ap.add_argument("--company",
+                    help="この資料がどの会社のものか（会社の壁）。省略すると大京商事株式会社。\n"
+                         "★別会社のフォルダを取り込むときは必ず指定する。忘れると全体チャットから読めてしまう。")
     args = ap.parse_args()
     migrate()
 
     if args.file:
-        res = knowledge.ingest_file(args.file, force=args.full)
+        res = knowledge.ingest_file(args.file, force=args.full, company=args.company)
         print(f"{os.path.basename(args.file)} -> {res}")
         return
 
@@ -49,7 +52,7 @@ def main():
 
     if args.dry_run:
         files = knowledge.iter_supported(root, limit=args.limit)
-        print(f"対象 {len(files)} 件（root={os.path.abspath(root)}）")
+        print(f"対象 {len(files)} 件（root={os.path.abspath(root)}／会社={args.company or '大京商事株式会社(既定)'}）")
         for p in files:
             print(f"  [{knowledge.category_of(root, p)}] {os.path.relpath(p, os.path.abspath(root))}")
         return
@@ -57,7 +60,8 @@ def main():
     def _progress(i, total, path):
         print(f"  [{i}/{total}] {os.path.relpath(path, os.path.abspath(root))}", flush=True)
 
-    res = knowledge.ingest_folder(root, incremental=not args.full, limit=args.limit, progress=_progress)
+    res = knowledge.ingest_folder(root, incremental=not args.full, limit=args.limit,
+                                  progress=_progress, company=args.company)
     st = knowledge.stats()
     print(f"\n完了: 取込 {res['ingested']} / 変更なし {res['unchanged']} / "
           f"スキップ {res['skipped']} / 失敗 {res['failed']} / 無効化 {res['pruned']} / "
