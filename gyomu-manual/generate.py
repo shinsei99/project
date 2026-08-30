@@ -663,6 +663,24 @@ manual("soumu-buildings","soumu","物件別マニュアル索引",
    L("物件一覧.xlsx",bpath("物件一覧20220710.xlsx")),
    L("マニュアルフォルダを開く","社内・総務/研修・資料/マニュアル")])
 
+
+# ---------- 法令の根拠を差し込む（2026-08-30） ----------
+# 出どころは bookshelf/make_manual_law_notes.py が作った law_notes.json。
+# **引用は索引の一次資料と1文字ずつ照合済み**で、落ちたらJSONが作られない。
+# ここでは読み込んで該当マニュアルの末尾に足すだけ（本文には手を入れない）。
+try:
+    _LAW = json.loads(io.open(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                           "law_notes.json"), encoding="utf-8").read())["notes"]
+except Exception as _e:
+    _LAW = {}
+    print("※ law_notes.json を読めない（法令の根拠は出ない）:", _e)
+_law_added = 0
+for _m in M:
+    for _n in _LAW.get(_m["id"], []):
+        _m["blocks"] = list(_m["blocks"]) + [dict(_n, type="law")]
+        _law_added += 1
+print("法令の根拠:", _law_added, "件")
+
 # ---------------- RENDER ----------------
 def render_blocks(blocks):
     out=[]
@@ -672,6 +690,17 @@ def render_blocks(blocks):
             out.append('<h4 class="sub">%s</h4>'%esc(b["text"]))
         elif t=="note":
             out.append('<div class="note">%s</div>'%esc(b["text"]))
+        elif t=="law":
+            # ★法令の根拠。**会社の手順とは見た目を分ける**（読む人が「国が決めていること」と
+            #   「当社のやり方」を区別できるようにするため）。出典とページを必ず添える。
+            out.append('<div class="law"><div class="lawh">📕 法令の根拠：%s</div>'%esc(b["title"]))
+            out.append('<div class="lawq">%s</div>'%esc(b["quote"]))
+            # **…** は太字にする（エスケープした後に置き換える＝タグ注入にならない）
+            _b = esc(b["body"]).replace("**","\x00")
+            _parts = _b.split("\x00")
+            _b = "".join(x if i%2==0 else "<b>"+x+"</b>" for i,x in enumerate(_parts))
+            out.append('<div class="lawb">%s</div>'%_b)
+            out.append('<div class="laws">出典: %s（%s）</div></div>'%(esc(b["source"]),esc(b["page"])))
         elif t=="steps":
             out.append('<ol class="steps">')
             for it in b["items"]:
@@ -870,6 +899,11 @@ ol.steps>li:before{content:counter(s);position:absolute;left:10px;top:11px;width
 .stx{font-weight:600}
 ul.substeps{margin:6px 0 0;padding-left:18px}
 ul.substeps li{color:var(--mut);font-size:13.5px;list-style:disc;margin:2px 0;font-weight:400}
+.law{background:color-mix(in srgb,#7c5cff 7%,var(--card));border:1px solid color-mix(in srgb,#7c5cff 28%,var(--line));border-left:4px solid #7c5cff;border-radius:10px;padding:12px 15px;margin:16px 0;font-size:13.5px}
+.lawh{font-weight:700;color:#5b3fd6;margin-bottom:6px}
+.lawq{border-left:3px solid color-mix(in srgb,#7c5cff 40%,var(--line));padding:4px 0 4px 10px;margin:6px 0;color:var(--fg);opacity:.85;font-size:12.5px;line-height:1.7}
+.lawb{margin-top:8px;line-height:1.8}
+.laws{margin-top:8px;font-size:11.5px;opacity:.7}
 .note{background:color-mix(in srgb,var(--c) 8%,var(--card));border:1px solid color-mix(in srgb,var(--c) 25%,var(--line));border-left:4px solid var(--c);border-radius:10px;padding:12px 15px;margin:16px 0;font-size:13.5px}
 .tablewrap{overflow-x:auto;margin:14px 0;border:1px solid var(--line);border-radius:12px}
 table{border-collapse:collapse;width:100%;font-size:13px;min-width:520px}
