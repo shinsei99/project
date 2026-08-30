@@ -16,14 +16,15 @@
   var base = inGame ? '../../' : '';
   var here = inGame ? (location.pathname.split('/games/')[1] || '').split('/')[0] : 'blocks';
 
-  // 並びは 3列×2行。上の行＝ネオン系、下の行＝それ以外（オーナー指定）
+  // 並びは3列。7本目（ネオンランナー）は2026-08-30 に追加した
   var GAMES = [
     { id:'blocks',  name:'ネオンブロックス',   href: base + 'index.html',               color:'#41E3FF' },
     { id:'cyborg',  name:'ネオンサイボーグ',   href: base + 'games/cyborg/index.html',  color:'#7CFF4F' },
     { id:'piyo',    name:'ネオンタワー',       href: base + 'games/piyo/index.html',    color:'#FF8A3D' },
     { id:'gravity', name:'ネオングラビティ',   href: base + 'games/gravity/index.html', color:'#B36BFF' },
     { id:'ice',     name:'ネオンアイス',     href: base + 'games/ice/index.html',     color:'#FF4FC3' },
-    { id:'escape',  name:'ネオンエスケープ',     href: base + 'games/escape/index.html',  color:'#FFD54F' }
+    { id:'escape',  name:'ネオンエスケープ',   href: base + 'games/escape/index.html',  color:'#FFD54F' },
+    { id:'runner',  name:'ネオンランナー',     href: base + 'games/runner/index.html',  color:'#8EF9FF' }
   ];
 
   var css = ''

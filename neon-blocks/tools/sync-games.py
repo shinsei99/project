@@ -31,8 +31,14 @@ SRC = {
     "gravity": "color-gravity/www",
     "cyborg":  "cyborg-defense/www",
     "piyo":    "piyo-defense/www",
+    # ★ネオンランナーだけ www/ が無く、**フォルダ直下が本体**（1枚もの＋assets）
+    "runner":  "glow-runner",
 }
 SKIP_FILES = {"support.html", "privacy.html"}      # 必須URLはアプリ側では要らない
+# ★開発用のファイルは集合側に要らない（ネオンランナーだけ www/ が無く、
+#   フォルダ直下に README や tools が同居しているため、明示的に除く）
+SKIP_NAMES = {"README.md", "SESSION_LOG.md", "TODO.md", "run.sh", "RELEASE.md", "store-text.md"}
+SKIP_DIRS = {"tools", "screenshots", "node_modules", ".git"}
 # ★このスクリプトは**余分なファイルは消さない**（コピーするだけ）。
 #   取り出し元で書体を入れ替えたときなど、古いファイルが集合側に残る。
 #   2026-08-29 に ZenMaruGothic-*.woff2 が escape 側に残っていたのを手で外した。
@@ -42,8 +48,13 @@ SWITCH_TAG = '<script src="../_switch.js"></script>'
 
 def files_of(base: Path):
     for f in base.rglob("*"):
-        if f.is_file() and f.name not in SKIP_FILES:
-            yield f
+        if not f.is_file():
+            continue
+        if f.name in SKIP_FILES or f.name in SKIP_NAMES:
+            continue
+        if any(part in SKIP_DIRS for part in f.relative_to(base).parts[:-1]):
+            continue
+        yield f
 
 
 def main() -> None:
