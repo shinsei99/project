@@ -210,7 +210,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全54本）※不動産31・ツール16・ゲーム7  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全55本）※不動産31・ツール17・ゲーム7  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
 ### 不動産（31本）
@@ -249,7 +249,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | 事業計画案ジェネレーター（投資収支→Excel） | business-plan-generator | 8533 | ✅ | — |
 | KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | **本体（8534）はこのMacの launchd に登録していない**（2026-08-28 オーナー判断で見送り。plist は `keyline/_launchd/` にある）。iOSアプリ **KeyTag**（掲載名 **KeyTag鍵管理**）は **1.0 / build 4 で再提出＝審査待ち**（2026-08-28 11:13 JST 提出・`WAITING_FOR_REVIEW` を API で確認）。差し戻しは2回: Guideline 2.1（NFCのデモ動画の要求）→ **動画をサポートページに公開して回答** https://shinsei99.github.io/project/keytagnfc-support/ ／ Guideline 4.3(a)（スパム）→ **掲載名・説明文・副カテゴリを作り直し、サーバー連携を公開仕様にして回答**。あわせて実機で判明した **NFCの不具合2件を build 3 で修正**（build 2 はまっさらなタグを読めず、タグに書けなかった）。詳細は `keyline/SESSION_LOG.md` 冒頭 |
 
-### ツール（16本）※社内LAN共有なし
+### ツール（17本）※社内LAN共有なし
 
 | アプリ名 | フォルダ名 | port | 外部公開 |
 |---|---|---|---|
@@ -269,6 +269,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | チラシクリエーター（物件チラシ・型10種／物件サイト生成） | flyer-creator | 8529 | 物件サイトのみ daikyocorp.co.jp/slowlife/ |
 | AIツールベース（Claude Code主軸の比較メディア＋制作記録） | ai-tools-base | 3004 | Vercel（**ai-tools-base.vercel.app**・手動 `npx vercel --prod`） |
 | メールアーカイバ（IMAP容量対策・ローカル保管＋全文検索） | mail-archiver | 8535 | — |
+| GrowLog（子ども向け成長記録・身長体重の記録とグラフ・PWA） | growth-tracker | 3005 | — |
 
 ### ゲーム（7本）※社内LAN共有なし
 

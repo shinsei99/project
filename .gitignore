@@ -154,6 +154,10 @@ cyborg-defense/screenshots/shots-ipad/
 cyborg-defense/screenshots/upload/
 !glow-runner/
 !glow-runner/**
+!growth-tracker/
+!growth-tracker/**
+growth-tracker/node_modules/
+growth-tracker/dist/
 !neko-escape/
 !neko-escape/**
 # Capacitor/Xcode 生成物（他PCでは `npm install` → `npx cap add ios` で作り直す）。
