@@ -365,7 +365,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8516 | 顧客追客マネージャー | com.shinsei.tsuikyaku-crm |
 | 8517 | 媒介契約書ジェネレーター | com.shinsei.baikai-generator |
 | 8519 | オーナー送金・月次締めマネージャー | com.shinsei.owner-payout-tracker |
-| 8520 | 横断ファイル検索ブラウザ | com.shinsei.file-finder |
+| 8520 | 横断ファイル検索ブラウザ | com.shinsei.file-finder ＋ **-inventory（毎週日曜5:00**に共有フォルダを棚卸しして `全ファイル一覧.xlsx` を作り直し、8520に読み直させる。2026-08-30 追加。それまで**作る側の仕組みが無く7/22で更新が止まっていた**） |
 | 8521 | 業務マニュアル（Web） | com.shinsei.gyomu-manual |
 | 8522 | 駐車場配置図ビューア | com.shinsei.parking-map |
 | 8523 | theta-viewer FTP APIサーバー（server.js） | com.shinsei.theta-viewer-api |

@@ -32,11 +32,30 @@ python3 -m streamlit run app.py --server.port 8520
 
 ## ★ 棚卸しExcelの作り直し（2026-08-30 追加）
 
+**毎週日曜 5:00 に自動で走る**（`com.shinsei.file-finder-inventory` / 2026-08-30 追加）。
+作り直し → 共有フォルダの置き換え → 8520の読み直し → 控えの世代管理 まで1本で終わる。
+
 ```bash
+./run_inventory_weekly.sh          # 週次と同じことを手で流す
+DRY=1 ./run_inventory_weekly.sh    # 下見だけ（共有フォルダは触らない）
+
+# 中の道具を直接使う場合
 python3 build_inventory.py            # 下見（data/ にだけ書く）
 python3 build_inventory.py --publish  # 共有フォルダの実物も置き換える
-launchctl kickstart -k gui/$(id -u)/com.shinsei.file-finder   # 8520に読み直させる
 ```
+
+plist は `_launchd/com.shinsei.file-finder-inventory.plist`。入れ直しは
+`launchctl bootout` → `bootstrap`（**引数を変えたら `kickstart -k` では反映されない**）。
+
+### 週次ジョブが守っていること
+
+- **失敗したら 8520 を触らない**（古いままの方が安全。中途半端に読ませない）
+- **アプリの読み直しまでやる**。ここを忘れると「Excelは新しいのに画面は古い」になり、
+  しかも誰も気づけない
+- **控えは8本（約2か月）まで**。超えたら古いものから消す。消す件数をログに出す
+- **同じ日に2回流しても、前に取った控えを上書きしない**（上書きすると「置き換える前の版」
+  ではなく「さっき自分が置いた版」が残り、戻せなくなる）
+- `/bin/bash` 経由・`PATH` を明示（launchd の2大罠。README下部参照）
 
 **この道具ができるまで、作る側の仕組みは存在しなかった。**
 オーナーの認識は「定期的に自動で作り直してもらっている」だったが、

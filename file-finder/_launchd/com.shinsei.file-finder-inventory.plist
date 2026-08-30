@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  棚卸しExcel「全ファイル一覧.xlsx」を毎週作り直し、横断ファイル検索(8520)に読み直させる。
+  日曜 5:00（Weekday=0）。
+
+  ★ProgramArguments は必ず /bin/bash 経由にすること。
+    Dropbox(CloudStorage) は launchd から TCC で読めないが、
+    /bin/bash にフルディスクアクセスがあれば読める（責任プロセスが bash になるため）。
+    ここから /usr/bin/python3 を直接叩くと責任プロセスが python になり、また読めなくなる。
+
+  入れ直し（引数を変えたら kickstart では反映されない）:
+    launchctl bootout   gui/$(id -u)/com.shinsei.file-finder-inventory
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shinsei.file-finder-inventory.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.shinsei.file-finder-inventory</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/apple/file-finder/run_inventory_weekly.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/apple/file-finder</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>0</integer>
+    <key>Hour</key>
+    <integer>5</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/Users/apple/Library/Logs/com.shinsei.file-finder-inventory.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/apple/Library/Logs/com.shinsei.file-finder-inventory.err.log</string>
+</dict>
+</plist>

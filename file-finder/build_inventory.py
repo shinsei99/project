@@ -134,8 +134,16 @@ def main() -> int:
             _arc = SHARE / "_アーカイブ（2027年7月削除予定）"
             _arc.mkdir(parents=True, exist_ok=True)
             bak = _arc / f"全ファイル一覧_{datetime.datetime.now():%Y%m%d}_旧.xlsx"
-            shutil.copy2(PUBLISHED, bak)
-            print(f"いまの実物を控えた（アーカイブ）: {bak.name}")
+            # ★同じ日に2回流したとき、**前に取った控えを上書きしない**。
+            #   上書きすると「置き換える前の版」ではなく「さっき自分が置いた版」が
+            #   控えとして残り、戻せなくなる（2026-08-30 に気づいて塞いだ）。
+            if bak.exists():
+                print(f"今日の控えは既にある（上書きしない）: {bak.name}")
+                bak = None
+            else:
+                shutil.copy2(PUBLISHED, bak)
+            if bak:
+                print(f"いまの実物を控えた（アーカイブ）: {bak.name}")
         shutil.copy2(LOCAL, PUBLISHED)
         print(f"共有フォルダを置き換えた: {PUBLISHED}")
     else:
