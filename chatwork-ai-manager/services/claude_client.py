@@ -83,9 +83,26 @@ def run_claude(prompt: str, model: str = DEFAULT_MODEL, timeout: int = DEFAULT_T
         # 呼び出し側がキューへ回せるようにする。
         raise ClaudeStalledError(f"claude 応答が {timeout} 秒を超えました。")
     if proc.returncode != 0:
-        raise ClaudeError(
-            f"claude 失敗（code={proc.returncode}）: {proc.stderr.strip()[:500]}"
-        )
+        # ★2026-08-30: **理由は stdout の JSON に入る**（stderr は空のことが多い）。
+        #   stderr だけを出していたため、夜間OCRのログが3晩続けて
+        #   「claude 失敗（code=1）: 」と理由なしで残り、原因を特定できなかった。
+        #   実測: 環境を絞って呼ぶと exit 1・stderr 空・stdout に
+        #   {"result":"Not logged in · Please run /login","terminal_reason":"api_error"}。
+        #   利用上限や API 側のエラーも同じ形で stdout に入る。
+        detail = (proc.stderr or "").strip()
+        out = (proc.stdout or "").strip()
+        if out:
+            try:
+                env0 = json.loads(out)
+                detail = "%s / result=%s / terminal_reason=%s / api_error_status=%s" % (
+                    detail or "(stderr なし)",
+                    str(env0.get("result"))[:300],
+                    env0.get("terminal_reason"),
+                    env0.get("api_error_status"),
+                )
+            except json.JSONDecodeError:
+                detail = (detail or "(stderr なし)") + " / stdout=" + out[:300]
+        raise ClaudeError(f"claude 失敗（code={proc.returncode}）: {detail[:600]}")
     try:
         env = json.loads(proc.stdout)
     except json.JSONDecodeError:
