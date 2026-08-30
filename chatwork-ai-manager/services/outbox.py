@@ -77,7 +77,7 @@ def send_one(client, outbox_id) -> dict:
         mid = client.post_message(row["room_id"], row["body"])
         with get_conn() as conn:
             conn.execute(
-                "UPDATE outbox SET status='sent', chatwork_message_id=?, sent_at=datetime('now') WHERE id=?",
+                "UPDATE outbox SET status='sent', chatwork_message_id=?, sent_at=datetime('now','localtime') WHERE id=?",
                 (mid, outbox_id),
             )
         return {"ok": True, "message_id": mid}

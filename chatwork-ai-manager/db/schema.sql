@@ -1,3 +1,7 @@
+-- ★時刻は日本時間で記録する（2026-08-31 オーナー指示）。
+--   SQLite の datetime('now') は**世界標準時**を返す。日本時間より9時間前になり、
+--   ログを見ても開発タスクを見ても『いつの話か』が9時間ずれて分からなくなっていた。
+--   必ず datetime('now','localtime') を使うこと。
 -- chatwork-ai-manager DB schema (SQLite / FTS5)
 -- 冪等: すべて CREATE ... IF NOT EXISTS。migrate.py が起動時に実行する。
 
@@ -8,8 +12,8 @@ CREATE TABLE IF NOT EXISTS rooms (
     type             TEXT,
     monitored        INTEGER NOT NULL DEFAULT 0,   -- 1=解析対象
     last_message_id  TEXT,                          -- 取得済み境界（Chatworkのmessage_idは文字列）
-    created_at       TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at       TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at       TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 -- ルームメンバー（担当者名寄せ用）
@@ -18,7 +22,7 @@ CREATE TABLE IF NOT EXISTS members (
     account_id  INTEGER NOT NULL,
     name        TEXT,
     role        TEXT,
-    updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     PRIMARY KEY (room_id, account_id)
 );
 
@@ -30,7 +34,7 @@ CREATE TABLE IF NOT EXISTS messages (
     account_name TEXT,
     body         TEXT,
     send_time    INTEGER,                            -- Unix秒
-    fetched_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    fetched_at   TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     processed    INTEGER NOT NULL DEFAULT 0,          -- 0=未処理 1=処理済（後方互換）
     process_status TEXT NOT NULL DEFAULT 'pending',   -- pending/processing/done/failed（冪等・復旧用）
     process_error  TEXT,
@@ -46,8 +50,8 @@ CREATE TABLE IF NOT EXISTS projects (
     customer   TEXT,
     room_id    INTEGER,
     status     TEXT NOT NULL DEFAULT '進行中',
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS project_events (
@@ -55,7 +59,7 @@ CREATE TABLE IF NOT EXISTS project_events (
     project_id INTEGER NOT NULL,
     event_type TEXT,
     note       TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 -- TODO（AI抽出タスク）
@@ -90,8 +94,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     last_progress_reply TEXT,                        -- 担当者からの最後の進捗回答
     check_count         INTEGER NOT NULL DEFAULT 0,  -- AIが進捗確認した回数
     escalation_stage    INTEGER NOT NULL DEFAULT 0,  -- 0=通常 1=13時 2=18時 3=翌10時 4=管理者報告
-    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at          TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at          TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_due ON tasks(due_date);
@@ -107,7 +111,7 @@ CREATE TABLE IF NOT EXISTS task_events (
     to_status         TEXT,
     note              TEXT,
     evidence_message_id TEXT,                         -- 判断根拠のメッセージ
-    created_at        TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at        TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_task_events_task ON task_events(task_id);
 
@@ -123,7 +127,7 @@ CREATE TABLE IF NOT EXISTS ai_analysis_logs (
     parsed       TEXT,                                -- json
     error        TEXT,
     duration_ms  INTEGER,
-    created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at   TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_ai_logs_room ON ai_analysis_logs(room_id, created_at);
 
@@ -143,7 +147,7 @@ CREATE TABLE IF NOT EXISTS outbox (
     dedup_key           TEXT UNIQUE,                   -- 同一催促の二重投稿防止
     chatwork_message_id TEXT,
     error               TEXT,
-    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at          TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     sent_at             TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox(status);
@@ -156,7 +160,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     room_id    INTEGER,
     payload    TEXT,
     status     TEXT NOT NULL DEFAULT 'new',
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 -- ナレッジ（会社資料）
@@ -172,8 +176,8 @@ CREATE TABLE IF NOT EXISTS knowledge_documents (
     source_mtime REAL,                                -- 元ファイルの更新時刻
     active       INTEGER NOT NULL DEFAULT 1,
     meta         TEXT,                                -- json
-    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at   TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_kdoc_filepath ON knowledge_documents(filepath, active);
 
@@ -183,7 +187,7 @@ CREATE TABLE IF NOT EXISTS knowledge_chunks (
     ord        INTEGER,
     text       TEXT,
     source_ref TEXT,                                  -- 例: "P12" / "Sheet:見積" / ファイル名
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_chunks_doc ON knowledge_chunks(doc_id);
 
@@ -228,13 +232,13 @@ CREATE TABLE IF NOT EXISTS knowledge_shelf (
     -- 新しい順に優先するか。制度・税務は新しいものが正しいが、理論書は古くても現役なので
     -- 棚ごとに決める（2026-08-29に実測して分かった。詳細は SESSION_LOG）
     prefer_new INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 CREATE TABLE IF NOT EXISTS knowledge_shelf_member (
     shelf_id   INTEGER NOT NULL,
     doc_id     INTEGER NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     PRIMARY KEY (shelf_id, doc_id)
 );
 CREATE INDEX IF NOT EXISTS idx_shelf_member_doc ON knowledge_shelf_member(doc_id);
@@ -243,14 +247,14 @@ CREATE INDEX IF NOT EXISTS idx_shelf_member_doc ON knowledge_shelf_member(doc_id
 CREATE TABLE IF NOT EXISTS settings (
     key        TEXT PRIMARY KEY,
     value      TEXT,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 -- 処理状態（ポーリング時刻・スケジューラ最終実行など）
 CREATE TABLE IF NOT EXISTS processing_state (
     key        TEXT PRIMARY KEY,
     value      TEXT,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 -- 定時処理の実行履歴（同日・同種の二重実行を防止）
@@ -259,7 +263,7 @@ CREATE TABLE IF NOT EXISTS scheduled_runs (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     run_date   TEXT NOT NULL,                        -- 'YYYY-MM-DD'
     job_type   TEXT NOT NULL,
-    ran_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    ran_at     TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     result     TEXT,
     UNIQUE(run_date, job_type)
 );
@@ -281,7 +285,7 @@ CREATE TABLE IF NOT EXISTS sent_files (
     chatwork_file_id TEXT,
     status        TEXT NOT NULL DEFAULT 'sent',
     error         TEXT,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_sent_files_room ON sent_files(room_id, created_at);
 
@@ -303,8 +307,8 @@ CREATE TABLE IF NOT EXISTS pending_requests (
     status           TEXT NOT NULL DEFAULT 'queued',
     attempts         INTEGER NOT NULL DEFAULT 0,
     last_error       TEXT,
-    created_at       TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at       TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at       TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     answered_at      TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_pending_status ON pending_requests(status, created_at);
@@ -338,8 +342,8 @@ CREATE TABLE IF NOT EXISTS dev_tasks (
     attempts      INTEGER NOT NULL DEFAULT 0,         -- 実行回数（再起動復元でも増える）
     started_at    TEXT,
     finished_at   TEXT,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at    TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_dev_tasks_status ON dev_tasks(status);
 
@@ -368,8 +372,8 @@ CREATE TABLE IF NOT EXISTS properties (
     geo_query      TEXT,                          -- 実際に問い合わせた住所文字列
     geo_status     TEXT,                          -- ok / no_address / not_found / error
     active         INTEGER NOT NULL DEFAULT 1,
-    created_at     TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at     TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at     TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_properties_geo ON properties(lat, lon);
 CREATE INDEX IF NOT EXISTS idx_properties_cls ON properties(classification, category);
@@ -382,7 +386,7 @@ CREATE TABLE IF NOT EXISTS geocode_cache (
     title      TEXT,                              -- 相手が返した正式表記
     source     TEXT,                              -- gsi など
     status     TEXT,                              -- ok / not_found / error
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 -- 開発タスクの経過（監査・引き継ぎ用）
@@ -391,7 +395,7 @@ CREATE TABLE IF NOT EXISTS dev_task_events (
     task_id    TEXT NOT NULL,                         -- dev_tasks.task_id
     event_type TEXT,                                  -- created/status/note/interrupt/answer/completed/failed
     note       TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_dev_task_events ON dev_task_events(task_id, created_at);
 
@@ -408,8 +412,8 @@ CREATE TABLE IF NOT EXISTS daily_reports (
     evidence     TEXT,                        -- json（根拠にした message_id の配列）
     model        TEXT,
     generated_by TEXT,                        -- manual / scheduled
-    created_at   TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at   TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at   TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     UNIQUE(report_date, person)
 );
 CREATE INDEX IF NOT EXISTS idx_daily_reports_date ON daily_reports(report_date);
@@ -429,8 +433,8 @@ CREATE TABLE IF NOT EXISTS monthly_reports (
     files               TEXT,                   -- json（添付ファイルの抽出結果 [{filename, ok, error}]）
     model               TEXT,
     generated_by        TEXT,                   -- manual / line / line_timeout
-    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at          TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at          TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_monthly_reports_period ON monthly_reports(report_period);
 
@@ -440,7 +444,7 @@ CREATE TABLE IF NOT EXISTS monthly_report_line_sessions (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     line_user_id  TEXT,
     status        TEXT NOT NULL DEFAULT 'open',   -- open / closed
-    opened_at     TEXT NOT NULL DEFAULT (datetime('now')),
+    opened_at     TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     closed_at     TEXT
 );
 
@@ -452,7 +456,7 @@ CREATE TABLE IF NOT EXISTS monthly_report_line_items (
     text        TEXT,
     ok          INTEGER NOT NULL DEFAULT 1,
     error       TEXT,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 CREATE INDEX IF NOT EXISTS idx_mr_line_items_session ON monthly_report_line_items(session_id);
 
@@ -462,7 +466,7 @@ CREATE TABLE IF NOT EXISTS holidays (
     holiday_date TEXT PRIMARY KEY,           -- 'YYYY-MM-DD'
     note         TEXT,
     source       TEXT,
-    updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
+    updated_at   TEXT NOT NULL DEFAULT (datetime('now','localtime'))
 );
 
 -- Chatwork音声添付（ボイスメモ等）の文字起こし・要約キャッシュ（TASK-20260826-004）。
@@ -475,7 +479,7 @@ CREATE TABLE IF NOT EXISTS audio_transcripts (
     filename    TEXT,
     transcript  TEXT,
     summary     TEXT,
-    created_at  TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at  TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     PRIMARY KEY (room_id, file_id)
 );
 
@@ -495,6 +499,6 @@ CREATE TABLE IF NOT EXISTS chatwork_images (
     room_name     TEXT,
     property_name TEXT,
     title         TEXT,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
+    created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     PRIMARY KEY (room_id, file_id)
 );

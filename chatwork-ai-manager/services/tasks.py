@@ -34,7 +34,7 @@ def create_task(data: dict) -> int:
     ph = ", ".join(["?"] * len(fields))
     with get_conn() as conn:
         cur = conn.execute(
-            f"INSERT INTO tasks ({cols}, last_activity_at) VALUES ({ph}, datetime('now'))",
+            f"INSERT INTO tasks ({cols}, last_activity_at) VALUES ({ph}, datetime('now','localtime'))",
             tuple(fields.values()),
         )
         task_id = cur.lastrowid
@@ -56,14 +56,14 @@ def update_status(task_id: int, to_status: str, note: str = None,
     with get_conn() as conn:
         if progress is not None:
             conn.execute(
-                "UPDATE tasks SET status=?, progress=?, updated_at=datetime('now'), "
-                "last_activity_at=datetime('now') WHERE id=?",
+                "UPDATE tasks SET status=?, progress=?, updated_at=datetime('now','localtime'), "
+                "last_activity_at=datetime('now','localtime') WHERE id=?",
                 (to_status, progress, task_id),
             )
         else:
             conn.execute(
-                "UPDATE tasks SET status=?, updated_at=datetime('now'), "
-                "last_activity_at=datetime('now') WHERE id=?",
+                "UPDATE tasks SET status=?, updated_at=datetime('now','localtime'), "
+                "last_activity_at=datetime('now','localtime') WHERE id=?",
                 (to_status, task_id),
             )
         conn.execute(
@@ -81,8 +81,8 @@ def update_fields(task_id: int, updates: dict, note: str = None,
     set_clause = ", ".join(f"{k}=?" for k in allowed)
     with get_conn() as conn:
         conn.execute(
-            f"UPDATE tasks SET {set_clause}, updated_at=datetime('now'), "
-            f"last_activity_at=datetime('now') WHERE id=?",
+            f"UPDATE tasks SET {set_clause}, updated_at=datetime('now','localtime'), "
+            f"last_activity_at=datetime('now','localtime') WHERE id=?",
             (*allowed.values(), task_id),
         )
         conn.execute(
@@ -100,13 +100,13 @@ def mark_progress_reported(task_id: int) -> None:
     「進捗はいかがですか」と催促しないための判定に使う（TASK-20260824-002）。
     """
     with get_conn() as conn:
-        conn.execute("UPDATE tasks SET last_progress_at=datetime('now') WHERE id=?", (task_id,))
+        conn.execute("UPDATE tasks SET last_progress_at=datetime('now','localtime') WHERE id=?", (task_id,))
 
 
 def touch_activity(task_id: int, note: str = None, evidence_message_id: str = None) -> None:
     """状態は変えず「動きがあった」ことだけ記録（放置タイマーのリセット）。"""
     with get_conn() as conn:
-        conn.execute("UPDATE tasks SET last_activity_at=datetime('now') WHERE id=?", (task_id,))
+        conn.execute("UPDATE tasks SET last_activity_at=datetime('now','localtime') WHERE id=?", (task_id,))
         if note:
             conn.execute(
                 "INSERT INTO task_events (task_id, event_type, note, evidence_message_id) "

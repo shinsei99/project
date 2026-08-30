@@ -101,8 +101,8 @@ def claim(task_id: str) -> bool:
     """RECEIVED → RUNNING を排他的に確保する（2つのtickが同じタスクを走らせない）。"""
     with get_conn() as conn:
         cur = conn.execute(
-            "UPDATE dev_tasks SET status='RUNNING', started_at=datetime('now'), "
-            "attempts=attempts+1, updated_at=datetime('now') "
+            "UPDATE dev_tasks SET status='RUNNING', started_at=datetime('now','localtime'), "
+            "attempts=attempts+1, updated_at=datetime('now','localtime') "
             "WHERE task_id=? AND status='RECEIVED'",
             (task_id,),
         )
@@ -121,13 +121,13 @@ def set_status(task_id: str, status: str, note=None, **fields) -> None:
         raise ValueError(f"未知の状態: {status}")
     allowed = {"result", "error", "question", "answer", "session_id", "project_dir",
                "kind", "title", "log_path", "workspace", "finished_at"}
-    sets, params = ["status=?", "updated_at=datetime('now')"], [status]
+    sets, params = ["status=?", "updated_at=datetime('now','localtime')"], [status]
     for k, v in fields.items():
         if k in allowed:
             sets.append(f"{k}=?")
             params.append(v)
     if status in DONE_STATUSES and "finished_at" not in fields:
-        sets.append("finished_at=datetime('now')")
+        sets.append("finished_at=datetime('now','localtime')")
     params.append(task_id)
     with get_conn() as conn:
         conn.execute(f"UPDATE dev_tasks SET {', '.join(sets)} WHERE task_id=?", params)
@@ -165,7 +165,7 @@ def answer(task_id: str, answer_text: str) -> dict:
     with get_conn() as conn:
         conn.execute(
             "UPDATE dev_tasks SET status='RECEIVED', answer=?, question=NULL, "
-            "updated_at=datetime('now') WHERE task_id=?",
+            "updated_at=datetime('now','localtime') WHERE task_id=?",
             (merged, task_id),
         )
         conn.execute(

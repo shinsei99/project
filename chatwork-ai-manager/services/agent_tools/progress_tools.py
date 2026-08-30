@@ -116,9 +116,9 @@ def record_check(task_id, escalation_stage=None):
     with get_conn() as conn:
         if escalation_stage is not None:
             conn.execute("UPDATE tasks SET check_count=check_count+1, "
-                         "last_check_at=datetime('now'), escalation_stage=? WHERE id=?",
+                         "last_check_at=datetime('now','localtime'), escalation_stage=? WHERE id=?",
                          (escalation_stage, task_id))
         else:
             conn.execute("UPDATE tasks SET check_count=check_count+1, "
-                         "last_check_at=datetime('now') WHERE id=?", (task_id,))
+                         "last_check_at=datetime('now','localtime') WHERE id=?", (task_id,))
     return {"ok": True, "task_id": task_id}

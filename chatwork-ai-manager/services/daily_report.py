@@ -324,7 +324,7 @@ def save(date_str, person, account_id, body, summary, stats, evidence, model_nam
             "ON CONFLICT(report_date, person) DO UPDATE SET "
             "account_id=excluded.account_id, body=excluded.body, summary=excluded.summary, "
             "stats=excluded.stats, evidence=excluded.evidence, model=excluded.model, "
-            "generated_by=excluded.generated_by, updated_at=datetime('now')",
+            "generated_by=excluded.generated_by, updated_at=datetime('now','localtime')",
             (date_str, person, account_id, body, summary, json.dumps(stats, ensure_ascii=False),
              json.dumps(evidence, ensure_ascii=False), model_name, generated_by))
 

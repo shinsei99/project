@@ -138,9 +138,9 @@ def sync_rooms(client: ChatworkClient) -> int:
         for r in rooms:
             conn.execute(
                 "INSERT INTO rooms (room_id, name, type, updated_at) "
-                "VALUES (?, ?, ?, datetime('now')) "
+                "VALUES (?, ?, ?, datetime('now','localtime')) "
                 "ON CONFLICT(room_id) DO UPDATE SET name=excluded.name, type=excluded.type, "
-                "updated_at=datetime('now')",
+                "updated_at=datetime('now','localtime')",
                 (r.get("room_id"), r.get("name"), r.get("type")),
             )
     return len(rooms)
@@ -168,9 +168,9 @@ def sync_members(client: ChatworkClient, room_id: int) -> int:
         for m in members:
             conn.execute(
                 "INSERT INTO members (room_id, account_id, name, role, updated_at) "
-                "VALUES (?, ?, ?, ?, datetime('now')) "
+                "VALUES (?, ?, ?, ?, datetime('now','localtime')) "
                 "ON CONFLICT(room_id, account_id) DO UPDATE SET name=excluded.name, "
-                "role=excluded.role, updated_at=datetime('now')",
+                "role=excluded.role, updated_at=datetime('now','localtime')",
                 (room_id, m.get("account_id"), m.get("name"), m.get("role")),
             )
     return len(members)

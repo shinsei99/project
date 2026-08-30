@@ -222,7 +222,7 @@ def save(trigger_message_id, period, room_id, body, summary, evidence, files_jso
             "ON CONFLICT(trigger_message_id) DO UPDATE SET "
             "report_period=excluded.report_period, room_id=excluded.room_id, body=excluded.body, "
             "summary=excluded.summary, evidence=excluded.evidence, files=excluded.files, "
-            "model=excluded.model, generated_by=excluded.generated_by, updated_at=datetime('now')",
+            "model=excluded.model, generated_by=excluded.generated_by, updated_at=datetime('now','localtime')",
             (trigger_message_id, period, room_id, body, summary,
              json.dumps(evidence, ensure_ascii=False), json.dumps(files_json, ensure_ascii=False),
              model_name, generated_by))

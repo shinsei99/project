@@ -12,8 +12,8 @@ def get_setting(key: str, default=None):
 def set_setting(key: str, value) -> None:
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO settings(key, value, updated_at) VALUES (?, ?, datetime('now')) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now')",
+            "INSERT INTO settings(key, value, updated_at) VALUES (?, ?, datetime('now','localtime')) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now','localtime')",
             (key, str(value)),
         )
 
@@ -44,7 +44,7 @@ def get_state(key: str, default=None):
 def set_state(key: str, value) -> None:
     with get_conn() as conn:
         conn.execute(
-            "INSERT INTO processing_state(key, value, updated_at) VALUES (?, ?, datetime('now')) "
-            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now')",
+            "INSERT INTO processing_state(key, value, updated_at) VALUES (?, ?, datetime('now','localtime')) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime('now','localtime')",
             (key, str(value)),
         )

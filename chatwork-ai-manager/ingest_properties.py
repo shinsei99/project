@@ -111,7 +111,7 @@ def upsert(rows, dry_run=False) -> dict:
             vals = [r.get(c, "") for c in cols]
             cur = conn.execute(
                 "UPDATE properties SET " + ", ".join(f"{c}=?" for c in cols[1:]) +
-                ", active=1, updated_at=datetime('now') WHERE property_id=?",
+                ", active=1, updated_at=datetime('now','localtime') WHERE property_id=?",
                 (*vals[1:], r["property_id"]),
             )
             if cur.rowcount:
@@ -142,7 +142,7 @@ def geocode_missing(regeocode=False, limit=None) -> dict:
         if not (p["address"] or "").strip():
             with get_conn() as conn:
                 conn.execute("UPDATE properties SET geo_status='no_address', "
-                             "updated_at=datetime('now') WHERE id=?", (p["id"],))
+                             "updated_at=datetime('now','localtime') WHERE id=?", (p["id"],))
             skipped += 1
             print(f"  − {p['name']}: 住所が空（台帳に未入力）")
             continue
@@ -151,14 +151,14 @@ def geocode_missing(regeocode=False, limit=None) -> dict:
             if res.get("ok"):
                 conn.execute(
                     "UPDATE properties SET lat=?, lon=?, geo_source='gsi', geo_query=?, "
-                    "geo_status='ok', updated_at=datetime('now') WHERE id=?",
+                    "geo_status='ok', updated_at=datetime('now','localtime') WHERE id=?",
                     (res["lat"], res["lon"], res["query"], p["id"]))
                 ok += 1
                 mark = "（キャッシュ）" if res.get("cached") else ""
                 print(f"  ✓ {p['name']}: {res['lat']:.6f}, {res['lon']:.6f} {mark}")
             else:
                 conn.execute("UPDATE properties SET geo_status=?, geo_query=?, "
-                             "updated_at=datetime('now') WHERE id=?",
+                             "updated_at=datetime('now','localtime') WHERE id=?",
                              (res.get("status"), res.get("query"), p["id"]))
                 ng += 1
                 print(f"  ✗ {p['name']}: {res.get('error')}")

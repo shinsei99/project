@@ -53,7 +53,7 @@ def _finish(row_id: int, status: str, error=None):
     with get_conn() as conn:
         conn.execute(
             "UPDATE pending_requests SET status=?, last_error=?, "
-            "updated_at=datetime('now'), answered_at=datetime('now') WHERE id=?",
+            "updated_at=datetime('now','localtime'), answered_at=datetime('now','localtime') WHERE id=?",
             (status, (str(error)[:500] if error else None), row_id))
 
 
@@ -61,7 +61,7 @@ def _bump_attempt(row_id: int, error=None):
     with get_conn() as conn:
         conn.execute(
             "UPDATE pending_requests SET attempts=attempts+1, last_error=?, "
-            "updated_at=datetime('now') WHERE id=?",
+            "updated_at=datetime('now','localtime') WHERE id=?",
             ((str(error)[:500] if error else None), row_id))
 
 

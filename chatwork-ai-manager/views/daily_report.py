@@ -31,10 +31,14 @@ def _built(builder, date_str: str, rows, ext: str) -> bytes:
 
 
 def _local(ts: str) -> str:
-    """DBは datetime('now')＝UTC で入るので、表示だけ日本時間に直す。"""
+    """DBは日本時間で入っているので、形を整えるだけ。
+
+    ★2026-08-31 以前は datetime('now')＝UTC で記録していたため、ここで+9時間して
+      いた。DB側を日本時間に直した（既存データも変換済み）ので、足すと二重になる。
+    """
     try:
         dt = datetime.datetime.strptime(ts, "%Y-%m-%d %H:%M:%S")
-        return (dt + datetime.timedelta(hours=9)).strftime("%m/%d %H:%M")
+        return dt.strftime("%m/%d %H:%M")
     except (TypeError, ValueError):
         return ts or "-"
 

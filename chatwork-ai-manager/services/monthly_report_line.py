@@ -61,7 +61,7 @@ def start_session(line_user_id: str) -> dict:
 def close_session(session_id: int):
     with get_conn() as conn:
         conn.execute(
-            "UPDATE monthly_report_line_sessions SET status='closed', closed_at=datetime('now') "
+            "UPDATE monthly_report_line_sessions SET status='closed', closed_at=datetime('now','localtime') "
             "WHERE id=? AND status='open'", (session_id,))
 
 

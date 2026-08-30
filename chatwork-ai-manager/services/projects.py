@@ -48,7 +48,7 @@ def update(project_id: int, updates: dict, note: str = None) -> bool:
     set_clause = ", ".join(f"{k}=?" for k in allowed)
     with get_conn() as conn:
         conn.execute(
-            f"UPDATE projects SET {set_clause}, updated_at=datetime('now') WHERE id=?",
+            f"UPDATE projects SET {set_clause}, updated_at=datetime('now','localtime') WHERE id=?",
             (*allowed.values(), project_id),
         )
         conn.execute(

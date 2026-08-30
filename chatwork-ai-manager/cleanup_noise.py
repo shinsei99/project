@@ -46,7 +46,7 @@ def detect():
 def apply(rows):
     with get_conn() as conn:
         conn.executemany(
-            "UPDATE knowledge_documents SET active=0, meta='noise-cleanup', updated_at=datetime('now') WHERE id=?",
+            "UPDATE knowledge_documents SET active=0, meta='noise-cleanup', updated_at=datetime('now','localtime') WHERE id=?",
             [(d["id"],) for d in rows],
         )
 
@@ -54,7 +54,7 @@ def apply(rows):
 def undo():
     with get_conn() as conn:
         cur = conn.execute(
-            "UPDATE knowledge_documents SET active=1, meta=NULL, updated_at=datetime('now') "
+            "UPDATE knowledge_documents SET active=1, meta=NULL, updated_at=datetime('now','localtime') "
             "WHERE meta='noise-cleanup'"
         )
         return cur.rowcount

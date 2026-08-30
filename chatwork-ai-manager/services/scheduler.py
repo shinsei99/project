@@ -127,7 +127,7 @@ def _claim(job_type, today):
 
 def _finish(job_type, today, result: dict):
     with get_conn() as conn:
-        conn.execute("UPDATE scheduled_runs SET result=?, ran_at=datetime('now') "
+        conn.execute("UPDATE scheduled_runs SET result=?, ran_at=datetime('now','localtime') "
                      "WHERE run_date=? AND job_type=?",
                      (json.dumps(result, ensure_ascii=False)[:2000], today, job_type))
 
@@ -532,23 +532,57 @@ def _knowledge_refresh_due(now):
 
 
 def run_knowledge_refresh(now=None):
+    """日次の索引更新。**会社ごとの資料ルートを全部見る**（2026-08-31）。
+
+    以前は既定の会社（大京商事）の共有フォルダ1つだけだった。新誠プロパティの
+    GoogleDrive を足したのに日次更新の対象外で、新しいファイルを置いても
+    翌日以降ずっと索引に入らないままだった。
+
+    ★取り込みは増分（更新時刻と内容ハッシュで判定）なので、毎日全部を舐めても
+      変わっていないファイルは飛ばす。実測で Dropbox 側は 4,500件を数分。
+    ★会社ごとに company を渡す。渡さないと DB 既定（大京商事）で索引され、
+      新誠の資料が全体チャットから読めてしまう。
+    """
     now = now or datetime.datetime.now()
     today = now.date().isoformat()
     if not _claim("knowledge_refresh", today):
         return {"job": "knowledge_refresh", "claimed": False}
     from services import config, knowledge
+
+    targets = []                      # [(表示名, パス, company or None)]
     src = config.get("knowledge_source_dir")
-    if not src:
+    if src:
+        targets.append(("大京商事（共有フォルダ）", src, None))
+    try:
+        dirs = json.loads(settings.get_setting("company_source_dirs", "") or "{}")
+    except Exception:
+        dirs = {}
+    default_co = ""
+    try:
+        default_co = json.loads(settings.get_setting("room_company_map", "") or "{}").get("default") or ""
+    except Exception:
+        pass
+    for co, conf in (dirs or {}).items():
+        root = (conf or {}).get("root")
+        if not root or co == default_co:
+            continue              # 既定の会社は上で共有フォルダとして処理済み
+        targets.append((co, root, co))
+
+    if not targets:
         _finish("knowledge_refresh", today, {"skipped": "no source dir"})
         return {"job": "knowledge_refresh", "claimed": True, "skipped": "no source"}
-    try:
-        res = knowledge.ingest_folder(src, incremental=True)
-        summary = {k: res.get(k) for k in ("ingested", "unchanged", "skipped", "failed", "pruned")}
-    except OSError as e:
-        # launchd常時起動はTCCでCloudStorageを読めない場合あり（/bin/bashにFDA付与で解消）
-        summary = {"error": f"フォルダ読取不可(FDA権限?): {e}"}
-    except Exception as e:
-        summary = {"error": f"{type(e).__name__}: {e}"}
+
+    summary = {}
+    for name, root, company in targets:
+        try:
+            res = knowledge.ingest_folder(root, incremental=True, company=company)
+            summary[name] = {k: res.get(k) for k in
+                             ("ingested", "unchanged", "skipped", "failed", "pruned")}
+        except OSError as e:
+            # launchd常時起動はTCCでCloudStorageを読めない場合あり（/bin/bashにFDA付与で解消）
+            summary[name] = {"error": f"フォルダ読取不可(FDA権限?): {e}"}
+        except Exception as e:
+            summary[name] = {"error": f"{type(e).__name__}: {e}"}
     _finish("knowledge_refresh", today, summary)
     return {"job": "knowledge_refresh", "claimed": True, **summary}
 
