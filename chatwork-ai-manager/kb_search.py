@@ -76,19 +76,31 @@ def _company_sql():
       実測で、新誠の場から大京商事の自社書類が10件出た。
       **同じ壁を両方に入れること。**
     自社書類はその会社のものだけ。法令・判例・本（company='共通'）は誰でも見てよい。
+
+    ★会社の判定は company_scope.here() に一本化する（2026-08-30）。
+      ここで CWAI_COMPANY だけを見ていたため、ルームIDしか渡っていない経路では
+      既定（大京商事）に落ちて壁が緩んでいた。here() は
+      CWAI_COMPANY → CWAI_ROOM_ID のルーム対応 → 既定 の順に見るので、
+      どちらか片方しか渡らない道具からでも正しい会社になる。
     """
-    import os
-    co = (os.environ.get("CWAI_COMPANY") or "").strip()
-    if not co:
-        try:
-            import json
-            from services.settings import get_setting
-            co = json.loads(get_setting("room_company_map", "") or "{}").get("default") or ""
-        except Exception:
-            co = ""
+    try:
+        from services.company_scope import here, SHARED
+        co = here()
+    except Exception:
+        # company_scope が読めないときは**閉じる側に倒す**。
+        # 空文字を返して壁を外すと、事故のときに全部見えてしまう。
+        import os, json
+        co = (os.environ.get("CWAI_COMPANY") or "").strip()
+        SHARED = "共通"
+        if not co:
+            try:
+                from services.settings import get_setting
+                co = json.loads(get_setting("room_company_map", "") or "{}").get("default") or ""
+            except Exception:
+                co = ""
     if not co:
         return "", []
-    return " AND d.company IN (?, '共通') ", [co]
+    return " AND d.company IN (?, ?) ", [co, SHARED]
 
 
 def search(q: str, limit: int = 12, snippet: int = 700, kinds=None):
