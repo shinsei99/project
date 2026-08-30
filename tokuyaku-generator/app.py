@@ -32,6 +32,7 @@ if _ROOT not in _sys.path:
 
 from tokuyaku_clauses import CATEGORIES, find_item  # noqa: F401
 import law_citations  # 引用した法令が実在するかを e-Gov で確かめる（直下の共有モジュール）
+import tokuyaku_cases  # 似た論点で争いになった裁判例を出す（直下の共有モジュール・AI重説と共通）
 from tokuyaku_core import (  # noqa: F401
     CLAUDE_BIN,
     CLAUDE_TIMEOUT,
@@ -263,6 +264,21 @@ def main():
                     if counts.get("無い") or counts.get("不明"):
                         st.warning("⚠️ の行は条番号が現行法と合っていない可能性があります。"
                                    "契約書に載せる前に確かめてください。")
+
+            # ── 似た争いの実例（判例）──
+            # なぜ出すか: 条文が実在することと、その特約が通ることは別。
+            # 更新料・違約金・原状回復特約・定期借家などは**実際に裁判で争われている**。
+            # 書いた本人が「この論点は揉めている」と気づけるようにする（判定はしない）。
+            pairs = []
+            for _no in st.session_state.order:
+                _it = find_item(_no)
+                if not _it:
+                    continue
+                _tp = tokuyaku_cases.topics_of_item(_it)
+                _cs = tokuyaku_cases.for_topics(_tp, limit=3)
+                if _cs:
+                    pairs.append((f"{_no} {_it.get('title', '')}", _tp, _cs))
+            tokuyaku_cases.render_streamlit(st, pairs)
 
             # ── 出力 ──
             st.divider()

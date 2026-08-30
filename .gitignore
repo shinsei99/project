@@ -46,6 +46,8 @@
 !company_profile.py
 !tokuyaku_clauses.py
 !tokuyaku_core.py
+!tokuyaku_cases.py
+!tokuyaku_cases.json
 
 # e-Gov 法令API の共通クライアント（法令の最新条文。キー不要・無料）
 # 取得した全文のキャッシュ .egov-cache/ は入れない（1行目の * で既に除外）
