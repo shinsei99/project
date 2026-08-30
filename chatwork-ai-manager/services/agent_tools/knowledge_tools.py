@@ -41,12 +41,17 @@ def kb_read_document(path: str, max_pages: int = 30):
     from db.connection import query, query_one
     from services import config, knowledge
 
-    # ★共有フォルダは既定の会社（大京商事）のもの。他社の場からは読ませない。
+    # ★共有フォルダは会社ごとに場所が違う。company_scope.here() の会社の
+    #   許可ルートに切り替える（company_source_dirs 設定・2026-08-30）。
     #   kb_search には会社の壁を入れてあるが、この道具はパス直指定なので**壁を迂回できる**。
-    #   ここを塞がないと、文書のパスさえ分かれば中身が読めてしまう（2026-08-30）。
-    if not CS.is_default_company():
-        return CS.deny(what="共有フォルダの資料")
-    root = config.get("knowledge_source_dir")
+    #   ここを塞がないと、文書のパスさえ分かれば他社の中身も読めてしまう。
+    #   大京商事（既定の会社）は従来どおり knowledge_source_dir を使う＝既定動作は変えない。
+    if CS.is_default_company():
+        root = config.get("knowledge_source_dir")
+    else:
+        root = CS.source_root()
+        if not root:
+            return CS.deny(what="共有フォルダの資料")
     if not root:
         return {"ok": False, "error": "knowledge_source_dir が未設定です"}
     root_abs = os.path.abspath(root)
@@ -60,7 +65,7 @@ def kb_read_document(path: str, max_pages: int = 30):
 
     result = knowledge.ingest_file(
         p, category=knowledge.category_of(root_abs, p), ocr_fallback=True,
-        force=True, ocr_max_pages=max_pages,
+        force=True, ocr_max_pages=max_pages, company=CS.here() or None,
     )
     if result.get("skipped"):
         return {"ok": False, "error": result.get("reason", "抽出失敗")}

@@ -96,3 +96,17 @@ def is_default_company() -> bool:
     """いまの場が既定の会社（＝共有フォルダ・案件などの持ち主）か。"""
     d = default_company()
     return (not d) or here() == d
+
+
+def source_root() -> str:
+    """いまの会社の資料ルート（`company_source_dirs` 設定）。未登録なら空文字。
+
+    パス直指定でファイルを読む道具（kb_read_document 等）が、会社ごとに
+    許可フォルダを切り替えるために使う。
+    """
+    from services.settings import get_setting
+    try:
+        dirs = json.loads(get_setting("company_source_dirs", "") or "{}")
+    except Exception:
+        dirs = {}
+    return (dirs.get(here()) or {}).get("root") or ""
