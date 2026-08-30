@@ -23,6 +23,14 @@
 - **棒グラフ（くらべる）が1人のとき横いっぱいに伸びた** → 棒に `max-w-16` を付けた。
 - `apple-mobile-web-app-capable` の非推奨警告 → `mobile-web-app-capable` を併記。
 
+### 発生したエラーと解決策（追記・作業の終わりに起きた分）
+- **`git pull --rebase` の直後に開発サーバーが落ちて「開かない」状態になった**。
+  rebase が作業ツリーを書き戻したことで Vite が `vite.config.ts changed, restarting server...` →
+  再起動の途中で終了していた（`lsof` でも待ち受けなし）。**設定ファイルは無傷**だったので、
+  `nohup npm run dev` で立て直すだけで復旧した。**git 操作のあとは開発サーバーの生死を必ず見る**。
+- **`.git/index.lock` の残骸に2回当たった**（`git stash` / `git pull` が止まる）。どちらも
+  `pgrep` で git プロセスが動いていないことを確かめてから削除して復旧。
+
 ### 次回への引き継ぎ事項・未解決の課題
 - **実機スマホ未確認**（操作感・ホーム画面追加後の見え方）。headless Chrome でしか見ていない。
 - **平均身長の表は目安値**（`src/lib/average.ts`）。公表値との厳密な照合は未実施。表を差し替えれば直る。
