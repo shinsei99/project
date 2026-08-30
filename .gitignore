@@ -48,6 +48,8 @@
 !tokuyaku_core.py
 !tokuyaku_cases.py
 !tokuyaku_cases.json
+!jyuusetsu_checklist.py
+!jyuusetsu_checklist.json
 
 # e-Gov 法令API の共通クライアント（法令の最新条文。キー不要・無料）
 # 取得した全文のキャッシュ .egov-cache/ は入れない（1行目の * で既に除外）
@@ -514,3 +516,13 @@ chatwork-ai-manager/data/*.db
 # ★直下の tools/ は既定で無視されるので、この2行が無いと git add しても黙って落ちる
 !tools/
 !tools/shoot-store.py
+
+# ネオンランナー（3Dランゲーム・シリーズ7本目）。Three.js と書体を assets に同梱している
+!glow-runner/
+!glow-runner/**
+
+# GrowLog（子ども向け成長記録・Vite+React）。ビルド物と依存は入れない
+!growth-tracker/
+!growth-tracker/**
+growth-tracker/node_modules/
+growth-tracker/dist/

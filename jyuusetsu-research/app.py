@@ -19,6 +19,7 @@ from services import (
     comment_service,
     crosscheck_report_service,
     crosscheck_service,
+    document_parser,          # 重説PDFの本文（記載漏れ点検で使う）
     excel_export_service,
     format_catalog,
     facility_service,
@@ -38,9 +39,11 @@ from utils import formatter
 try:
     import tokuyaku_core
     import tokuyaku_cases          # 似た論点の裁判例（直下の共有モジュール・8513と共通）
+    import jyuusetsu_checklist     # 重説の記載漏れ点検（35条の各号・直下の共有モジュール）
 except Exception:
     tokuyaku_core = None
     tokuyaku_cases = None
+    jyuusetsu_checklist = None
 
 # 直下の共通クライアント（google_maps_api.py）。キーが無ければ使わないだけ。
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -307,6 +310,17 @@ def render_crosscheck(data, exp_pdf, con_pdf, seller_pro, address):
         )
     except Exception as e:
         st.error("報告書の生成に失敗しました: {}".format(e))
+
+    # ── 重説の記載漏れ点検（宅建業法35条1項）──
+    # なぜ要るか: 上のクロスチェックは「書いてある値が合っているか」を見る。
+    # だが重説は**そもそも項目を書き落とすこと**が説明義務違反に直結する。
+    # 条文は e-Gov から取った現行のもの（施行日つき）。中身の当否は判定しない。
+    if exp_pdf is not None and jyuusetsu_checklist is not None:
+        try:
+            body = document_parser.extract_text(exp_pdf.getvalue())
+            jyuusetsu_checklist.render_streamlit(st, jyuusetsu_checklist.check(body))
+        except Exception as e:
+            st.warning("記載漏れ点検を実行できませんでした: {}".format(e))
     st.divider()
 
 
