@@ -56,10 +56,20 @@ JOBS = {
     "due_reminder": ("due_reminder_check_time", "10:30", "due_reminder", 0, "期限リマインド（期限前日・前日休業日なら当日）"),
 }
 
-# 週次の全件棚卸し（日次の絞り込み催促とは別物）。job_type -> (weekday 0=月〜4=金, 時刻キー, 既定時刻, 見出し)
+# 週次の全件棚卸し（日次の絞り込み催促とは別物）。
+#   job_type -> (weekday 0=月〜4=金, 時刻キー, 既定時刻, 見出し, 送り先ルームの設定キー)
+#   送り先の設定キーが None なら全ルームへ。設定キーがあり値が空なら送らない。
 WEEKLY_JOBS = {
-    "weekly_report_mon": (0, "weekly_report_mon_time", "10:30", "週始めの棚卸し（月曜10:30・やり残し確認）"),
-    "weekly_report_fri": (4, "weekly_report_fri_time", "18:00", "週次棚卸し（金曜18:00）"),
+    "weekly_report_mon": (0, "weekly_report_mon_time", "10:30",
+                          "週始めの棚卸し（月曜10:30・やり残し確認）", None),
+    "weekly_report_fri": (4, "weekly_report_fri_time", "18:00",
+                          "週次棚卸し（金曜18:00）", None),
+    # ★新誠プロパティ向けの週次進捗確認（2026-08-30 オーナー指示・金曜10:30）。
+    #   既存の2つは全ルームへ送るので、大京商事の全体チャットにも金曜午前の催促が
+    #   増えてしまう。送り先を設定 weekly_progress_rooms で絞れるようにした。
+    #   既定は鷲見さん個人チャット（新誠）だけ。大京にも出すならカンマ区切りで足す。
+    "weekly_progress_fri_am": (4, "weekly_progress_fri_am_time", "10:30",
+                               "週次の進捗確認（金曜10:30）", "weekly_progress_rooms"),
 }
 
 
@@ -418,7 +428,7 @@ def _weekly_report_due(now, job_type):
     """週次棚卸しの実行タイミングか（該当曜日・時刻到達・本日未実行）。"""
     if settings.get_setting("scheduled_jobs_enabled", "1") != "1":
         return False
-    weekday, time_key, default, _label = WEEKLY_JOBS[job_type]
+    weekday, time_key, default, _label, _rooms_key = WEEKLY_JOBS[job_type]
     if now.weekday() != weekday:
         return False
     h, m = _parse_hhmm(settings.get_setting(time_key, default), default)
@@ -429,9 +439,14 @@ def _weekly_report_due(now, job_type):
     return not query_one("SELECT 1 FROM scheduled_runs WHERE run_date=? AND job_type=?", (today, job_type))
 
 
-def _format_weekly_body(label, room_tasks):
+def _format_weekly_body(label, room_tasks, only_undated=False):
     """担当者ごとにまとめ、期限が近いものが先に来るよう並べて読みやすく整形する。"""
-    title = f"📋 {label}\n未完了TODO {len(room_tasks)}件（期限が決まっているものも含め全件）"
+    if only_undated:
+        title = (f"📋 {label}\n期限を決めていない未完了TODO {len(room_tasks)}件です。"
+                 "進み具合はいかがですか。\n"
+                 "※期限が決まっているもの（免許の更新など）は、その時期になったらお知らせします。")
+    else:
+        title = f"📋 {label}\n未完了TODO {len(room_tasks)}件（期限が決まっているものも含め全件）"
     return format_tools.format_grouped_task_list(room_tasks, title=title)
 
 
@@ -439,7 +454,7 @@ def run_weekly_report(client, job_type, now=None):
     """週次の全件棚卸し。progress_tools の絞り込みを通さず、未完了TODOを全件そのまま報告する。"""
     now = now or datetime.datetime.now()
     today = now.date().isoformat()
-    _weekday, _time_key, _default, label = WEEKLY_JOBS[job_type]
+    _weekday, _time_key, _default, label, rooms_key = WEEKLY_JOBS[job_type]
     if not _claim(job_type, today):
         return {"job": job_type, "claimed": False}
 
@@ -454,17 +469,43 @@ def run_weekly_report(client, job_type, now=None):
         _finish(job_type, today, {"tasks": 0, "rooms": 0})
         return {"job": job_type, "claimed": True, "tasks": 0, "rooms": 0}
 
+    # ★送り先を絞る指定があれば、そのルームだけに送る（既存2つは None＝全ルーム）
+    only = None
+    if rooms_key:
+        raw = (settings.get_setting(rooms_key, "") or "").strip()
+        only = {x.strip() for x in raw.split(",") if x.strip()}
+        if not only:
+            res = {"skipped": f"{rooms_key} が空", "tasks": 0, "rooms": 0}
+            _finish(job_type, today, res)
+            return {"job": job_type, "claimed": True, **res}
+
+    # ★期限が決まっているものは、その時期が来てから聞けばよい（2026-08-30 オーナー指示）。
+    #   免許の更新のように何年も先の期限が毎週並ぶと、本当に動かしたいものが埋もれる。
+    #   週次で聞きたいのは**期限未定で放っておかれるもの**。
+    only_undated = bool(rooms_key)   # 送り先を絞るジョブ＝この新しい進捗確認のこと
     fallback_room = settings.get_setting("manager_room_id", "")
     by_room = {}
     for t in all_tasks:
-        room_id = t["room_id"] or fallback_room
+        room_id = str(t["room_id"] or fallback_room)
         if not room_id:
             continue  # 通知先が無い（room_idも管理者報告先も未設定）
+        if only is not None and room_id not in only:
+            continue
+        # ★除外は「実際の日付が入っているもの」だけ。due_raw は「最優先」「なるべく早期」
+        #   のような言葉が入ることがあり、これは期限ではない。ここを取り違えると
+        #   本当に聞きたい期限未定のTODOが全部こぼれる（2026-08-30に実際にこぼれた）。
+        if only_undated and t["due_date"]:
+            continue
         by_room.setdefault(room_id, []).append(t)
+
+    if only is not None and not by_room:
+        res = {"skipped": "対象のTODOなし（期限未定のものが無い）", "tasks": 0, "rooms": 0}
+        _finish(job_type, today, res)
+        return {"job": job_type, "claimed": True, **res}
 
     sent = 0
     for room_id, room_tasks in by_room.items():
-        body = _format_weekly_body(label, room_tasks)
+        body = _format_weekly_body(label, room_tasks, only_undated)
         dedup = f"weekly:{job_type}:{room_id}:{today}"
         ob = outbox.enqueue(room_id, body, kind="report", reason=label, dedup_key=dedup)
         if ob:
