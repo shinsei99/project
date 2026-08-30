@@ -33,8 +33,8 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "index.html"
-OUT_DIR = ROOT / "assets" / "fonts"
+SRC = ROOT / "www" / "index.html"
+OUT_DIR = ROOT / "www" / "assets" / "fonts"
 
 # ★2026-08-29: 丸ゴシック（Zen Maru Gothic）から**角ゴシック**へ替えた。
 #   世界観を「ネコの家出」から「宇宙の脱出行」に変えたので、丸い書体だと幼く見えた。

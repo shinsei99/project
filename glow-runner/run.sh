@@ -1,6 +1,7 @@
 #!/bin/bash
-# グロウランナー — 手元で開くだけの静的サーバー（127.0.0.1 のみ。LANには出さない）
-cd "$(dirname "$0")" || exit 1
+# ネオンランナー — 手元で開くだけの静的サーバー（127.0.0.1 のみ。LANには出さない）
+# ★本体は www/（2026-08-30 に他6本と同じ形へ移した。gh-pages の取り出し元も glow-runner:www）
+cd "$(dirname "$0")/www" || exit 1
 PORT="${PORT:-8899}"
 if lsof -nP -iTCP:$PORT -sTCP:LISTEN >/dev/null 2>&1; then
   echo "すでに起動しています → http://127.0.0.1:$PORT/index.html"

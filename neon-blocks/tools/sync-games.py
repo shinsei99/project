@@ -31,8 +31,7 @@ SRC = {
     "gravity": "color-gravity/www",
     "cyborg":  "cyborg-defense/www",
     "piyo":    "piyo-defense/www",
-    # ★ネオンランナーだけ www/ が無く、**フォルダ直下が本体**（1枚もの＋assets）
-    "runner":  "glow-runner",
+    "runner":  "glow-runner/www",
 }
 SKIP_FILES = {"support.html", "privacy.html"}      # 必須URLはアプリ側では要らない
 # ★開発用のファイルは集合側に要らない（ネオンランナーだけ www/ が無く、

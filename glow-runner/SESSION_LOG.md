@@ -39,6 +39,13 @@ r180 は `three.module.js` が `three.core.js` を読むので、**2つとも要
 - **バリアは1回だけ肩代わりする**（当てても `playing` のまま・バリアだけ消える）
 - Console エラー0件
 
+### 公開（2026-08-30・同日）
+
+- **本体を `www/` へ移した**（他6本と同じ形）。`run.sh`・`tools/fetch-font.py`・
+  `sync-games.py` の参照も www 基準に直した。直下に残るのは README / SESSION_LOG / TODO / tools だけ
+- `deploy.yml` の `DEPLOY_FOLDERS` に **`glow-runner:www`** を追加＝push で公開される
+- 移動後も 本体200 / three 200 / 書体200、盤 368×654（比率0.563）、書体2種とも loaded を実測
+
 ### 次回への引き継ぎ
 
 - **音は人の耳で未確認**（他6本と同じ状況）

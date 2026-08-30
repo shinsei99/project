@@ -10,7 +10,7 @@
 
 ```bash
 # そのまま開いてもよいが、確認は HTTP 経由が確実（file:// でも動く）
-cd ~/glow-runner && python3 -m http.server 8899 --bind 127.0.0.1
+cd ~/glow-runner/www && python3 -m http.server 8899 --bind 127.0.0.1
 # → http://127.0.0.1:8899/index.html
 ```
 
@@ -19,7 +19,9 @@ cd ~/glow-runner && python3 -m http.server 8899 --bind 127.0.0.1
   `?dragon=1`（**出てくる動物を全部ドラゴンにする**＝レーザーの確認用）
   例: `http://127.0.0.1:8899/index.html?stage=3&goal=70`
 
-## ファイルの構成（`index.html` 1枚の中の並び順）
+**本体は `www/index.html`**（2026-08-30 に他6本と同じ形へ移した。直下には README や tools だけが残る）。
+
+## ファイルの構成（`www/index.html` 1枚の中の並び順）
 
 | # | 節 | 役割 |
 |---|---|---|

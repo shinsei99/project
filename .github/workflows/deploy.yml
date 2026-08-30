@@ -36,7 +36,7 @@ jobs:
           #   App Store に登録済みのサポート/プライバシーURLが消えると審査に出せなくなる。
           # ★color-gravity は 2026-08-28 に iOS アプリ化したので、本体が www/ へ移った（にゃんこアイスと同じ形）。
           #   `color-gravity` のままだと直下に index.html が無くてこのステップが落ちる。
-          DEPLOY_FOLDERS="scrapmemo-petapeta mom-counter realestate-calc nyanko-ice:www cyborg-defense:www color-gravity:www neko-escape:www piyo-defense:www"
+          DEPLOY_FOLDERS="scrapmemo-petapeta mom-counter realestate-calc nyanko-ice:www cyborg-defense:www color-gravity:www neko-escape:www piyo-defense:www glow-runner:www"
 
           # 各フォルダを一時保存
           for ENTRY in $DEPLOY_FOLDERS; do
