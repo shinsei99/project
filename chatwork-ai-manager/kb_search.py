@@ -52,16 +52,43 @@ KINDS = {
 
 def _kind_sql(kind_keys):
     """--kind の指定を SQL 断片に。何も指定しなければ自社書類だけ"""
+    # ★どの分岐でも会社の壁を通す（2026-08-30）。
+    #   早期returnが2つあり、そこを素通りしていた。実測で新誠の場から
+    #   大京商事の自社書類が10件出た。**分岐ごとに足すのではなく、必ず最後に足す。**
+    cc, cargs = _company_sql()
     if not kind_keys:
-        return " AND (d.source_kind IS NULL OR d.source_kind='自社書類') ", []
+        return " AND (d.source_kind IS NULL OR d.source_kind='自社書類') " + cc, list(cargs)
     vals = [KINDS[k][0] for k in kind_keys if k in KINDS and KINDS[k][0]]
     if "全部" in kind_keys:
-        return " ", []
+        return " " + cc, list(cargs)
     if not vals:
-        return " AND (d.source_kind IS NULL OR d.source_kind='自社書類') ", []
+        return " AND (d.source_kind IS NULL OR d.source_kind='自社書類') " + cc, list(cargs)
     marks = ",".join("?" for _ in vals)
     own = " d.source_kind IS NULL OR" if "自社" in kind_keys else ""
-    return f" AND ({own} d.source_kind IN ({marks})) ", vals
+    return f" AND ({own} d.source_kind IN ({marks})) " + cc, vals + list(cargs)
+
+
+def _company_sql():
+    """会社の壁（2026-08-30 オーナー指示）。
+
+    ★このモジュールは services/qa.py とは**別のSQL**を持っている。
+      qa.py 側だけ直しても、道具（kb_search）はこちらを通るので効かない。
+      実測で、新誠の場から大京商事の自社書類が10件出た。
+      **同じ壁を両方に入れること。**
+    自社書類はその会社のものだけ。法令・判例・本（company='共通'）は誰でも見てよい。
+    """
+    import os
+    co = (os.environ.get("CWAI_COMPANY") or "").strip()
+    if not co:
+        try:
+            import json
+            from services.settings import get_setting
+            co = json.loads(get_setting("room_company_map", "") or "{}").get("default") or ""
+        except Exception:
+            co = ""
+    if not co:
+        return "", []
+    return " AND d.company IN (?, '共通') ", [co]
 
 
 def search(q: str, limit: int = 12, snippet: int = 700, kinds=None):

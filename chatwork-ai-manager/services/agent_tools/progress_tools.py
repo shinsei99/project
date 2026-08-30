@@ -13,6 +13,7 @@ import datetime
 from db.connection import get_conn, query
 from services import settings, tasks as T
 from services.agent_tools import format_tools
+from services import company_scope as CS
 
 
 # 定時確認(10/13/18時)は「AI確認待ち」の未完了TODOも対象に含める（TASK-20260818-006）。
@@ -98,6 +99,11 @@ def tasks_needing_attention(kind="overdue", limit=50):
     else:
         return {"ok": False, "error": f"unknown kind: {kind}"}
     rows = [r for r in rows if not _is_waiting_task(r["content"])]
+    # ★他の会社のルームのTODOは返さない（2026-08-30 オーナー指示）。
+    #   kind ごとにSQLの分岐が多く1か所で絞れないので、**組み立ての直前で濾す**。
+    _ng = CS.other_rooms()
+    if _ng:
+        rows = [r for r in rows if (r["room_id"] or 0) not in _ng]
     tasks = _fmt(rows)
     # formatted: 担当者ごとにグループ化＋状態アイコンで整形済みの文字列（定時TODO確認と同じ見た目）。
     # QAが複数件を一覧で答えるときは、これをそのまま回答本文として使うこと。

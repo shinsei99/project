@@ -1,5 +1,6 @@
 """Project Tool。既存 services/projects.py を再利用。"""
 from services import projects as P
+from services import company_scope as CS
 
 
 def _p(row):
@@ -8,6 +9,8 @@ def _p(row):
 
 
 def project_search(keyword=None, limit=30):
+    if not CS.is_default_company():
+        return CS.deny(what="案件")
     rows = P.search(keyword, limit=limit)
     out = []
     for r in rows:
@@ -23,6 +26,8 @@ def project_search(keyword=None, limit=30):
 
 
 def project_update(project_id, name=None, customer=None, status=None, room_id=None, reason=None):
+    if not CS.is_default_company() or CS.blocks_room(room_id):
+        return CS.deny(room_id, "案件")
     updates = {}
     for k, v in (("name", name), ("customer", customer), ("status", status), ("room_id", room_id)):
         if v is not None:

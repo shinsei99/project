@@ -180,15 +180,47 @@ def _with_year(d: dict) -> dict:
     return d
 
 
-def _kind_clause(kinds):
-    """d.source_kind の絞り込み SQL 断片と引数を返す。kinds=None なら自社書類のみ。"""
+COMPANY_SHARED = "共通"      # 法令・判例・書籍。どの会社からも見てよい
+
+
+def _company_scope() -> str:
+    """いまどの会社の場から検索しているか（2026-08-30 オーナー指示）。
+
+    ★大京商事と新誠プロパティマネジメントの資料を**絶対に混ぜない**ための壁。
+      道具は別プロセスなので、qa.py が env_extra で CWAI_COMPANY を渡している。
+      分からないときは既定の会社（大京商事）にする＝**新誠の資料は出さない側に倒す**。
+    """
+    import os
+    c = (os.environ.get("CWAI_COMPANY") or "").strip()
+    if c:
+        return c
+    import json as _j
+    from services.settings import get_setting
+    try:
+        return _j.loads(get_setting("room_company_map", "") or "{}").get("default") or ""
+    except Exception:
+        return ""
+
+
+def _kind_clause(kinds, company=None):
+    """d.source_kind と d.company の絞り込み SQL 断片と引数を返す。
+
+    ★会社の壁はここ1か所で効かせる（検索の入口が3か所あるが、全部この断片を通る）。
+    """
+    co = company or _company_scope()
+    # 自社書類はその会社のものだけ。法令・判例・本（共通）はどちらからも見える
+    cc, cargs = "", []
+    if co:
+        cc = " AND d.company IN (?, ?) "
+        cargs = [co, COMPANY_SHARED]
     if not kinds:
-        return " AND (d.source_kind IS NULL OR d.source_kind = ?) ", [KIND_OWN]
+        return " AND (d.source_kind IS NULL OR d.source_kind = ?) " + cc, [KIND_OWN] + cargs
     marks = ",".join("?" for _ in kinds)
     # 自社書類を含めたいときは NULL も拾う
     if KIND_OWN in kinds:
-        return f" AND (d.source_kind IS NULL OR d.source_kind IN ({marks})) ", list(kinds)
-    return f" AND d.source_kind IN ({marks}) ", list(kinds)
+        return (f" AND (d.source_kind IS NULL OR d.source_kind IN ({marks})) " + cc,
+                list(kinds) + cargs)
+    return f" AND d.source_kind IN ({marks}) " + cc, list(kinds) + cargs
 
 
 # 自社書類だけでこの件数に届かなければ、蔵書・法令・判例まで広げる（2026-08-29）
@@ -557,6 +589,26 @@ def build_prompt(question, chunks, room_id=None):
 APP_DIR = __import__("os").path.dirname(__import__("os").path.dirname(__import__("os").path.abspath(__file__)))
 
 
+def company_of(room_id=None, channel="chatwork") -> str:
+    """この入口はどの会社の話をする場所か（2026-08-30 オーナー指示）。
+
+    ★同じAIが2社を見ているので、**どちらの会社の話なのかを取り違えない**ようにする。
+      全体チャットワーク = 大京商事株式会社
+      鷲見さん個人のチャット = 新誠プロパティマネジメント株式会社
+      LINE = 大京商事株式会社
+      設定は room_company_map（管理画面から変えられる）。
+    """
+    import json as _j
+    from services.settings import get_setting
+    try:
+        m = _j.loads(get_setting("room_company_map", "") or "{}")
+    except Exception:
+        return ""
+    if channel == "line":
+        return m.get("line") or m.get("default") or ""
+    return (m.get("rooms", {}) or {}).get(str(room_id)) or m.get("default") or ""
+
+
 def _agent_prompt(question, room_id=None, asker=None, channel="chatwork", line_user_id=None):
     from services import agent_tools
     coverage = _coverage_rule()
@@ -574,6 +626,17 @@ def _agent_prompt(question, room_id=None, asker=None, channel="chatwork", line_u
         )
     else:
         channel_note = ""
+    # ★どの会社の話をする場所かを最初に宣言する。2社を1つのAIが見ているため。
+    _co = company_of(room_id, channel)
+    if _co:
+        channel_note = (
+            f"\n# この入口で扱う会社: {_co}\n"
+            f"★ここは **{_co}** の話をする場所です。\n"
+            "- 他社の情報を持ち込まない。社内資料（レントロール・物件台帳・免許など）は"
+            "この会社のものだけを指す。\n"
+            "- 別の会社の話が出てきたら、その会社の入口で扱うよう案内する。\n"
+            "- **この場のやり取りを他の入口へ持ち出さない。**\n"
+        ) + channel_note
     channel_note += _pending_dev_question(channel, line_user_id, room_id)
     return f"""あなたは不動産管理のプロフェッショナルであり、大京商事のオーナー/スタッフを強力に支援する優秀なAIエージェント「claude」です。LINE/Chatworkで受け取る指示に対し、最適なツールや情報源を自律的に選び、正確かつ実用的に回答します。Claude Codeのように複数ツールを反復実行してよい。
 {channel_note}
@@ -843,6 +906,8 @@ def answer(question: str, room_id=None, asker=None, channel="chatwork",
     env_extra = {
         "CWAI_CHANNEL": channel,
         "CWAI_ROOM_ID": room_id,
+        # ★この入口がどの会社の場か。道具（別プロセス）が会社の壁を守るのに使う
+        "CWAI_COMPANY": company_of(room_id, channel),
         "CWAI_REQUESTER": asker,
         "CWAI_REQUESTER_ACCOUNT_ID": asker_account_id,
         "CWAI_LINE_USER_ID": line_user_id,

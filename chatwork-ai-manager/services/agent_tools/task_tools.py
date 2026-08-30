@@ -2,6 +2,12 @@
 from db.connection import query
 from services import property_master, tasks as T
 from services.agent_tools import format_tools
+from services import company_scope as CS
+
+
+def _blocked(t) -> bool:
+    """このTODOは、いまの会社の場から触ってよいか（2026-08-30）。"""
+    return CS.blocks_room(t.get("room_id") if isinstance(t, dict) else t["room_id"])
 
 
 def _row(t):
@@ -32,6 +38,14 @@ def task_search(keyword=None, assignee=None, status=None, room_id=None, only_ope
     if only_open:
         ph = ",".join("?" * len(T.OPEN_STATUSES))
         sql += f" AND status IN ({ph})"; params += T.OPEN_STATUSES
+    # ★他の会社のルームのTODOは出さない（2026-08-30 オーナー指示）。
+    #   room_id が空のTODOは、既定の会社（共有フォルダの持ち主）のものとして扱う。
+    _ng = CS.other_rooms()
+    if _ng:
+        sql += " AND (room_id IS NULL OR room_id NOT IN (%s))" % ",".join("?" * len(_ng))
+        params += sorted(_ng)
+    if not CS.is_default_company():
+        sql += " AND room_id IS NOT NULL"   # 既定会社側のTODO(room未設定)は他社から見せない
     sql += " ORDER BY (due_date IS NULL), due_date, id DESC LIMIT ?"; params.append(limit)
     rows = query(sql, tuple(params))
     tasks = [_row(r) for r in rows]
@@ -48,6 +62,17 @@ def task_create(content, assignee_name=None, assignee_account_id=None, requester
     content = (content or "").strip()
     if not content:
         return {"ok": False, "error": "content が空です"}
+    # ★どの部屋で作られたTODOかを必ず残す（2026-08-30 オーナー指示）。
+    #   room_id が空のままだと「会社の無いTODO」になり、既定の会社（大京商事）の
+    #   一覧に出てしまう。**鷲見さんは両方のルームに居る**ので、担当者では区別できない。
+    #   区別できるのは部屋だけ。だから作るときに必ず部屋を入れる。
+    if not room_id:
+        import os as _os
+        _r = (_os.environ.get("CWAI_ROOM_ID") or "").strip()
+        if _r.isdigit():
+            room_id = int(_r)
+    if CS.blocks_room(room_id):
+        return CS.deny(room_id, "他社のルームのTODO")
     if not assignee_name and not assignee_account_id:
         match = property_master.find_assignee(content)
         if match:
@@ -80,6 +105,8 @@ def task_update(task_id, due_date=None, due_raw=None, assignee_name=None,
     t = T.get_task(task_id)
     if not t:
         return {"ok": False, "error": f"task #{task_id} が見つかりません"}
+    if _blocked(t):
+        return CS.deny(t["room_id"], "他社のTODO")
     updates = {}
     for k, v in (("due_date", due_date), ("due_raw", due_raw), ("assignee_name", assignee_name),
                  ("assignee_account_id", assignee_account_id), ("content", content),
@@ -96,6 +123,8 @@ def task_complete(task_id, note=None, evidence_message_id=None):
     t = T.get_task(task_id)
     if not t:
         return {"ok": False, "error": f"task #{task_id} が見つかりません"}
+    if _blocked(t):
+        return CS.deny(t["room_id"], "他社のTODO")
     T.update_status(task_id, T.STATUS_DONE, note=note or "完了", evidence_message_id=evidence_message_id, progress=100)
     return {"ok": True, "task_id": task_id, "status": T.STATUS_DONE}
 
@@ -104,6 +133,8 @@ def task_progress_update(task_id, status=None, note=None, progress=None, evidenc
     t = T.get_task(task_id)
     if not t:
         return {"ok": False, "error": f"task #{task_id} が見つかりません"}
+    if _blocked(t):
+        return CS.deny(t["room_id"], "他社のTODO")
     new_status = status or t["status"]
     if new_status not in T.ALL_STATUSES:
         return {"ok": False, "error": f"不正な状態: {new_status}（{T.ALL_STATUSES}）"}

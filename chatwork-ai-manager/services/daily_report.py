@@ -49,10 +49,26 @@ def id2name_map() -> dict:
     return {r["account_id"]: r["name"] for r in query("SELECT account_id, name FROM members")}
 
 
+
+def _conf_sql(col: str) -> str:
+    """機密ルームをSQLから外す条件を返す（設定が空なら何も足さない）。"""
+    try:
+        from services.agent_tools.chatwork_tools import _confidential
+        conf = _confidential()
+    except Exception:
+        conf = set()
+    if not conf:
+        return ""
+    return " AND %s NOT IN (%s)" % (col, ",".join(str(int(x)) for x in sorted(conf)))
+
+
 def roster(room_ids=None):
     """日報の対象になりうる人（監視ルームのメンバー。AI自身は除く）。"""
+    # ★機密ルームは日報の集計から外す（2026-08-30 オーナー指示）。
+    #   鷲見さんとのダイレクトは別会社の話に使うので、大京商事の日報に混ぜない。
     sql = ("SELECT account_id, name, MIN(room_id) AS room_id FROM members "
-           "WHERE room_id IN (SELECT room_id FROM rooms WHERE monitored=1) ")
+           "WHERE room_id IN (SELECT room_id FROM rooms WHERE monitored=1) "
+           + _conf_sql("room_id") + " ")
     params = []
     if room_ids:
         sql += "AND room_id IN (%s) " % ",".join("?" * len(room_ids))
@@ -90,6 +106,9 @@ def day_messages(date_str: str, room_ids=None, account_id=None):
     if room_ids:
         where.append("m.room_id IN (%s)" % ",".join("?" * len(room_ids)))
         params += list(room_ids)
+    _c = _conf_sql("m.room_id")
+    if _c:
+        where.append(_c.replace(" AND ", "", 1))
     sql = ("SELECT m.*, r.name AS room_name FROM messages m "
            "JOIN rooms r ON r.room_id=m.room_id WHERE " + " AND ".join(where) +
            " ORDER BY m.send_time, m.message_id")

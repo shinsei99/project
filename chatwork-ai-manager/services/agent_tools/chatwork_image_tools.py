@@ -33,6 +33,7 @@ import difflib
 
 from db.connection import execute, query, query_one
 from services import web_image_store
+from services import company_scope as CS
 
 _DEDUP_WINDOW_SECONDS = 30 * 60
 _DESC_SIMILARITY_THRESHOLD = 0.5
@@ -180,6 +181,10 @@ def chatwork_image_search(keyword=None, room_id=None, limit=10):
     sql += " ORDER BY created_at DESC LIMIT 500"
     rows = query(sql, tuple(params))
     deduped = _dedup_rows(rows)[:limit]
+    # ★他の会社のルームの画像は出さない（2026-08-30 オーナー指示）
+    _ng = CS.other_rooms()
+    if _ng:
+        rows = [r for r in rows if (r.get('room_id') if isinstance(r, dict) else r['room_id']) not in _ng]
     return {"ok": True, "count": len(deduped), "images": deduped}
 
 
@@ -190,6 +195,8 @@ def chatwork_image_set_title(room_id, file_id, title):
     後から埋めるためのTool（TASK-20260827-004）。既存の行にしか設定できない
     （row自体はread_chatwork_imageの解析成功時にしか作られないため）。
     """
+    if CS.blocks_room(room_id):
+        return CS.deny(room_id, "画像の題名変更")
     if not room_id or not file_id:
         return {"ok": False, "error": "room_id と file_id が必要です"}
     if not title or not str(title).strip():
@@ -219,6 +226,8 @@ def chatwork_image_fetch(room_id, file_id):
 
     実際の送信は image_token を chatwork_send_web_image / line_send_web_image に渡して行う。
     """
+    if CS.blocks_room(room_id):
+        return CS.deny(room_id, "画像の取得")
     if not room_id or not file_id:
         return {"ok": False, "error": "room_id と file_id が必要です"}
     import os
@@ -284,6 +293,8 @@ def chatwork_image_delete(room_id, file_id):
          （以後 chatwork_image_search / 再送信の対象には出なくなる。
          Chatwork本体の画面からは消えないので、その旨を利用者に必ず伝えること）。
     """
+    if CS.blocks_room(room_id):
+        return CS.deny(room_id, "画像の削除")
     if not room_id or not file_id:
         return {"ok": False, "error": "room_id と file_id が必要です"}
     from services.chatwork import ChatworkClient, ChatworkError

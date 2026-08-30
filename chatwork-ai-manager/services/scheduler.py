@@ -310,13 +310,26 @@ def run_job(client, job_type, now=None):
         _finish(job_type, today, result)
         return {"job": job_type, "claimed": True, **result}
 
-    # Claude に「誰に何を送るか」を判断させる（1コール）
+    # Claude に「誰に何を送るか」を判断させる。
+    # ★機密ルームのTODOは**別のコールに分ける**（2026-08-30 オーナー指示）。
+    #   同じプロンプトに混ぜると、全体チャット宛の文面を書くときに
+    #   機密ルームの中身がモデルの目の前にある状態になる。見せなければ混ざらない。
     from services.claude_client import ClaudeError, run_json
+    from services.agent_tools.chatwork_tools import _confidential
+    conf = _confidential()
+    batches = [tasks]
+    if conf:
+        priv = [t for t in tasks if t.get("room_id") in conf]
+        pub = [t for t in tasks if t.get("room_id") not in conf]
+        batches = [b for b in (pub, priv) if b]
+    decisions = []
     try:
-        decisions, _env = run_json(_decide_prompt(job_type, label, tasks, today),
-                                   model=settings.get_setting("model_scheduler", "haiku"), timeout=300)
-        if not isinstance(decisions, list):
-            decisions = decisions.get("decisions", []) if isinstance(decisions, dict) else []
+        for b in batches:
+            part, _env = run_json(_decide_prompt(job_type, label, b, today),
+                                  model=settings.get_setting("model_scheduler", "haiku"), timeout=300)
+            if not isinstance(part, list):
+                part = part.get("decisions", []) if isinstance(part, dict) else []
+            decisions.extend(part)
     except ClaudeError as e:
         _finish(job_type, today, {"error": str(e)})
         return {"job": job_type, "claimed": True, "error": str(e)}
@@ -515,6 +528,14 @@ def tick(client, now=None):
                 ran.append(run_weekly_report(client, job_type, now=now))
         except Exception as e:
             ran.append({"job": job_type, "error": f"{type(e).__name__}: {e}"})
+    # 免許・登録の更新時期（licenses.json）。5年に1度しか来ないので人の記憶に頼らない
+    try:
+        from services import license_watch
+        r = license_watch.tick(now)
+        if r.get("made"):
+            ran.append(r)
+    except Exception as e:
+        ran.append({"job": "license_watch", "error": f"{type(e).__name__}: {e}"})
     # 日次ナレッジ増分リフレッシュ
     try:
         if _knowledge_refresh_due(now):

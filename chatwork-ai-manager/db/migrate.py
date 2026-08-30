@@ -16,7 +16,11 @@ DEFAULT_SETTINGS = {
     # 検索語も広げる（「松本さんの担当は？」で、杉田と書かれた資料に届くようにする）。
     # 増減は管理画面のシステム設定から。書式は「旧→新」をカンマ区切り。
     "staff_alias": "杉田→松本,服部→塚本,森下→吉浦,平木→大鹿",
-    "post_mode": "confirm",          # confirm / semi / auto（初期は安全側の確認モード）
+
+    # ★ここに書いたルームの内容は、そのルームの外へ出さない（2026-08-30 オーナー指示）。
+    #   別会社の話を鷲見さんとのダイレクトだけで扱うため。カンマ区切りの room_id。
+    #   守り方は services/agent_tools/chatwork_tools.py（SQLで見えなくする）。
+    "confidential_room_ids": "444751421",    "post_mode": "confirm",          # confirm / semi / auto（初期は安全側の確認モード）
     "poll_interval_sec": "30",
     "supervisor_interval_sec": "600",
     "due_soon_hours": "24",          # 期限まで何時間で進捗確認するか
@@ -131,6 +135,14 @@ def migrate() -> None:
         #   商業集積の見方、承継の発想）まで失う。逆にそのまま使うと、消費税5%時代の
         #   税率や廃止された制度を根拠として出してしまう。**同じ本でも用途で線を引く。**
         _ensure_column(conn, "knowledge_documents", "use_scope", "TEXT NOT NULL DEFAULT 'full'")
+        # ★どの会社の資料か（2026-08-30 オーナー指示）。
+        #   同じAIが大京商事と新誠プロパティマネジメントの2社を見るので、
+        #   **索引の段階で混ざらないようにする**。既存はすべて大京商事の共有フォルダなので
+        #   既定を大京商事にし、後から入れる会社だけ明示的に別の値にする。
+        #   先に入れておかないと、新誠の資料を取り込んだ瞬間に大京商事の検索へ混ざる。
+        _ensure_column(conn, "knowledge_documents", "company",
+                       "TEXT NOT NULL DEFAULT '大京商事株式会社'")
+
         # Stage 0: 進捗確認・エスカレーション用
         _ensure_column(conn, "tasks", "last_check_at", "TEXT")
         _ensure_column(conn, "tasks", "last_progress_reply", "TEXT")

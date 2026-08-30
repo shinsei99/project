@@ -2,6 +2,7 @@
 import os
 
 import kb_search as _kb
+from services import company_scope as CS
 
 
 def kb_search(query: str, limit: int = 12, kinds=None):
@@ -14,7 +15,7 @@ def kb_search(query: str, limit: int = 12, kinds=None):
         "全部" … すべて
         例) kinds=["法令","判例"] / kinds="法令"
 
-    **質問が制度・法律・трабルの話なら、必ず kinds を指定して呼び直すこと。**
+    **質問が制度・法律・トラブルの話なら、必ず kinds を指定して呼び直すこと。**
     自社書類だけでは「うちのやり方」しか出てこず、根拠を示せない。
     """
     if isinstance(kinds, str):
@@ -40,6 +41,11 @@ def kb_read_document(path: str, max_pages: int = 30):
     from db.connection import query, query_one
     from services import config, knowledge
 
+    # ★共有フォルダは既定の会社（大京商事）のもの。他社の場からは読ませない。
+    #   kb_search には会社の壁を入れてあるが、この道具はパス直指定なので**壁を迂回できる**。
+    #   ここを塞がないと、文書のパスさえ分かれば中身が読めてしまう（2026-08-30）。
+    if not CS.is_default_company():
+        return CS.deny(what="共有フォルダの資料")
     root = config.get("knowledge_source_dir")
     if not root:
         return {"ok": False, "error": "knowledge_source_dir が未設定です"}

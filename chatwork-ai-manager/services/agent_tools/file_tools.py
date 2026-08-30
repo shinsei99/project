@@ -7,6 +7,7 @@ Claude が「資料を送って」と頼まれたときに使う。
 import os
 
 from services import file_send
+from services import company_scope as CS
 
 
 def chatwork_send_file(room_id, path, message=None, requester=None,
@@ -20,6 +21,11 @@ def chatwork_send_file(room_id, path, message=None, requester=None,
         return {"ok": False, "error": "room_id が必要です"}
     if not path:
         return {"ok": False, "error": "path（送るファイルの絶対パス）が必要です"}
+    # ★別の会社のルームへは送らない／共有フォルダは既定の会社のもの（2026-08-30）
+    if CS.blocks_room(room_id):
+        return CS.deny(room_id, "ファイルの送信")
+    if not CS.is_default_company():
+        return CS.deny(what="共有フォルダのファイル")
     return file_send.send(room_id, path, message=message, requester=requester,
                           requester_account_id=requester_account_id)
 
@@ -30,6 +36,8 @@ def find_files(name, limit=20):
     「グランビルド岩城の図面を送って」のように**名前しか分からない**ときに、まずこれで
     実体（絶対パス）を突き止めてから chatwork_send_file に渡す。
     """
+    if not CS.is_default_company():
+        return CS.deny(what="共有フォルダのファイル")
     return file_send.find_files(name, limit=limit)
 
 
