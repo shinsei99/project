@@ -48,7 +48,23 @@ def _allowed(origin: dict) -> (bool, str):
 
 
 def dev_task_create(request: str, title=None, kind=None, project_dir=None):
-    """アプリ開発・改修の依頼を受け付ける（実装は裏で走る）。"""
+    """アプリ開発・改修の依頼を受け付ける（実装は裏で走る）。
+
+    ★title と request はそのまま依頼者への通知に出る（services/dev_runner._start_text）。
+      「いきなり開発が始まった」と見えないよう、**経緯が読み取れる書き方**にすること。
+
+      title   … 何を直すかを1行で。例:
+                「新誠の資料をパス指定で読めない（kb_read_document が大京固定）」
+      request … **なぜ始まったのか**から書く。依頼者の言葉ではなく、起きたことを書く。
+                悪い例: 「knowledge_tools.py を修正してください」
+                良い例: 「鷲見さんから送られた財務書類を読もうとしたら『別の会社のもの』
+                         と拒否された。新誠の資料ルートは company_source_dirs に
+                         登録済みなのに kb_read_document だけが大京のDropbox決め打ち
+                         だったため。会社ごとのルートに切り替える」
+
+      ★自分が詰まって自分で直すときは、とくに「何をしようとして、どう詰まったか」を書く。
+        依頼者から見ると、頼んでいない開発が突然始まったように見えるため。
+    """
     origin = _origin()
     ok, why = _allowed(origin)
     if not ok:

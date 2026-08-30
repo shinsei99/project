@@ -196,6 +196,51 @@ def _reflect(task_id: str, base_ref):
     return info
 
 
+def _start_text(task: dict) -> str:
+    """開発開始の知らせ。**なぜ始まったのか（経緯）を必ず書く。**
+
+    ★2026-08-30 オーナー指摘: 「🔧 開発を開始しました」だけでは、
+      いきなり開発が始まったように見えて何が起きたのか分からない。
+      「〇〇しようとしたら××だったので直します」まで書くこと。
+    """
+    title = (task.get("title") or "").strip()
+    req = " ".join((task.get("request") or "").split())
+    lines = ["🔧 開発を始めます。"]
+    if title:
+        lines.append(f"\n【直すこと】{title}")
+    if req:
+        # ★経緯は人が読む欄。ファイル名や関数名が並ぶ技術的な文面のときは、
+        #   先頭に一言そえないと「いきなり開発が始まった」ようにしか見えない。
+        techy = sum(req.count(x) for x in (".py", "()", "_", "services/")) >= 3
+        if techy:
+            lines.append("\n【経緯】いまのやり取りの中で不具合に当たったので、"
+                         "その場で直します。技術的にはこういう内容です:")
+            lines.append(f"\n{req[:200]}{'…' if len(req) > 200 else ''}")
+        else:
+            lines.append(f"\n【経緯】{req[:220]}{'…' if len(req) > 220 else ''}")
+    lines.append("\n完了したらお知らせします。作業中もこのチャットは普通に使えます。")
+    return "".join(lines)
+
+
+def _done_text(task: dict, text: str) -> str:
+    """完了の知らせ。中身が空・作業メモだけのときは、依頼内容で補う。
+
+    ★2026-08-30: 完了通知に「Waiting for the git lock monitor to fire before
+      committing.」という作業メモがそのまま出て、何を直したのか分からなかった。
+    """
+    t = (text or "").strip()
+    noise = (len(t) < 40 or t.lower().startswith("waiting")
+             or "git lock" in t.lower())
+    if not noise:
+        return f"✅ 完了しました。\n\n{t}"
+    head = (task.get("title") or "").strip() or "依頼された内容"
+    body = f"✅ 完了しました。\n\n【直したこと】{head}"
+    if t:
+        body += f"\n\n（作業メモ: {t[:120]}）"
+    body += "\n\n※詳しい変更点は管理画面の開発タスクか git のコミットを見てください。"
+    return body
+
+
 def _run(task_id: str):
     """1タスクを最後まで走らせる（別スレッド）。"""
     global _running_task_id
@@ -206,7 +251,7 @@ def _run(task_id: str):
         DT.set_status(task_id, DT.RUNNING, note="開発エージェント起動",
                       workspace=workspace, log_path=log_path)
         task = DT.get(task_id)
-        notify.notify(task, "🔧 開発を開始しました。完了したらお知らせします。",
+        notify.notify(task, _start_text(task),
                       dedup_key=f"dev_start:{task_id}:{task.get('attempts')}")
         base_ref = _base_ref(task_id, workspace)
 
@@ -251,7 +296,7 @@ def _run(task_id: str):
         DT.set_status(task_id, DT.COMPLETED, note="完了", result=text, session_id=session_id)
         # 直したコードを、動いている常駐へ入れ替える（再起動しないと画面に出ないため）
         info = _reflect(task_id, base_ref)
-        body = f"✅ 完了しました。\n\n{text}"
+        body = _done_text(task, text)
         if info.get("text"):
             body += f"\n\n{info['text']}"
         notify.notify(task, body, dedup_key=f"dev_done:{task_id}")
