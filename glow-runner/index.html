@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0720">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%228%22 fill=%22%230a0720%22/><path d=%22M10 52 L32 12 L54 52%22 fill=%22none%22 stroke=%22%2341e3ff%22 stroke-width=%223%22 stroke-linejoin=%22round%22/><circle cx=%2232%22 cy=%2238%22 r=%229%22 fill=%22none%22 stroke=%22%23ff2d95%22 stroke-width=%223%22/><circle cx=%2232%22 cy=%2238%22 r=%223%22 fill=%22%23ffd54f%22/></svg>">
+<title>ネオンランナー</title>
+<style>
+  :root { --accent:#66e0ff; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  /* 書体（どちらも SIL OFL・使う文字だけ同梱／tools/fetch-font.py）。
+     ★シリーズ共通（neon-blocks/NEON_STYLE.md）。端末任せだと6本の中でここだけ字面が変わる */
+  @font-face{ font-family:'Zen Kaku Gothic New'; font-style:normal; font-weight:500; font-display:block;
+    src:url('assets/fonts/ZenKakuGothicNew-500.woff2') format('woff2'); }
+  @font-face{ font-family:'Zen Kaku Gothic New'; font-style:normal; font-weight:900; font-display:block;
+    src:url('assets/fonts/ZenKakuGothicNew-900.woff2') format('woff2'); }
+  @font-face{ font-family:'Orbitron'; font-style:normal; font-weight:700; font-display:block;
+    src:url('assets/fonts/Orbitron-700.woff2') format('woff2'); }
+  @font-face{ font-family:'Orbitron'; font-style:normal; font-weight:900; font-display:block;
+    src:url('assets/fonts/Orbitron-900.woff2') format('woff2'); }
+  html, body { width:100%; height:100%; overflow:hidden; background:#0a0720;
+    font-family:Orbitron,'Zen Kaku Gothic New',"Hiragino Sans",system-ui,sans-serif;
+    color:#e8f4ff; -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent; }
+  /* ★2026-08-30: 盤を**9:16のネオン枠**に入れ、HUDとアイテムを盤の外に出した
+     （シリーズ共通の並び: 上にHUD → 盤 → 下に操作。neon-blocks/NEON_STYLE.md）。
+     以前は canvas が画面いっぱいで、HUDが盤の上に重なっていた。 */
+  body { display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:6px; padding:6px calc(6px + env(safe-area-inset-right))
+      calc(6px + env(safe-area-inset-bottom)) calc(6px + env(safe-area-inset-left)); }
+  #app { position:relative; width:100%; max-width:min(560px, calc((100dvh - 190px) * 0.5625));
+    aspect-ratio:9/16; overflow:hidden;
+    border:2px solid rgba(65,227,255,.5); border-radius:8px;
+    box-shadow:0 0 22px rgba(65,227,255,.2), inset 0 0 26px rgba(65,227,255,.06); }
+  canvas { display:block; touch-action:none; width:100%; height:100%; }
+
+  /* ---- HUD（常時表示） ---- */
+  #hud { width:100%; max-width:min(560px, calc((100dvh - 190px) * 0.5625));
+    padding:0 4px; display:flex; justify-content:space-between; align-items:flex-start;
+    pointer-events:none; font-variant-numeric:tabular-nums;
+    padding-right:52px; }   /* ★右上の音ボタン（固定44px）を避ける */
+  .hud-item { font-size:13px; letter-spacing:.08em; color:#8fa8c4; }
+  .hud-item b { display:block; font-size:20px; color:#fff; letter-spacing:.02em; line-height:1.15; }
+  #hud-right { text-align:right; }
+  #bar { width:100%; max-width:min(560px, calc((100dvh - 190px) * 0.5625)); height:4px; border-radius:2px;
+    background:rgba(255,255,255,.12); overflow:hidden; pointer-events:none; }
+  #bar-fill { height:100%; width:0%; border-radius:2px;
+    background:linear-gradient(90deg,#3aa8ff,var(--accent)); box-shadow:0 0 14px var(--accent); transition:width .1s linear; }
+
+  /* ---- オーバーレイ（開始・クリア・ゲームオーバー） ---- */
+  #overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:18px; text-align:center; padding:24px; background:rgba(4,6,16,.72); backdrop-filter:blur(6px); }
+  #overlay.hidden { display:none; }
+  /* ★2026-08-30: 見出し・ボタンをシリーズ共通の型へ（neon-blocks/NEON_STYLE.md）。
+     ラテン小マゼンタ → 日本語大（レインボー）→ 1行 → START の並び。
+     レインボーの並びは**7本目の割り当て**（6色の輪を1つずつ回す決まりの続き）。 */
+  #ov-lat { font:700 12px/1 Orbitron,'Zen Kaku Gothic New',sans-serif; letter-spacing:.34em;
+    color:#FF4FC3; text-shadow:0 0 12px rgba(255,79,195,.8); }
+  #ov-title { font-size:clamp(26px,7vw,40px); font-weight:900; letter-spacing:.18em;
+    background:linear-gradient(90deg,#8EF9FF,#39FF14 40%,#00F0FF 70%,#B026FF);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 18px rgba(0,240,255,.5)); }
+  #ov-sub { font-size:clamp(13px,3.4vw,16px); color:#9BE9FF; line-height:1.8; }
+  #ov-btn { pointer-events:auto; cursor:pointer; font:inherit; font-weight:900; font-size:15px;
+    letter-spacing:.08em; padding:11px 40px; border-radius:5px; color:#fff;
+    background:rgba(255,79,195,.18); border:2px solid #FF4FC3;
+    box-shadow:0 0 14px rgba(255,79,195,.35); }
+  #ov-btn:active { transform:translate(1px,2px); }
+  #hint { font-size:12px; color:#7f93b5; letter-spacing:.06em; }
+
+  /* ★2026-08-30: アイテムの帯（盤の外・下）。他の6本と同じ「操作は盤の外」の作り。
+     3種類。1面クリアごとに1つ補充する。 */
+  #items { width:100%; max-width:min(560px, calc((100dvh - 190px) * 0.5625));
+    display:flex; gap:8px; justify-content:center; padding:0 2px;
+    margin-bottom:30px; }   /* ★下の「ほかのあそび」タブと重ならないように空ける */
+  #items.hidden { display:none; }
+  .item { flex:1 1 0; max-width:132px; min-height:46px; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
+    font:900 13px/1.1 Orbitron,'Zen Kaku Gothic New',sans-serif; letter-spacing:.06em;
+    color:#9FB0D8; background:rgba(22,16,54,.94);
+    border:2px solid rgba(70,75,110,.45); border-radius:6px; }
+  .item .n { font-size:10px; color:#8891B8; }
+  .item:disabled { opacity:.5; cursor:default; }
+  .item.ready#it-laser  { border-color:#FF4FC3; color:#FF4FC3; box-shadow:0 0 12px rgba(255,79,195,.35); }
+  .item.ready#it-shield { border-color:#41E3FF; color:#41E3FF; box-shadow:0 0 12px rgba(65,227,255,.35); }
+  .item.ready#it-slow   { border-color:#FFD54F; color:#FFD54F; box-shadow:0 0 12px rgba(255,213,79,.35); }
+  .item:active { transform:translateY(1px); }
+
+  /* 音のオン・オフ。★画面の右上に固定（シリーズ共通の位置・大きさ） */
+  #mute{ position:fixed; z-index:40;
+    top:calc(8px + env(safe-area-inset-top)); right:calc(10px + env(safe-area-inset-right));
+    width:44px; height:40px; padding:0; cursor:pointer;
+    border:2px solid rgba(65,227,255,.5); border-radius:6px;
+    font-size:17px; line-height:1; background:rgba(21,14,51,.92); color:#9BE9FF;
+    box-shadow:0 0 12px rgba(65,227,255,.28); }
+  #mute:active{ transform:translateY(1px); }
+  #err { position:fixed; inset:0; display:none; align-items:center; justify-content:center; padding:32px;
+    text-align:center; font-size:15px; line-height:2; color:#ffb4b4; background:#05060f; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="hud-item">STAGE<b id="hud-stage">1</b></div>
+  <div class="hud-item" id="hud-right">DISTANCE<b><span id="hud-dist">0</span> / <span id="hud-goal">0</span> m</b></div>
+</div>
+<div id="bar"><div id="bar-fill"></div></div>
+<div id="app"></div>
+
+
+<button id="mute" type="button" aria-label="音のオン・オフ">🔊</button>
+<!-- ★アイテム（1面クリアごとに1つ補充）。盤の外に置く＝シリーズ共通の作り -->
+<div id="items" class="hidden">
+  <button class="item" id="it-laser"  type="button">レーザー<span class="n">×0</span></button>
+  <button class="item" id="it-shield" type="button">バリア<span class="n">×0</span></button>
+  <button class="item" id="it-slow"   type="button">スロー<span class="n">×0</span></button>
+</div>
+<div id="overlay">
+  <div id="ov-lat">N E O N &nbsp; R U N N E R</div>
+  <div id="ov-title">ネオンランナー</div>
+  <div id="ov-sub">動物をよけてゴールを目指せ。<br><b style="color:#FF4FC3">光った動物は前方へレーザーを撃つ</b></div>
+  <button id="ov-btn">START</button>
+  <div id="hint">PC: ← → / A D キー　　スマホ: 画面を指でなぞる</div>
+</div>
+
+<div id="err">Three.js を読み込めませんでした。<br>assets/three.module.js があるか確認してください。</div>
+
+<!-- ★2026-08-30: Three.js を**同梱**にした（CDNから読むのをやめた）。
+     理由: ネオンシリーズ（neon-blocks の中に同居）は iOSアプリでもあり、
+     通信できる保証がない。機内モードでも遊べる必要がある。
+     three r180 / MIT ライセンス（assets/THREE-LICENSE.txt に全文） -->
+<script type="importmap">
+{ "imports": { "three": "./assets/three.module.js" } }
+</script>
+
+<script>
+  // CDN が落ちている／オフラインのときに白画面で終わらせない
+  window.__booted = false;
+  setTimeout(() => { if (!window.__booted) document.getElementById('err').style.display = 'flex'; }, 8000);
+</script>
+
+<script>
+/* =====================================================================
+   音（シリーズ共通の作り。neon-blocks/NEON_STYLE.md）
+   ・**ファイルは同梱しない。** WebAudio で合成する（他6本と同じ）
+   ・音量は master 1 → 効果音 0.9 / BGM 0.24
+   ・音階はメジャーペンタトニック（0,2,4,7,9）。メロディ=triangle・ベース=sine
+   ・**調は B**（7本目。他は A/C/D/E/F/G を使っている＝続けて遊んでも同じ曲に聞こえない）
+   ===================================================================== */
+const NR_KEY = 'neon_runner_sound';
+let soundOn = true;
+try { soundOn = localStorage.getItem(NR_KEY) !== 'off'; } catch (e) {}
+let audio = null, masterGain = null, sfxGain = null, musGain = null, noiseBuf = null;
+
+function initAudio(){
+  if (audio) { if (audio.state === 'suspended') audio.resume(); return; }
+  try { audio = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return; }
+  masterGain = audio.createGain(); masterGain.gain.value = soundOn ? 1 : 0;
+  masterGain.connect(audio.destination);
+  sfxGain = audio.createGain(); sfxGain.gain.value = 0.9;  sfxGain.connect(masterGain);
+  musGain = audio.createGain(); musGain.gain.value = 0.24; musGain.connect(masterGain);
+  const len = Math.floor(audio.sampleRate * 0.4);
+  noiseBuf = audio.createBuffer(1, len, audio.sampleRate);
+  const d = noiseBuf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+  startMusic();
+}
+function setSound(on){
+  soundOn = on;
+  try { localStorage.setItem(NR_KEY, on ? 'on' : 'off'); } catch (e) {}
+  if (masterGain) masterGain.gain.setTargetAtTime(on ? 1 : 0, audio.currentTime, 0.02);
+}
+function voice(freq, when, dur, type, gain, dest, slideTo){
+  if (!audio) return;
+  const o = audio.createOscillator(), g = audio.createGain();
+  o.type = type || 'triangle'; o.frequency.setValueAtTime(freq, when);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, when + dur);
+  g.gain.setValueAtTime(0.0001, when);
+  g.gain.exponentialRampToValueAtTime(gain || 0.12, when + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  o.connect(g); g.connect(dest || sfxGain);
+  o.start(when); o.stop(when + dur + 0.02);
+}
+function noise(when, dur, gain, hz){
+  if (!audio || !noiseBuf) return;
+  const src = audio.createBufferSource(); src.buffer = noiseBuf;
+  const f = audio.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = hz || 900;
+  const g = audio.createGain();
+  g.gain.setValueAtTime(gain || 0.05, when);
+  g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+  src.connect(f); f.connect(g); g.connect(sfxGain);
+  src.start(when); src.stop(when + dur);
+}
+/* 効果音。★同じ出来事には同じ形（取得＝上がる3音／失敗＝下がる2音）＝シリーズ共通 */
+function sfx(kind){
+  if (!audio || !soundOn) return;
+  const t = audio.currentTime;
+  const seq = (notes, step, dur, type, gain) =>
+    notes.forEach((f, i) => voice(f, t + i * step, dur, type, gain));
+  switch (kind){
+    case 'ui':     voice(740, t, 0.07, 'triangle', 0.13, null, 990); break;
+    case 'coin':   seq([988, 1318.5, 1975], 0.055, 0.26, 'triangle', 0.14); break;   // 取得＝上がる3音
+    case 'laser':  voice(1200, t, 0.16, 'sawtooth', 0.07, null, 300); noise(t, 0.10, 0.03, 2200); break;
+    case 'hit':    seq([494, 247], 0.09, 0.30, 'square', 0.13); noise(t, 0.16, 0.06, 500); break;  // 失敗＝下がる2音
+    case 'clear':  seq([740, 988, 1244.5, 1480], 0.11, 0.46, 'triangle', 0.16); break;
+    case 'over':   seq([370, 311, 247, 185], 0.13, 0.42, 'square', 0.12); break;
+  }
+}
+/* BGM。走る曲なので他より速い。★基準音は B（メロ B4 493.88 / ベース B2 123.47） */
+const MUSIC = {
+  step: 0, next: 0, timer: null, bpm: 132,
+  mel : [0, 7, 9, 7,  4, 7, 9, 12,  9, 7, 4, 2,  0, 4, 7, 4],
+  bass: [0, 0, -5, -5,  -3, -3, -5, -5],
+};
+function startMusic(){
+  if (!audio || MUSIC.timer) return;
+  MUSIC.next = audio.currentTime + 0.15;
+  MUSIC.timer = setInterval(musicTick, 90);
+}
+// 先読みして予約する方式。setInterval で直接鳴らすとタイミングがぶれる
+function musicTick(){
+  if (!audio) return;
+  const eighth = 60 / MUSIC.bpm / 2;
+  if (MUSIC.next < audio.currentTime) MUSIC.next = audio.currentTime + 0.05;
+  while (MUSIC.next < audio.currentTime + 0.3){
+    const t = MUSIC.next, st = MUSIC.step;
+    voice(493.88 * Math.pow(2, MUSIC.mel[st % MUSIC.mel.length] / 12),
+          t, eighth * 1.4, 'triangle', 0.05, musGain);
+    if (st % 2 === 0){
+      voice(123.47 * Math.pow(2, MUSIC.bass[(st >> 1) % MUSIC.bass.length] / 12),
+            t, eighth * 1.7, 'sine', 0.07, musGain);
+    }
+    MUSIC.next += eighth; MUSIC.step++;
+  }
+}
+document.addEventListener('visibilitychange', () => {
+  if (!audio) return;
+  if (document.hidden) audio.suspend(); else audio.resume();
+});
+// 音ボタン。押した時点で AudioContext を起こす（iOSは操作なしでは鳴らせない）
+(function(){
+  const b = document.getElementById('mute');
+  if (!b) return;
+  b.textContent = soundOn ? '🔊' : '🔇';
+  b.addEventListener('click', () => {
+    initAudio(); setSound(!soundOn);
+    b.textContent = soundOn ? '🔊' : '🔇';
+  });
+})();
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* =====================================================================
+   1. 設定 — 難易度・見た目の数値はすべてここに集約
+   ===================================================================== */
+const CONFIG = {
+  road:  { width: 18, tileLength: 60, tileCount: 8 },
+  ball:  { radius: 0.9, lateralSpeed: 15, color: 0x66e0ff, lightRange: 60 },
+  camera:{ height: 5.2, back: 11, lookAhead: 14 },
+  stage: {
+    baseSpeed:        22,    // ステージ1の前進速度（m/秒）
+    speedPerStage:    3.2,   // 1ステージごとの加速
+    baseGoal:         500,   // ステージ1のゴール距離（m）
+    goalPerStage:     150,
+    baseInterval:     1.05,  // 出現間隔（秒）
+    intervalPerStage: 0.08,
+    minInterval:      0.34,
+    baseBurst:        1,     // 1回の出現でまとめて出す数
+    burstPerStage:    0.34,  // ステージごとの増分（切り捨てて使う）
+    zigzagFromStage:  2,     // 横に動く動物が混ざり始めるステージ
+    zigzagRatio:      0.45,  // 横移動タイプの割合（上限）
+  },
+  // ★レーザーを撃つ動物（ドラゴン）の設定。撃たれる側が反応できる数値にしてある
+  dragon: {
+    rate:        0.10,   // 出現するときにドラゴンになる確率（＝10%くらい）
+    fromStage:   1,
+    charge:      1.5,    // 光ってから撃つまで（秒）
+    fire:        0.6,    // レーザーが出ている時間（秒）
+    cooldown:    2.8,    // 撃ったあと次に撃てるまで（秒）
+    range:       140,    // レーザーの長さ（m）＝前方だけに伸びる
+    halfWidth:   0.95,   // レーザーの半幅（当たり判定）
+    startWithin: 100,    // プレイヤーとの距離がこれ以内になったら溜め始める
+    slow:        0.45,   // 溜めているあいだの速度倍率（狙いを定めて減速する）
+  },
+  spawnAhead:    170,        // プレイヤーの何m先に湧かせるか
+  despawnBehind: 25,         // 何m後ろに行ったら消すか
+};
+
+/* =====================================================================
+   2. 状態
+   ===================================================================== */
+const state = {
+  phase: 'ready',   // ready | playing | clear | over
+  stage: 1,
+  distance: 0,
+  goal: 0,
+  speed: 0,
+  spawnTimer: 0,
+  targetX: 0,       // プレイヤーが向かおうとしている左右位置
+  time: 0,
+  coins: 0,         // ★将来のコイン用（HUDは未表示）
+  shield: false,    // ★バリア（1回だけ当たりを肩代わりする）
+  slowUntil: 0,     // ★スローが切れる時刻（state.time と比べる）
+};
+
+// 開発・確認用の上書き（?stage=3&goal=60 のように付ける）。通常プレイでは付けない
+const qs = new URLSearchParams(location.search);
+const qsNum = (k) => (qs.has(k) ? Number(qs.get(k)) : null);
+const OVERRIDE = { stage: qsNum('stage'), goal: qsNum('goal'), dragon: qs.has('dragon') };  // ?dragon=1 で全部ドラゴン（確認用）
+
+const stageParams = (n) => {
+  const s = CONFIG.stage;
+  if (OVERRIDE.goal) return Object.assign(stageParamsRaw(n), { goal: OVERRIDE.goal });
+  return stageParamsRaw(n);
+};
+const stageParamsRaw = (n) => {
+  const s = CONFIG.stage;
+  return {
+    speed:    s.baseSpeed + s.speedPerStage * (n - 1),
+    goal:     s.baseGoal  + s.goalPerStage  * (n - 1),
+    interval: Math.max(s.minInterval, s.baseInterval - s.intervalPerStage * (n - 1)),
+    burst:    Math.floor(s.baseBurst + s.burstPerStage * (n - 1)),
+    zigzag:   n >= s.zigzagFromStage ? Math.min(s.zigzagRatio, 0.15 * (n - 1)) : 0,
+  };
+};
+
+/* =====================================================================
+   3. シーン（暗い世界・ボールの光だけが頼り）
+   ===================================================================== */
+const container = document.getElementById('app');
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const APP = document.getElementById('app');
+renderer.setSize(APP.clientWidth, APP.clientHeight);
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x05060f);
+scene.fog = new THREE.FogExp2(0x05060f, 0.011);   // 遠くは闇に溶ける＝湧き出しが見えない
+
+const camera = new THREE.PerspectiveCamera(62, APP.clientWidth / APP.clientHeight, 0.1, 400);
+// 縦画面（スマホ）は横の視野が狭くなり走路の端が見えないので画角を広げる
+const fitCamera = () => {
+  const aspect = APP.clientWidth / APP.clientHeight;
+  camera.aspect = aspect;
+  camera.fov = aspect < 1 ? 82 : 62;
+  camera.updateProjectionMatrix();
+};
+fitCamera();
+
+scene.add(new THREE.AmbientLight(0x2a3550, 0.55));            // 最低限の環境光
+const moon = new THREE.DirectionalLight(0x94b8ff, 0.35);
+moon.position.set(-6, 14, -4);
+scene.add(moon);
+
+/* --- 走路（タイルを使い回して無限に見せる） --- */
+const roadTiles = [];
+{
+  const w = CONFIG.road.width, L = CONFIG.road.tileLength;
+  const floorMat = new THREE.MeshStandardMaterial({ color: 0x1d2745, roughness: 0.8, metalness: 0.1 });
+  const edgeMat  = new THREE.MeshStandardMaterial({ color: 0x0a2740, emissive: 0x2f8fff, emissiveIntensity: 1.2, roughness: 0.4 });
+  const lineMat  = new THREE.MeshStandardMaterial({ color: 0x0a1a2a, emissive: 0x1b4c74, emissiveIntensity: 0.7 });
+  for (let i = 0; i < CONFIG.road.tileCount; i++) {
+    const tile = new THREE.Group();
+    const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, L), floorMat);
+    floor.rotation.x = -Math.PI / 2;
+    tile.add(floor);
+    for (const sx of [-1, 1]) {                       // 光る縁石
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.35, L), edgeMat);
+      edge.position.set(sx * (w / 2), 0.17, 0);
+      tile.add(edge);
+    }
+    for (let k = 0; k < 5; k++) {                     // センターライン（速度感）
+      const dash = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.02, 5), lineMat);
+      dash.position.set(0, 0.01, -L / 2 + 6 + k * 12);
+      tile.add(dash);
+    }
+    tile.position.z = -i * L;
+    scene.add(tile);
+    roadTiles.push(tile);
+  }
+}
+
+/* --- プレイヤー（光るボール） --- */
+const ball = new THREE.Group();
+const ballMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(CONFIG.ball.radius, 32, 24),
+  new THREE.MeshStandardMaterial({
+    color: CONFIG.ball.color, emissive: CONFIG.ball.color, emissiveIntensity: 1.5,
+    roughness: 0.25, metalness: 0.1,
+  })
+);
+ball.add(ballMesh);
+const glow = new THREE.Mesh(                                   // 外側のふんわりした光
+  new THREE.SphereGeometry(CONFIG.ball.radius * 2.1, 20, 16),
+  new THREE.MeshBasicMaterial({ color: CONFIG.ball.color, transparent: true, opacity: 0.12, depthWrite: false })
+);
+ball.add(glow);
+const ballLight = new THREE.PointLight(CONFIG.ball.color, 260, CONFIG.ball.lightRange, 1.7);
+ball.add(ballLight);
+const headLight = new THREE.SpotLight(CONFIG.ball.color, 700, 95, Math.PI / 5.5, 0.55, 1.4);
+headLight.position.set(0, 6, 4);          // ボールの少し上・後ろから前方を照らす
+ball.add(headLight);
+headLight.target.position.set(0, 0, -40); // 進行方向（-z）
+ball.add(headLight.target);
+ball.position.set(0, CONFIG.ball.radius, 0);
+scene.add(ball);
+
+/* --- ゴールゲート --- */
+const goalGate = new THREE.Group();
+{
+  const mat = new THREE.MeshStandardMaterial({ color: 0x11331f, emissive: 0x3dff9e, emissiveIntensity: 1.6 });
+  const w = CONFIG.road.width;
+  for (const sx of [-1, 1]) {
+    const pole = new THREE.Mesh(new THREE.BoxGeometry(0.5, 7, 0.5), mat);
+    pole.position.set(sx * (w / 2 - 0.4), 3.5, 0);
+    goalGate.add(pole);
+  }
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(w, 0.5, 0.5), mat);
+  beam.position.y = 7;
+  goalGate.add(beam);
+  const curtain = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, 7),
+    new THREE.MeshBasicMaterial({ color: 0x3dff9e, transparent: true, opacity: 0.14, side: THREE.DoubleSide, depthWrite: false })
+  );
+  curtain.position.y = 3.5;
+  goalGate.add(curtain);
+  goalGate.add(new THREE.PointLight(0x3dff9e, 40, 40, 2).translateY(4));
+}
+scene.add(goalGate);
+
+/* =====================================================================
+   4. 動物の図鑑 — 「形・速さ・当たり判定」はこの表だけで決まる
+      増やすときは ANIMAL_TYPES に1行足すだけ。組み立ては createCreature() が共通で行う
+   ===================================================================== */
+const rand = (a, b) => a + Math.random() * (b - a);
+const pick = (arr) => arr[(Math.random() * arr.length) | 0];
+
+const ANIMAL_TYPES = [
+  { key: 'usagi', label: 'うさぎ', weight: 16, speed: [12, 16], radius: 0.95, zig: true, hop: 0.5,
+    colors: [0xffd9e8, 0xfff2f7, 0xffb3c9],
+    body: { w: 0.9, h: 0.8, l: 1.2 }, head: { s: 0.72, dy: 0.5, dz: 0.35 },
+    ear: { type: 'long', h: 1.1 }, leg: { h: 0.7, t: 0.24, n: 4 }, tail: { type: 'ball' } },
+
+  { key: 'inu', label: 'いぬ', weight: 18, speed: [9, 13], radius: 1.05, zig: true, hop: 0.16,
+    colors: [0xffb37a, 0xffd166, 0xf1f5f9],
+    body: { w: 1.1, h: 0.9, l: 1.8 }, head: { s: 0.85, dy: 0.5, dz: 0.5 },
+    ear: { type: 'cone', h: 0.5 }, leg: { h: 0.8, t: 0.26, n: 4 }, tail: { type: 'long' } },
+
+  { key: 'kuma', label: 'くま', weight: 12, speed: [5, 8], radius: 1.7, zig: false, hop: 0.1,
+    colors: [0x8b6b4f, 0xa78bfa, 0x6b7280],
+    body: { w: 2.2, h: 1.6, l: 2.6 }, head: { s: 1.2, dy: 0.7, dz: 0.5 },
+    ear: { type: 'cone', h: 0.35 }, leg: { h: 0.8, t: 0.45, n: 4 }, tail: { type: 'ball' } },
+
+  { key: 'tori', label: 'とり', weight: 14, speed: [11, 15], radius: 0.9, zig: true, hop: 0.35,
+    colors: [0x7dd3fc, 0x6ee7a8, 0xfef08a],
+    body: { w: 0.85, h: 0.9, l: 1.1 }, head: { s: 0.6, dy: 0.75, dz: 0.2 },
+    ear: { type: 'none' }, beak: true, leg: { h: 1.2, t: 0.16, n: 2 }, tail: { type: 'long' } },
+
+  { key: 'inoshishi', label: 'いのしし', weight: 14, speed: [15, 19], radius: 1.2, zig: false, hop: 0.12,
+    colors: [0x9a7b5f, 0x6b7280, 0xb45309],
+    body: { w: 1.4, h: 1.0, l: 2.2 }, head: { s: 0.9, dy: 0.25, dz: 0.5 },
+    ear: { type: 'horn', h: 0.45 }, leg: { h: 0.5, t: 0.3, n: 4 }, tail: { type: 'ball' } },
+
+  { key: 'kame', label: 'かめ', weight: 10, speed: [3.5, 5.5], radius: 1.35, zig: false, hop: 0.05,
+    colors: [0x4d7c4f, 0x6ee7a8, 0x86efac],
+    body: { w: 1.8, h: 0.6, l: 2.0 }, head: { s: 0.55, dy: 0.1, dz: 0.45 }, shell: true,
+    ear: { type: 'none' }, leg: { h: 0.35, t: 0.3, n: 4 }, tail: { type: 'none' } },
+];
+
+// ★レーザーを撃ってくるやつ。ANIMAL_TYPES とは別枠（出現率を CONFIG.dragon.rate で決める）
+const DRAGON_TYPE = {
+  key: 'dragon', label: 'ドラゴン', speed: [6, 9], radius: 1.5, zig: false, hop: 0.2, laser: true,
+  colors: [0x9b5cff, 0x37d3ff, 0xff4d6d],
+  body: { w: 1.5, h: 1.2, l: 2.6 }, head: { s: 1.0, dy: 0.75, dz: 0.6 },
+  ear: { type: 'horn', h: 0.8 }, wing: true, leg: { h: 0.75, t: 0.3, n: 4 }, tail: { type: 'long' },
+};
+
+/* 見た目の組み立て。ここをモデル読み込みに差し替えれば、以降の処理は無改造で済む */
+function createCreature(spec) {
+  const g = new THREE.Group();
+  const color = pick(spec.colors);
+  const mat  = new THREE.MeshStandardMaterial({ color, roughness: 0.6, metalness: 0.05, emissive: color, emissiveIntensity: 0.45 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x2b3550, roughness: 0.8, emissive: 0x101828, emissiveIntensity: 0.6 });
+  const eyeM = new THREE.MeshBasicMaterial({ color: 0xffffff });
+
+  const legH = spec.leg.h;
+  const bodyY = legH + spec.body.h / 2;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(spec.body.w, spec.body.h, spec.body.l), mat);
+  body.position.y = bodyY; g.add(body);
+
+  if (spec.shell) {                                   // かめの甲羅
+    const shell = new THREE.Mesh(
+      new THREE.SphereGeometry(spec.body.w * 0.62, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), mat);
+    shell.position.y = bodyY + spec.body.h / 2 - 0.05; shell.scale.z = 1.25; g.add(shell);
+  }
+
+  const headY = bodyY + spec.head.dy;
+  const headZ = spec.body.l / 2 + spec.head.dz;
+  const head = new THREE.Mesh(new THREE.BoxGeometry(spec.head.s, spec.head.s * 0.95, spec.head.s), mat);
+  head.position.set(0, headY, headZ); g.add(head);
+
+  for (const sx of [-1, 1]) {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(spec.head.s * 0.14, 8, 8), eyeM);
+    eye.position.set(sx * spec.head.s * 0.28, headY + spec.head.s * 0.12, headZ + spec.head.s * 0.5);
+    g.add(eye);
+    const e = spec.ear;
+    if (e.type === 'long') {
+      const ear = new THREE.Mesh(new THREE.BoxGeometry(spec.head.s * 0.22, e.h, spec.head.s * 0.18), mat);
+      ear.position.set(sx * spec.head.s * 0.28, headY + spec.head.s * 0.45 + e.h / 2, headZ); g.add(ear);
+    } else if (e.type === 'cone') {
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(spec.head.s * 0.24, e.h, 4), mat);
+      ear.position.set(sx * spec.head.s * 0.3, headY + spec.head.s * 0.45 + e.h / 2, headZ); g.add(ear);
+    } else if (e.type === 'horn') {
+      const horn = new THREE.Mesh(new THREE.ConeGeometry(spec.head.s * 0.16, e.h, 5), dark);
+      horn.position.set(sx * spec.head.s * 0.3, headY + spec.head.s * 0.45 + e.h / 2, headZ - spec.head.s * 0.15);
+      horn.rotation.x = -0.45; g.add(horn);
+    }
+  }
+
+  if (spec.beak) {                                    // とりのくちばし
+    const beak = new THREE.Mesh(new THREE.ConeGeometry(spec.head.s * 0.2, spec.head.s * 0.6, 4),
+      new THREE.MeshStandardMaterial({ color: 0xffb703, emissive: 0xffb703, emissiveIntensity: 0.6 }));
+    beak.rotation.x = Math.PI / 2;
+    beak.position.set(0, headY, headZ + spec.head.s * 0.65); g.add(beak);
+  }
+
+  const wings = [];
+  if (spec.wing) {                                    // ドラゴンの翼（はばたく）
+    for (const sx of [-1, 1]) {
+      const wing = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.1, 1.2), mat);
+      wing.position.set(sx * (spec.body.w / 2 + 0.85), bodyY + 0.5, -0.2);
+      wing.rotation.z = sx * 0.35; wings.push(wing); g.add(wing);
+    }
+  }
+
+  const legs = [];
+  const rows = spec.leg.n === 2 ? [0] : [-1, 1];
+  for (const sx of [-1, 1]) for (const sz of rows) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(spec.leg.t, legH, spec.leg.t), dark);
+    leg.position.set(sx * spec.body.w * 0.4, legH / 2, sz * spec.body.l * 0.3);
+    legs.push(leg); g.add(leg);
+  }
+
+  if (spec.tail.type === 'ball') {
+    const tail = new THREE.Mesh(new THREE.SphereGeometry(spec.body.w * 0.16, 8, 8), mat);
+    tail.position.set(0, bodyY, -spec.body.l / 2 - 0.15); g.add(tail);
+  } else if (spec.tail.type === 'long') {
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, spec.body.l * 0.55), mat);
+    tail.position.set(0, bodyY + 0.15, -spec.body.l / 2 - spec.body.l * 0.25); g.add(tail);
+  }
+
+  g.userData = { legs, legH, wings, mat, color };
+  return g;
+}
+
+/* ★将来ここに足すだけで増やせる（今回は未使用）
+function createRock() { … return group; }
+function createCoin() { … return group; }
+*/
+
+/* =====================================================================
+   5. エンティティ管理 — kind で当たり判定の扱いが決まる
+      'hazard'  … 当たるとゲームオーバー（レーザーも hazard の一種）
+      'pickup'  … 当たると取得（コイン用。処理は通してある）
+   ===================================================================== */
+const entities = [];
+
+function pickAnimalType(stage) {
+  const d = CONFIG.dragon;
+  if (OVERRIDE.dragon) return DRAGON_TYPE;
+  if (stage >= d.fromStage && Math.random() < d.rate) return DRAGON_TYPE;
+  let total = 0;
+  for (const t of ANIMAL_TYPES) total += t.weight;
+  let r = Math.random() * total;
+  for (const t of ANIMAL_TYPES) { r -= t.weight; if (r <= 0) return t; }
+  return ANIMAL_TYPES[0];
+}
+
+/* ドラゴンだけが持つ「溜め → 前方へレーザー」の部品を取り付ける */
+function attachLaser(e) {
+  const d = CONFIG.dragon;
+  const mouthY = e.mesh.userData.legH + 1.4;
+
+  // 予告線（地面の赤い帯）— これが無いと避けようがないので必ず出す
+  const warn = new THREE.Mesh(
+    new THREE.PlaneGeometry(d.halfWidth * 2.4, d.range),
+    new THREE.MeshBasicMaterial({ color: 0xffae00, transparent: true, opacity: 0, depthWrite: false })  // 予告は橙（本体の赤と区別する）
+  );
+  warn.rotation.x = -Math.PI / 2;
+  warn.position.set(0, 0.03, d.range / 2);
+  e.mesh.add(warn);
+
+  // レーザー本体（前方だけに伸びる）
+  const beam = new THREE.Group();
+  const core = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.28, 0.28, d.range, 10),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+  const aura = new THREE.Mesh(
+    new THREE.CylinderGeometry(d.halfWidth, d.halfWidth, d.range, 12),
+    new THREE.MeshBasicMaterial({ color: 0xff2d55, transparent: true, opacity: 0.4, depthWrite: false })
+  );
+  core.rotation.x = Math.PI / 2; aura.rotation.x = Math.PI / 2;
+  beam.add(core); beam.add(aura);
+  beam.position.set(0, mouthY, d.range / 2);
+  beam.visible = false;
+  e.mesh.add(beam);
+
+  const light = new THREE.PointLight(0xff2d55, 0, 45, 2);
+  light.position.set(0, mouthY, 2);
+  e.mesh.add(light);
+
+  e.laser = { phase: 'run', timer: 0, warn, beam, light, mouthY };
+}
+
+function updateLaser(e, dt) {
+  const d = CONFIG.dragon;
+  const L = e.laser;
+  L.timer += dt;
+  const ahead = ball.position.z - e.mesh.position.z;      // 何m 前にいるか
+
+  if (L.phase === 'run') {
+    e.speedFactor = 1;
+    if (ahead > 4 && ahead < d.startWithin && L.timer > d.cooldown) { L.phase = 'charge'; L.timer = 0; }
+  } else if (L.phase === 'charge') {
+    e.speedFactor = d.slow;                               // 狙いを定めて減速
+    const k = L.timer / d.charge;                         // 0 → 1
+    L.warn.material.opacity = 0.12 + Math.abs(Math.sin(L.timer * 18)) * 0.35;   // 点滅して知らせる
+    L.light.intensity = 40 + k * 260;
+    e.mesh.userData.mat.emissiveIntensity = 0.45 + k * 2.2;                     // 体が光る
+    if (L.timer >= d.charge) { L.phase = 'fire'; L.timer = 0; L.beam.visible = true; L.warn.material.opacity = 0; }
+  } else if (L.phase === 'fire') {
+    e.speedFactor = d.slow;
+    L.light.intensity = 420;
+    L.beam.scale.x = L.beam.scale.y = 1 + Math.sin(L.timer * 40) * 0.15;
+    if (L.timer >= d.fire) {
+      L.phase = 'run'; L.timer = 0; L.beam.visible = false;
+      L.light.intensity = 0; e.mesh.userData.mat.emissiveIntensity = 0.45;
+    }
+  }
+}
+
+/* レーザーに当たったか（円の当たり判定とは別に見る） */
+function laserHit(e) {
+  const d = CONFIG.dragon;
+  if (!e.laser || e.laser.phase !== 'fire') return false;
+  const dz = ball.position.z - e.mesh.position.z;
+  if (dz < 0 || dz > d.range) return false;              // 前方だけ＝ドラゴンの後ろは安全
+  return Math.abs(ball.position.x - e.mesh.position.x) < d.halfWidth + CONFIG.ball.radius * 0.7;
+}
+
+function spawnAnimal(zigzagChance, stage) {
+  const half = CONFIG.road.width / 2 - 1.4;
+  const spec = pickAnimalType(stage);
+  const mesh = createCreature(spec);
+  const scale = rand(0.92, 1.12);
+  mesh.scale.setScalar(scale);
+
+  const isZig = spec.zig && Math.random() < zigzagChance;
+  const x = rand(-half, half);
+  mesh.position.set(x, 0, ball.position.z - CONFIG.spawnAhead - rand(0, 40));
+  scene.add(mesh);
+
+  const e = {
+    kind: 'hazard',
+    spec, mesh,
+    radius: spec.radius * scale,
+    speed: rand(spec.speed[0], spec.speed[1]),          // ★動物ごとに速さが違う
+    speedFactor: 1,
+    legBase: mesh.userData.legH / 2,
+    zig: isZig ? { baseX: x, amp: rand(3, half - 1), freq: rand(0.8, 1.6), phase: rand(0, 6.28) } : null,
+    update(dt, t) {
+      this.mesh.position.z += this.speed * this.speedFactor * dt;   // +z ＝ プレイヤー側
+      if (this.zig) {
+        const z = this.zig;
+        this.mesh.position.x = THREE.MathUtils.clamp(z.baseX + Math.sin(t * z.freq + z.phase) * z.amp, -half, half);
+      }
+      const legs = this.mesh.userData.legs;             // 走っている足踏み（速い動物ほど速く動く）
+      const rate = 2 + this.speed * this.speedFactor;
+      for (let i = 0; i < legs.length; i++) legs[i].position.y = this.legBase + Math.sin(t * rate + i * 1.7) * 0.14;
+      this.mesh.position.y = Math.abs(Math.sin(t * rate * 0.5 + this.speed)) * this.spec.hop;
+      const wings = this.mesh.userData.wings;           // ドラゴンのはばたき
+      for (let i = 0; i < wings.length; i++) wings[i].rotation.z = (i ? 1 : -1) * (0.35 + Math.sin(t * 8) * 0.5);
+      if (this.laser) updateLaser(this, dt);
+    },
+  };
+  if (spec.laser) attachLaser(e);
+  entities.push(e);
+}
+
+function clearEntities() {
+  for (const e of entities) scene.remove(e.mesh);
+  entities.length = 0;
+}
+
+/* =====================================================================
+   6. 入力（キーボード＋タッチ／マウスドラッグ）
+   ===================================================================== */
+const keys = { left: false, right: false };
+addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') keys.left  = true;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = true;
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); onAction(); }
+});
+addEventListener('keyup', (e) => {
+  if (e.key === 'ArrowLeft'  || e.key === 'a' || e.key === 'A') keys.left  = false;
+  if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') keys.right = false;
+});
+
+// 指／マウスでなぞった位置に横移動（押している間だけ追従）
+let dragging = false;
+// ★盤が画面いっぱいではなくなったので、**盤の中の位置**で測る（外の余白でズレないように）
+const pointerToX = (clientX) => {
+  const r = APP.getBoundingClientRect();
+  return ((clientX - r.left) / r.width - 0.5) * CONFIG.road.width * 1.05;
+};
+const cv = renderer.domElement;
+cv.addEventListener('pointerdown', (e) => { dragging = true; state.targetX = pointerToX(e.clientX); cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', (e) => { if (dragging) state.targetX = pointerToX(e.clientX); });
+cv.addEventListener('pointerup',     () => { dragging = false; });
+cv.addEventListener('pointercancel', () => { dragging = false; });
+
+/* =====================================================================
+   7. UI
+   ===================================================================== */
+const ui = {
+  stage: document.getElementById('hud-stage'),
+  dist:  document.getElementById('hud-dist'),
+  goal:  document.getElementById('hud-goal'),
+  bar:   document.getElementById('bar-fill'),
+  overlay: document.getElementById('overlay'),
+  title: document.getElementById('ov-title'),
+  sub:   document.getElementById('ov-sub'),
+  btn:   document.getElementById('ov-btn'),
+};
+
+function showOverlay(title, sub, btn) {
+  ui.title.textContent = title; ui.sub.innerHTML = sub; ui.btn.textContent = btn;
+  ui.overlay.classList.remove('hidden');
+}
+const hideOverlay = () => ui.overlay.classList.add('hidden');
+
+function updateHud() {
+  ui.stage.textContent = state.stage;
+  ui.dist.textContent  = Math.floor(state.distance);
+  ui.goal.textContent  = Math.floor(state.goal);
+  ui.bar.style.width   = Math.min(100, (state.distance / state.goal) * 100) + '%';
+}
+
+ui.btn.addEventListener('click', () => { initAudio(); sfx('ui'); onAction(); });
+function onAction() {
+  if (state.phase === 'playing') return;
+  if (state.phase === 'clear') state.stage += 1;
+  if (state.phase === 'over')  state.stage = save.checkpoint;   // ★セーブ地点から再開
+  startStage();
+}
+
+/* =====================================================================
+   7-b. セーブ地点とアイテム（2026-08-30 追加）
+   ---------------------------------------------------------------------
+   セーブ地点: **5面ごと**（1/6/11/16…）。ゲームオーバーでも1面には戻さず、
+     直近のセーブ地点から再開する。ネオンブロックスの「セーブ地点」と同じ考え方。
+   アイテム: **1面クリアごとに1つ補充**（3種類のどれか。持ち越せる）。
+     ・レーザー … 前にいる動物を1体、撃って消す
+     ・バリア   … 次の1回だけ当たっても死なない
+     ・スロー   … 4秒間だけ速度を6割に落とす
+   ★進み具合とアイテムは localStorage に持つ（閉じても続きから）。
+   ===================================================================== */
+const SAVE_KEY = 'neon_runner_save';
+const CHECKPOINT_EVERY = 5;
+const ITEM_IDS = ['laser', 'shield', 'slow'];
+const save = { checkpoint: 1, best: 1, items: { laser: 0, shield: 0, slow: 0 } };
+try {
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (raw) Object.assign(save, JSON.parse(raw));
+} catch (e) {}
+function persist() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) {}
+}
+// そのステージに対応するセーブ地点（1,6,11,…）
+const checkpointOf = (stage) => Math.floor((stage - 1) / CHECKPOINT_EVERY) * CHECKPOINT_EVERY + 1;
+
+const itemEl = {
+  box: document.getElementById('items'),
+  laser: document.getElementById('it-laser'),
+  shield: document.getElementById('it-shield'),
+  slow: document.getElementById('it-slow'),
+};
+function syncItems() {
+  itemEl.box.classList.toggle('hidden', state.phase !== 'playing');
+  for (const id of ITEM_IDS) {
+    const n = save.items[id] || 0, el = itemEl[id];
+    el.querySelector('.n').textContent = '×' + n;
+    el.disabled = n <= 0 || state.phase !== 'playing';
+    el.classList.toggle('ready', n > 0 && state.phase === 'playing');
+  }
+}
+function useItem(id) {
+  if (state.phase !== 'playing' || (save.items[id] || 0) <= 0) return;
+  save.items[id]--; persist();
+  if (id === 'laser') {
+    // 前方の一番近い動物を1体消す（拾い物は対象外）
+    let best = -1, bestZ = -Infinity;
+    for (let i = 0; i < entities.length; i++) {
+      const e = entities[i];
+      if (e.kind === 'pickup') continue;
+      if (e.mesh.position.z < ball.position.z && e.mesh.position.z > bestZ) { bestZ = e.mesh.position.z; best = i; }
+    }
+    if (best >= 0) { scene.remove(entities[best].mesh); entities.splice(best, 1); }
+    sfx('laser');
+  } else if (id === 'shield') {
+    state.shield = true; sfx('coin');
+  } else if (id === 'slow') {
+    state.slowUntil = state.time + 4; sfx('coin');
+  }
+  syncItems();
+}
+ITEM_IDS.forEach(id => itemEl[id].addEventListener('click', () => useItem(id)));
+
+/* =====================================================================
+   8. 進行
+   ===================================================================== */
+function startStage() {
+  const p = stageParams(state.stage);
+  state.speed = p.speed; state.goal = p.goal;
+  state.distance = 0; state.spawnTimer = 0.6; state.targetX = 0;
+  state.shield = false; state.slowUntil = 0;      // ★アイテムの効果は面をまたがない
+  clearEntities();
+  ball.position.set(0, CONFIG.ball.radius, 0);
+  goalGate.position.z = -p.goal;
+  state.phase = 'playing';
+  save.checkpoint = checkpointOf(state.stage);    // ★到達した面のセーブ地点を覚える
+  if (state.stage > save.best) save.best = state.stage;
+  persist();
+  hideOverlay(); updateHud(); syncItems();
+}
+
+function gameOver(cause) {
+  state.phase = 'over';
+  sfx('over');
+  const what = cause === 'laser' ? 'レーザーに撃たれた' : '動物にぶつかった';
+  const back = save.checkpoint;
+  showOverlay('ゲームオーバー',
+    `ステージ ${state.stage}・${Math.floor(state.distance)} m 地点で${what}<br>` +
+    `<b style="color:#41E3FF">セーブ地点（ステージ ${back}）から再開</b>`,
+    `ステージ ${back} から`);
+  syncItems();
+}
+
+function stageClear() {
+  state.phase = 'clear';
+  sfx('clear');
+  // ★1面クリアごとにアイテムを1つ補充（3種類から順ぐりに配る＝どれかに偏らない）
+  const got = ITEM_IDS[(state.stage - 1) % ITEM_IDS.length];
+  save.items[got] = (save.items[got] || 0) + 1;
+  const next = state.stage + 1;
+  const cp = checkpointOf(next);
+  const cpMsg = (next === cp)
+    ? `<br><b style="color:#7CFF4F">セーブ地点に到達（ステージ ${cp}）</b>`
+    : '';
+  persist();
+  showOverlay('ステージクリア！',
+    `ステージ ${state.stage} 突破（${Math.floor(state.goal)} m）<br>` +
+    `<b style="color:#FFD54F">${itemName(got)} を1つ手に入れた</b>` + cpMsg,
+    `ステージ ${next} へ`);
+  syncItems();
+}
+const itemName = (id) => ({ laser: 'レーザー', shield: 'バリア', slow: 'スロー' }[id] || id);
+
+/* =====================================================================
+   9. メインループ
+   ===================================================================== */
+const clock = new THREE.Clock();
+
+function tick() {
+  requestAnimationFrame(tick);
+  const dt = Math.min(clock.getDelta(), 0.05);     // タブ復帰時に飛ばさない
+  state.time += dt;
+  const t = state.time;
+
+  if (state.phase === 'playing') {
+    // 前進（★スロー中は6割の速さ。距離も同じだけ進むので、単に「時間が伸びる」）
+    const spd = state.speed * (state.time < state.slowUntil ? 0.6 : 1);
+    state.distance += spd * dt;
+    ball.position.z -= spd * dt;
+
+    // 左右移動（キーは押し続けで移動、ドラッグは指の位置へ）
+    const half = CONFIG.road.width / 2 - CONFIG.ball.radius;
+    if (keys.left)  state.targetX -= CONFIG.ball.lateralSpeed * dt;
+    if (keys.right) state.targetX += CONFIG.ball.lateralSpeed * dt;
+    state.targetX = THREE.MathUtils.clamp(state.targetX, -half, half);
+    ball.position.x += (state.targetX - ball.position.x) * Math.min(1, dt * 12);
+
+    // 転がり演出
+    ballMesh.rotation.x -= (state.speed * dt) / CONFIG.ball.radius;
+    ballMesh.rotation.z = -(state.targetX - ball.position.x) * 0.4;
+    glow.scale.setScalar(1 + Math.sin(t * 4) * 0.06);
+
+    // 出現
+    state.spawnTimer -= dt;
+    if (state.spawnTimer <= 0) {
+      const p = stageParams(state.stage);
+      state.spawnTimer = p.interval * rand(0.85, 1.2);
+      for (let i = 0; i < p.burst; i++) spawnAnimal(p.zigzag, state.stage);
+    }
+
+    // エンティティ更新・当たり判定・後始末
+    for (let i = entities.length - 1; i >= 0; i--) {
+      const e = entities[i];
+      e.update(dt, t);
+      if (laserHit(e)) {                                       // ★レーザーは離れていても当たる
+        if (state.shield) { state.shield = false; sfx('hit'); syncItems(); }
+        else { gameOver('laser'); break; }
+      }
+      const dx = e.mesh.position.x - ball.position.x;
+      const dz = e.mesh.position.z - ball.position.z;
+      if (Math.hypot(dx, dz) < e.radius + CONFIG.ball.radius) {
+        if (e.kind === 'pickup') {                    // ★コイン等はここで取得処理
+          state.coins++; sfx('coin'); scene.remove(e.mesh); entities.splice(i, 1); continue;
+        }
+        scene.remove(e.mesh); entities.splice(i, 1);
+        if (state.shield) {                           // ★バリアは1回だけ肩代わりする
+          state.shield = false; sfx('hit'); syncItems();
+          continue;
+        }
+        sfx('hit');
+        gameOver('hit');
+        break;
+      }
+      if (e.mesh.position.z > ball.position.z + CONFIG.despawnBehind) {
+        scene.remove(e.mesh); entities.splice(i, 1);
+      }
+    }
+
+    if (state.phase === 'playing' && state.distance >= state.goal) stageClear();
+    updateHud();
+  }
+
+  // 走路タイルの使い回し
+  const L = CONFIG.road.tileLength;
+  for (const tile of roadTiles) {
+    if (tile.position.z > ball.position.z + L) tile.position.z -= L * roadTiles.length;
+  }
+
+  // カメラ追従
+  const c = CONFIG.camera;
+  camera.position.set(ball.position.x * 0.4, c.height, ball.position.z + c.back);
+  camera.lookAt(ball.position.x * 0.5, 1.2, ball.position.z - c.lookAhead);
+
+  goalGate.rotation.y = 0;
+  renderer.render(scene, camera);
+}
+
+addEventListener('resize', () => {
+  fitCamera();
+  renderer.setSize(APP.clientWidth, APP.clientHeight);
+});
+
+// 初期表示（タイトルの裏で世界が動いて見えるように1フレーム分整える）
+// ★セーブ地点があれば、そこから始める（閉じても続きから＝ネオンブロックスと同じ考え）
+if (save.checkpoint > 1) {
+  state.stage = save.checkpoint;
+  ui.sub.innerHTML = '動物をよけてゴールを目指せ。<br>'
+    + '<b style="color:#41E3FF">セーブ地点（ステージ ' + save.checkpoint + '）から始めます</b>';
+}
+goalGate.position.z = -stageParams(state.stage).goal;
+state.goal = stageParams(state.stage).goal;
+updateHud(); syncItems();
+if (OVERRIDE.stage && OVERRIDE.stage > 0) state.stage = OVERRIDE.stage;
+window.__booted = true;
+// ★確認用の窓口。`?stage=` と同じ開発用の仕組みで、遊びには影響しない。
+//   これが無いと、外から（自動テストから）セーブ地点やアイテムの動きを確かめられない。
+window.__dev = { state, save, entities, ball, startStage, stageClear, gameOver, useItem, checkpointOf };
+tick();
+</script>
+</body>
+</html>
