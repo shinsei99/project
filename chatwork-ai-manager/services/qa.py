@@ -356,8 +356,15 @@ def _clean_body(b: str) -> str:
 #     24時間以内に何も無ければ、冷えた状態でも最低限の流れが分かるよう直近数件だけ渡す。
 #   古い話は chatwork_search / kb_search で調べる（毎回の固定費にしない）。
 def _context_window():
+    """会話履歴として渡す範囲（時間, 件数）。
+
+    ★2026-08-31 オーナー指摘「30会話くらいしかしてないのにもう最初のを忘れてる」。
+      30件はAIの返信も含む数なので、実質15往復しか見えていなかった。
+      さらに1件250字・合計5000字で頭打ちだったため、長めのやり取りだと
+      20件そこそこで打ち切られていた。3日・120件へ広げる。
+    """
     from services.settings import get_int
-    return get_int("context_hours", 24), get_int("context_max_messages", 30)
+    return get_int("context_hours", 72), get_int("context_max_messages", 120)
 
 
 def _chat_context(room_id, limit=None):
@@ -382,12 +389,16 @@ def _chat_context(room_id, limit=None):
     out, total = [], 0
     for r in reversed(rows):
         ts = _dt.datetime.fromtimestamp(r["send_time"]).strftime("%m/%d %H:%M")
-        body = _clean_body(r["body"])[:250]
+        body = _clean_body(r["body"])[:400]
         line = f"  [{ts}] {r['account_name'] or '?'}: {body}"
         total += len(line)
-        if total > 5000:      # プロンプトが膨らみすぎないよう頭打ちにする
-            break
+        # ★古い方から捨てる。ここで break すると**新しい方が落ちて**
+        #   「さっき言ったこと」を忘れる。並びは古い順なので、入れてから前を削る。
         out.append(line)
+        total += 0
+    limit_chars = 20000
+    while len(out) > 4 and sum(len(x) for x in out) > limit_chars:
+        out.pop(0)            # あふれたら**古い方**を落とす
     return "\n".join(out)
 
 

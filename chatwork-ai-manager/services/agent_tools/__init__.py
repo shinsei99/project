@@ -13,6 +13,7 @@ from services.agent_tools import (
     chatwork_tools,
     dev_tools,
     file_tools,
+    drive_tools,
     gis_tools,
     knowledge_tools,
     law_tools,
@@ -118,6 +119,16 @@ REGISTRY = {
                 "送信は記録されLINEへ通知される。送れないときは理由が返るので、"
                 "その理由を利用者にそのまま伝えてパスを案内すること",
         "usage": 'chatwork_send_file {"room_id":12345678,"path":"/Users/apple/Library/CloudStorage/.../間取図面(新)/か/グランビルド岩城/グランビルド岩城3F.jpg","message":"3階の間取図をお送りします","requester":"塚本"}',
+    },
+    "drive_resolve": {
+        "func": drive_tools.drive_resolve,
+        "desc": "Googleドライブの共有リンクから、このMacにある実体の場所（絶対パス）を割り出す。"
+                "★チャットに drive.google.com のURLが貼られたら、**URLを直接開こうとしないこと**。"
+                "非公開なので必ず401になる。まずこれで場所に直してから、"
+                "kb_read_document などで中身を読む。フォルダなら中のファイル名も返る。"
+                "複数のURLをまとめて渡してよい（本文をそのまま渡せばIDを拾う）。"
+                "found=false は、このMacに同期されていないか、別会社のもの",
+        "usage": 'drive_resolve {"url":"https://drive.google.com/drive/folders/1KeDIIHB4GvJ3D2dwHg0JcCTDEEUfGdjL"}',
     },
     "find_files": {
         "func": file_tools.find_files,
