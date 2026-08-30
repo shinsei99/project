@@ -31,16 +31,15 @@ def is_ai_question(body: str, ai_account_id, room_type: str) -> bool:
         return True
     if "クロード" in body or "claude" in low or "＠claude" in low:
         return True
-    # AI との1対1 direct チャットでは、質問形の発言を質問とみなす
+    # ★1対1の direct チャットは、**何を書かれても必ず反応する**（2026-08-30 オーナー指示）。
+    #   以前は疑問形の手がかり（？・どう・教え…）があるときだけ返していたので、
+    #   「この4つの物件の客付。これを最優先でやらないといけない」のような**指示や報告**は
+    #   黙って処理され、返事が出なかった。裏でTODOは作られていたが、依頼者からは
+    #   「壊れているのか無視されたのか分からない」状態になる。
+    #   1対1で話しかけている以上、何かしら返るのが自然。
+    #   グループチャットは従来どおり @Claude で呼ばれたときだけ（全員の雑談に反応しない）。
     if room_type == "direct":
-        text = _strip_tags(body)
-        if text and any(h in text for h in _QUESTION_HINTS):
-            return True
-        # ★ファイルだけを貼った場合（本文が `[download:...]` だけ）も質問として扱う。
-        #   Chatworkのアップロード通知には To も「クロード」も入らないため、
-        #   これが無いと **Excelを貼っても黙って無視される**（2026-08-18の指摘）。
-        if attachments.chatwork_file_refs(body):
-            return True
+        return bool(_strip_tags(body) or attachments.chatwork_file_refs(body))
     return False
 
 
