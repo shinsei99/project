@@ -282,7 +282,7 @@ def main():
 
             # ── 出力 ──
             st.divider()
-            st.subheader("④ 書き出し")
+            st.subheader("⑤ 書き出し")
             clauses = [
                 {"no": n, "title": find_item(n)["title"], "text": get_text(n)}
                 for n in st.session_state.order
