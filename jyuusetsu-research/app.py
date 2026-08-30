@@ -37,8 +37,10 @@ from utils import formatter
 # 特約条項は直下の共有モジュール（8513 と同じ実体）。コピーしないこと。
 try:
     import tokuyaku_core
+    import tokuyaku_cases          # 似た論点の裁判例（直下の共有モジュール・8513と共通）
 except Exception:
     tokuyaku_core = None
+    tokuyaku_cases = None
 
 # 直下の共通クライアント（google_maps_api.py）。キーが無ければ使わないだけ。
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -208,6 +210,18 @@ def render_tokuyaku(data, items, style, extra):
         with st.container(border=True):
             st.markdown("**第{}条（{}）**".format(idx, c["title"]))
             st.write(c["text"])
+
+    # ── 似た争いの実例（判例）──
+    # ★8513（特約条項ジェネレーター）と**同じ共有モジュール**を使う。
+    #   片方だけ直すと、同じ特約なのに2つのアプリで出る注意が食い違う。
+    if tokuyaku_cases is not None:
+        pairs = []
+        for it in items:
+            tp = tokuyaku_cases.topics_of_item(it)
+            cs = tokuyaku_cases.for_topics(tp, limit=3)
+            if cs:
+                pairs.append(("{} {}".format(it.get("no", ""), it.get("title", "")), tp, cs))
+        tokuyaku_cases.render_streamlit(st, pairs)
 
     try:
         st.download_button(
