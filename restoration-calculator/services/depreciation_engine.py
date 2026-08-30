@@ -20,7 +20,10 @@
 
 from __future__ import annotations
 
+import json as _json
 import math
+import pathlib as _pathlib
+import warnings as _warnings
 
 from models.restoration_data import (
     RestorationData,
@@ -33,6 +36,49 @@ from models.restoration_data import (
 DEPRECIABLE = "depreciable"
 FULL_FAULT = "full_fault"
 APPORTION = "apportion"
+
+# ──────────────────────────────────────────────────────────────────────
+# ★ガイドライン優先（2026-08-30 オーナー指示）
+#
+# 耐用年数と負担方式は、**ガイドライン本文から取った値を正とする**。
+# data/guideline_basis.json は bookshelf/make_basis_table.py が生成し、
+# **引用はすべて索引の本文と1文字ずつ突き合わせて検証済み**（落ちたら生成されない）。
+#
+# 下の MATERIAL_POLICY は「ガイドラインが何も言っていない部材」の受け皿として残す。
+# ガイドラインが定めている部材は、起動時に JSON の値で上書きされる。
+# ＝ 表を手で直しても、ガイドラインが定めているものは JSON が勝つ。
+#
+# なぜJSONを読むのか（索引DBを直接見ない理由）:
+#   索引は chatwork-ai-manager 側にあり 292MB・メインPCにしか無い。
+#   このアプリが実行時に依存すると、サブPCで動かなくなる・起動が遅くなる。
+#   生成物だけを持てば、中身を人がレビューでき、gitにも載る。
+# ──────────────────────────────────────────────────────────────────────
+# ★data/ ではなくアプリ直下に置く。data/ は入居者名を含むため .gitignore で除外されており、
+#   そこに置くと他PCへ渡らず、黙ってアプリ既定に落ちる（気づけない）。
+_BASIS_PATH = _pathlib.Path(__file__).resolve().parent.parent / "guideline_basis.json"
+GUIDELINE_BASIS: dict[str, dict] = {}
+try:
+    _raw = _json.loads(_BASIS_PATH.read_text(encoding="utf-8"))
+    GUIDELINE_BASIS = {k: v for k, v in _raw.items() if not k.startswith("_")}
+    GUIDELINE_META = _raw.get("_meta", {})
+except FileNotFoundError:
+    GUIDELINE_META = {}
+except (OSError, ValueError) as e:      # 壊れたJSONで黙って既定に落ちない
+    GUIDELINE_META = {}
+    _warnings.warn(f"guideline_basis.json を読めなかった（アプリ既定で計算する）: {e}")
+
+
+def basis_of(material_type: str) -> dict:
+    """その部材のガイドライン根拠（無ければ空）。画面と精算書はこれを見る。"""
+    return GUIDELINE_BASIS.get(material_type, {})
+
+
+def citation_of(material_type: str) -> str:
+    """『ガイドライン P27』のような出典表記。定めが無ければ空文字。"""
+    b = basis_of(material_type)
+    if not b.get("covered") or not b.get("pages"):
+        return ""
+    return "ガイドライン " + "・".join(b["pages"])
 
 # 部材種別 → (耐用年数, 負担方式)
 MATERIAL_POLICY: dict[str, tuple[int | None, str]] = {
@@ -59,6 +105,22 @@ MATERIAL_POLICY: dict[str, tuple[int | None, str]] = {
     "諸経費": (None, APPORTION),
 }
 
+# ★ここでガイドラインの値が勝つ（2026-08-30）。
+#   JSON に policy がある部材だけを上書きする。policy が None のものは
+#   「ガイドラインは何も言っていない」ので、上の表（アプリの既定）をそのまま使う。
+#   equipment_needs_life は「按分せよとは書いてあるが、年数が書かれていない」状態。
+#   年数を勝手に作らない ＝ 上書きせず既定のまま動かし、画面と精算書で注意を出す。
+EQUIPMENT_NEEDS_LIFE = "equipment_needs_life"
+GUIDELINE_OVERRIDES: dict[str, tuple[int | None, str]] = {}
+for _m, _b in GUIDELINE_BASIS.items():
+    _p = _b.get("policy")
+    if _p in (DEPRECIABLE, FULL_FAULT, APPORTION):
+        _before = MATERIAL_POLICY.get(_m)
+        _after = (_b.get("useful_life"), _p)
+        MATERIAL_POLICY[_m] = _after
+        if _before != _after:
+            GUIDELINE_OVERRIDES[_m] = _after      # 画面に「ガイドラインで変わった」と出せる
+
 MATERIAL_TYPES = list(MATERIAL_POLICY.keys())
 
 # 後方互換: {種別: 耐用年数}
@@ -77,6 +139,26 @@ def residual_rate(life: int, residence_years: float) -> float:
     """直線償却の残存価値率（入居者負担率）。0.0〜1.0。"""
     remaining = (life - residence_years) / life
     return round(max(0.0, min(1.0, remaining)), 4)
+
+
+def _with_citation(material_type: str, text: str) -> str:
+    """算出根拠に出典を足す。
+
+    ★「ガイドラインに書いてある」と「このアプリがそう決めている」を混ぜない。
+      - ガイドラインが定めている部材 → 「(ガイドライン P27)」を付ける
+      - 定めが無い部材               → 「(ガイドラインに定め無し・当社既定)」と明記する
+      - 按分せよとあるが年数が無い    → その旨を出す（数字を作らない）
+    退去者に示す文なので、根拠の有無をぼかすと後で立場が悪くなる。
+    """
+    b = basis_of(material_type)
+    cite = citation_of(material_type)
+    if cite:
+        return f"{text}〔{cite}〕"
+    if b.get("policy") == EQUIPMENT_NEEDS_LIFE:
+        pg = "・".join(b.get("pages") or []) or "P28"
+        return (f"{text}〔ガイドライン {pg} は設備機器を『耐用年数で按分』とするが、"
+                f"この部材の耐用年数は示されていない。按分するなら年数を決めること〕")
+    return f"{text}〔ガイドラインに定め無し・当社既定〕"
 
 
 def calculate(data: RestorationData) -> RestorationData:
@@ -109,7 +191,7 @@ def _calc_work_item(item: LineItem, residence_years: float) -> None:
         item.tenant_rate = 0.0
         item.tenant_amount = 0
         item.owner_amount = item.vendor_amount
-        item.basis = "経年劣化（通常損耗）→ オーナー負担（入居者0円）"
+        item.basis = _with_citation(item.material_type, "経年劣化（通常損耗）→ オーナー負担（入居者0円）")
         return
 
     # 以降は故意・過失（FAULT_TENANT）
@@ -137,9 +219,10 @@ def _calc_work_item(item: LineItem, residence_years: float) -> None:
         item.tenant_rate = rate
         item.tenant_amount = tenant
         item.owner_amount = item.vendor_amount - tenant
-        item.basis = (
+        item.basis = _with_citation(
+            item.material_type,
             f"故意過失・耐用年数{life}年/経過{residence_years:.2f}年 → 残存{rate * 100:.1f}%"
-            f"（{target_note}に適用）"
+            f"（{target_note}に適用）",
         )
         return
 
@@ -147,7 +230,7 @@ def _calc_work_item(item: LineItem, residence_years: float) -> None:
     item.tenant_rate = 1.0
     item.tenant_amount = item.vendor_amount
     item.owner_amount = 0
-    item.basis = "故意過失（明らかな破損）→ 入居者負担100%"
+    item.basis = _with_citation(item.material_type, "故意過失（明らかな破損）→ 入居者負担100%")
 
 
 def _calc_apportioned(item: LineItem, total_tenant_work: int, total_owner_work: int) -> None:

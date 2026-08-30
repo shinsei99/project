@@ -23,6 +23,7 @@ from services import (
 )
 from services.pdf_parser import parse_pdf, PdfExtractionError
 from services.depreciation_engine import calculate, MATERIAL_TYPES, policy_of, DEPRECIABLE
+from services import depreciation_engine as engine   # 根拠の表示に使う（basis_of / life_of ほか）
 from services.excel_export_service import build as build_excel
 
 
@@ -257,6 +258,40 @@ with st.expander("📝 退去時確認書兼誓約書を出力（基本情報の
         st.error(f"誓約書の生成に失敗しました: {e}")
 
 
+def render_guideline_basis(items) -> None:
+    """使った部材のガイドライン根拠を画面に出す。
+
+    ★app.py の途中に直接書くと、計算結果が無いと通らない＝テストできない。
+      関数にしておけば、明細を渡すだけで「全部材で落ちないか」を機械で確かめられる。
+    """
+    # ---- ガイドラインの根拠（退去者への説明用） ----
+    # なぜ出すか: 「算出根拠」列は計算の内訳しか書いていない。揉めたときに要るのは
+    # 「ガイドラインのどこにそう書いてあるか」。本文とページ番号をその場で示せるようにする。
+    used_types = sorted({it.material_type for it in items})
+    with st.expander("📕 この精算のガイドライン根拠（退去者への説明に使えます）"):
+        meta = engine.GUIDELINE_META
+        if meta:
+            st.caption(f"出典: {meta.get('source','')}（本文 {meta.get('chunks','?')}チャンクから照合）")
+        for mt in used_types:
+            b = engine.basis_of(mt)
+            life, policy = engine.life_of(mt), engine.policy_of(mt)
+            head = f"**{mt}** … " + (f"耐用年数{life}年・按分" if life else
+                                     ("按分（諸経費）" if policy == engine.APPORTION else "耐用年数なし"))
+            if b.get("covered") and b.get("pages"):
+                st.markdown(f"{head}　`{'・'.join(b['pages'])}`")
+                st.markdown(f"> {b['quote']}")
+                if b.get("unit"):
+                    st.caption(f"負担単位: {b['unit']}")
+            elif b.get("policy") == engine.EQUIPMENT_NEEDS_LIFE:
+                st.markdown(f"{head}　⚠️ **ガイドラインに個別の定めなし（設備機器の一般則あり）**")
+                st.markdown(f"> {b['quote']}　`{'・'.join(b.get('pages') or [])}`")
+            else:
+                st.markdown(f"{head}　⚠️ **ガイドラインに定めなし（当社の既定で計算）**")
+            if b.get("note"):
+                st.caption(b["note"])
+            st.divider()
+
+
 # ============ 2. 業者見積Excelアップロード ============
 st.header("2. 業者見積書（Excel / PDF）のアップロード")
 uploaded = st.file_uploader(
@@ -432,6 +467,8 @@ if "result" in st.session_state:
         ]
     )
     st.dataframe(result_df, use_container_width=True)
+
+    render_guideline_basis(data.items)
 
     # ---- 帳票ダウンロード ----
     st.subheader("5. 帳票のダウンロード")
