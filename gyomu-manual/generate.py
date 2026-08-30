@@ -884,7 +884,11 @@ header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--b
 .manual:target{display:block}
 body.showhome .manual{display:none}
 body:not(.showhome) #homehero{display:none}
-.mtop{display:flex;align-items:center;gap:10px;padding:16px 0;position:sticky;top:58px;background:var(--card);z-index:5}
+/* ★上の帯（header.top）は実測77px。58pxだと重なり、さらにアンカーで飛んだとき
+   マニュアルの題名を覆っていた（2026-08-30 実測: 帯58〜128／題名105〜142）。
+   scroll-margin-top で、#id で飛んだ位置を2本の帯の下にする。 */
+.mtop{display:flex;align-items:center;gap:10px;padding:16px 0;position:sticky;top:77px;background:var(--card);z-index:5}
+.manual{scroll-margin-top:160px}
 .back{text-decoration:none;color:var(--mut);font-size:14px;font-weight:600}
 .back:hover{color:var(--tx)}
 .print{margin-left:auto;border:1px solid var(--line);background:var(--bg);color:var(--tx);border-radius:8px;padding:7px 12px;cursor:pointer;font-size:13px}
