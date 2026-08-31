@@ -35,7 +35,8 @@
 | 2 | 期間を外す | 「1ヶ月以内」の外に本命があることは普通にある（**範囲外に何件あるかを必ず報告する**） |
 | 3 | 必須語を1つずつ落とす | 固有名詞2つのANDは0件になりやすい。落とす順は**珍しい語を残す** |
 | 4 | 言い換えを足してOR | 懇親会↔懇談会。本文の表記は書き手が決めるので、こちらが合わせる |
-| 5 | 意味（ベクトル）検索へ | 語が1つも一致しないとき最後の手 |
+| 5 | どれか1語でも含むもの | 最後の網（全文検索の範囲） |
+| 6 | **意味（ベクトル）検索** | ★全文検索が空振りしたときだけ。「語を1つも思い出せない」質問はここでしか拾えない |
 
 **添付の中身も対象**（2026-08-31 に索引へ入れた）。本文に無い事実が添付にしか
 書かれていないことがある（実例: PTA大会の会場はスキャンPDFの中にしか無かった）。
@@ -295,6 +296,30 @@ def run(conn, question: str, max_hits: int = 20, use_llm: bool = True,
             best = {"answer": (got or {}).get("answer", ""), "rows": rows,
                     "note": note, "ids": (got or {}).get("ids", []), "terms": used_terms}
 
+    # ---- ⑥ 最後の一段: 意味（ベクトル）で近いものを拾う（2026-08-31 追加）
+    #
+    # ★**全文検索が空振りしたときだけ**使う。ここが肝。
+    #   ベクトルを最初から使うと、日本語で聞いたときに日本語メールが上位を埋め、
+    #   狙ったメールが圏外（上位800にも入らない）に落ちることが実測されている。
+    #   逆に「語を1つも思い出せない」質問（例: 去年の年末に駐車場の解約でもめてた件）は
+    #   全文検索では原理的に当たらないので、そこだけベクトルに任せる。
+    #
+    # ★ベクトルは **1メール1ベクトルで、添付の中身は入っていない**。
+    #   添付にしか書かれていない事実は①〜⑤（全文検索）でしか拾えない。順番を入れ替えないこと。
+    if judged < max_answers:
+        vec_rows = _vector_candidates(conn, question, max_hits, log, on_step)
+        if vec_rows:
+            got = _judge(conn, question, vec_rows) if use_llm else None
+            if got and got.get("answered"):
+                log[-1]["評価"] = "質問に答えられた"
+                return {"answer": got["answer"], "rows": vec_rows, "tried": log,
+                        "note": "★語が一致するメールは無かったので、意味の近さで探しました。",
+                        "ids": got["ids"], "terms": used_terms}
+            if best is None:
+                best = {"answer": (got or {}).get("answer", ""), "rows": vec_rows,
+                        "note": "★語が一致するメールは無かったので、意味の近さで探しました。",
+                        "ids": (got or {}).get("ids", []), "terms": used_terms}
+
     if best:
         best["tried"] = log
         best["note"] = ((best.get("note") or "") +
@@ -302,6 +327,39 @@ def run(conn, question: str, max_hits: int = 20, use_llm: bool = True,
         return best
     return {"answer": "", "rows": [], "tried": log, "ids": [], "terms": used_terms,
             "note": "見つかりませんでした。試した条件は下に出しています。"}
+
+
+def _vector_candidates(conn, question: str, max_hits: int, log: List[Dict[str, Any]],
+                       on_step: Optional[Callable[[str], None]] = None):
+    """意味（ベクトル）が近い順の候補。使えない環境なら空で返す（検索は止めない）。
+
+    ★ベクトルの作成は夜間ジョブ任せ。ここでは**質問文だけ**をその場でベクトル化して引く。
+      作られていない環境（ベクトル0件）では静かに空を返す。
+    """
+    import semantic
+    label = "⑥ 意味（ベクトル）で近いものを探す"
+    try:
+        if not semantic.available():
+            log.append({"やったこと": label + " … 使えない（埋め込み環境が未整備）",
+                        "条件": "", "期間": "", "件数": None})
+            return []
+        if db.embedding_count(conn, semantic.MODEL_NAME) == 0:
+            log.append({"やったこと": label + " … ベクトルがまだ1件も無い",
+                        "条件": "", "期間": "", "件数": None})
+            return []
+        ids, _sim = semantic.search(conn, question, top=200)
+        ids = ids[:max_hits]
+        by_id = {r["id"]: r for r in db.messages_by_ids(conn, ids)}
+        rows = [by_id[i] for i in ids if i in by_id]      # 類似度の順を保つ
+        log.append({"やったこと": label, "条件": "質問文の意味に近い順",
+                    "期間": "指定なし", "件数": len(rows)})
+        if on_step:
+            on_step("{} → {}件".format(label, len(rows)))
+        return rows
+    except Exception as e:      # noqa: BLE001 … ベクトルが死んでいても全文検索の結果は返す
+        log.append({"やったこと": label + " … 失敗", "条件": str(e)[:80],
+                    "期間": "", "件数": None})
+        return []
 
 
 def _judge(conn, question: str, rows) -> Optional[Dict[str, Any]]:
