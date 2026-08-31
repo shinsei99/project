@@ -93,6 +93,29 @@ def main():
     check("諸経費は按分", engine.policy_of("諸経費"), engine.APPORTION)
     check("未知の部材は全額扱い（既定）", engine.policy_of("知らない部材"), engine.FULL_FAULT)
 
+    # ★換気扇（2026-08-31 オーナー判断で 15年・按分にした）。
+    #   「ガイドラインに明確な記載が無いものは税務上の耐用年数による」。
+    #   年数の出どころが税法であることを、**精算書の文面ごと**固定する。
+    #   ここが緩むと「ガイドラインにこう書いてある」と誤って退去者へ示すことになる。
+    print("■ 換気扇（ガイドラインに定めなし → 税法の耐用年数15年で按分）")
+    check("換気扇は償却対象", engine.policy_of("換気扇"), engine.DEPRECIABLE)
+    check("換気扇の耐用年数（税法）", engine.life_of("換気扇"), 15)
+    check("換気扇はガイドラインの定めではない", engine.basis_of("換気扇").get("covered"), False)
+    check("換気扇の出典表記は空（ガイドライン扱いにしない）", engine.citation_of("換気扇"), "")
+    fan_nat = LineItem(name="換気扇交換", vendor_amount=30000,
+                       material_type="換気扇", fault=FAULT_NATURAL)
+    fan_fault = LineItem(name="換気扇交換", vendor_amount=30000,
+                         material_type="換気扇", fault=FAULT_TENANT)
+    fan_data = RestorationData(move_in_date=date(2020, 4, 1), move_out_date=date(2023, 4, 1),
+                               items=[fan_nat, fan_fault])
+    engine.calculate(fan_data)
+    # 経年劣化はこれまでどおりオーナー負担（今回の変更で動かしていない）
+    check("経年劣化なら入居者0円（変更していない）", fan_nat.tenant_amount, 0)
+    # 故意過失: 残存率 (15-3)/15 = 0.8 → 30,000×0.8 = 24,000（変更前は全額30,000）
+    check("故意過失は残存80%＝24,000（変更前は30,000）", fan_fault.tenant_amount, 24000)
+    check("算出根拠に税法の出どころが入る",
+          "省令" in fan_fault.basis and "ガイドラインに個別の定め無し" in fan_fault.basis, True)
+
     print()
     if FAILED:
         print("✗ {} 件ずれています: {}".format(len(FAILED), " / ".join(FAILED)))

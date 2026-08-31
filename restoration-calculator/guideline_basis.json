@@ -3,6 +3,8 @@
     "covered": true,
     "useful_life": 6,
     "policy": "depreciable",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P27",
       "P30"
@@ -15,6 +17,8 @@
     "covered": true,
     "useful_life": 6,
     "policy": "depreciable",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P27"
     ],
@@ -26,6 +30,8 @@
     "covered": true,
     "useful_life": 6,
     "policy": "depreciable",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P26",
       "P30"
@@ -38,6 +44,8 @@
     "covered": true,
     "useful_life": 6,
     "policy": "depreciable",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P26",
       "P30"
@@ -50,6 +58,8 @@
     "covered": true,
     "useful_life": 6,
     "policy": "depreciable",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P26",
       "P30"
@@ -62,6 +72,8 @@
     "covered": true,
     "useful_life": null,
     "policy": "full_fault",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P26",
       "P30"
@@ -74,6 +86,8 @@
     "covered": true,
     "useful_life": null,
     "policy": "full_fault",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P27"
     ],
@@ -85,6 +99,8 @@
     "covered": true,
     "useful_life": null,
     "policy": "full_fault",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P27"
     ],
@@ -96,6 +112,8 @@
     "covered": true,
     "useful_life": null,
     "policy": "full_fault",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P26",
       "P30"
@@ -108,6 +126,8 @@
     "covered": true,
     "useful_life": null,
     "policy": "full_fault",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P28",
       "P30"
@@ -118,19 +138,24 @@
   },
   "換気扇": {
     "covered": false,
-    "useful_life": null,
-    "policy": "equipment_needs_life",
+    "useful_life": 15,
+    "policy": "depreciable",
+    "tax_life": 15,
+    "tax_source": "減価償却資産の耐用年数等に関する省令 別表第一「建物附属設備／冷房、暖房、通風又はボイラー設備／その他のもの」＝15年",
     "pages": [
-      "P28"
+      "P28",
+      "P16"
     ],
     "quote": "(設備機器) ・ 耐用年数経過時点で残存価値1円となるような直線(または曲線)を想定し、負担割合を算定する(新品交換の場合も同じ)。",
     "unit": "補修部分、交換相当費用",
-    "note": "★ガイドラインは換気扇を名指ししていない。ただし**設備機器の一般則は「耐用年数で按分」**であり、このアプリの既定（耐用年数なし＝故意過失なら全額）とは向きが違う。実際に按分するかは物件・契約で判断すること（このアプリは自動では按分しない）。"
+    "note": "★ガイドラインは換気扇を名指ししていない。年数は**税法（省令 別表第一）の15年**を使う（2026-08-31 オーナー判断。定めが無いものは税務上の耐用年数による）。※P16の引用は残存価値10%だった旧基準の記述で、**採っているのは年数の出どころ**。残存価値は現行どおり1円で計算する。"
   },
   "ドアクローザー": {
     "covered": false,
     "useful_life": null,
     "policy": "equipment_needs_life",
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P28"
     ],
@@ -142,6 +167,8 @@
     "covered": false,
     "useful_life": null,
     "policy": null,
+    "tax_life": null,
+    "tax_source": null,
     "pages": [],
     "quote": "",
     "unit": null,
@@ -151,6 +178,8 @@
     "covered": false,
     "useful_life": null,
     "policy": null,
+    "tax_life": null,
+    "tax_source": null,
     "pages": [],
     "quote": "",
     "unit": null,
@@ -160,6 +189,8 @@
     "covered": false,
     "useful_life": null,
     "policy": null,
+    "tax_life": null,
+    "tax_source": null,
     "pages": [
       "P29"
     ],
@@ -171,6 +202,8 @@
     "covered": false,
     "useful_life": null,
     "policy": null,
+    "tax_life": null,
+    "tax_source": null,
     "pages": [],
     "quote": "",
     "unit": null,
@@ -180,6 +213,8 @@
     "covered": false,
     "useful_life": null,
     "policy": null,
+    "tax_life": null,
+    "tax_source": null,
     "pages": [],
     "quote": "",
     "unit": null,

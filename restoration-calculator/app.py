@@ -282,6 +282,12 @@ def render_guideline_basis(items) -> None:
                 st.markdown(f"> {b['quote']}")
                 if b.get("unit"):
                     st.caption(f"負担単位: {b['unit']}")
+            elif b.get("tax_life"):
+                # ガイドラインに定めが無く、税法の耐用年数を当てた部材（換気扇）。
+                # ガイドラインの定めと混ぜて見せない（出どころが違うため）。
+                st.markdown(f"{head}　ℹ️ **ガイドラインに個別の定めなし → 税法の耐用年数による**")
+                st.caption(f"耐用年数の出どころ: {b['tax_source']}")
+                st.markdown(f"> {b['quote']}　`{'・'.join(b.get('pages') or [])}`")
             elif b.get("policy") == engine.EQUIPMENT_NEEDS_LIFE:
                 st.markdown(f"{head}　⚠️ **ガイドラインに個別の定めなし（設備機器の一般則あり）**")
                 st.markdown(f"> {b['quote']}　`{'・'.join(b.get('pages') or [])}`")

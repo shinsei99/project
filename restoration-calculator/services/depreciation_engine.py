@@ -97,7 +97,15 @@ MATERIAL_POLICY: dict[str, tuple[int | None, str]] = {
     # 設備・通常損耗系（既定オーナー＝経年劣化、破壊時のみ故意過失）
     "ソフト巾木": (None, FULL_FAULT),
     "ドアクローザー": (None, FULL_FAULT),
-    "換気扇": (None, FULL_FAULT),
+    # ★換気扇だけ 15年・按分（2026-08-31 オーナー判断）。
+    #   「ガイドラインに明確な記載が無いものは**税務上の耐用年数**による」。
+    #   ガイドライン自身が経過年数の減価割合について税法を採用すると述べており（P16）、
+    #   設備機器の一般則は耐用年数で按分（P28）。換気扇は省令 別表第一の
+    #   建物附属設備「冷房、暖房、通風又はボイラー設備／その他のもの」＝15年。
+    #   ★同じ理屈をソフト巾木・ペンキへ広げてはいけない。あれらの税法上の相手は
+    #     建物本体（RC47年等）で、按分すると**入居者負担が今より増える**。
+    #     ドアクローザーはガイドラインが「建具は経過年数を考慮しない」としているので現状のまま。
+    "換気扇": (15, DEPRECIABLE),
     "ペンキ・塗装": (None, FULL_FAULT),
     "フローリング": (None, FULL_FAULT),
     "その他": (None, FULL_FAULT),
@@ -154,6 +162,14 @@ def _with_citation(material_type: str, text: str) -> str:
     cite = citation_of(material_type)
     if cite:
         return f"{text}〔{cite}〕"
+    if b.get("tax_life"):
+        # ガイドラインに個別の定めが無く、**税法の耐用年数**を当てた部材（換気扇）。
+        # 「ガイドラインにこう書いてある」と言わない。年数の出どころを名指しする。
+        pg = "・".join(b.get("pages") or [])
+        return (f"{text}〔ガイドラインに個別の定め無し。耐用年数{b['tax_life']}年は"
+                f"{b['tax_source']}による"
+                + (f"（ガイドライン {pg}: 設備機器は耐用年数で按分／減価割合は税法による）" if pg else "")
+                + "〕")
     if b.get("policy") == EQUIPMENT_NEEDS_LIFE:
         pg = "・".join(b.get("pages") or []) or "P28"
         return (f"{text}〔ガイドライン {pg} は設備機器を『耐用年数で按分』とするが、"
