@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  社内共有フォルダ（大京商事Dropbox）→ 個人Dropbox/社内バックアップ へ週1回ミラー。
+  毎週日曜 6:00（Weekday=0）。
+
+  ★5:00 に file-finder-inventory が「全ファイル一覧.xlsx」を作り直すので、
+    その後に走らせて、できたてを一緒にバックアップする。
+
+  ★ProgramArguments は必ず /bin/bash 経由にすること。
+    Dropbox(CloudStorage) は launchd から TCC で読めないが、
+    /bin/bash にフルディスクアクセスがあれば読める（責任プロセスが bash になるため）。
+
+  ★メインPC（Mac mini）だけに入れる。サブPCには入れない（二重に走らせない）。
+
+  入れ直し（引数を変えたら kickstart では反映されない）:
+    launchctl bootout   gui/$(id -u)/com.shinsei.dropbox-backup
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shinsei.dropbox-backup.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.shinsei.dropbox-backup</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/apple/dropbox-backup/backup.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/apple/dropbox-backup</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Weekday</key>
+    <integer>0</integer>
+    <key>Hour</key>
+    <integer>6</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>LowPriorityIO</key>
+  <true/>
+  <key>Nice</key>
+  <integer>5</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/apple/Library/Logs/com.shinsei.dropbox-backup.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/apple/Library/Logs/com.shinsei.dropbox-backup.err.log</string>
+</dict>
+</plist>
