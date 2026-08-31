@@ -88,30 +88,31 @@ PYCHK
 )"
 if [ -n "$STUCK" ]; then
   echo "$(date '+%F %T') 前に出した記事がまだZennで公開されていない: $STUCK"
-  echo "  次の1本は出さない（未公開を積み増さない）。"
-  # ★Zennは上限で弾いた記事を**自動では再試行しない**（ai-tools-base/CLAUDE.md）。
-  #   待っているだけでは永久に公開されないので、空コミットを push してデプロイを促す。
-  #   上限が解けていればこれで公開される。解けていなければまた弾かれるだけで害は無い。
+  # ★★ 2026-08-31 に判明した一番大事なこと ★★
+  #
+  # **Zenn連携は「pushのたびにデプロイ」**。このリポジトリは開発で **1日30〜67回** push される。
+  # published: true の記事を articles/ に置いたままにすると、**その全部が投稿の試行**になる。
+  # 「1日1本」のつもりで、実際は **1日50回投稿しようとしていた**。
+  # Zennの上限は「粗製乱造の防止」目的の複合ロジックなので、これでは永久に解けない。
+  #
+  # だから **公開されなかった記事は articles/ から引き上げる**。
+  # 置きっぱなしにしない ＝ 無関係なコミットで投稿を試みない。
+  # （空コミットで再デプロイを促すのも試行を増やすだけなのでやめた）
   if [ -z "$DRY" ]; then
-    # ★空コミットでもパス指定は要る。素の `git commit --allow-empty` は
-    #   「インデックス全体」を木にするので、インデックスが古いと**空のつもりが
-    #   他人のファイルを消すコミットになる**（--allow-empty は空を許すだけで、空を作る指定ではない）。
-    #   パスを付ければ HEAD ＋ そのパスだけになり、変化が無ければ本当に空になる。
-    # ★`--autostash` が要る（2026-08-29に判明）。このMacは複数セッションが同じ作業ツリーを
-    #   同時に触るので、**他人の未コミット変更が常に残っている**。素の `git pull --rebase` は
-    #   "cannot pull with rebase: You have unstaged changes" で必ず失敗する。
-    #   8/28 の「★空コミットの push に失敗した」はこれが原因だった。
-    # ★ここも専用インデックスで行う（2026-08-29）。共有インデックスを触らない。
-    #   `git pull --rebase` は他人の未コミット変更があると失敗するので fetch＋rebase にする
-    if ( export GIT_INDEX_FILE="$(mktemp -t zenn-empty-index)"; \
+    for slug in $STUCK; do
+      [ -f "../articles/$slug.md" ] || continue
+      mv "../articles/$slug.md" "$PEND/$slug.md" && echo "  articles/ から待機場所へ戻した: $slug"
+    done
+    if ( export GIT_INDEX_FILE="$(mktemp -t zenn-pull-index)"; \
          cd .. && git read-tree HEAD \
-         && git commit -q --allow-empty -m "Zenn: 未公開分の再デプロイを促す（$STUCK）" \
+         && git add -A -- articles ai-tools-base/drafts/zenn_pending \
+         && git commit -q -m "Zenn: 公開されなかった記事を待機場所へ戻す（試行を増やさない）" \
          && { git push -q origin main \
               || { git fetch -q origin main && git rebase -q --autostash origin/main \
                    && git push -q origin main || { git rebase --abort 2>/dev/null; false; }; }; } ); then
-      echo "  空コミットを push した（再デプロイを促した）。上限が解けていれば公開される。"
+      echo "  引き上げを push した。**次に出すのは明晩の1回だけ**になる。"
     else
-      echo "  ★空コミットの push に失敗した。"
+      echo "  ★引き上げの push に失敗した（記事は手元では戻っている）"
     fi
   fi
   echo "  デプロイの状況: https://zenn.dev/dashboard/deploys"
