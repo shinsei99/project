@@ -22,12 +22,30 @@
 #   ・Chatwork/LINE の応答（AI業務マネージャーの worker）
 #   ・画面からの「AIに探してもらう」
 #   ・メールの取り込み・添付のOCR（macOS Vision＝無料）・ベクトル作成（ローカル）
+#
+# ★節約中は **Fable を使わない**（2026-09-01 オーナー指示）。
+#   枠のゲージは入れ子で、「全モデル」と「Fableのみ」は**どちらか**ではない。
+#   Fable を使うと**両方**減り、しかも 1トークンの重さが **Opus の倍**（$10/$50 対 $5/$25）。
+#   ＝「Fableのみが減っていないから余っている」ではなく、**使うと全モデル側が最速で減る**。
+#   自動処理は全部 `sonnet` に固定してあるので、下の点検は「うっかり足した」を見つける係。
 set -eu
 MARK="$HOME/.ai-quota-saver"
+REPO="$(cd "$(dirname "$0")" && pwd)"
 
 _until() {   # 期限を取り出す（無ければ空）
   [ -f "$MARK" ] || return 0
   grep -v '^#' "$MARK" 2>/dev/null | head -1 | tr -d ' \t'
+}
+
+_fable_hits() {  # 実行されるファイルの中に Fable の指定が無いか
+  # ★探す範囲は **git の管理下だけ**（`git ls-files`）。
+  #   このリポジトリの作業ツリーはホーム直下なので、素の `grep -r` を掛けると
+  #   Library や CloudStorage（46GBの原本）まで舐めて数分帰ってこない（2026-09-01 実測）。
+  #   .md は文章として Fable の話を書いてあるので見ない（自分自身が引っかかる）。
+  ( cd "$REPO" 2>/dev/null || exit 0
+    git ls-files -z -- '*.py' '*.sh' '*.js' '*.ts' '*.json' '*.plist' 2>/dev/null \
+      | xargs -0 grep -En -e '--model[[:space:]="'"'"']*fable' -e 'claude-fable-[0-9]' 2>/dev/null
+  ) || true
 }
 
 _active() {  # 節約中か（0=節約中）
@@ -70,6 +88,14 @@ EOF
   *)
     if _active; then
       echo "節約モード: ON（$(_until) まで）"
+      echo "  ★節約中は Fable を使わない（全モデル枠を Opus の倍の速さで食う）"
+      hits="$(_fable_hits)"
+      if [ -n "$hits" ]; then
+        echo "  ⚠️ Fable の指定が見つかった。sonnet に直すこと:" >&2
+        printf '     %s\n' "$hits" >&2
+      else
+        echo "  Fable の指定: なし（自動処理は全部 sonnet）"
+      fi
     elif [ -f "$MARK" ]; then
       echo "節約モード: OFF（期限 $(_until) を過ぎたので自動で戻っている）"
     else
