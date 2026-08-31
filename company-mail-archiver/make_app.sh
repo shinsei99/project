@@ -1,73 +1,100 @@
 #!/bin/bash
-# Desktop/社内ツール の `.app`（ブラウザで画面を開くだけのランチャ）を作り直す。
+# Desktop/社内ツール の `.app`（ブラウザで画面を開くだけのランチャ）を作る。
 #
 #   ./make_app.sh
 #
-# ★作り方は「**動いている .app を丸ごと複製して、3か所だけ書き換える**」（2026-08-31 に確定）。
+# ★作り方は「**macOS 自身に作らせる（osacompile）→ きれいな場所で直して署名 → 置く**」。
+#   2026-08-31 に手作りの bundle で1時間はまった末に確定した手順。下の「はまり所」を必ず読むこと。
 #
-#   ゼロから mkdir で組み立てた bundle は、**中身が既存アプリと1バイト単位で同じ構成**
-#   （ファイル一覧・権限・拡張属性・未署名まで一致）でも、**Finder のアイコンから開けなかった**。
-#   `open` はシェルからだと成功するのに、Finder のダブルクリックだけ通らない状態。
-#   原因を特定しきれなかったので、**確実に動いているものを ditto で複製する**方法に変えた。
-#   （Desktop は file provider 管理下にあるので、その辺りの都合と推測。深追いしない）
+# ## はまり所（全部このアプリで実際に踏んだ）
 #
-# ★書き換えるのは3か所だけ:
-#     Contents/MacOS/launcher     … 開くURL（ポート）
-#     Contents/Info.plist         … 表示名と CFBundleIdentifier
-#     Contents/Resources/AppIcon.icns … アイコン
+# 1. **手で組み立てた .app は Finder のダブルクリックで開けないことがある。**
+#    `mkdir` で Contents/MacOS/launcher を書いただけの bundle は、動いているアプリと
+#    ファイル構成・権限・拡張属性・署名の有無まで一致していても失敗した。
+#    → **osacompile に作らせる**。これは本物の Mach-O と署名を持つ正規の bundle。
 #
-# ★CFBundleIdentifier は **launchd のラベルと別にする**（`-app` を付ける）。
-#   紛らわしさを避けるためで、これ自体が不具合の原因だった証拠は無い。
+# 2. **`ls -lO` を見ること。** 書き換えた Info.plist に `hidden` フラグ（UF_HIDDEN）が
+#    付いていて LaunchServices が bundle を読めなかった。
+#    `ls -l` にも `xattr` にも `codesign` にも出ない。
 #
-# ★最後に `lsregister -f` を叩くまでが「アプリを作る」作業。
-#   叩かないと Finder に登録されず、`open` は error -10810 で落ちる（これも実際に踏んだ）。
+# 3. **こちらから試す起動は全部成功してしまう。**
+#    `launcher` 直接実行 / `open` / `open -b` / AppleScript で Finder に開かせる、の4経路とも
+#    成功するのに、利用者のダブルクリックだけ失敗した。**「開けた」を根拠にしない。**
+#
+# 4. **Desktop で codesign すると失敗する。**
+#    `resource fork, Finder information, or similar detritus not allowed`。
+#    Desktop は file provider 管理下で `com.apple.FinderInfo` が付く。
+#    → **scratchpad で `xattr -cr` してから署名し、署名済みを ditto で置く。**
+#
+# 5. **osacompile の既定アイコンが勝つ。** `Assets.car` と `CFBundleIconName` があると
+#    そちらが優先され、差し替えた `applet.icns` が出ない。両方外す。
+#
+# 6. 作り直しの最中は Finder が古い実体を掴んだままになる → `killall Finder`。
 set -eu
 cd "$(dirname "$0")"
 
-NAME="社内メールアーカイバ"
-PORT=8538
-BUNDLE_ID="com.shinsei.company-mail-archiver-app"
-TOOLS="$HOME/Desktop/社内ツール"
-APP="$TOOLS/${NAME}.app"
-SRC="$TOOLS/メールアーカイバ.app"          # 確実に動いている見本
+# 名前とポートは差し替えられる（手順を捨て名で試すため。既定は本番）
+NAME="${APP_NAME:-社内メールアーカイバ}"
+PORT="${APP_PORT:-8538}"
+BUNDLE_ID="${APP_BUNDLE_ID:-com.shinsei.company-mail-archiver-app}"
+APP="$HOME/Desktop/社内ツール/${NAME}.app"
+WORK="$(mktemp -d /tmp/mkapp.XXXXXX)"
+BUILD="$WORK/${NAME}.app"
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
-[ -d "$SRC" ] || { echo "見本が無い: $SRC"; exit 1; }
 [ -f icon-src/AppIcon.icns ] || /usr/bin/python3 icon-src/make_icon.py
 
-# 既にあるものは退避（rm は使わない。消す判断は人がする）
-if [ -d "$APP" ]; then
-  mv "$APP" "${APP%.app}.old-$(date +%H%M%S).app"
-fi
+# ① macOS に作らせる（正規の bundle。署名も付く）
+osacompile -o "$BUILD" -e "do shell script \"open \\\"http://localhost:${PORT}\\\"\""
 
-ditto "$SRC" "$APP"
-
-printf '#!/bin/zsh\nopen "http://localhost:%s"\n' "$PORT" > "$APP/Contents/MacOS/launcher"
-chmod +x "$APP/Contents/MacOS/launcher"
-
-/usr/bin/python3 - "$APP" "$NAME" "$BUNDLE_ID" <<'PY'
+# ② アイコンと名前を入れる。既定アイコンが勝たないよう Assets.car と CFBundleIconName を外す
+cp icon-src/AppIcon.icns "$BUILD/Contents/Resources/applet.icns"
+[ -f "$BUILD/Contents/Resources/Assets.car" ] && mv "$BUILD/Contents/Resources/Assets.car" "$WORK/Assets.car.unused"
+/usr/bin/python3 - "$BUILD" "$NAME" "$BUNDLE_ID" <<'PY'
 import sys, os, plistlib
 app, name, bid = sys.argv[1], sys.argv[2], sys.argv[3]
 p = os.path.join(app, "Contents", "Info.plist")
 d = plistlib.load(open(p, "rb"))
-d["CFBundleDisplayName"] = d["CFBundleName"] = name
+d["CFBundleName"] = d["CFBundleDisplayName"] = name
 d["CFBundleIdentifier"] = bid
+d["CFBundleIconFile"] = "applet"       # 差し替えた applet.icns を使う
+d.pop("CFBundleIconName", None)        # アセットカタログ側の指定は消す
 plistlib.dump(d, open(p, "wb"))
 PY
 
-cp icon-src/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+# ③ きれいにしてから署名（Desktop 上でやると Finder情報で必ず失敗する）
+xattr -cr "$BUILD"
+chflags -R nohidden "$BUILD"
+codesign --force --deep --sign - "$BUILD"
+codesign -v "$BUILD"
 
-# ★隠しフラグを必ず外す（2026-08-31 に踏んだ・原因特定まで一番遠回りした）
-#   書き換えた Info.plist と AppIcon.icns に **UF_HIDDEN が付いていた**。
-#   すると LaunchServices がバンドルを読めず、Finder のダブルクリックだけが
-#   「アプリケーション"…"を開けません。」で失敗する。
-#   ★シェルからの `open` / `open -b` / AppleScript の Finder open は**成功してしまう**ので、
-#     「こちらでは開ける」と誤判定する。**必ず `ls -lO` でフラグを見ること。**
-chflags -R nohidden "$APP"
-
-touch "$APP"
+# ④ 置く（既にあるものは退避。rm は使わない＝消す判断は人がする）
+if [ -d "$APP" ]; then
+  mv "$APP" "$WORK/previous.app"
+fi
+ditto "$BUILD" "$APP"
 "$LSREGISTER" -f "$APP"
+touch "$APP"
+killall Finder 2>/dev/null || true
+
+# ★隠しフラグは **置いた後に戻ることがある**（実測。Desktop は file provider 管理下で、
+#   ditto / lsregister の直後に UF_HIDDEN が付き直る）。1回外すだけでは足りないので、
+#   0件になるまで数回外して、最後に**必ず数える**。ここが0でないと Finder から開けない。
+for _ in 1 2 3 4 5; do
+  n=$(find "$APP" -flags +hidden 2>/dev/null | wc -l | tr -d ' ')
+  [ "$n" = "0" ] && break
+  chflags -R nohidden "$APP"
+  sleep 1
+done
 
 echo "作りました: $APP"
-open -b "$BUNDLE_ID" && echo "確認: バンドルIDで起動できた（Finderのダブルクリックと同じ経路）"
-echo "※ Finder のアイコンが古いままなら、いったんフォルダを閉じて開き直す（または killall Finder）"
+echo "  署名   : $(codesign -dv "$APP" 2>&1 | grep Signature || echo '確認できず')"
+HID=$(find "$APP" -flags +hidden 2>/dev/null | wc -l | tr -d ' ')
+echo "  隠し   : ${HID} 件（0であること）"
+if [ "$HID" != "0" ]; then
+  echo "  ★隠しフラグが残っている。このままでは Finder から開けない:"
+  find "$APP" -flags +hidden
+  echo "  手で外す: chflags -R nohidden \"$APP\""
+fi
+echo "  退避先 : $WORK"
+echo "★確認は必ず**Finderでダブルクリック**。open が通っても開けるとは限らない。"
