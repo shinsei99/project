@@ -267,6 +267,16 @@ def _render_pdf_images(path, out_dir, max_pages=15, dpi=150):
     return out
 
 
+class OcrSkippedByQuotaSaver(Exception):
+    """節約モード中なので claude へ回さなかった。**異常ではない**（2026-09-01）。
+
+    ★`OcrUnavailable` と分けるのが肝。`OcrUnavailable` は「claudeが壊れている」の合図で、
+      呼び出し側は連続3回でその晩を諦める作りになっている。節約モードでこれを投げたら、
+      **Visionで読めない書類に3件当たっただけで一晩が終わった**（2026-09-01の実測: 15分・5件で撤退）。
+      こちらは「この書類は後日に回す」だけの意味で、撤退の理由にはしない。
+    """
+
+
 class OcrUnavailable(Exception):
     """OCRの土台（claude）が使えなかった。**書類に文字が無いのとは別物**。
 
@@ -355,7 +365,7 @@ def ocr_pdf(path, max_pages=15) -> list:
     #   「この書類には文字が無い」と見なして**見送りリストへ入れ、二度とOCRしなくなる**。
     #   例外なら「今日はできなかった」扱いなので、枠が戻れば自動で再挑戦される。
     if _quota_saver_active():
-        raise OcrUnavailable("節約モード中のため claude へ回送しない（Vision では読めなかった）")
+        raise OcrSkippedByQuotaSaver("節約モード中（Vision では読めなかったので後日に回す）")
 
     import re
     import tempfile

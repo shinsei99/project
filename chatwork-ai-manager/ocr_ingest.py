@@ -32,7 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from db.migrate import migrate  # noqa: E402
 from services import config, knowledge  # noqa: E402
-from services.knowledge import OcrUnavailable  # noqa: E402
+from services.knowledge import OcrSkippedByQuotaSaver, OcrUnavailable  # noqa: E402
 from services.settings import set_state  # noqa: E402
 
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -124,6 +124,7 @@ def main():
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] PDF {len(pdfs)} 件を確認{budget}", flush=True)
 
     ocr_ok = text_skip = empty = failed = chunks = known_skip = unreadable = 0
+    postponed = 0       # 節約モードで後日に回した数（撤退の理由にしない）
     streak = 0          # claude（バックエンド）が連続でこけた回数。これだけが撤退の理由
     doc_streak = 0      # 書類側の失敗が連続した回数。桁違いに大きいときだけ異常とみなす
     stopped = ""
@@ -158,6 +159,12 @@ def main():
                 skips.pop(p, None)            # 取れたので記録から外す
                 tag = "OCR" if str(r.get("mime", "")).endswith("-ocr") else "text"
                 print(f"  [{i}/{len(pdfs)}] {tag} {r.get('chunks')}ch: {rel}", flush=True)
+        except OcrSkippedByQuotaSaver:
+            # ★節約モード中。**撤退の理由にしない**（2026-09-01 に踏んだ）。
+            #   claudeが壊れているわけではないので、Visionで読める書類は最後まで処理を続ける。
+            postponed += 1
+            print(f"  [{i}/{len(pdfs)}] 後日に回す（節約モード中・Visionでは読めなかった）: {rel}",
+                  flush=True)
         except OcrUnavailable as e:
             # claude 側が落ちている。**見送りリストには入れない**（この書類のせいではない）
             failed += 1
@@ -203,6 +210,7 @@ def main():
     set_state("ocr_progress",
               f"{'中断' if stopped else '完了'} OCR {ocr_ok} / 認識なし {empty} / 失敗 {failed}")
     print(f"\n[{datetime.now():%Y-%m-%d %H:%M:%S}] 終了 {elapsed/60:.1f}分{tail}", flush=True)
+    print(f"節約モードで後日に回した {postponed} 件") if postponed else None
     print(f"OCR取込 {ocr_ok} / 既取込スキップ {text_skip} / 認識なし {empty} / "
           f"失敗 {failed} / 読めない {unreadable} / 見送り済み飛ばし {known_skip} / "
           f"追加チャンク {chunks}", flush=True)
