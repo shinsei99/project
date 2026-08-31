@@ -116,6 +116,32 @@ CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
   subject, addrs, body, tokenize='trigram'
 );
 
+-- 添付の中身（2026-08-31 追加）。1添付1行。
+--
+-- **なぜ要るか**: これまで添付は「保管してダウンロードできる」だけで、**中身は検索できなかった**。
+--   実際、PTA大会の会場（スイスホテル南海大阪）はメール本文に一度も出てこず、
+--   スキャンPDFの中にしかないため、どんな語で検索しても当たらなかった（2026-08-31 実測）。
+--
+-- method: 'text'（テキスト層/Officeから抽出）/ 'ocr'（macOS Vision）/ 'none'（文字が無い）/ 'error'
+-- ★ 'none' も行を作る。作らないと毎晩同じファイルを試し続けて前に進まない。
+CREATE TABLE IF NOT EXISTS attachment_texts (
+  attachment_id INTEGER PRIMARY KEY REFERENCES attachments(id) ON DELETE CASCADE,
+  message_id    INTEGER NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+  method        TEXT NOT NULL,
+  chars         INTEGER NOT NULL DEFAULT 0,
+  pages         INTEGER,
+  text          TEXT NOT NULL DEFAULT '',
+  error         TEXT,
+  made_at       TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_attachment_texts_msg ON attachment_texts(message_id);
+CREATE INDEX IF NOT EXISTS idx_attachment_texts_method ON attachment_texts(method);
+
+-- 添付本文の全文検索。rowid = attachments.id にそろえる（JOINで引けるように）
+CREATE VIRTUAL TABLE IF NOT EXISTS attachment_fts USING fts5(
+  text, tokenize='trigram'
+);
+
 -- 意味検索用のベクトル。1メール1行（モデルを変えたら作り直す前提で model も持つ）。
 -- vec は float32 を正規化して並べた生バイト（コサイン=内積で引ける）。
 CREATE TABLE IF NOT EXISTS embeddings (
@@ -254,18 +280,139 @@ def insert_message(conn: sqlite3.Connection, m: Dict[str, Any]) -> int:
 
 
 def insert_attachment(conn: sqlite3.Connection, message_row: int, filename: str,
-                      content_type: str, size_bytes: int, path: str, sha256: str) -> None:
-    conn.execute(
+                      content_type: str, size_bytes: int, path: str, sha256: str) -> int:
+    """戻り値は attachments.id（添付の中身を索引に入れるときに要る。2026-08-31 に追加）。"""
+    cur = conn.execute(
         "INSERT INTO attachments(message_id, filename, content_type, size_bytes, path, sha256) "
         "VALUES(?,?,?,?,?,?)",
         (message_row, filename, content_type, size_bytes, path, sha256),
     )
+    return int(cur.lastrowid)
 
 
 def attachments_of(conn: sqlite3.Connection, message_row: int) -> List[sqlite3.Row]:
     return conn.execute(
         "SELECT * FROM attachments WHERE message_id=? ORDER BY filename", (message_row,)
     ).fetchall()
+
+
+# ------------------------------------------------------- 添付の中身（2026-08-31）
+
+def save_attachment_text(conn: sqlite3.Connection, attachment_id: int, message_id: int,
+                         method: str, text: str = "", pages: Optional[int] = None,
+                         error: str = "") -> None:
+    """添付から取り出した本文を保存し、全文検索にも載せる。
+
+    ★同じ添付を2回処理しても行が増えないように、FTS 側は**必ず消してから入れ直す**
+      （FTS5 は外部キーも UNIQUE も持たないので、放っておくと二重に積み上がる）。
+    """
+    text = text or ""
+    now = utcnow()
+    conn.execute(
+        "INSERT INTO attachment_texts(attachment_id, message_id, method, chars, pages, "
+        "text, error, made_at) VALUES(?,?,?,?,?,?,?,?) "
+        "ON CONFLICT(attachment_id) DO UPDATE SET message_id=excluded.message_id, "
+        "method=excluded.method, chars=excluded.chars, pages=excluded.pages, "
+        "text=excluded.text, error=excluded.error, made_at=excluded.made_at",
+        (attachment_id, message_id, method, len(text), pages, text, error or None, now),
+    )
+    conn.execute("DELETE FROM attachment_fts WHERE rowid=?", (attachment_id,))
+    if text.strip():
+        conn.execute("INSERT INTO attachment_fts(rowid, text) VALUES(?,?)",
+                     (attachment_id, text))
+
+
+def pending_attachments(conn: sqlite3.Connection, exts: List[str],
+                        limit: int = 0, retry_empty: bool = False,
+                        since_days: int = 0) -> List[sqlite3.Row]:
+    """まだ中身を取り出していない添付。**新しいメールのものから**返す。
+
+    retry_empty=True のときは「文字が取れなかった（none）」ものも対象に戻す。
+    since_days>0 なら、その日数より新しいメールの添付だけを対象にする
+    （＝新着を先に必ず片付けるため。積み残しの山に埋もれさせない）。
+    """
+    skip = ("AND (t.attachment_id IS NULL OR t.method IN ('none','error'))" if retry_empty
+            else "AND t.attachment_id IS NULL")
+    cond = " OR ".join("LOWER(a.filename) LIKE ?" for _ in exts)
+    since = ""
+    params: List[Any] = ["%" + e for e in exts]
+    if since_days:
+        since = "AND m.date_utc >= ? "
+        params.append((datetime.now(timezone.utc) - timedelta(days=since_days))
+                      .strftime("%Y-%m-%dT%H:%M:%SZ"))
+    sql = (
+        "SELECT a.id, a.message_id, a.filename, a.path, a.size_bytes, m.date_utc "
+        "FROM attachments a "
+        "JOIN messages m ON m.id = a.message_id "
+        "LEFT JOIN attachment_texts t ON t.attachment_id = a.id "
+        f"WHERE ({cond}) {skip} {since}"
+        "ORDER BY m.date_utc DESC"      # 新しいメールの添付から処理する（欲しいのは最近の分）
+    )
+    if limit:
+        sql += " LIMIT ?"
+        params.append(limit)
+    return conn.execute(sql, params).fetchall()
+
+
+def attachment_hits(conn: sqlite3.Connection, message_ids: List[int],
+                    fts_expr: str) -> Dict[int, List[str]]:
+    """その検索式が**添付のどれに当たったか**。{メールid: [ファイル名, …]}。
+
+    画面で「本文ではなく添付に当たった」と示すために使う。これが無いと、
+    利用者は本文を探しても語が見つからず「誤検索では」と思う。
+    """
+    if not message_ids or not fts_expr:
+        return {}
+    place = ",".join("?" for _ in message_ids)
+    rows = conn.execute(
+        "SELECT at.message_id, a.filename FROM attachment_texts at "
+        "JOIN attachment_fts af ON af.rowid = at.attachment_id "
+        "JOIN attachments a ON a.id = at.attachment_id "
+        f"WHERE attachment_fts MATCH ? AND at.message_id IN ({place})",
+        [fts_expr] + list(message_ids),
+    ).fetchall()
+    out: Dict[int, List[str]] = {}
+    for r in rows:
+        out.setdefault(r["message_id"], []).append(r["filename"])
+    return out
+
+
+def attachment_hits_terms(conn: sqlite3.Connection, message_ids: List[int],
+                          terms: List[str]) -> Dict[int, List[Tuple[str, str]]]:
+    """語が**添付のどれに・どんな文脈で**当たったか。{メールid: [(ファイル名, 前後の抜粋), …]}。
+
+    画面用。FTS式ではなく素の語で引く（意味検索の経路は式を持たないため）。
+    表示するメールの分だけを引くので LIKE でも十分速い。
+    """
+    terms = [t.strip() for t in (terms or []) if t and t.strip()]
+    if not message_ids or not terms:
+        return {}
+    place = ",".join("?" for _ in message_ids)
+    rows = conn.execute(
+        "SELECT at.message_id, at.attachment_id, a.filename, at.text "
+        "FROM attachment_texts at JOIN attachments a ON a.id = at.attachment_id "
+        f"WHERE at.message_id IN ({place}) AND at.chars > 0", list(message_ids)).fetchall()
+    out: Dict[int, List[Tuple[str, str]]] = {}
+    for r in rows:
+        text = r["text"] or ""
+        for t in terms:
+            i = text.find(t)
+            if i < 0:
+                continue
+            snippet = " ".join(text[max(0, i - 40): i + len(t) + 60].split())
+            out.setdefault(r["message_id"], []).append((r["filename"], snippet))
+            break
+    return out
+
+
+def attachment_text_stats(conn: sqlite3.Connection) -> Dict[str, Any]:
+    """添付の索引の進み具合。"""
+    total = conn.execute("SELECT COUNT(*) c FROM attachments").fetchone()["c"]
+    done = conn.execute(
+        "SELECT method, COUNT(*) c, COALESCE(SUM(chars),0) ch "
+        "FROM attachment_texts GROUP BY method").fetchall()
+    by = {r["method"]: {"件": r["c"], "文字": r["ch"]} for r in done}
+    return {"添付総数": total, "処理済み": sum(v["件"] for v in by.values()), "内訳": by}
 
 
 # ---------------------------------------------------------------- 検索
@@ -275,29 +422,43 @@ def search(conn: sqlite3.Connection, q: str = "", sender: str = "",
            date_from: str = "", date_to: str = "",
            state: str = "all", has_attach: bool = False,
            direction: str = "all", fts_expr: str = "",
-           limit: int = 200, offset: int = 0) -> Tuple[List[sqlite3.Row], int]:
+           limit: int = 200, offset: int = 0,
+           include_attachments: bool = True) -> Tuple[List[sqlite3.Row], int]:
     """全文検索＋絞り込み。戻り値は (行, 総件数)。
 
     q は3文字以上なら FTS5(trigram)、2文字以下なら LIKE を使う（trigramは3文字未満を索引できない）。
     fts_expr を渡すと、q の代わりに**生の FTS5 MATCH 式**をそのまま使う
     （AI検索が組み立てる `"水道局" AND ("質疑" OR "協議")` のような式を通すため）。
+
+    include_attachments=True（既定）は**添付の中身**も探す（2026-08-31）。
+    本文に無くて添付にしか書かれていない事実（会場名など）が引けるようにするため。
+    ★JOIN ではなく IN(サブクエリ) にしてある。JOIN だと添付が複数ヒットしたメールが
+      **件数で二重に数えられる**（総件数がずれる）。
     """
     where: List[str] = []
     params: List[Any] = []
     join = ""
     order = "m.date_utc DESC"
 
+    def _fts_clause(expr: str) -> str:
+        """本文（と、指定があれば添付本文）に対する MATCH 条件。"""
+        msg = "m.id IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ?)"
+        params.append(expr)
+        if not include_attachments:
+            return msg
+        att = ("m.id IN (SELECT at.message_id FROM attachment_texts at "
+               "JOIN attachment_fts af ON af.rowid = at.attachment_id "
+               "WHERE attachment_fts MATCH ?)")
+        params.append(expr)
+        return "(" + msg + " OR " + att + ")"
+
     q = (q or "").strip()
     fts_expr = (fts_expr or "").strip()
     if fts_expr:
-        join = "JOIN messages_fts f ON f.rowid = m.id"
-        where.append("messages_fts MATCH ?")
-        params.append(fts_expr)
+        where.append(_fts_clause(fts_expr))
     elif q:
         if len(q) >= 3:
-            join = "JOIN messages_fts f ON f.rowid = m.id"
-            where.append("messages_fts MATCH ?")
-            params.append('"' + q.replace('"', '""') + '"')
+            where.append(_fts_clause('"' + q.replace('"', '""') + '"'))
             order = "m.date_utc DESC"
         else:
             like = "%" + q + "%"

@@ -165,10 +165,26 @@ def _ids_with_terms(conn, terms) -> set:
             "WHERE m.subject LIKE ? OR m.from_addr LIKE ? OR m.from_name LIKE ? "
             "OR m.body_text LIKE ? OR tr.subject_ja LIKE ? OR tr.body_ja LIKE ?",
             (like, like, like, like, like, like))}
+        got |= _ids_with_term_in_attachments(conn, t)   # ★添付の中身も見る（2026-08-31）
         out = got if out is None else (out & got)
         if not out:
             break
     return out
+
+
+def _ids_with_term_in_attachments(conn, term: str) -> set:
+    """その語を**添付の中身**に含む message_id（2026-08-31）。
+
+    本文に無くて添付にしか書かれていない事実（開催の会場など）で絞られると、
+    正解が候補から落ちる。実際「スイスホテル」はスキャンPDFの中にしか無かった。
+    ★表がまだ無い環境（索引を作り直した直後など）でも落ちないように握りつぶす。
+    """
+    like = "%" + term + "%"
+    try:
+        return {r[0] for r in conn.execute(
+            "SELECT message_id FROM attachment_texts WHERE text LIKE ?", (like,))}
+    except Exception:                     # noqa: BLE001 … 表が無いだけなら絞り込みを弱めない
+        return set()
 
 
 # 加点の対象から外す語（どのメールにも出るので手がかりにならない）
@@ -205,6 +221,7 @@ def _ids_with_any(conn, terms) -> set:
             "WHERE m.subject LIKE ? OR m.body_text LIKE ? "
             "OR tr.subject_ja LIKE ? OR tr.body_ja LIKE ?",
             (like, like, like, like))}
+        out |= _ids_with_term_in_attachments(conn, t)   # ★添付の中身も加点対象（2026-08-31）
     return out
 
 

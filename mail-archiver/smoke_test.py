@@ -344,6 +344,59 @@ def main():
     finally:
         os.environ.pop("IMAP_USER", None)
 
+    # ---------------------------------------------------------------- 添付の中身
+    # ★ここが守りたいこと: 「本文に無く、添付にしか書かれていない事実」で検索できること。
+    #   2026-08-31 に実際に困った例（PTA大会の会場がスキャンPDFの中にしか無い）を型にしてある。
+    print("12) 添付の中身の索引（2026-08-31）")
+    import attach_extract  # noqa: E402  … 重い依存を持たないので遅延importでよい
+
+    adb = os.path.join(tmp, "attach.db")
+    ac = db.connect(adb)
+    db.init_schema(ac)
+    aid = db.upsert_account(ac, "t2", "h", 993, "u")
+    fid = db.upsert_folder(ac, aid, "INBOX", "INBOX")["id"]
+    mid = db.insert_message(ac, {
+        "account_id": aid, "folder_id": fid, "uid": 1, "uidvalidity": 1,
+        "message_id": "<a@t>", "subject": "PTA大会の出欠返信のお願い",
+        "from_name": "", "from_addr": "x@example.com", "to_addrs": "", "cc_addrs": "",
+        "date_utc": "2026-07-14T00:00:00Z", "size_bytes": 1, "flags": "",
+        "body_text": "出欠の返信をお願いします。",     # ★本文に会場は書かれていない
+        "has_attachments": 1, "raw_path": "r.eml", "raw_sha256": "x",
+        "synced_at": db.utcnow(), "server_state": "local",
+    })
+    att_path = os.path.join(tmp, "annai.txt")
+    with open(att_path, "w", encoding="utf-8") as f:
+        f.write("2．会場　スイスホテル南海大阪　8階「浪華の間」\n9月2日（水）10:00〜13:00\n")
+    att_id = db.insert_attachment(ac, mid, "annai.txt", "text/plain", 100, "annai.txt", "sha")
+
+    method, text, pages, err = attach_extract.extract_one(att_path, "annai.txt", use_ocr=False)
+    check(method == "text" and "スイスホテル" in text, "添付から中身を取り出せる")
+    db.save_attachment_text(ac, att_id, mid, method, text, pages, err)
+
+    rows, total = db.search(ac, q="スイスホテル")
+    check(total == 1 and rows and rows[0]["id"] == mid,
+          "★本文に無い語（添付にだけある）で見つかる")
+    rows2, total2 = db.search(ac, q="スイスホテル", include_attachments=False)
+    check(total2 == 0, "添付を見ない設定なら見つからない（従来どおり）")
+
+    hits = db.attachment_hits_terms(ac, [mid], ["スイスホテル"])
+    check(mid in hits and hits[mid][0][0] == "annai.txt", "どの添付に当たったかを返す")
+
+    # 同じ添付を2回処理しても、件数が二重にならないこと（FTSは制約を持たないので要注意）
+    db.save_attachment_text(ac, att_id, mid, method, text, pages, err)
+    rows3, total3 = db.search(ac, q="スイスホテル")
+    check(total3 == 1, "二度取り込んでも件数が増えない")
+
+    # 文字が取れなかったものも記録する（記録しないと毎晩同じものを試して前に進まない）
+    empty = os.path.join(tmp, "empty.txt")
+    open(empty, "w").close()
+    m2, t2, p2, e2 = attach_extract.extract_one(empty, "empty.txt", use_ocr=False)
+    check(m2 == "none", "文字が無いものは none として記録できる")
+    check(attach_extract.extract_one(os.path.join(tmp, "no-such.pdf"), "no-such.pdf",
+                                     use_ocr=False)[0] == "error",
+          "実体が無いものは error（黙って成功にしない）")
+    ac.close()
+
     shutil.rmtree(tmp, ignore_errors=True)
     print("")
     if FAILED:

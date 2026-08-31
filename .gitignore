@@ -459,6 +459,9 @@ mail-archiver/.env.mail-archiver.*
 # 2026-08-20 の 82c07b64 で実メール19通ぶんが public リポジトリへ入っていた
 mail-archiver/local/
 mail-archiver/.venv/
+# OCRの土台のビルド成果物（環境依存のバイナリ。ソースの ocr_pdf.swift だけ追跡する。
+# 各PCで tools/build.sh を1回叩けば作れる）
+mail-archiver/tools/ocr_pdf
 # 実行ログ（フォルダ名・通数が入る。索引DBほどではないが public には出さない）
 mail-archiver/.import-mailapp.log
 mail-archiver/.sync-*.log

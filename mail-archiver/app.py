@@ -255,6 +255,8 @@ with tab_search:
                                                   date_from=d_from, date_to=d_to,
                                                   must_terms=must, boost_terms=boost)
                         sem = {"ids": ids, "sim": sm, "q": nl2,
+                               # ★添付のどこに当たったかを後で示すために、使った語を持ち回る
+                               "must": (must or []) + (boost or []),
                                "rerank": None, "reasons": {}}
                         if rerank_on and ids:
                             # ベクトル上位40通を Claude に読ませて関連順へ
@@ -326,6 +328,14 @@ with tab_search:
         total, (int(page) - 1) * PAGE_SIZE + 1 if total else 0,
         min(int(page) * PAGE_SIZE, total)))
 
+    # ★どのメールが「本文ではなく添付に当たったか」を出す（2026-08-31）。
+    #   これが無いと、本文をいくら読んでも検索語が見当たらず「誤検索では」と思われる。
+    #   実例: PTA大会の会場「スイスホテル南海大阪」は本文に無く、スキャンPDFの中にしか無い。
+    hit_terms = [t for t in ((st.session_state.get("sem") or {}).get("must") or []) if t]
+    if not hit_terms and q:
+        hit_terms = [q]
+    att_hits = db.attachment_hits_terms(conn, [r["id"] for r in rows], hit_terms)
+
     if not rows:
         if s["messages"] == 0:
             st.info("まだ1通も取り込まれていません。`python3 sync.py --sync` を実行してください。")
@@ -347,8 +357,11 @@ with tab_search:
             sim_prefix, badge, to_local(r["date_utc"]) or "(日付不明)",
             title[:70],
             r["from_addr"] or r["from_name"] or "",
-            r["folder_name"], " 📎" if r["has_attachments"] else "")
+            r["folder_name"],
+            " 📎中身に一致" if r["id"] in att_hits else (" 📎" if r["has_attachments"] else ""))
         with st.expander(label):
+            for fname, snippet in att_hits.get(r["id"], [])[:3]:
+                st.info("📎 **添付に一致**: {}\n\n… {} …".format(fname, snippet))
             if reason_map.get(r["id"]):
                 st.success("🤖 Claudeの見立て：{}".format(reason_map[r["id"]]))
             m1, m2 = st.columns([3, 1])
