@@ -196,12 +196,30 @@ def main() -> int:
         return 0
 
     # ---- 知識索引へ（会社の壁を必ず指定する）
-    sys.path.insert(0, CWAI)
-    os.chdir(CWAI)                       # knowledge.py は相対で secrets を読む
-    from db.migrate import migrate       # noqa: E402
-    from services import knowledge       # noqa: E402
-    migrate()
-    res = knowledge.ingest_folder(OUT_DIR, incremental=True, company=COMPANY)
+    #
+    # ★別プロセスで呼ぶ。同じプロセスに読み込むと **`db` という名前がぶつかる**
+    #   （メールアーカイバは `db.py`、AI業務マネージャーは `db/` パッケージ）。
+    #   実際 `ModuleNotFoundError: 'db' is not a package` で落ちた。
+    #   sys.path の順番をいじって回避すると、次に触った人が必ず踏む。プロセスを分けるのが確実。
+    import json
+    import subprocess
+    code = (
+        "import json, sys\n"
+        "sys.path.insert(0, {cwai!r})\n"
+        "from db.migrate import migrate\n"
+        "from services import knowledge\n"
+        "migrate()\n"
+        "res = knowledge.ingest_folder({out!r}, incremental=True, company={company!r})\n"
+        "print('__RESULT__' + json.dumps(res, ensure_ascii=False))\n"
+    ).format(cwai=CWAI, out=OUT_DIR, company=COMPANY)
+    proc = subprocess.run(["/usr/bin/python3", "-c", code], cwd=CWAI,
+                          capture_output=True, text=True, timeout=3600)
+    line = next((l for l in (proc.stdout or "").splitlines() if l.startswith("__RESULT__")), "")
+    if not line:
+        print("  ★索引への取り込みに失敗した")
+        print((proc.stderr or proc.stdout or "")[-800:])
+        return 1
+    res = json.loads(line[len("__RESULT__"):])
     print("  索引: 取込 {ingested} / 変更なし {unchanged} / 飛ばし {skipped} / "
           "失敗 {failed} / チャンク {chunks}".format(**res))
     for e in (res.get("errors") or [])[:5]:

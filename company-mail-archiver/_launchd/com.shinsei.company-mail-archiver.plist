@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  社内メールアーカイバの**閲覧画面**（8538）を常時立ち上げる。
+  ★127.0.0.1 固定（run.sh 側で指定）。社員のメール本文を扱うので社内LANにも出さない。
+  ★/bin/bash を入口にする。原本の保管先が CloudStorage(Dropbox) なので、
+    launchd 常時起動プロセスは責任プロセスにフルディスクアクセスが要る。
+    このMacは /bin/bash に付与済み。[[reference_launchd_cloudstorage_fda]]
+  ★取り込み（毎日03:30）は別の plist（-sync）。こちらは画面だけ。
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.shinsei.company-mail-archiver</string>
+  <key>ProgramArguments</key><array>
+    <string>/bin/bash</string><string>/Users/apple/company-mail-archiver/run.sh</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/apple/company-mail-archiver</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>/Users/apple/Library/Logs/com.shinsei.company-mail-archiver.log</string>
+  <key>StandardErrorPath</key><string>/Users/apple/Library/Logs/com.shinsei.company-mail-archiver.err.log</string>
+</dict>
+</plist>

@@ -463,6 +463,8 @@ company-mail-archiver/local/
 company-mail-archiver/knowledge_out/
 company-mail-archiver/data/
 company-mail-archiver/.venv/
+# アイコンの中間生成物（icns と 1024pngだけ追跡すれば作り直せる）
+company-mail-archiver/icon-src/AppIcon.iconset/
 
 !mail-archiver/
 !mail-archiver/**

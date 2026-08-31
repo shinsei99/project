@@ -21,4 +21,5 @@ cp "_launchd/$LABEL.plist" "$PLIST"
 launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$(id -u)" "$PLIST"
 launchctl print "gui/$(id -u)/$LABEL" | grep -E "state|program" | head -3
-echo "入れました: $LABEL（毎日03:30）"
+# ★`$LABEL` の直後に全角括弧を置くと bash が変数名に巻き込む（実際に踏んだ）。${} で囲う
+echo "入れました: ${LABEL}（毎日03:30）"
