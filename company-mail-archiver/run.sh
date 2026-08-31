@@ -17,7 +17,7 @@ export MAIL_ARCHIVER_ENV="$PWD/.env.company-mail-archiver"
 export MAIL_ARCHIVER_ENV_DIR="$PWD"
 export MAIL_ARCHIVER_ENV_PREFIX=".env.company-mail-archiver."
 export MAIL_ARCHIVER_DB="$PWD/local/company-mail.db"
-export MAIL_ARCHIVER_DATA_DIR="${COMPANY_MAIL_STORE:-$HOME/Library/CloudStorage/Dropbox-個人/company-mail-archive}"
+export MAIL_ARCHIVER_DATA_DIR="${COMPANY_MAIL_STORE:-$HOME/Library/CloudStorage/Dropbox-個人/CLAUDE/company-mail-archive}"
 
 MA="$(cd .. && pwd)/mail-archiver"
 [ -d "$MA" ] || { echo "mail-archiver が見つかりません: $MA"; exit 1; }

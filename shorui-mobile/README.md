@@ -11,7 +11,7 @@
 [クラウド] Dropbox: /書類取込/<日時_物件名>/ shot_01.jpg … + meta.json
         │  Dropboxが自動sync
         ▼
-[Mac] ~/Library/CloudStorage/Dropbox-個人/書類取込/…
+[Mac] ~/Library/CloudStorage/Dropbox-個人/CLAUDE/書類取込/…
         │
 [PC] 書類キャビネット「📁 取込」タブ → AI目録化 → 保管場所を選んで登録 → 済フォルダへ
 ```

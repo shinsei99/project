@@ -25,7 +25,7 @@ def default_root() -> str:
     """
     home = os.path.expanduser("~")
     for cand in (
-        os.path.join(home, "Library/CloudStorage/Dropbox-個人", "書類取込"),
+        os.path.join(home, "Library/CloudStorage/Dropbox-個人/CLAUDE", "書類取込"),
         os.path.join(home, "Dropbox", "書類取込"),
         os.path.join(home, "Library/CloudStorage/Dropbox-大京商事　株式会社", "書類取込"),
         os.path.join(home, "Library/Mobile Documents/com~apple~CloudDocs", "書類取込"),

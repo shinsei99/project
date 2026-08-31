@@ -24,7 +24,7 @@ export LANG="ja_JP.UTF-8"
 export LC_ALL="ja_JP.UTF-8"
 
 SRC="/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
-DST_ROOT="/Users/apple/Library/CloudStorage/Dropbox-個人/社内バックアップ"
+DST_ROOT="/Users/apple/Library/CloudStorage/Dropbox-個人/CLAUDE/社内バックアップ"
 DST="${DST_ROOT}/（★必読★）新共有フォルダ"
 
 BASE="/Users/apple/dropbox-backup"

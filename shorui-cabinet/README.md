@@ -84,7 +84,7 @@
 **フォルダ名がそのまま見出しになる。** 取り込みフォルダの既定:
 
 ```
-~/Library/CloudStorage/Dropbox-個人/書類取込
+~/Library/CloudStorage/Dropbox-個人/CLAUDE/書類取込
 ```
 
 読み取ったフォルダは登録が済んでから `_done/` へ移動する（消さない）。

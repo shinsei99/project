@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  社内メールの夜間取り込み（毎日 03:30）。
+  社内メールの夜間取り込み（毎日 00:30）。
+  ★個人のメールアーカイバ(8535)と**同じ時刻**に揃えてある（2026-08-31 オーナー指示）。
+    03:30 にしていたが、そこは**共有フォルダOCR（03:00〜05:00）の真っ最中**で相性が悪かった。
+    00:30 なら、知識索引への書き込みが 03:00 より前に終わる。
+    索引DBは互いに別ファイルなので、2つの取り込みが同時に走っても取り合わない。
   ★/bin/bash を入口にする。原本の保管先が CloudStorage(Dropbox) なので、
     launchd 常時起動プロセスは責任プロセスにフルディスクアクセスが要る。
     このMacは /bin/bash に付与済み。[[reference_launchd_cloudstorage_fda]]
@@ -20,7 +24,7 @@
   <string>/Users/apple/company-mail-archiver</string>
   <key>StartCalendarInterval</key>
   <dict>
-    <key>Hour</key><integer>3</integer>
+    <key>Hour</key><integer>0</integer>
     <key>Minute</key><integer>30</integer>
   </dict>
   <key>StandardOutPath</key>

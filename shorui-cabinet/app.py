@@ -41,7 +41,7 @@ def imp_label(x: str) -> str:
 # 1サブフォルダ＝1冊。処理済みは _済/ に退避する。環境変数で上書き可。
 INBOX_DIR = os.environ.get(
     "SHORUI_INBOX",
-    os.path.expanduser("~/Library/CloudStorage/Dropbox-個人/書類取込"),
+    os.path.expanduser("~/Library/CloudStorage/Dropbox-個人/CLAUDE/書類取込"),
 )
 INBOX_DONE = os.path.join(INBOX_DIR, "_済")
 
