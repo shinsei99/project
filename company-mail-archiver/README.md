@@ -55,6 +55,20 @@ export MAIL_ARCHIVER_ENV="$PWD/.env.company-mail-archiver" \
 ../mail-archiver/.venv/bin/python3 ../mail-archiver/sync.py --sync --account tanaka --since-days 30 --limit 20
 ```
 
+## Desktop の `.app`（社内ツールのランチャ）
+
+```bash
+./make_app.sh      # 作り直す（アイコン生成 → 中身を書く → **LaunchServices へ登録**）
+```
+
+**★シェルで `.app` の中身を書いただけでは Finder から開けない**（2026-08-31に踏んだ）。
+LaunchServices に登録されていないので、ダブルクリックしても何も起きず、
+`open` は `_LSOpenURLsWithCompletionHandler() failed with error -10810` で落ちる。
+**最後に `lsregister -f` を叩くまでが「アプリを作る」作業。**
+手順に混ぜておかないと必ず忘れるので `make_app.sh` に閉じ込めてある。
+
+アイコンは `icon-src/make_icon.py`（他の31本と同じ作法＝単色の角丸＋白い図形ひとつ）。
+
 ## 社員1人を追加する手順
 
 1. `.env.company-mail-archiver.example` を写して `.env.company-mail-archiver.<slug>` を作る
