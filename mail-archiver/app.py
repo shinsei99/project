@@ -17,6 +17,7 @@ from datetime import date, datetime, timedelta, timezone
 import streamlit as st
 
 import ai_query
+import ai_search
 import config
 import db
 import semantic
@@ -198,7 +199,7 @@ with tab_search:
         m3.metric("サーバーから削除済", "{:,} 通".format(s["deleted"]), human_size(s["deleted_bytes"]))
         m4.metric("添付ファイル", "{:,} 件".format(s["attachments"]), human_size(s["attachment_bytes"]))
 
-    mode = st.radio("検索のしかた", ["単純検索", "ベクトル検索（意味）"],
+    mode = st.radio("検索のしかた", ["🤖 AIに探してもらう", "単純検索", "ベクトル検索（意味）"],
                     horizontal=True, label_visibility="collapsed")
 
     q = ""
@@ -206,10 +207,50 @@ with tab_search:
     sim_map = {}
     reason_map = {}
 
-    if mode == "単純検索":
+    if mode == "🤖 AIに探してもらう":
+        # ★従来の「1回変換して1回検索して終わり」をやめた入口（2026-08-31）。
+        #   0件でも1件でも止めず、条件を変えながら試し、最後に**答えの文**まで書く。
+        #   何をどう試したかを必ず見せる（見せないと「なぜ出ないのか」が利用者に分からない）。
         st.session_state.pop("sem", None)
+        ask = st.text_input(
+            "探しものを日本語で（例: 9月2日のスイスホテルの懇親会の詳細　1ヶ月以内のメール）",
+            key="ai_ask")
+        if st.button("🤖 探して答えてもらう", width="stretch") and ask.strip():
+            box = st.empty()
+            steps: list = []
+
+            def _on_step(msg: str) -> None:
+                steps.append(msg)
+                box.caption("🔎 " + " ／ ".join(steps[-4:]))
+
+            with st.spinner("条件を変えながら探しています…（数十秒かかります）"):
+                try:
+                    st.session_state["ai_res"] = ai_search.run(conn, ask, on_step=_on_step)
+                except Exception as e:  # noqa: BLE001
+                    st.error("AI検索に失敗: {}".format(e))
+            box.empty()
+        res = st.session_state.get("ai_res")
+        if res:
+            if res.get("answer"):
+                st.success(res["answer"])
+            if res.get("note"):
+                st.info(res["note"])
+            with st.expander("🔎 どう探したか（試した条件）", expanded=not res.get("answer")):
+                for t in res["tried"]:
+                    st.markdown("- **{}** … {}".format(
+                        t["やったこと"],
+                        "{}件".format(t["件数"]) if t["件数"] is not None else "（失敗）"))
+                    st.caption("　{}　期間 {}{}".format(
+                        t["条件"][:120], t.get("期間") or "",
+                        "　→ " + t["評価"] if t.get("評価") else ""))
+            q = ""
+            sem_ids = [r["id"] for r in res["rows"]]      # 一覧はAIが見つけた順で出す
+    elif mode == "単純検索":
+        st.session_state.pop("sem", None)
+        st.session_state.pop("ai_res", None)
         q = st.text_input("キーワード（件名・本文・宛先を横断。3文字以上が速い）", "")
     else:
+        st.session_state.pop("ai_res", None)
         cnt = db.embedding_count(conn, semantic.MODEL_NAME)
         if cnt < s["messages"]:
             st.caption("🧠 ベクトル作成中：{:,} / {:,} 通（増えるほど取りこぼしが減ります）".format(
@@ -332,6 +373,8 @@ with tab_search:
     #   これが無いと、本文をいくら読んでも検索語が見当たらず「誤検索では」と思われる。
     #   実例: PTA大会の会場「スイスホテル南海大阪」は本文に無く、スキャンPDFの中にしか無い。
     hit_terms = [t for t in ((st.session_state.get("sem") or {}).get("must") or []) if t]
+    if not hit_terms:
+        hit_terms = [t for t in ((st.session_state.get("ai_res") or {}).get("terms") or []) if t]
     if not hit_terms and q:
         hit_terms = [q]
     att_hits = db.attachment_hits_terms(conn, [r["id"] for r in rows], hit_terms)

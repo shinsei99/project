@@ -175,6 +175,12 @@ def connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON")
+    # ★書き込みが終わるまで待つ（2026-08-31）。既定は待たずに即 "database is locked" で落ちる。
+    #   添付の中身の取り込み（attach_extract.py=長い書き込み）を昼に流している最中に、
+    #   閲覧UIの起動時スキーマ作成が実際にこれで落ちた。WAL なので読みは止まらないが、
+    #   **書き込みどうしは待つ必要がある**。connect の timeout= だけでは
+    #   PRAGMA を張らない接続に効かないことがあるので、ここで明示する。
+    conn.execute("PRAGMA busy_timeout=30000")
     return conn
 
 
@@ -375,6 +381,19 @@ def attachment_hits(conn: sqlite3.Connection, message_ids: List[int],
     for r in rows:
         out.setdefault(r["message_id"], []).append(r["filename"])
     return out
+
+
+def attachment_texts_of(conn: sqlite3.Connection, message_row: int) -> List[sqlite3.Row]:
+    """そのメールの添付から取り出した本文（文字が取れたものだけ）。
+
+    AIに読ませる材料。**本文に無い事実が添付にしか無い**ことがあるので、
+    答えを書かせるときは本文とセットで渡す。
+    """
+    return conn.execute(
+        "SELECT a.filename, at.text, at.method FROM attachment_texts at "
+        "JOIN attachments a ON a.id = at.attachment_id "
+        "WHERE at.message_id=? AND at.chars > 0 ORDER BY a.filename", (message_row,)
+    ).fetchall()
 
 
 def attachment_hits_terms(conn: sqlite3.Connection, message_ids: List[int],

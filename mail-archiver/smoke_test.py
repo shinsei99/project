@@ -395,6 +395,46 @@ def main():
     check(attach_extract.extract_one(os.path.join(tmp, "no-such.pdf"), "no-such.pdf",
                                      use_ocr=False)[0] == "error",
           "実体が無いものは error（黙って成功にしない）")
+    # ---------------------------------------------------------------- 試行する検索
+    # ★2026-08-31 の失敗を型にしたテスト。LLMは呼ばない（決定的な部分だけ確かめる）。
+    print("13) AI検索の緩め方の階段（2026-08-31）")
+    import ai_search  # noqa: E402
+
+    check(set(ai_search.term_variants("9月2日")) >= {"9月2日", "９月２日", "9/2"},
+          "9/2 と全角も同じ語として扱う")
+    check(ai_search._dates_in("9月2日のスイスホテルの懇親会　1ヶ月以内") == ["9月2日"],
+          "質問文から日付を拾う")
+    check(ai_search._expr([["A", "B"], ["C"]]) == '("A" OR "B") AND "C"',
+          "式はAND(OR)になる")
+
+    # 本文には**全角の「９月２日」しか無い**メール。半角で聞いても見つからないといけない
+    mid2 = db.insert_message(ac, {
+        "account_id": aid, "folder_id": fid, "uid": 2, "uidvalidity": 1,
+        "message_id": "<b@t>", "subject": "案内", "from_name": "", "from_addr": "y@example.com",
+        "to_addrs": "", "cc_addrs": "", "date_utc": "2026-07-14T00:00:00Z", "size_bytes": 1,
+        "flags": "", "body_text": "開催は ９月２日（水）です。", "has_attachments": 0,
+        "raw_path": "r2.eml", "raw_sha256": "y", "synced_at": db.utcnow(),
+        "server_state": "local",
+    })
+    res = ai_search.run(ac, "9月2日の会の詳細", use_llm=False)
+    # ★添付にも「9月2日（水）」があるメール(mid)が同時に当たるのは**正しい**（添付も検索対象）。
+    #   ここで見たいのは「全角しか書かれていない本文に、半角の質問で当たること」。
+    check(mid2 in [r["id"] for r in res["rows"]],
+          "★半角で聞いて全角表記のメールに当たる")
+    check(mid in [r["id"] for r in res["rows"]],
+          "同じ日付が添付にあるメールも一緒に出る")
+
+    # 存在しない語をANDに含めても、階段が「その語を外す」段を出して回復すること
+    rungs = list(ai_search._rungs(ac, [["ありえない語XYZ"], ["スイスホテル"]], "", "", [], False))
+    labels = [r[0] for r in rungs]
+    check(any("必須から外して" in x for x in labels), "0件のとき必須語を外す段がある")
+    recovered = False
+    for _label, g, _df, _dt, _note in rungs:
+        rows_r, total_r = db.search(ac, fts_expr=ai_search._expr(g))
+        if total_r:
+            recovered = True
+            break
+    check(recovered, "★階段のどこかで必ず見つかる（0件で終わらない）")
     ac.close()
 
     shutil.rmtree(tmp, ignore_errors=True)

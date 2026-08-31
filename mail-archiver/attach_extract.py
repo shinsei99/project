@@ -306,11 +306,16 @@ def main() -> int:
                     if counts.get(method) is not None:
                         done += 1
                 counts[method] = counts.get(method, 0) + 1
-                if done % 50 == 0:
-                    conn.commit()
-                    print("  {:,}件 … text {:,} / ocr {:,} / 文字なし {:,} / 失敗 {:,}".format(
-                        done, counts["text"], counts["ocr"], counts["none"],
-                        counts["error"]), flush=True)
+            # ★毎回コミットする（2026-08-31）。まとめてコミットにすると、
+            #   **書き込みトランザクションが開いたまま次の抽出を待つ**ことになる。
+            #   OCRが混ざると1回の待ちが数分になり、その間ずっとDBがロックされて
+            #   閲覧UI（8535）が "database is locked" で落ちた（実際に発生）。
+            #   WAL なのでコミット自体は軽い。ロックを長く持たないことのほうが大事。
+            conn.commit()
+            if done and done % 50 < len(finished):
+                print("  {:,}件 … text {:,} / ocr {:,} / 文字なし {:,} / 失敗 {:,}".format(
+                    done, counts["text"], counts["ocr"], counts["none"],
+                    counts["error"]), flush=True)
 
             over_time = args.max_minutes and (time.time() - started) / 60 >= args.max_minutes
             over_new = args.max_new and done >= args.max_new
