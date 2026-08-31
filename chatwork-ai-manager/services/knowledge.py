@@ -275,8 +275,60 @@ class OcrUnavailable(Exception):
     """
 
 
+# ★macOS Vision の文字起こし（2026-08-31 に二段構えへ変更）。
+#
+# もともと claude vision だけだった。理由は「作った時点でPDFをOCRする手段がそれしか無かった」
+# だけで、必然ではない。実測すると **claude は 186件/2時間**（夜間120分の上限で毎晩186件）で、
+# 共有フォルダの残り約6,600件に**35晩以上**かかる。しかも 03:00〜05:00 に定額枠を占有し、
+# 2026-08-27 には翻訳ジョブを巻き添えにして全滅させた。
+#
+# macOS Vision は OS 同梱で**無料・ネットワーク不要・実測 2.3秒/ページ**。
+# ただし**手書きや複雑な帳票は苦手**で、表の構造も読めない（文字を拾うだけ）。
+# そこで **Vision を先に試し、文字が取れなかったものだけ claude に回す**。
+#   ・大半（印刷された書類）は無料・高速で片付く
+#   ・手書き等の難物だけ claude が拾う ＝ 枠の消費が桁違いに減る
+#
+# 実体は mail-archiver で作った道具を借りる（同じMacに1本だけ置く。複製しない）。
+# 各PCで `mail-archiver/tools/build.sh` を1回叩けば作れる。無ければ静かに claude へ回る。
+VISION_OCR_BIN = os.environ.get(
+    "VISION_OCR_BIN",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), "mail-archiver", "tools", "ocr_pdf"))
+# これ未満なら「Vision では読めなかった」とみなして claude へ回す
+VISION_MIN_CHARS = 30
+
+
+def _ocr_vision(path, max_pages=15) -> list:
+    """macOS Vision で文字起こし。取れなければ空リスト（＝claude へ回す合図）。"""
+    import subprocess
+    if not os.path.exists(VISION_OCR_BIN):
+        return []
+    try:
+        r = subprocess.run([VISION_OCR_BIN, path, "--max-pages", str(max_pages)],
+                           capture_output=True, timeout=300)
+    except Exception:      # noqa: BLE001 … Vision が転んでも claude で拾えるので止めない
+        return []
+    if r.returncode != 0:
+        return []
+    raw = r.stdout.decode("utf-8", "replace")
+    out = []
+    for i, page in enumerate(raw.split("\x0c"), 1):      # ページ区切りは \f
+        body = page.strip()
+        if len(body) >= VISION_MIN_CHARS:
+            out.append((body, f"P{i}(OCR)"))
+    total = sum(len(t) for t, _ in out)
+    return out if total >= VISION_MIN_CHARS else []
+
+
 def ocr_pdf(path, max_pages=15) -> list:
-    """スキャン画像PDFを claude vision で文字起こし。戻り値: [(text, 'P{n}(OCR)'), ...]。"""
+    """スキャン画像PDFを文字起こし。戻り値: [(text, 'P{n}(OCR)'), ...]。
+
+    **二段構え**: ① macOS Vision（無料・高速）→ 取れなければ ② claude vision（手書きに強い）。
+    """
+    pages = _ocr_vision(path, max_pages=max_pages)
+    if pages:
+        return pages
+
     import re
     import tempfile
 
