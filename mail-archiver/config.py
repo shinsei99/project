@@ -17,7 +17,14 @@ from typing import Dict, Optional
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 # 既定の設定ファイル。`MAIL_ARCHIVER_ENV` で1本だけ差し替えられる
 ENV_FILE = os.environ.get("MAIL_ARCHIVER_ENV") or os.path.join(APP_DIR, ".env.mail-archiver")
-ENV_PREFIX = ".env.mail-archiver."
+
+# ★アカウント設定の置き場と名前の頭（2026-08-31）。
+#   **同じコードを別の用途で動かす**ために外へ出した。社内メールアーカイバ
+#   （`company-mail-archiver`）は、自分のフォルダにある
+#   `.env.company-mail-archiver.<社員>` を使ってこのコードを動かす。
+#   コードを複製すると必ず分岐する（片方だけ直した状態になる）ので複製しない。
+ENV_DIR = os.environ.get("MAIL_ARCHIVER_ENV_DIR") or APP_DIR
+ENV_PREFIX = os.environ.get("MAIL_ARCHIVER_ENV_PREFIX") or ".env.mail-archiver."
 
 
 def _read_env_file(path):
@@ -74,6 +81,10 @@ DEFAULTS = {
     "ARCHIVE_EXCLUDE_FOLDERS": "Trash,Deleted Messages,Junk,ゴミ箱,迷惑メール",
     # 画面のパスワード。LANに出すときは必須（未設定なら画面を出さない）
     "UI_PASSWORD": "",
+    # ★画面の名前（2026-08-31）。**同じコードを別の用途で動かすため**に外へ出した。
+    #   社内メールアーカイバ（company-mail-archiver）は、このコードを
+    #   env で DB・保管先・名前だけ差し替えて動かす。コードを複製すると必ず分岐するので複製しない。
+    "UI_TITLE": "メールアーカイバ",
 }
 
 
@@ -98,10 +109,10 @@ def account_env_files() -> list:
     files = []
     if os.path.exists(ENV_FILE):
         files.append(ENV_FILE)
-    for name in sorted(os.listdir(APP_DIR)):
+    for name in sorted(os.listdir(ENV_DIR)):
         if not name.startswith(ENV_PREFIX) or name.endswith(".example"):
             continue
-        path = os.path.join(APP_DIR, name)
+        path = os.path.join(ENV_DIR, name)
         if path not in files:
             files.append(path)
     return files
@@ -109,7 +120,7 @@ def account_env_files() -> list:
 
 def env_file_for(slug: str) -> str:
     """`--account <slug>` からファイル名を決める。"""
-    path = os.path.join(APP_DIR, ENV_PREFIX + slug)
+    path = os.path.join(ENV_DIR, ENV_PREFIX + slug)
     if not os.path.exists(path):
         raise FileNotFoundError(
             "そのアカウントの設定がありません: {}\n"

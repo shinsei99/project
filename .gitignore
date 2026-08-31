@@ -448,6 +448,22 @@ keyline/**/*.db
 
 # メールアーカイバ（IMAP容量対策のローカル保管＋検索）。**data/ はメール本文＝個人情報の塊**
 # なので絶対に追跡しない。接続情報も同様（.env.mail-archiver。見本だけ入れる）
+# 社内メールアーカイバ（company-mail-archiver・8538）。**社員のメールを扱う**ので、
+# メール本文に触れるものは1つも追跡しない。コードと見本と手順書だけを入れる。
+# ★このリポジトリは public。ここを間違えると社員のメールが世界に出る。
+!company-mail-archiver/
+!company-mail-archiver/**
+# 接続設定（社員ごと。IMAPユーザー名＝個人のメールアドレスが入る）。見本だけ追跡する
+company-mail-archiver/.env.company-mail-archiver
+company-mail-archiver/.env.company-mail-archiver.*
+!company-mail-archiver/.env.company-mail-archiver.example
+# 索引DB・実行ログ（件名・本文・差出人が入る）
+company-mail-archiver/local/
+# 知識索引へ渡すために書き出した .md（**メール本文そのもの**）
+company-mail-archiver/knowledge_out/
+company-mail-archiver/data/
+company-mail-archiver/.venv/
+
 !mail-archiver/
 !mail-archiver/**
 mail-archiver/data/
@@ -529,3 +545,11 @@ chatwork-ai-manager/data/*.db
 !growth-tracker/**
 growth-tracker/node_modules/
 growth-tracker/dist/
+
+# 社内共有フォルダ → 個人Dropbox の週次バックアップ（launchd はメインPCのみ）。
+# 実行ログと結果は各PCの物なので配らない
+!dropbox-backup/
+!dropbox-backup/**
+dropbox-backup/logs/
+dropbox-backup/last-run.txt
+dropbox-backup/.lock

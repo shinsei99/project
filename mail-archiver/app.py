@@ -31,7 +31,9 @@ def _icon_data_uri(path: str) -> str:
         return "data:image/png;base64," + base64.b64encode(fh.read()).decode("ascii")
 
 
-st.set_page_config(page_title="メールアーカイバ",
+UI_TITLE = config.load().get("UI_TITLE") or "メールアーカイバ"
+
+st.set_page_config(page_title=UI_TITLE,
                    page_icon=_ICON_180 if os.path.exists(_ICON_180) else "📥",
                    layout="wide")
 
@@ -46,7 +48,7 @@ if os.path.exists(_ICON_180):
     st.markdown(
         '<link rel="apple-touch-icon" href="{u}">'
         '<link rel="apple-touch-icon" sizes="180x180" href="{u}">'
-        '<meta name="apple-mobile-web-app-title" content="メールアーカイバ">'.format(u=_uri),
+        '<meta name="apple-mobile-web-app-title" content="{t}">'.format(u=_uri, t=UI_TITLE),
         unsafe_allow_html=True,
     )
 
@@ -97,7 +99,7 @@ def _check_password() -> bool:
         return True   # 自分のPCからだけ（127.0.0.1）なら不要
     if st.session_state.get("authed"):
         return True
-    st.title("📥 メールアーカイバ")
+    st.title("📥 " + UI_TITLE)
     pw = st.text_input("パスワード", type="password")
     if st.button("ログイン", width="stretch"):
         if hmac.compare_digest(str(pw), str(expected)):
@@ -152,7 +154,7 @@ def to_local(iso: str) -> str:
 conn = get_conn()
 s = db.stats(conn)
 
-st.title("📥 メールアーカイバ")
+st.title("📥 " + UI_TITLE)
 
 tab_search, tab_archive = st.tabs(["🔍 検索・閲覧", "🗄 アーカイブ状況"])
 

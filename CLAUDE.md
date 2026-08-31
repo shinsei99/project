@@ -210,10 +210,10 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全55本）※不動産31・ツール17・ゲーム7  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全56本）※不動産32・ツール17・ゲーム7  
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（31本）
+### 不動産（32本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
@@ -247,6 +247,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | マルチプロダクション（企画→紙面→パワポ→音声→動画→SNS） | agent-platform | 8532 | ✅ | — |
 | AI業務マネージャー（Chatwork/LINE常駐AIエージェント） | chatwork-ai-manager | 8540(画面)/8530(LINE) | ✅（画面0.0.0.0） | LINE(ngrok) |
 | 事業計画案ジェネレーター（投資収支→Excel） | business-plan-generator | 8533 | ✅ | — |
+| 社内メールアーカイバ（社員のメールを保管＋AI業務マネージャーの知識へ） | company-mail-archiver | 8538 | **出さない**（127.0.0.1固定・社員のメール本文のため） | — |
 | KeyLine（NFC鍵・備品貸出管理） | keyline | 8534 | ✅ | **本体（8534）はこのMacの launchd に登録していない**（2026-08-28 オーナー判断で見送り。plist は `keyline/_launchd/` にある）。iOSアプリ **KeyTag**（掲載名 **KeyTag鍵管理**）は **1.0 / build 4 で再提出＝審査待ち**（2026-08-28 11:13 JST 提出・`WAITING_FOR_REVIEW` を API で確認）。差し戻しは2回: Guideline 2.1（NFCのデモ動画の要求）→ **動画をサポートページに公開して回答** https://shinsei99.github.io/project/keytagnfc-support/ ／ Guideline 4.3(a)（スパム）→ **掲載名・説明文・副カテゴリを作り直し、サーバー連携を公開仕様にして回答**。あわせて実機で判明した **NFCの不具合2件を build 3 で修正**（build 2 はまっさらなタグを読めず、タグに書けなかった）。詳細は `keyline/SESSION_LOG.md` 冒頭 |
 
 ### ツール（17本）※社内LAN共有なし
@@ -381,6 +382,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8533 | 事業計画案ジェネレーター | com.shinsei.business-plan-generator |
 | 8534 | KeyLine（NFC鍵・備品貸出管理／※画像自動削除は -purge が毎日3:30） | com.shinsei.keyline ＋ -purge |
 | 8535 | メールアーカイバ（※ツール・127.0.0.1・メール本文＝個人情報のためLANに出さない） | com.shinsei.mail-archiver（閲覧）＋ -sync（**毎日00:30**に取り込み＋翻訳＋1年超をサーバー削除。2026-08-28にOCRと時間帯をずらした） |
+| 8538 | 社内メールアーカイバ（※不動産・**127.0.0.1**・社員のメール本文のためLANに出さない／取り込みは毎日03:30・**サーバーからは1通も消さない**） | com.shinsei.company-mail-archiver-sync（**アカウント設定が揃うまで未登録**） |
 | 8536 | AI重説アシスタント（※不動産・0.0.0.0／**plistは `/bin/bash run.sh` を呼ぶ**＝Dropboxの公式書式200本を読むため `/bin/bash` にフルディスクアクセスが要る） | com.shinsei.jyuusetsu-research |
 | 8530 | AI業務マネージャー LINE webhook（※メインPCのみ稼働。ngrok固定ドメイン経由で公開） | com.shinsei.chatwork-ai-manager-line ＋ -ngrok |
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
@@ -400,6 +402,7 @@ PSA管理は図鑑の `app.py` を**モジュールとして直接読み込む**
 
 | 分類 | バインド | 対象 |
 |---|---|---|
+| 不動産だが**LANに出さない**（社員のメール本文） | `--server.address 127.0.0.1` | 8538 company-mail-archiver |
 | 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8534 keyline＋**8536 jyuusetsu-research**（2026-08-27に完成扱いへ移行）＋8540 chatwork-ai-manager |
 | 不動産だが**開発中** | `--server.address 127.0.0.1` | （現在なし。8532 agent-platform は2026-08-17に、8536 jyuusetsu-research は2026-08-27に完成扱いへ移行） |
 | ツール（社内共有なし） | `--server.address 127.0.0.1` | 8518 soufu-generator（個人専用） / 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 8535 mail-archiver / 8537 onepiece-dex / 3004 ai-tools-base（Next.js） |

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  社内メールの夜間取り込み（毎日 03:30）。
+  ★/bin/bash を入口にする。原本の保管先が CloudStorage(Dropbox) なので、
+    launchd 常時起動プロセスは責任プロセスにフルディスクアクセスが要る。
+    このMacは /bin/bash に付与済み。[[reference_launchd_cloudstorage_fda]]
+  ★アカウントが1つも無いうちは登録しない（何もせず終わるだけだが、動いている風に見えるため）。
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.shinsei.company-mail-archiver-sync</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/apple/company-mail-archiver/sync-daily.sh</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/apple/company-mail-archiver</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>3</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+  <key>StandardOutPath</key>
+  <string>/Users/apple/Library/Logs/com.shinsei.company-mail-archiver-sync.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/apple/Library/Logs/com.shinsei.company-mail-archiver-sync.log</string>
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
