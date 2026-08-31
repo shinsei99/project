@@ -56,6 +56,15 @@ plistlib.dump(d, open(p, "wb"))
 PY
 
 cp icon-src/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
+
+# ★隠しフラグを必ず外す（2026-08-31 に踏んだ・原因特定まで一番遠回りした）
+#   書き換えた Info.plist と AppIcon.icns に **UF_HIDDEN が付いていた**。
+#   すると LaunchServices がバンドルを読めず、Finder のダブルクリックだけが
+#   「アプリケーション"…"を開けません。」で失敗する。
+#   ★シェルからの `open` / `open -b` / AppleScript の Finder open は**成功してしまう**ので、
+#     「こちらでは開ける」と誤判定する。**必ず `ls -lO` でフラグを見ること。**
+chflags -R nohidden "$APP"
+
 touch "$APP"
 "$LSREGISTER" -f "$APP"
 
