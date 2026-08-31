@@ -298,6 +298,27 @@ VISION_OCR_BIN = os.environ.get(
 VISION_MIN_CHARS = 30
 
 
+def _quota_saver_active() -> bool:
+    """claudeの定額枠の節約モード中か（`~/.ai-quota-saver` の1行目が期限）。
+
+    ★**期限つき**にしてある（2026-08-31）。on/off だけだと戻し忘れて永久に止まる。
+      日時を過ぎれば勝手に元へ戻る。切り替えは `~/ai-quota-saver.sh`。
+    """
+    import datetime
+    p = os.path.expanduser("~/.ai-quota-saver")
+    if not os.path.exists(p):
+        return False
+    try:
+        for line in open(p, encoding="utf-8"):
+            line = line.strip()
+            if line and not line.startswith("#"):
+                # ISO表記なので文字列比較で正しく並ぶ
+                return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M") < line
+    except OSError:
+        return False
+    return False
+
+
 def _ocr_vision(path, max_pages=15) -> list:
     """macOS Vision で文字起こし。取れなければ空リスト（＝claude へ回す合図）。"""
     import subprocess
@@ -333,7 +354,7 @@ def ocr_pdf(path, max_pages=15) -> list:
     #   ここで OcrUnavailable を投げるのが大事。空リストで返すと呼び出し側が
     #   「この書類には文字が無い」と見なして**見送りリストへ入れ、二度とOCRしなくなる**。
     #   例外なら「今日はできなかった」扱いなので、枠が戻れば自動で再挑戦される。
-    if os.path.exists(os.path.expanduser("~/.ai-quota-saver")):
+    if _quota_saver_active():
         raise OcrUnavailable("節約モード中のため claude へ回送しない（Vision では読めなかった）")
 
     import re

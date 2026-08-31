@@ -52,7 +52,7 @@ rc=$?
 # ★この段は**ベクトルより前**に置く。訳が付いてからベクトルを作らないと、
 #   原文のままのベクトルが残って日本語で引けない（個人用は --retranslated で作り直している）。
 # ★節約モード中は飛ばす（claudeの枠を使う工程）。~/.ai-quota-saver があれば節約モード
-if [ -f "$HOME/.ai-quota-saver" ]; then
+if "$HOME/ai-quota-saver.sh" check 2>/dev/null; then
   echo "----- $(date '+%F %T') 英語メールの翻訳は節約モードのため飛ばす -----" >> "$LOG"
 else
   echo "----- $(date '+%F %T') 英語メールの日本語訳（新着分） -----" >> "$LOG"

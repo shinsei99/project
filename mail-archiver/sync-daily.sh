@@ -33,7 +33,7 @@ rc=$?
 #   全文検索でも日本語の語で英文メールが引っかかるようになる。
 #   ★ここを飛ばすと、その日に届いた英語メールだけ日本語で探せない状態になる。
 # ★節約モード中は飛ばす（claudeの枠を使う工程）。~/.ai-quota-saver があれば節約モード
-if [ -f "$HOME/.ai-quota-saver" ]; then
+if "$HOME/ai-quota-saver.sh" check 2>/dev/null; then
   echo "----- $(date '+%F %T') 英語メールの翻訳は節約モードのため飛ばす -----" >> "$LOG"
 else
   echo "----- $(date '+%Y-%m-%d %H:%M:%S') 英語メールの日本語訳（新着分） -----" >> "$LOG"

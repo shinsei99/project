@@ -40,9 +40,9 @@ echo "=================================================="
 #   記事を1本書くのは claude の消費が大きい工程。しかも**いま書いても出せない**:
 #   待機（zenn_pending）に29本の在庫があり、Zennは投稿数の上限で止まっている。
 #   印を消せば翌晩から自動で再開する（launchd は外さない＝戻し忘れない）。
-if [ -f "$HOME/.ai-quota-saver" ]; then
+if "$HOME/ai-quota-saver.sh" check 2>/dev/null; then
   echo "節約モード中のため、今夜は記事を書きません（在庫があるので困らない）"
-  echo "  戻すには: ~/ai-quota-saver.sh off"
+  echo "  いまの設定: $("$HOME/ai-quota-saver.sh")"
   exit 0
 fi
 
