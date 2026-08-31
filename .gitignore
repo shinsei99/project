@@ -23,6 +23,8 @@
 !GOOGLE_MAPS_API.md
 # APIの棚卸しと段取り（どのAPIを持っていて、次に何を取るか）。明日の再開点
 !API_STATUS.md
+# claudeの定額枠を節約するモードの切り替え（印は ~/.ai-quota-saver の1ファイル）
+!ai-quota-saver.sh
 !dev-doctor.py
 !dev-setup.sh
 !secrets-sync.sh

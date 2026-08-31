@@ -51,8 +51,13 @@ rc=$?
 #   OCRを巻き添えにした」実績があるので欲張らない。TRANSLATE_MAX で変えられる。
 # ★この段は**ベクトルより前**に置く。訳が付いてからベクトルを作らないと、
 #   原文のままのベクトルが残って日本語で引けない（個人用は --retranslated で作り直している）。
-echo "----- $(date '+%F %T') 英語メールの日本語訳（新着分） -----" >> "$LOG"
-( cd "$MA" && /usr/bin/python3 translate_english.py --limit "${TRANSLATE_MAX:-50}" ) >> "$LOG" 2>&1
+# ★節約モード中は飛ばす（claudeの枠を使う工程）。~/.ai-quota-saver があれば節約モード
+if [ -f "$HOME/.ai-quota-saver" ]; then
+  echo "----- $(date '+%F %T') 英語メールの翻訳は節約モードのため飛ばす -----" >> "$LOG"
+else
+  echo "----- $(date '+%F %T') 英語メールの日本語訳（新着分） -----" >> "$LOG"
+  ( cd "$MA" && /usr/bin/python3 translate_english.py --limit "${TRANSLATE_MAX:-50}" ) >> "$LOG" 2>&1
+fi
 
 echo "----- $(date '+%F %T') 添付の中身（新着ぶん） -----" >> "$LOG"
 /usr/bin/python3 "$MA/attach_extract.py" --since-days "${ATTACH_NEW_DAYS:-30}" \

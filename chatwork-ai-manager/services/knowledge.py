@@ -329,6 +329,13 @@ def ocr_pdf(path, max_pages=15) -> list:
     if pages:
         return pages
 
+    # ★節約モード（2026-08-31）: claude の定額枠が少ないときは回送しない。
+    #   ここで OcrUnavailable を投げるのが大事。空リストで返すと呼び出し側が
+    #   「この書類には文字が無い」と見なして**見送りリストへ入れ、二度とOCRしなくなる**。
+    #   例外なら「今日はできなかった」扱いなので、枠が戻れば自動で再挑戦される。
+    if os.path.exists(os.path.expanduser("~/.ai-quota-saver")):
+        raise OcrUnavailable("節約モード中のため claude へ回送しない（Vision では読めなかった）")
+
     import re
     import tempfile
 
