@@ -3,53 +3,62 @@
 #
 #   ./make_app.sh
 #
-# ★なぜスクリプトにするか（2026-08-31 に踏んだ）
-#   シェルで `.app` の中身を書いただけでは **LaunchServices に登録されない**。
-#   Finder でダブルクリックしても何も起きず、`open` は
-#   `_LSOpenURLsWithCompletionHandler() failed with error -10810` で落ちる。
-#   **最後に `lsregister -f` を叩くまでが「アプリを作る」作業**。手順に混ぜておかないと必ず忘れる。
+# ★作り方は「**動いている .app を丸ごと複製して、3か所だけ書き換える**」（2026-08-31 に確定）。
+#
+#   ゼロから mkdir で組み立てた bundle は、**中身が既存アプリと1バイト単位で同じ構成**
+#   （ファイル一覧・権限・拡張属性・未署名まで一致）でも、**Finder のアイコンから開けなかった**。
+#   `open` はシェルからだと成功するのに、Finder のダブルクリックだけ通らない状態。
+#   原因を特定しきれなかったので、**確実に動いているものを ditto で複製する**方法に変えた。
+#   （Desktop は file provider 管理下にあるので、その辺りの都合と推測。深追いしない）
+#
+# ★書き換えるのは3か所だけ:
+#     Contents/MacOS/launcher     … 開くURL（ポート）
+#     Contents/Info.plist         … 表示名と CFBundleIdentifier
+#     Contents/Resources/AppIcon.icns … アイコン
+#
+# ★CFBundleIdentifier は **launchd のラベルと別にする**（`-app` を付ける）。
+#   紛らわしさを避けるためで、これ自体が不具合の原因だった証拠は無い。
+#
+# ★最後に `lsregister -f` を叩くまでが「アプリを作る」作業。
+#   叩かないと Finder に登録されず、`open` は error -10810 で落ちる（これも実際に踏んだ）。
 set -eu
 cd "$(dirname "$0")"
 
 NAME="社内メールアーカイバ"
 PORT=8538
-BUNDLE_ID="com.shinsei.company-mail-archiver"
-APP="$HOME/Desktop/社内ツール/${NAME}.app"
+BUNDLE_ID="com.shinsei.company-mail-archiver-app"
+TOOLS="$HOME/Desktop/社内ツール"
+APP="$TOOLS/${NAME}.app"
+SRC="$TOOLS/メールアーカイバ.app"          # 確実に動いている見本
 LSREGISTER="/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister"
 
-# アイコンが無ければ作る（PIL と iconutil を使う）
+[ -d "$SRC" ] || { echo "見本が無い: $SRC"; exit 1; }
 [ -f icon-src/AppIcon.icns ] || /usr/bin/python3 icon-src/make_icon.py
 
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+# 既にあるものは退避（rm は使わない。消す判断は人がする）
+if [ -d "$APP" ]; then
+  mv "$APP" "${APP%.app}.old-$(date +%H%M%S).app"
+fi
 
-cat > "$APP/Contents/MacOS/launcher" <<EOF
-#!/bin/zsh
-open "http://localhost:${PORT}"
-EOF
+ditto "$SRC" "$APP"
+
+printf '#!/bin/zsh\nopen "http://localhost:%s"\n' "$PORT" > "$APP/Contents/MacOS/launcher"
 chmod +x "$APP/Contents/MacOS/launcher"
 
-cat > "$APP/Contents/Info.plist" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleDisplayName</key><string>${NAME}</string>
-  <key>CFBundleExecutable</key><string>launcher</string>
-  <key>CFBundleIconFile</key><string>AppIcon</string>
-  <key>CFBundleIdentifier</key><string>${BUNDLE_ID}</string>
-  <key>CFBundleName</key><string>${NAME}</string>
-  <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleVersion</key><string>1</string>
-  <key>NSHighResolutionCapable</key><true/>
-</dict>
-</plist>
-EOF
-plutil -lint "$APP/Contents/Info.plist" >/dev/null
+/usr/bin/python3 - "$APP" "$NAME" "$BUNDLE_ID" <<'PY'
+import sys, os, plistlib
+app, name, bid = sys.argv[1], sys.argv[2], sys.argv[3]
+p = os.path.join(app, "Contents", "Info.plist")
+d = plistlib.load(open(p, "rb"))
+d["CFBundleDisplayName"] = d["CFBundleName"] = name
+d["CFBundleIdentifier"] = bid
+plistlib.dump(d, open(p, "wb"))
+PY
 
 cp icon-src/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
 touch "$APP"
-
-# ★ここが肝。登録しないとダブルクリックで開かない
 "$LSREGISTER" -f "$APP"
+
 echo "作りました: $APP"
-echo "確認: open \"$APP\"  →  http://localhost:${PORT} が開けば成功"
+open -b "$BUNDLE_ID" && echo "確認: バンドルIDで起動できた（Finderのダブルクリックと同じ経路）"
+echo "※ Finder のアイコンが古いままなら、いったんフォルダを閉じて開き直す（または killall Finder）"

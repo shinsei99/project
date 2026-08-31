@@ -16,11 +16,9 @@ from datetime import date, datetime, timedelta, timezone
 
 import streamlit as st
 
-import ai_query
 import ai_search
 import config
 import db
-import semantic
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _ICON_180 = os.path.join(_HERE, "assets", "appicon-180.png")
@@ -201,13 +199,12 @@ with tab_search:
         m3.metric("サーバーから削除済", "{:,} 通".format(s["deleted"]), human_size(s["deleted_bytes"]))
         m4.metric("添付ファイル", "{:,} 件".format(s["attachments"]), human_size(s["attachment_bytes"]))
 
-    mode = st.radio("検索のしかた", ["🤖 AIに探してもらう", "単純検索", "ベクトル検索（意味）"],
+    mode = st.radio("検索のしかた", ["🤖 AIに探してもらう", "単純検索"],
                     horizontal=True, label_visibility="collapsed")
 
     q = ""
+    # AIが見つけた順で一覧を並べるための入れ物（見つからなければ通常の検索順）
     sem_ids = None
-    sim_map = {}
-    reason_map = {}
 
     if mode == "🤖 AIに探してもらう":
         # ★従来の「1回変換して1回検索して終わり」をやめた入口（2026-08-31）。
@@ -215,7 +212,7 @@ with tab_search:
         #   何をどう試したかを必ず見せる（見せないと「なぜ出ないのか」が利用者に分からない）。
         st.session_state.pop("sem", None)
         ask = st.text_input(
-            "探しものを日本語で（例: 9月2日のスイスホテルの懇親会の詳細　1ヶ月以内のメール）",
+            "探しものを日本語で",
             key="ai_ask")
         if st.button("🤖 探して答えてもらう", width="stretch") and ask.strip():
             box = st.empty()
@@ -251,95 +248,6 @@ with tab_search:
         st.session_state.pop("sem", None)
         st.session_state.pop("ai_res", None)
         q = st.text_input("キーワード（件名・本文・宛先を横断。3文字以上が速い）", "")
-    else:
-        st.session_state.pop("ai_res", None)
-        cnt = db.embedding_count(conn, semantic.MODEL_NAME)
-        if cnt < s["messages"]:
-            st.caption("🧠 ベクトル作成中：{:,} / {:,} 通（増えるほど取りこぼしが減ります）".format(
-                cnt, s["messages"]))
-        nl2 = st.text_input("やりたいことを日本語で（意味で探す。語が違っても拾う）", key="sem_nl")
-        rerank_on = st.checkbox("🤖 Claudeで精査（上位を実際に読んで関連順に並べ替え・理由つき）",
-                                value=True)
-        cg, cc = st.columns([1, 1])
-        if cg.button("🧠 意味で検索", width="stretch") and nl2.strip():
-            if not semantic.available():
-                st.error("埋め込み環境（.venv-embed）が未整備です。")
-            elif cnt == 0:
-                st.warning("まだベクトルが1件も作られていません。作成が進んでから試してください。")
-            else:
-                with st.spinner("意味で探しています…"):
-                    try:
-                        # ★「今月のもの」「先月」「8月」等の期間指定を先に読み取って絞る（2026-08-27）。
-                        #   絞らないと5万通の中に埋もれ、目当てのメールが上位800にすら入らない
-                        #   （英語メールで実際に発生）。日付の読み取りは既存の ai_query.parse_query を使う。
-                        # ★期間は先に**LLMを使わず**読む（2026-08-27）。
-                        #   ai_query.parse_query は claude CLI を呼ぶので60秒で落ちることがあり、
-                        #   落ちると絞り込みが丸ごと効かず5万通から探すことになる。
-                        #   「今月」「先月」「8月」等はここで確実に取れる。
-                        d_from, d_to = semantic.detect_period(nl2)
-                        must = []
-                        boost = []
-                        try:
-                            f = ai_query.parse_query(nl2)
-                            if not d_from and not d_to:      # 自前で取れなかったときだけLLMの結果を使う
-                                d_from = f.get("date_from") or ""
-                                d_to = f.get("date_to") or ""
-                            must = f.get("keywords_all") or []
-                            boost = f.get("keywords_any") or []
-                        except Exception as e:  # noqa: BLE001
-                            st.caption("⚠️ 条件の自動解析に失敗（期間の絞り込みだけ効いています）: "
-                                       "{}".format(str(e)[:60]))
-                        if d_from or d_to:
-                            st.caption("🗓 期間で絞り込みました: {} 〜 {}".format(d_from or "指定なし",
-                                                                        d_to or "指定なし"))
-                        if must:
-                            st.caption("🔑 この語を含むものに絞りました: {}".format(" / ".join(must)))
-                        ids, sm = semantic.search(conn, nl2, top=800,
-                                                  date_from=d_from, date_to=d_to,
-                                                  must_terms=must, boost_terms=boost)
-                        sem = {"ids": ids, "sim": sm, "q": nl2,
-                               # ★添付のどこに当たったかを後で示すために、使った語を持ち回る
-                               "must": (must or []) + (boost or []),
-                               "rerank": None, "reasons": {}}
-                        if rerank_on and ids:
-                            # ベクトル上位40通を Claude に読ませて関連順へ
-                            # 絞り込みで候補が少ないときは全部読ませる。
-                            # 40件で切ると、順位が下のほうにある正解を精査が見られない
-                            top = ids[:max(40, min(len(ids), 60))] if len(ids) <= 60 else ids[:40]
-                            cand_rows = {r["id"]: r for r in db.messages_by_ids(conn, top)}
-                            cands = [(i, (cand_rows[i]["subject"] if i in cand_rows else ""),
-                                      (cand_rows[i]["body_text"] if i in cand_rows else ""))
-                                     for i in top if i in cand_rows]
-                            with st.spinner("Claudeが上位を読んで精査中…"):
-                                try:
-                                    ranked = ai_query.rerank(nl2, cands)
-                                    sem["rerank"] = [d["id"] for d in ranked]
-                                    sem["reasons"] = {d["id"]: d.get("reason", "") for d in ranked}
-                                    sem["sim"] = {**sm,
-                                                  **{d["id"]: d["score"] / 100.0 for d in ranked}}
-                                except Exception as e:  # noqa: BLE001
-                                    st.warning("Claude精査に失敗（ベクトル順で表示）: {}".format(e))
-                        st.session_state["sem"] = sem
-                    except Exception as e:  # noqa: BLE001
-                        st.error("意味検索に失敗: {}".format(e))
-        if cc.button("クリア", width="stretch", key="sem_clear"):
-            st.session_state.pop("sem", None)
-        sem = st.session_state.get("sem")
-        if sem:
-            sim_map = sem["sim"]
-            reason_map = sem.get("reasons") or {}
-            if sem.get("rerank") is not None:
-                # Claudeが選んだ順を先頭に、残りはベクトル順で後ろへ
-                picked = sem["rerank"]
-                rest = [i for i in sem["ids"] if i not in set(picked)]
-                sem_ids = picked + rest
-                st.info("**意味検索＋Claude精査**：「{}」。上位はClaudeが読んで選んだ関連順（理由つき）、"
-                        "以降はベクトル順。".format(sem["q"]))
-            else:
-                sem_ids = sem["ids"]
-                st.info("**ベクトル検索**：「{}」に意味が近い順（アカウント・期間の絞り込みは後がけ）。".format(
-                    sem["q"]))
-
     page = st.number_input("ページ", min_value=1, value=1, step=1)
 
     if sem_ids is not None:
@@ -395,11 +303,8 @@ with tab_search:
         if not title:
             head = " ".join((r["body_text"] or "").split())[:60]
             title = "（件名なし）{}".format(head) if head else "（件名なし）"
-        sim_prefix = ""
-        if sim_map:
-            sim_prefix = "🧠{}% ".format(int(round(sim_map.get(r["id"], 0.0) * 100)))
-        label = "{}{} {} — {} ｜ {} ｜ {}{}".format(
-            sim_prefix, badge, to_local(r["date_utc"]) or "(日付不明)",
+        label = "{} {} — {} ｜ {} ｜ {}{}".format(
+            badge, to_local(r["date_utc"]) or "(日付不明)",
             title[:70],
             r["from_addr"] or r["from_name"] or "",
             r["folder_name"],
@@ -407,8 +312,6 @@ with tab_search:
         with st.expander(label):
             for fname, snippet in att_hits.get(r["id"], [])[:3]:
                 st.info("📎 **添付に一致**: {}\n\n… {} …".format(fname, snippet))
-            if reason_map.get(r["id"]):
-                st.success("🤖 Claudeの見立て：{}".format(reason_map[r["id"]]))
             m1, m2 = st.columns([3, 1])
             with m1:
                 st.markdown("**件名**: {}".format(r["subject"] or "(なし)"))
