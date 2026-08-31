@@ -3,7 +3,7 @@ title: "「件数が足りているか」で分岐してはいけない。フォ
 emoji: "📚"
 type: "tech"
 topics: ["python", "sqlite", "fts5", "rag", "claudecode"]
-published: false
+published: true
 ---
 
 社内資料を横断して答えるAIエージェントに、法令・ガイドライン・判例・実務書の索引を足しました。

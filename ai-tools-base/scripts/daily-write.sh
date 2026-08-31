@@ -138,6 +138,36 @@ fi
 if [ -n "$DRY" ]; then
   echo "--- dry: 待機場所には入れない ---"
 else
+  # ★書いた記事を待機場所へ移す（2026-08-31 に復活させた）。
+  #
+  #   8/29 に「Zennで未公開の記事を articles/ から引き戻す処理」を消したとき、
+  #   **待機場所へ入れる処理まで一緒に消えていた**。以来、書いた記事は
+  #   `published: false` のまま articles/ に残り続けていた。
+  #   zenn-daily は **drafts/zenn_pending からしか選ばない**ので、
+  #   articles/ に残った記事は順番表に載っていても**永久に出ない**。
+  #   実際 search-fallback-fills-topk と name-substitution-misfires の2本が
+  #   取り残されていた（8/31に手で待機場所へ戻した）。
+  #
+  #   ここで `published: true` にしておく（待機場所の他の記事と同じ形）。
+  #   zenn-daily は出す晩にファイルを articles/ へ移すだけなので、
+  #   false のまま入れると移動しても Zenn が公開しない。
+  PEND="drafts/zenn_pending"
+  mkdir -p "$PEND"
+  for s in $NEW_ART; do
+    [ -f "../articles/$s.md" ] || continue
+    if [ -e "$PEND/$s.md" ]; then
+      echo "★待機場所に同名がある。移さない: $s"; continue
+    fi
+    /usr/bin/python3 - "../articles/$s.md" "$PEND/$s.md" <<'PYMOVE'
+import pathlib, sys
+src, dst = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
+t = src.read_text(encoding="utf-8")
+dst.write_text(t.replace("published: false", "published: true", 1), encoding="utf-8")
+src.unlink()
+PYMOVE
+    echo "待機場所へ入れた: $s（Zennへは 22:00 に1本ずつ）"
+  done
+
   echo "--- 待機場所の状況（Zennへは 22:00 に1本ずつ出る） ---"
   # ★ここで articles/ から記事を引き戻してはいけない（2026-08-29に直した）。
   #

@@ -59,14 +59,90 @@ VERSIONY = [
 ]
 
 # 記事で普通に出てよいもの（誤検知を減らす）
-ALLOW = {
-    "株式会社", "有限会社", "合同会社",
-    "サトウビル", "テストビル",          # 例示用に使っている架空名
-}
+#
+# ★2種類ある（2026-08-31に分けた）。混ぜていたせいで**法人名の規則が丸ごと効いていなかった**。
+#   `ALLOW_EXACT` … その語そのものなら通す。「株式会社」単独は普通に本文へ出てよい
+#   `ALLOW_PART`  … 一部に含まれていれば通す。例示用の架空名
+#
+#   もとは1つの集合を「完全一致 または 4文字以上のものが含まれる」で見ていた。
+#   「株式会社」は4文字なので、**`株式会社ヤマダ` も「株式会社を含む」で通っていた**
+#   （＝法人名は何を書いても止まらない）。実測して気づいた。
+ALLOW_EXACT = {"株式会社", "有限会社", "合同会社", "不動産株式会社"}
+ALLOW_PART = {"サトウビル", "テストビル"}          # 例示用に使っている架空名
+
+# ★伏せ字だけで出来た名前は通す（2026-08-31）。
+#
+#   記事は「固有名詞を伏せて書く」決まりなので、原稿には `◯◯ビル` `△△マンション`
+#   `◯◯さんビル` のような伏せ字が普通に出てくる。これは実在を指していないので止める理由が無い。
+#   2026-08-30 の自動執筆（name-substitution-misfires）が `◯◯ビル` で止まり、
+#   **記事が1本まるごと出せなくなった**。しかもその記事の主題が「置換の誤爆」だった。
+#
+#   判定は「三点セット（伏せ字・敬称・建物や法人を表す語）を取り除いたら何も残らないか」。
+#   `サトウビル` は `サトウ` が残るので今までどおり止まる。
+MASK_CHARS = set("◯○〇◎●△▲▽▼□■×✕✖＊*？?")
+TRIM_CHARS = "`\"'「」『』（）()　 \t・ー－-"
+_TRIGGER = re.compile(r"(?:ビル|マンション|ハイツ|コーポ|アパート|荘|"
+                      r"不動産株式会社|株式会社|有限会社|合同会社)")
+_HONORIFIC = re.compile(r"(?:さん|様|氏|くん|ちゃん)")
+
+
+def is_masked(s: str) -> bool:
+    """「◯◯ビル」「△△さんビル」「株式会社◯◯」のように、名前の部分が伏せてあるか。
+
+    ★飾り記号（引用符・バッククォート）は先に落とす。落とさずに「伏せ字を含むか」で
+      見ると、`"ヤマダビル"` のような**引用符つきの実名まで通ってしまう**。
+    """
+    rest = _HONORIFIC.sub("", _TRIGGER.sub("", s)).strip(TRIM_CHARS)
+    return not rest or rest[0] in MASK_CHARS
+
+
+# 「弊社は株式会社である」「株式会社の登記簿」のような**普通の文**を名前と間違えないための判定。
+# 日本語の会社名は漢字・カタカナ・英字で始まる。法人格語の直後（または直前）が
+# **ひらがな**なら、それは名前ではなく文の続き。
+_HIRAGANA = re.compile(r"[ぁ-ん]")
+_CORP = re.compile(r"(?:不動産株式会社|株式会社|有限会社|合同会社)")
+
+
+def is_generic_corporate(s: str) -> bool:
+    """法人格語を含むが、名前ではない普通の文か。"""
+    m = _CORP.search(s)
+    if not m:
+        return False
+    before, after = s[:m.start()].strip(TRIM_CHARS), s[m.end():].strip(TRIM_CHARS)
+    if not before and not after:
+        return True                                  # 「株式会社」単独
+    if after and _HIRAGANA.match(after[0]):
+        return True                                  # 株式会社**である**
+    if before and _HIRAGANA.match(before[-1]):
+        return True                                  # 弊社**は**株式会社
+    return False
 
 # 記事の例示に使ってよい番号帯（総務省が例示用に確保しているもの）。
 # 実在の番号を例に使わないための逃げ道。
 EXAMPLE_TEL = re.compile(r"0\d{1,3}[-(－]?5555[-)－]?\d{4}|０\d{1,3}－５５５５－\d{4}")
+
+
+# ★1本だけ例外を認める仕組み（2026-08-31）。
+#
+#   原稿に `<!-- guard-allow: 具体的なモデル名 -->` と書いておくと、その項目だけ見逃す。
+#   **免除できるのは「寿命を縮める語」だけ**。個人情報・禁止語・固有名詞は**免除できない**
+#   （原稿を書くのは機械なので、機械が自分で個人情報の関門を外せてはいけない）。
+#
+#   なぜ要るか: 「モデルにもSDKにも寿命がある」という記事は、**モデル名そのものが主題**で、
+#   `gemini-2.0-flash is no longer available` という実際のエラーが証拠になっている。
+#   この規則は「うっかり版を固定して書く」のを止めるためのもので、こういう記事は対象外。
+WAIVABLE = {"具体的なモデル名", "SDKのバージョン"}
+WAIVER_RE = re.compile(r"guard-allow:\s*([^\n>]+)")
+
+
+def waived_labels(text: str) -> set[str]:
+    """原稿が自分で申告した免除項目のうち、免除してよいものだけ返す。"""
+    out: set[str] = set()
+    for m in WAIVER_RE.finditer(text):
+        for w in re.split(r"[,、\s]+", m.group(1).strip()):
+            if w in WAIVABLE:
+                out.add(w)
+    return out
 
 
 def blocklist() -> list[str]:
@@ -85,8 +161,13 @@ SLUG_RE = re.compile(r"^[a-z0-9_-]{12,50}$")
 
 
 def check_slug(path: Path) -> list[str]:
-    """記事のファイル名が Zenn の決まりに合っているか。articles/ の .md だけ見る。"""
-    if path.suffix != ".md" or path.parent.name != "articles":
+    """記事のファイル名が Zenn の決まりに合っているか。
+
+    articles/ と **待機場所（drafts/zenn_pending）** の .md を見る。
+    待機場所のファイル名はそのまま articles/ へ移る＝そのままZennのURLになるので、
+    出す晩ではなく**書いた晩に**気づけるほうがよい。
+    """
+    if path.suffix != ".md" or path.parent.name not in ("articles", "zenn_pending"):
         return []
     slug = path.stem
     if SLUG_RE.match(slug):
@@ -109,10 +190,17 @@ def check(path: Path, text: str, words: list[str]) -> list[str]:
     for label, pat in PROPER:
         for m in pat.finditer(text):
             s = m.group(0).strip()
-            if s in ALLOW or any(a in s for a in ALLOW if len(a) > 3):
+            if s in ALLOW_EXACT or any(a in s for a in ALLOW_PART):
+                continue
+            if is_masked(s):            # 「◯◯ビル」など伏せ字の名前は実在を指さない
+                continue
+            if is_generic_corporate(s):  # 「弊社は株式会社である」は名前ではない
                 continue
             bad.append(f"[固有名詞らしき/{label}] {s[:40]}")
+    waived = waived_labels(text)
     for label, pat in VERSIONY:
+        if label in waived:
+            continue
         for m in pat.finditer(text):
             bad.append(f"[寿命を縮める語/{label}] {m.group(0)[:40]}")
     return bad
@@ -130,6 +218,11 @@ def targets(only: str | None) -> list[Path]:
             out.append(f)
         elif not SLUG_RE.match(f.stem):
             out.append(f)          # 中身は通っている前提。ファイル名だけ引っかかる
+    # ★待機場所も検査する（2026-08-31）。記事は書いた晩に articles/ から待機場所へ移るので、
+    #   ここを見ないと **Zennへ出す本文が検査されない期間**ができる
+    #   （zenn-daily は出す直前に `guard <slug>` を呼ぶが、そのとき本文はまだ待機場所にある）。
+    for f in sorted((ROOT / "drafts" / "zenn_pending").glob("*.md")):
+        out.append(f)
     for f in sorted((ROOT / "drafts" / "note").glob("*.md")):
         out.append(f)
     for f in sorted((ROOT / "content" / "works").glob("*.json")):
