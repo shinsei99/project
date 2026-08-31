@@ -15,7 +15,11 @@ from db.connection import get_conn, query, query_one
 
 CHUNK_SIZE = 800          # 1 チャンクの目安文字数
 CHUNK_OVERLAP = 100
-SUPPORTED_EXT = {".pdf", ".xlsx", ".xlsm", ".docx", ".csv", ".txt", ".md", ".html", ".htm", ".url"}
+SUPPORTED_EXT = {".pdf", ".xlsx", ".xlsm", ".docx", ".csv", ".txt", ".md", ".html", ".htm", ".url",
+                 # ★旧Office形式（2026-08-31 追加）。取引・契約フォルダの2,418件のうち
+                 #   .xls が353件・.doc が251件あり、契約書・請求書・賃貸資料など中身が
+                 #   テキストの重要書類が読めないままだった。
+                 ".xls", ".doc"}
 SKIP_DIRS = set()                                 # 除外フォルダ（現状なし）
 SKIP_DIR_PREFIXES = ("_アーカイブ", "_bak", ".")   # アーカイブ・バックアップ・隠しは除外
 
@@ -66,6 +70,55 @@ def _extract_docx(path):
             if cells:
                 paras.append(" | ".join(cells))
     text = "\n".join(paras).strip()
+    return [(text, None)] if text else []
+
+
+def _extract_xls(path):
+    """旧Excel（.xls）。xlrd で読む。
+
+    ★xlrd 2.x は .xlsx を捨てて **.xls 専用**になった。新しい方は openpyxl が見るので、
+      役割がきれいに分かれている。
+    """
+    import xlrd
+    out = []
+    book = xlrd.open_workbook(path, on_demand=True)
+    for sh in book.sheets():
+        lines = []
+        for r in range(sh.nrows):
+            cells = []
+            for c in sh.row(r):
+                v = c.value
+                if v is None or v == "":
+                    continue
+                # 数値が 1234.0 のように出るのを整える
+                if isinstance(v, float) and v == int(v):
+                    v = int(v)
+                cells.append(str(v).strip())
+            if cells:
+                lines.append(" | ".join(cells))
+        if lines:
+            out.append(("\n".join(lines), f"Sheet:{sh.name}"))
+    book.release_resources()
+    return out
+
+
+def _extract_doc(path):
+    """旧Word（.doc）。macOS 標準の textutil で取り出す。
+
+    ★antiword や olefile は入っていない。textutil は OS 同梱で、実データで試すと
+      送付書・解約通知書などは問題なく読めた（1,000字前後）。
+      中身が図だけの書類（領収書のひな形など）は0文字になるが、それは正しい結果。
+    """
+    import subprocess
+    try:
+        r = subprocess.run(["textutil", "-convert", "txt", "-stdout", path],
+                           capture_output=True, timeout=60)
+    except Exception:
+        return []
+    text = r.stdout.decode("utf-8", "ignore").strip()
+    if not text:
+        # textutil は Shift_JIS のまま返すことがある
+        text = r.stdout.decode("cp932", "ignore").strip()
     return [(text, None)] if text else []
 
 
@@ -183,6 +236,9 @@ _EXTRACTORS = {
     ".pdf": _extract_pdf, ".xlsx": _extract_xlsx, ".xlsm": _extract_xlsx,
     ".docx": _extract_docx, ".csv": _extract_csv, ".txt": _extract_text, ".md": _extract_text,
     ".html": _extract_html, ".htm": _extract_html, ".url": _extract_url,
+    # 旧Office（2026-08-31 追加）。SUPPORTED_EXT に足すだけでは読めない。
+    # extract() はこの表を引くので、**両方に足す**こと。
+    ".xls": _extract_xls, ".doc": _extract_doc,
 }
 
 
