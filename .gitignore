@@ -422,6 +422,9 @@ ai-tools-base/.env*
 !ai-tools-base/.env.example
 
 # Zenn の記事（GitHub連携がリポジトリ直下の articles/ を見る）
+# Zenn の books（使っていないが、無いとデプロイのたびに警告が出る）
+!books/
+!books/**
 !articles/
 !articles/**
 
