@@ -25,6 +25,13 @@ import sm  # noqa: E402
 
 GATEWAY = "https://mp-gateway.spacemarket.com/rest/1"
 
+# 掲載名は長いので、社内で使っている呼び名に対応づける（uid は公開ページのURL末尾と同じ）
+KNOWN = {
+    "ePrMgAswaWYsjRzN": "グリーンガーデン加東",
+    "vom4LWVk4aNaD22Z": "レセプル福島",
+    "Ew0cUleoB6xuwfHu": "グリーンガーデン秋津",
+}
+
 
 def open_session(ctx) -> tuple[str, dict]:
     """管理画面を1枚開いて、ホストのスラッグと API 用ヘッダを手に入れる。
@@ -115,12 +122,8 @@ def ad_status(ctx) -> str:
         page.close()
 
 
-def build_report(slug: str, rooms: list, months: list, ad: str, cal_month: dict) -> str:
-    known = {
-        "ePrMgAswaWYsjRzN": "グリーンガーデン加東",
-        "vom4LWVk4aNaD22Z": "レセプル福島",
-        "Ew0cUleoB6xuwfHu": "グリーンガーデン秋津",
-    }
+def build_report(slug: str, rooms: list, months: list, ad: str, cal_month: dict, per_room: list) -> str:
+    known = KNOWN
     o: list[str] = []
     o.append(f"# SpaceMarket ホスト管理画面 実績（{sm.jst_now()} JST 取得・ホスト {slug}）\n")
 
@@ -134,7 +137,20 @@ def build_report(slug: str, rooms: list, months: list, ad: str, cal_month: dict)
             f"{'✅ 受付中' if r.get('is_reservation_available') else '❌ **停止中**'} |"
         )
 
-    o.append("\n## 月次実績（予約リクエスト送信日ベース）\n")
+    if per_room:
+        o.append("\n## 施設別の実績（今年・受付中のみ）\n")
+        o.append("| 施設 | 成約 | 成約金額 | リクエスト | 問合せ | レビュー |")
+        o.append("|---|---|---|---|---|---|")
+        for name, ms in per_room:
+            o.append(
+                f"| {name} | {sum(num(m.get('total_conversions_count')) for m in ms):.0f}件 | "
+                f"￥{sum(num(m.get('total_sales')) for m in ms):,.0f} | "
+                f"{sum(num(m.get('total_request_count')) for m in ms):.0f}件 | "
+                f"{sum(num(m.get('total_inquiries_count')) for m in ms):.0f}件 | "
+                f"{sum(num(m.get('total_reputations_count')) for m in ms):.0f}件 |"
+            )
+
+    o.append("\n## 月次実績・ホスト全体（予約リクエスト送信日ベース）\n")
     o.append("| 年月 | 成約 | 稼働率 | 成約金額 | 収益 | リクエスト | 問合せ | レビュー |")
     o.append("|---|---|---|---|---|---|---|---|")
     tot_sales = tot_conv = 0
@@ -184,6 +200,20 @@ def main() -> int:
         headers,
     )
     days = get_json(ctx, f"{GATEWAY}/owners/{slug}/calendar?year={year}&month={month}", headers)
+
+    # 施設別の実績。analytics は room_id を付けると1施設ぶんに絞れる（2026-09-01 実測）。
+    # 受付を止めている掲載は数字が動かないので出さない。
+    per_room = []
+    for r in rooms:
+        if not r.get("is_reservation_available"):
+            continue
+        ms = get_json(
+            ctx,
+            f"{GATEWAY}/owners/{slug}/analytics"
+            f"?grouping=monthly&date_range_type=year&year={year}&room_id={r['id']}",
+            headers,
+        )
+        per_room.append((KNOWN.get(r.get("uid"), r.get("name", "")[:24]), ms))
     ad = ad_status(ctx)
     sm.close_context(ctx)
 
@@ -191,11 +221,18 @@ def main() -> int:
     day = sm.jst_today()
     j = sm.save_json(
         sm.ROOT / "local" / "host" / f"{day}.json",
-        {"slug": slug, "rooms": rooms, "analytics": months, "calendar": cal, "ad_status": ad},
+        {
+            "slug": slug,
+            "rooms": rooms,
+            "analytics": months,
+            "per_room": [{"name": n, "months": m} for n, m in per_room],
+            "calendar": cal,
+            "ad_status": ad,
+        },
     )
     md = sm.REPORT_DIR / f"host-{day}.md"
     md.parent.mkdir(parents=True, exist_ok=True)
-    md.write_text(build_report(slug, rooms, months, ad, cal), encoding="utf-8")
+    md.write_text(build_report(slug, rooms, months, ad, cal, per_room), encoding="utf-8")
     print(f"生データ: {j}\nレポート: {md}")
     return 0
 
