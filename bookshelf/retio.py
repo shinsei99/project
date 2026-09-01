@@ -7,7 +7,12 @@
 import os, re, sys, time, urllib.parse, urllib.request, html
 
 BASE = "https://www.retio.or.jp"
-OUT = "/Users/apple/Library/CloudStorage/Dropbox-個人/一次資料/RETIO判例・実務"
+# ★置き場は `CLAUDE/` の下（CLAUDE.md 3-c）。2026-09-01 にオーナー指示で移した。
+#   ingest_all.py と同じ環境変数で差し替えられる。
+OUT = os.path.join(
+    os.environ.get("BOOKSHELF_PRIM_DIR",
+                   os.path.expanduser("~/Library/CloudStorage/Dropbox-個人/CLAUDE/一次資料")),
+    "RETIO判例・実務")
 # 欲しい記事の見出し（部分一致）
 WANT = re.compile(
     r"最近の裁判例|裁判例索引|紛争事例|検討報告|賃貸|サブリース|管理業法|"

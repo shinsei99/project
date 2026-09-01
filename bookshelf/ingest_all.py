@@ -11,8 +11,15 @@ from db.connection import get_conn
 from services import knowledge
 
 S = "/private/tmp/claude-501/-Users-apple/b1bdf458-cb66-42ac-8dd3-e0a46d301b4a/scratchpad/ocr"
-BOOKS = "/Users/apple/Library/CloudStorage/Dropbox-個人/書籍"
-PRIM = "/Users/apple/Library/CloudStorage/Dropbox-個人/一次資料"
+BOOKS = os.environ.get(
+    "BOOKSHELF_BOOKS_DIR",
+    os.path.expanduser("~/Library/CloudStorage/Dropbox-個人/書籍"))
+# ★Claude が作るデータの置き場は個人Dropboxの `CLAUDE/` の下に集める（CLAUDE.md 3-c）。
+#   2026-09-01 にオーナー指示で `Dropbox-個人/一次資料` から移した。
+#   直書きせず環境変数で差し替えられるようにしてある（置き場が変わっても直すのは.envだけ）。
+PRIM = os.environ.get(
+    "BOOKSHELF_PRIM_DIR",
+    os.path.expanduser("~/Library/CloudStorage/Dropbox-個人/CLAUDE/一次資料"))
 
 
 def shelf_id(conn, name, note="", prefer_new=0):

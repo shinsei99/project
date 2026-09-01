@@ -48,6 +48,12 @@ python3 ndl.py <ISBN>      # 国立国会図書館サーチ（openBDで落ちた
 python3 shelves.py         # → assign.json
 
 # 5. 知識索引へ入れて棚に置く
+#    ★置き場は個人Dropboxの CLAUDE/ の下（CLAUDE.md 3-c）。2026-09-01 にオーナー指示で
+#      `Dropbox-個人/一次資料` から `Dropbox-個人/CLAUDE/一次資料` へ移した。
+#      別の場所を見せたいときは BOOKSHELF_PRIM_DIR / BOOKSHELF_BOOKS_DIR で差し替える
+#      （ingest_all.py と retio.py が同じ変数を読む。コードに直書きしない）。
+#      移動したら **索引DBの knowledge_documents.filepath も貼り替える**。
+#      貼り替えないと次の取り込みで同じ資料が二重に入る（実際に194件あった）。
 python3 ingest_all.py law    # 一次資料
 python3 ingest_all.py case   # 判例（RETIO）
 python3 ingest_all.py book   # 本
