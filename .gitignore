@@ -560,3 +560,12 @@ growth-tracker/dist/
 dropbox-backup/logs/
 dropbox-backup/last-run.txt
 dropbox-backup/.lock
+
+# SpaceMarket 現状モニタ（新誠・3施設）。TASK-20260831-001 の作り直し。
+# ★local/ は絶対に入れない: local/profile にホスト管理画面のログインCookieが入る
+!spacemarket-monitor/
+!spacemarket-monitor/**
+spacemarket-monitor/local/
+# ★reports/ も入れない: このリポジトリは public。ホスト管理画面側のレポートには
+#   予約実績・売上が載る。公開ページ分は run.sh public でいつでも作り直せる
+spacemarket-monitor/reports/

@@ -1,0 +1,23 @@
+{
+  "_comment": "新誠プロパティマネジメントが SpaceMarket で運営する3施設。URLは 2026-08-31 に Chatwork で共有されたもの。",
+  "facilities": [
+    {
+      "key": "kato",
+      "name": "グリーンガーデン加東",
+      "url": "https://www.spacemarket.com/p/ePrMgAswaWYsjRzN",
+      "address_hint": "兵庫県加東市廻渕317-624"
+    },
+    {
+      "key": "fukushima",
+      "name": "レセプル福島",
+      "url": "https://www.spacemarket.com/p/vom4LWVk4aNaD22Z",
+      "address_hint": "大阪市北区大淀中3-1-15"
+    },
+    {
+      "key": "akitsu",
+      "name": "グリーンガーデン秋津",
+      "url": "https://www.spacemarket.com/p/Ew0cUleoB6xuwfHu",
+      "address_hint": "兵庫県加東市秋津2014-345"
+    }
+  ]
+}
