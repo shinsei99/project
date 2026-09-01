@@ -14,7 +14,10 @@ import fitz
 
 S = os.path.dirname(os.path.abspath(__file__))
 DOCOCR = os.path.join(S, "dococr")
-BOOKS = "/Users/apple/Library/CloudStorage/Dropbox-個人/書籍"
+# ★置き場は個人Dropboxの CLAUDE/ の下（CLAUDE.md 3-c）。2026-09-01 にオーナー指示で移した。
+BOOKS = os.environ.get(
+    "BOOKSHELF_BOOKS_DIR",
+    os.path.expanduser("~/Library/CloudStorage/Dropbox-個人/CLAUDE/書籍"))
 FONT = "japan"
 LOG = os.path.join(S, "replace.log")
 

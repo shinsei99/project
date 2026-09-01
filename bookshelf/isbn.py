@@ -7,7 +7,11 @@
 """
 import json, os, re, sys, time, urllib.request
 
-BOOKS = "/Users/apple/Library/CloudStorage/Dropbox-個人/書籍"
+# ★置き場は個人Dropboxの CLAUDE/ の下（CLAUDE.md 3-c）。2026-09-01 にオーナー指示で移した。
+#   ingest_all.py / replace_all.py と同じ環境変数で差し替えられる。
+BOOKS = os.environ.get(
+    "BOOKSHELF_BOOKS_DIR",
+    os.path.expanduser("~/Library/CloudStorage/Dropbox-個人/CLAUDE/書籍"))
 S = os.path.dirname(os.path.abspath(__file__))
 
 

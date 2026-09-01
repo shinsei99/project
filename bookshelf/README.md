@@ -34,7 +34,7 @@ cd "$S"
 swiftc -O -parse-as-library dococr.swift -o dococr
 
 # 1. 棚卸し（どの本が壊れているか。OCRはしない・数分）
-python3 survey.py "/Users/apple/Library/CloudStorage/Dropbox-個人/書籍" > survey.jsonl
+python3 survey.py "$HOME/Library/CloudStorage/Dropbox-個人/CLAUDE/書籍" > survey.jsonl
 
 # 2. 作り直して原本の場所へ入れ替え、題名へ改名する
 #    ★検証に通らなければ原本に触らない（ページ数・全ページの画像が原本とバイト単位で同一・本文あり）
