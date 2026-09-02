@@ -2,6 +2,16 @@
 # Zenn の予約もここを見るが、すでに published_at が入っている記事は触らない。
 # 同じ系統が続くと読むほうが飽きるので、章がばらけるように並べてある。
 # 10本ごとに「まとめ」を挟んである（note は 11本目と最後に出る／Zenn は予約枠の都合で 9/18・9/19）。
+#
+# ★先頭の excel-calendar-theme-color について（2026-09-03 に足した）:
+#   この1本だけ **note が先に出ていて Zenn 版が無い**状態だった。Zenn 版の原稿は
+#   待機場所にあったのに、この順番表に載せ忘れていたため最後尾（約1か月後）に回っていた。
+#   そのあいだ、8/28 公開の note 記事の末尾にある
+#   https://zenn.dev/shinsei99/articles/excel-calendar-theme-color が**リンク切れ**だった。
+#   ＝ Zenn 12本 / note 13本 の本数差の正体もこれ。先頭に置いて次の1本で出す。
+#   これで13組すべてが対になり、本数も揃う（note は同じ晩を1回見送る）。
+#   ※ note は投稿済みなので、この行が note 側の順番に影響することはない。
+excel-calendar-theme-color
 deploy-not-reflected
 form-field-detection
 line-free-quota-silent

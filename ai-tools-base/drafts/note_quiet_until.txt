@@ -16,11 +16,18 @@
 #
 #   ＝ 差を詰められるのは「Zenn が出して note が出さない晩」を1回作るときだけ。
 #
-# これで起きること:
-#   9/3 22:00  Zenn  form-field-detection を公開      → Zenn 13本
-#   9/3 22:35  note  静止期間中につき見送り            → note 13本（★ここで揃う）
-#   9/4 22:00  Zenn  line-free-quota-silent を公開    → Zenn 14本
-#   9/4 22:35  note  form-field-detection を投稿      → note 14本（以降は並走）
+# これで起きること（9/3 に zenn_order.txt の先頭を入れ替えたあとの姿）:
+#   9/3 22:00  Zenn  excel-calendar-theme-color を公開 → Zenn 13本
+#   9/3 22:35  note  静止期間中につき見送り             → note 13本（★ここで揃う）
+#   9/4 22:00  Zenn  form-field-detection を公開       → Zenn 14本
+#   9/4 22:35  note  form-field-detection を投稿       → note 14本（以降は並走）
+#
+# ★9/3 に出す1本を「先行していた note 記事の相方」に変えた（オーナー判断）。
+#   本数が揃うだけでなく、8/28 公開の note 記事の末尾にあった Zenn へのリンク
+#   （6日間リンク切れだった）も同じ晩に解消する。
+#   なお **この静止ファイルが無くても note は今夜見送る**（note の次は
+#   form-field-detection で、それが Zenn に出るのは 9/4 のため）。
+#   ＝ このファイルは保険。Zenn 側が今夜出せなかった場合にも揃い方が崩れない。
 #
 # ★launchd は外さない。外すと戻し忘れて永久に止まる（zenn_quiet_until.txt と同じ設計）。
 #   前倒しで再開したいなら、このファイルを消すだけでよい。
