@@ -22,5 +22,27 @@ for cand in "$HOME/agent-platform/.venv/bin/python" "$HOME/.va-venv/bin/python" 
 done
 
 echo "=== $(date '+%Y-%m-%d %H:%M') note-daily ==="
+
+# ★静止期間（2026-09-03）。drafts/note_quiet_until.txt に書いた日時までは**投稿しない**。
+#   なぜ要るか: note 側の関門（note_post.py の _zenn_live）は「Zennに出ていない記事を
+#   noteが追い越さない」ためのもので、**通算本数を合わせる働きは無い**。
+#   8/27 のZennデプロイ停止事故でズレた1本ぶん（Zenn 12 / note 13）は、
+#   Zennが動き出すと差が付いたまま並走してしまう。差を詰めるには
+#   **noteだけを1晩見送る**しかなく、その1晩を作るのがこのファイル。
+#   ★launchd を外す形にはしない。外すと戻し忘れて永久に止まる（zenn-daily と同じ設計）。
+#     日時を過ぎれば**勝手に復帰する**。前倒しで再開したいならファイルを消すだけ。
+QUIET="drafts/note_quiet_until.txt"
+if [ -f "$QUIET" ]; then
+  UNTIL="$(grep -v '^#' "$QUIET" | head -1 | tr -d ' \t')"
+  NOW="$(date '+%Y-%m-%dT%H:%M')"
+  if [ -n "$UNTIL" ] && [ "$NOW" \< "$UNTIL" ]; then   # ISO表記なので文字列比較で正しく並ぶ
+    echo "静止期間中（$UNTIL まで）。今夜は投稿しない。"
+    echo "  理由: $(grep '^#' "$QUIET" | head -2 | tr '\n' ' ')"
+    exit 0
+  fi
+  # ${} 必須: 直後が全角括弧だと bash が変数名に巻き込む（run_ocr_nightly.sh と同じ罠）
+  echo "静止期間（${UNTIL}）を過ぎたので再開する。"
+fi
+
 "$PY" scripts/note_post.py --check || { echo "ログインが切れている。--login をやり直すこと"; exit 1; }
 "$PY" scripts/note_post.py --next "$@"
