@@ -85,7 +85,9 @@ def missing_image_certs(frame: pd.DataFrame, store: "ImageStore") -> list:
     return [c for c in certs if not store.has(c)]
 
 
-def harvest_missing_images(timeout: int = 180) -> dict:
+def harvest_missing_images(timeout: int = 420) -> dict:
+    # 収集は保有中＋売却済の全件ページングなので、918枚で **58秒**（2026-09-02 実測）。
+    # これに画像のダウンロードが乗る。180秒だと枚数が増えたときに途中で切れる。
     """ログイン済みSafari経由で不足画像を取得する（fetch_new_images.sh を実行）。
 
     戻り: {"ok": bool, "saved": int, "msg": str}
