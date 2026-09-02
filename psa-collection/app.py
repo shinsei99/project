@@ -60,6 +60,22 @@ DEXES = [
 ]
 
 
+# PSA の CSV は「Item Status」の書き方を変えることがある。
+# 2026-09-01 の書き出しから **売却済が "Sold" → "Previously Owned"** に変わっており、
+# 決め打ちのままだと売却済ビューが 0枚 になっていた（2026-09-02 に判明）。
+# 増えたときはここに足すだけで済むよう、判定は必ずこの2つを通す。
+ACTIVE_STATUSES = ("Active",)
+SOLD_STATUSES = ("Sold", "Previously Owned")
+
+
+def is_active(frame: pd.DataFrame) -> pd.Series:
+    return frame["Item Status"].isin(ACTIVE_STATUSES)
+
+
+def is_sold(frame: pd.DataFrame) -> pd.Series:
+    return frame["Item Status"].isin(SOLD_STATUSES)
+
+
 def missing_image_certs(frame: pd.DataFrame, store: "ImageStore") -> list:
     """CSV上のカードのうち、画像がまだローカルに無いcert番号（保有・売却問わず）。"""
     certs = [
@@ -529,7 +545,7 @@ def render_album(df, store, dexes=None):
     dexes = dexes or []
     st.subheader("📔 コレクションアルバム")
     albums = load_albums()
-    active = df[df["Item Status"] == "Active"].copy()
+    active = df[is_active(df)].copy()
 
     top = st.columns([3, 2, 1])
     names = list(albums.keys())
@@ -896,13 +912,13 @@ if status == "鑑定中":
     render_grading()
     st.stop()
 
-active = df[df["Item Status"] == "Active"]
+active = df[is_active(df)]
 if status == "保有中（Vault）":
     view = active[active["Vault Status"].isin(["Vaulted", "Vault Bound"])].copy()
 elif status == "保有中（Home）":
     view = active[active["Vault Status"] == "Unvaulted"].copy()
 elif status == "売却済":
-    view = df[df["Item Status"] == "Sold"].copy()
+    view = df[is_sold(df)].copy()
 else:
     view = df.copy()
 
@@ -1042,7 +1058,7 @@ with st.sidebar.expander("🖼 カード画像の取得", expanded=False):
     targets = (
         view["Cert Number"].astype(str).tolist()
         if target_label == "絞り込み中のカード"
-        else df[df["Item Status"] == "Active"]["Cert Number"].astype(str).tolist()
+        else df[is_active(df)]["Cert Number"].astype(str).tolist()
     )
     todo = [c for c in targets if c not in cached]
 
@@ -1123,8 +1139,19 @@ with st.sidebar.expander("📥 データ更新"):
             else:
                 with st.spinner(f"新規カード {len(miss)}枚 の画像を取得中…（Safari）"):
                     res = harvest_missing_images()
-                if res["ok"]:
+                # rc=0 でも0枚のことがある（収集側が無言で空を返す事故があった）。
+                # 「成功」と出すのは実際に減ったときだけにする。
+                still = missing_image_certs(new_df, store)
+                if res["ok"] and not still:
                     st.success(f"更新しました。画像 {res['saved']}枚 を取得しました。")
+                elif res["ok"]:
+                    st.warning(
+                        f"更新しました。画像は {res['saved']}枚 取得しましたが、"
+                        f"**{len(still)}枚 がまだ取得できていません**（{res['msg']}）。\n\n"
+                        "Safariで app.collectors.com にログインし、開発メニューの"
+                        "「Apple EventsからのJavaScriptを許可」を確認してから、"
+                        "ターミナルで `./fetch_new_images.sh` を実行してください。"
+                    )
                 else:
                     st.warning(
                         f"更新は完了しましたが、画像取得に失敗しました：{res['msg']}\n\n"

@@ -19,7 +19,10 @@
  *   4. window.__h.done が true になったら window.__h.items を取り出す
  *   5. JSONL にして import_from_web.py に渡すと画像が data/images/ に落ちる
  *
- * 対象を売却済にするには STATUS を ["SOLD"] にする（["ACTIVE","SOLD"] で全件）。
+ * 対象は既定で全件（["ACTIVE","SOLD"]）。流し込む前に window.__hStatus に
+ * ["ACTIVE"] などを入れておけば、その分だけに絞れる。
+ * ※ アプリ側の「画像が無いカード」判定は保有・売却を問わないので、
+ *   ここを ACTIVE だけにすると売却済みの画像が永久に埋まらない（2026-09-02に判明）。
  *
  * 仕組みのメモ:
  *   collection.list   … cursor は「ページ番号」、pageSize は1ページの件数、
@@ -30,7 +33,7 @@
  *   画像の実体は d1htnxwo4o0jhw.cloudfront.net にあり、こちらは認証不要で落とせる。
  */
 (function () {
-  var STATUS = ["ACTIVE"];
+  var STATUS = window.__hStatus || ["ACTIVE", "SOLD"];
 
   if (window.__h && window.__h.running) return "already running";
   var H = window.__h = { running: true, done: false, error: null, items: [], page: 0, total: null };
