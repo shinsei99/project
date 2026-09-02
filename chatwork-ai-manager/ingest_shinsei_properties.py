@@ -55,26 +55,18 @@ COMPANY = "新誠プロパティマネジメント株式会社"
 
 PAID, LEFT = "〇", "●"          # 入金あり / 退去の最終月
 
-# ★この2ファイルに入っていない情報（2026-09-02 オーナー確認）。
+# ★この2ファイルに入っていない物件（2026-09-02 オーナー確認）。
 #
-# **吹田岸部だけは別会社に管理を委託していて、レントロールでは入金管理をしていない。**
-# 代わりに毎月「送金明細書」が送られてくる。下は**2026/08分をオーナーが提示した明細から
-# 転記したもの**（収入合計 19,800円が台帳の月額と一致することを確認済み）。
-# 台帳の表記は「岸**辺**」、明細書は「岸**部**」で揺れている。
+# **吹田岸部だけは別会社（株式会社リンク建物管理）に管理を委託していて、
+# レントロールでは入金管理をしていない。** 代わりに毎月「月次報告書」がメールで届く
+# （大塚稔朗 otsukalink@gmail.com・毎月7〜10日ごろ・添付は送金明細書のPDF）。
 #
-# ★毎月変わる値をここに書いているので、翌月以降は古くなる。明細書の届き先が分かれば
-#   自動取込に替えること（未着手・下の TODO 参照）。
-EXTERNAL = {
-    "SBP岸辺中": {
-        "as_of": "2026/08",
-        "note": "別会社へ管理委託。送金明細書から転記",
-        "aliases": ["シェローバイクパーク吹田岸部", "吹田岸部", "吹田岸辺"],
-        "units": [("ポータブル1", "村上太一", "入居中"),
-                  ("ポータブル2", "辻村篤哉", "入居中"),
-                  ("ポータブル3", "", "空室"),
-                  ("ポータブル4", "", "空室"),
-                  ("ポータブル5", "", "空室")],
-    },
+# ★契約者は**ここに書かない**。`ingest_shinsei_payouts.py` がメールアーカイブから
+#   最新の明細を読んで入れる。ここでベタ書きすると毎月古くなるため。
+#   ここで持つのは**呼び名だけ**（明細書は「シェローバイクパーク吹田岸部」と書くが、
+#   台帳は「SBP岸辺中」。岸辺／岸部で字も違う）。
+EXTERNAL_ALIASES = {
+    "SBP岸辺中": ["シェローバイクパーク吹田岸部", "吹田岸部", "吹田岸辺"],
 }
 
 
@@ -190,7 +182,10 @@ def derived_aliases(years: dict) -> dict[str, set[str]]:
 # ------------------------------------------------------------------ 取込
 COLS = ["property_id", "no", "name", "aliases", "city", "town", "lot", "address",
         "land_area", "floor_area", "acquired", "land_book", "building_book",
-        "status", "rent", "tax_value", "tenant"]
+        "status", "rent", "tax_value", "tenant", "tenant_as_of", "tenant_source"]
+
+# レントロールのシート名（R8＝令和8年）を人が読む形に
+LATEST_YEAR_LABEL = {f"R{n}": f"令和{n}年" for n in range(1, 20)}
 
 
 def drop_ambiguous(records: list[dict]) -> int:
@@ -239,17 +234,14 @@ def build() -> list[dict]:
             state, _m = occupancy(u["marks"])
             label = f"{u['type']}:{u['tenant']}" if u["type"] else u["tenant"]
             tenants.append(f"{label}（{state}）")
-        ext = EXTERNAL.get(L["name"])
-        if ext and not tenants:
-            aliases |= set(ext["aliases"])
-            for typ, who, state in ext["units"]:
-                tenants.append(f"{typ}:{who}（{state}）" if who else f"{typ}:（{state}）")
-            tenants.append(f"※{ext['note']}・{ext['as_of']}時点")
+        aliases |= set(EXTERNAL_ALIASES.get(L["name"], []))
         rec = {c: L.get(c, "") for c in COLS}
         rec["property_id"] = _n(L["name"])
         rec["name"] = L["name"]
         rec["aliases"] = "\n".join(sorted(aliases))
         rec["tenant"] = " / ".join(tenants)
+        rec["tenant_as_of"] = LATEST_YEAR_LABEL.get(cur, cur) if tenants else ""
+        rec["tenant_source"] = "★レントロール入金管理.xls" if tenants else ""
         out.append(rec)
     dropped = drop_ambiguous(out)
     if dropped:
@@ -265,11 +257,16 @@ def save(records: list[dict]) -> dict:
         for r in records:
             vals = [r[c] for c in COLS]
             if r["property_id"] in existing:
+                # ★契約者が空のときは tenant 系を上書きしない。
+                #   レントロールに載らない物件（吹田岸部）は送金明細書から入るので、
+                #   ここで空文字を書くと毎回それを消してしまう
+                cols = COLS[1:] if r["tenant"] else [
+                    c for c in COLS[1:] if not c.startswith("tenant")]
                 conn.execute(
                     "UPDATE shinsei_properties SET "
-                    + ", ".join(f"{c}=?" for c in COLS[1:])
+                    + ", ".join(f"{c}=?" for c in cols)
                     + ", active=1, updated_at=datetime('now','localtime') WHERE property_id=?",
-                    vals[1:] + [r["property_id"]])
+                    [r[c] for c in cols] + [r["property_id"]])
                 updated += 1
             else:
                 conn.execute(
@@ -291,7 +288,8 @@ def show():
         print(f"{r['no']:>3}. {r['name']}  [{r['status']}]")
         print(f"     住所   : {r['address']}")
         print(f"     呼び名 : {al or '（なし）'}")
-        print(f"     契約者 : {r['tenant'] or '（レントロールに記載なし）'}")
+        src = f"  〔{r['tenant_source']}・{r['tenant_as_of']}時点〕" if r["tenant"] else ""
+        print(f"     契約者 : {r['tenant'] or '（記載なし）'}{src}")
 
 
 def main():

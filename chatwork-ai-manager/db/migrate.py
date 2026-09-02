@@ -158,6 +158,10 @@ def migrate() -> None:
         _ensure_column(conn, "messages", "process_error", "TEXT")
         # 物件×担当者マスタ（管理物件台帳の「担当」列。TASK-20260826-003）
         _ensure_column(conn, "properties", "assignee_name", "TEXT")
+        # 新誠の契約者情報の時点と出所（2026-09-02）。レントロールから来たのか、
+        # 管理委託先の送金明細書から来たのかで、鮮度も信頼度も違うため分けて持つ
+        _ensure_column(conn, "shinsei_properties", "tenant_as_of", "TEXT")
+        _ensure_column(conn, "shinsei_properties", "tenant_source", "TEXT")
         # Chatwork画像の検索用（物件名/ルーム名。TASK-20260827-002）
         _ensure_column(conn, "chatwork_images", "room_name", "TEXT")
         _ensure_column(conn, "chatwork_images", "property_name", "TEXT")

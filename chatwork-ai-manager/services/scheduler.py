@@ -583,8 +583,46 @@ def run_knowledge_refresh(now=None):
             summary[name] = {"error": f"フォルダ読取不可(FDA権限?): {e}"}
         except Exception as e:
             summary[name] = {"error": f"{type(e).__name__}: {e}"}
+    # ★新誠の物件マスターも一緒に作り直す（2026-09-02）。
+    #   ①GoogleDriveの ★所有物件台帳.xlsx / ★レントロール入金管理.xls
+    #   ②メールで毎月届く送金明細書（吹田岸部だけ。リンク建物管理から）
+    #   **常駐は増やさない**——資料の索引更新と同じ「毎朝の取り直し」なので相乗りさせる。
+    #   失敗しても索引更新の結果は返す（片方が転んでも全体を止めない）。
+    try:
+        summary["新誠プロパティ 物件マスター"] = _refresh_shinsei_master()
+    except Exception as e:
+        summary["新誠プロパティ 物件マスター"] = {"error": f"{type(e).__name__}: {e}"}
     _finish("knowledge_refresh", today, summary)
     return {"job": "knowledge_refresh", "claimed": True, **summary}
+
+
+def _refresh_shinsei_master() -> dict:
+    """新誠の所有物件マスターを作り直し、送金明細書で契約者を最新にする。
+
+    ★CloudStorage（GoogleDrive）は launchd から読めないことがある（TCC）。
+      読めなければ台帳ぶんは飛ばし、メールぶんだけ更新する。
+    """
+    import ingest_shinsei_payouts as payouts
+    import ingest_shinsei_properties as master
+    out = {}
+    try:
+        out["台帳"] = master.save(master.build())
+    except OSError as e:
+        out["台帳"] = {"error": f"GoogleDriveを読めません(FDA権限?): {e}"}
+    rs = payouts.reports(limit=1)
+    if not rs:
+        out["送金明細書"] = {"skipped": "まだ届いていません"}
+        return out
+    parsed = payouts.parse(rs[0]["text"])
+    if not parsed:
+        out["送金明細書"] = {"error": "明細を読み取れませんでした"}
+        return out
+    res = payouts.apply(parsed)
+    out["送金明細書"] = {"date": rs[0]["date_utc"][:10],
+                        "updated": [u["master"] for u in res["updated"]],
+                        "skipped": res.get("skipped"),
+                        "他社の案件": res["unmatched"]}
+    return out
 
 
 def tick(client, now=None):

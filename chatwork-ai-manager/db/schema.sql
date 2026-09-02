@@ -535,6 +535,8 @@ CREATE TABLE IF NOT EXISTS shinsei_properties (
     rent           TEXT,                   -- 月額賃料
     tax_value      TEXT,                   -- 固定資産税評価額
     tenant         TEXT,                   -- 現在の契約者（レントロールの最新年シートから）
+    tenant_as_of   TEXT,                   -- 契約者情報の時点（例 2026/08）
+    tenant_source  TEXT,                   -- 出所（レントロール / リンク建物管理 送金明細書 …）
     active         INTEGER NOT NULL DEFAULT 1,
     created_at     TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     updated_at     TEXT NOT NULL DEFAULT (datetime('now','localtime'))
