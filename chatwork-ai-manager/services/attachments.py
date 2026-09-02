@@ -135,15 +135,52 @@ def read_chatwork_files(room_id, refs: list[tuple[int, str]], message_id=None) -
 
     `message_id`（このファイルが添付されたメッセージ）は画像添付の場合のみ使う
     （前後メッセージの文脈からタイトルを付けるため。TASK-20260827-003）。
+
+    1メッセージ分の入口。**複数メッセージにまたがる連投**は `read_chatwork_group`。
     """
     if not refs:
+        return ""
+    return read_chatwork_group(room_id, [(message_id, fid, name) for fid, name in refs])
+
+
+# 連投グループの先頭に付ける前置き（2026-09-02）。
+# これが無いと、まとめて渡しても回答側が「残りの写真も届き次第」と書いてしまう
+_GROUP_HEADER = (
+    "（次の {n} 枚は、同じ人が**一度にまとめて投稿した一連の写真**です。"
+    "同じ場所・同じ案件のものとして、{n} 枚まとめて1回で扱ってください。"
+    "「残りの写真も送ってください」「届き次第」のような、"
+    "まだ届いていない前提の言い方はしないでください）"
+)
+
+
+def read_chatwork_group(room_id, items: list[tuple], caption_message_id=None) -> str:
+    """**同時に投稿された複数の添付**をひとまとまりとして読む（2026-09-02）。
+
+    `items` は `[(message_id, file_id, ファイル名), ...]`。
+
+    **なぜ要るのか**: Chatwork は写真を8枚まとめて送っても **8通の別メッセージ**にする。
+    しかも本文（キャプション）が入るのは **1通目だけ**。従来は1通ずつ独立に処理していたので、
+    2枚目以降は `_anchor_caption` が空になり `_resolve_master_property_from_caption` が
+    発火せず、8枚がバラバラの案件として保存されていた（2026-09-02 実測。room 444751421 の
+    秋津2 巡回写真8枚が全て `物件名=NULL`・タイトルもバラバラ）。
+
+    `caption_message_id` に**連投の先頭メッセージ**を渡すと、その本文を
+    **グループ全員のキャプション**として扱う。あわせて画像には「全n枚のうちi枚目」を伝える。
+    """
+    if not items:
         return ""
     from services.chatwork import ChatworkClient, ChatworkError
     cw = ChatworkClient()
     tmp = tempfile.mkdtemp(prefix="cwai-att-")
+    total_images = sum(
+        1 for _mid, _fid, nm in items
+        if os.path.splitext(nm or "")[1].lower() in IMAGE_EXTENSIONS)
     parts = []
+    if total_images > 1:
+        parts.append(_GROUP_HEADER.format(n=total_images))
+    seen = 0
     try:
-        for file_id, name in refs:
+        for msg_id, file_id, name in items:
             ext0 = os.path.splitext(name)[1].lower()
             if ext0 in _AUDIO_MIME_BY_EXT:
                 # 音声は専用ルート（Gemini文字起こし→Claude要約・キャッシュ有）。
@@ -153,7 +190,11 @@ def read_chatwork_files(room_id, refs: list[tuple[int, str]], message_id=None) -
             if ext0 in IMAGE_EXTENSIONS:
                 # 画像は専用ルート（claude vision・キャッシュ有）。
                 # get_file/downloadも中で行うのでここでは呼ばない（二重取得を避ける）
-                parts.append(read_chatwork_image(room_id, file_id, name, message_id=message_id))
+                seen += 1
+                parts.append(read_chatwork_image(
+                    room_id, file_id, name, message_id=msg_id,
+                    caption_message_id=caption_message_id,
+                    series=(seen, total_images) if total_images > 1 else None))
                 continue
             try:
                 info = cw.get_file(room_id, file_id)
@@ -301,6 +342,17 @@ LINE_ROOM_KEY = "line"
 _CONTEXT_MSG_COUNT = 4
 _CONTEXT_LINE_MAX = 200
 _CONTEXT_TOTAL_MAX = 1000
+# ★前後メッセージは「近い時間のもの」だけ（2026-09-02）。
+#   件数だけで区切ると、前日の別案件の会話を拾う。実際 IMG_0367 のタイトルが
+#   19時間前の「SBP阿倍野王子町の写真です」に引きずられて誤った。
+_CONTEXT_MAX_GAP_SEC = 1800     # 30分
+
+
+def _ai_account_id():
+    """AI自身の account_id（前後メッセージから自分の発言を除くため）。"""
+    from services.settings import get_state
+    cached = get_state("ai_account_id")
+    return int(cached) if cached else None
 
 
 def _clean_context_line(body: str) -> str:
@@ -308,6 +360,21 @@ def _clean_context_line(body: str) -> str:
     text = _DOWNLOAD_RE.sub(lambda m: m.group(2).strip(), body or "")
     text = re.sub(r"\[[^\]]*\]", "", text).strip()
     return text[:_CONTEXT_LINE_MAX]
+
+
+# `[download:123]IMG_0368.jpeg (498.04 KB)[/download]` を**ファイル名ごと**落とす（2026-09-02）
+_DOWNLOAD_BLOCK_RE = re.compile(r"\[download:\d+\][^\[]*\[/download\]")
+
+
+def human_text(body: str) -> str:
+    """**人が打った本文だけ**を取り出す（添付の記法はファイル名ごと落とす）。
+
+    `_clean_context_line` はあえてファイル名を残すが、こちらは
+    「ファイル名しか無い＝本文なし」と判定したい場面で使う
+    （キャプションの有無・連投のまとめ判定。2026-09-02）。
+    """
+    text = _DOWNLOAD_BLOCK_RE.sub("", body or "")
+    return re.sub(r"\[[^\]]*\]", "", text).strip()
 
 
 def _anchor_caption(room_id, message_id) -> str | None:
@@ -326,7 +393,9 @@ def _anchor_caption(room_id, message_id) -> str | None:
     row = query_one("SELECT body FROM messages WHERE room_id=? AND message_id=?", (room_id, message_id))
     if not row:
         return None
-    return _clean_context_line(row["body"]) or None
+    # ★ファイル名は本文として扱わない（2026-09-02）。写真だけのメッセージで
+    #   「IMG_0368.jpeg」がキャプション扱いになると、連投の先頭本文へ落ちてこない
+    return human_text(row["body"])[:_CONTEXT_LINE_MAX] or None
 
 
 def _surrounding_message_context(room_id, message_id) -> str | None:
@@ -346,17 +415,25 @@ def _surrounding_message_context(room_id, message_id) -> str | None:
     if not anchor:
         return None
     send_time = anchor["send_time"]
+    # ★AI自身の発言は前後の文脈に入れない（2026-09-02）。自分の推測を自分に読み返させると、
+    #   1枚目の誤りが以降の全枚数へ伝わる（実際「受付けました」「◯◯を受け取りました」が
+    #   毎回1〜2件混ざっていた）
+    ai_id = _ai_account_id()
     before = query(
         "SELECT account_name, body FROM messages WHERE room_id=? AND "
-        "(send_time<? OR (send_time=? AND message_id<?)) "
+        "(send_time<? OR (send_time=? AND message_id<?)) AND send_time>=? "
+        "AND (? IS NULL OR account_id<>?) "
         "ORDER BY send_time DESC, message_id DESC LIMIT ?",
-        (room_id, send_time, send_time, message_id, _CONTEXT_MSG_COUNT),
+        (room_id, send_time, send_time, message_id, send_time - _CONTEXT_MAX_GAP_SEC,
+         ai_id, ai_id, _CONTEXT_MSG_COUNT),
     )
     after = query(
         "SELECT account_name, body FROM messages WHERE room_id=? AND "
-        "(send_time>? OR (send_time=? AND message_id>?)) "
+        "(send_time>? OR (send_time=? AND message_id>?)) AND send_time<=? "
+        "AND (? IS NULL OR account_id<>?) "
         "ORDER BY send_time ASC, message_id ASC LIMIT ?",
-        (room_id, send_time, send_time, message_id, _CONTEXT_MSG_COUNT),
+        (room_id, send_time, send_time, message_id, send_time + _CONTEXT_MAX_GAP_SEC,
+         ai_id, ai_id, _CONTEXT_MSG_COUNT),
     )
     lines = []
     for r in reversed(before):
@@ -440,7 +517,8 @@ def _resolve_master_property_from_caption(caption_text) -> str | None:
     return matched["name"] if matched else None
 
 
-def read_chatwork_image(room_id, file_id: int, name: str, message_id=None) -> str:
+def read_chatwork_image(room_id, file_id: int, name: str, message_id=None,
+                        caption_message_id=None, series: tuple[int, int] | None = None) -> str:
     """Chatwork の画像添付（写真・スクリーンショット等）を claude vision で読む（TASK-20260827-001）。
 
     LINEの `read_line_image` と同じ `_analyze_image` を使う。結果は `chatwork_images` に
@@ -455,6 +533,11 @@ def read_chatwork_image(room_id, file_id: int, name: str, message_id=None) -> st
     画像解析(vision)の推定より優先してそれをタイトル・物件名として採用する
     （TASK-20260827-009・巡回写真等でメッセージに物件名が明記されているのに vision 側の
     誤判定でタイトルがずれる事故対策）。
+
+    `caption_message_id`（連投の先頭メッセージ）が渡されたときは、**そちらの本文を
+    キャプションとして使う**（2026-09-02）。Chatwork は写真を一度に8枚送っても8通に分け、
+    本文は1通目にしか付かないため、これが無いと2枚目以降でキャプション経路が死ぬ。
+    `series=(i, n)` は「同時投稿の全n枚のうちi枚目」。
     """
     cached = _image_cache_get(room_id, file_id)
     if cached:
@@ -475,13 +558,17 @@ def read_chatwork_image(room_id, file_id: int, name: str, message_id=None) -> st
         img_name = "image" + ext
         dest = os.path.join(tmp, img_name)
         _download(url, dest)
-        caption_text = _anchor_caption(room_id, message_id)
+        # ★連投なら先頭メッセージの本文をキャプションとして使う。自分のメッセージに
+        #   本文があればそちらを優先（1通目＝本文つき、2通目以降＝本文なし の並びに合う）
+        caption_text = (_anchor_caption(room_id, message_id)
+                        or _anchor_caption(room_id, caption_message_id))
         surrounding_text = _surrounding_message_context(room_id, message_id)
         context_text = "\n\n".join(filter(None, [
             f"（この画像を投稿したメッセージ本文）\n{caption_text}" if caption_text else None,
             f"（前後のメッセージ）\n{surrounding_text}" if surrounding_text else None,
         ])) or None
-        text = _analyze_image(tmp, img_name, ask_property=True, context_text=context_text)
+        text = _analyze_image(tmp, img_name, ask_property=True, context_text=context_text,
+                              series=series)
         if text is None:
             return _describe(name, "", "画像認識(claude vision)に失敗しました")
         text, title = _split_title(text)
@@ -548,7 +635,8 @@ def _make_flipped_copy(tmp_dir: str, filename: str) -> str | None:
 
 
 def _analyze_image(tmp_dir: str, filename: str, ask_property: bool = False,
-                    context_text: str | None = None) -> str | None:
+                    context_text: str | None = None,
+                    series: tuple[int, int] | None = None) -> str | None:
     """claude vision で画像1枚の内容を読む（`knowledge.ocr_pdf` / `streetview_tools` と同じ作法:
     一時ファイルを --add-dir + Read ツールで見せる）。
 
@@ -603,6 +691,15 @@ def _analyze_image(tmp_dir: str, filename: str, ask_property: bool = False,
             "手がかりが無ければ、画像から読み取れる内容から分かりやすい短い"
             "タイトルを付けてください。それでも付けられない場合は `タイトル: 不明` として"
             f"ください。{context_block}"
+        )
+    if series:
+        # ★同時投稿の一連の写真であることを伝える（2026-09-02）。
+        #   1枚だけ見せていた頃は、同じ場所の8枚が別々の案件のタイトルになっていた
+        i, n = series
+        prompt += (
+            f"\n\nなお、この画像は同じ人が**一度にまとめて投稿した全{n}枚のうち{i}枚目**です。"
+            f"{n}枚は同じ場所・同じ案件を撮ったものとして扱ってください"
+            "（室内・外観・水回りなど写っているものが違っても、別の物件とは考えないでください）。"
         )
     try:
         env = run_claude(prompt, model="sonnet", timeout=180, add_dir=tmp_dir, allow_read=True)

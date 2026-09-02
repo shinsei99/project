@@ -4,6 +4,7 @@ worker のループからも、管理画面の「今すぐ同期」ボタンか�
 冪等性: messages は PK(message_id) に INSERT OR IGNORE。二重取得しても重複行を作らない。
 """
 import re
+import time
 
 from db.connection import get_conn, query
 from services import analyzer, attachments, outbox, pending, qa, settings
@@ -43,29 +44,106 @@ def is_ai_question(body: str, ai_account_id, room_type: str) -> bool:
     return False
 
 
-def process_questions(client, room, ai_account_id) -> int:
-    """未解析メッセージのうち AI への質問を検出し、qa.answer → outbox へ返信を積む。"""
-    rid = room["room_id"]
-    rows = query(
-        "SELECT * FROM messages WHERE room_id=? AND processed=0 ORDER BY send_time, message_id",
-        (rid,),
-    )
-    answered = 0
+# ★写真などの連投を「ひとまとまり」として扱うための窓（2026-09-02）。
+#
+# **なぜ要るのか**: Chatwork は写真を8枚まとめて送っても **8通の別メッセージ**にする。
+# しかも本文（キャプション）が入るのは **1通目だけ**。1通ずつ処理していたので、
+# 2026-09-02 の秋津2の巡回写真8枚では ack 8回・返信 8回が飛び、しかも2枚目以降は
+# キャプションが無いため別々の案件として保存されていた（`chatwork_images` の
+# 物件名が8件とも NULL・タイトルもバラバラ）。回答も「残り5枚も届き次第」と、
+# 既に届いている写真を待つ内容になっていた。
+_GROUP_WINDOW_SEC = 120     # 直前の1通からこの秒数以内なら同じ連投とみなす
+_GROUP_SETTLE_SEC = 25      # 連投の最後からこの秒数は待つ（送信途中で切ってしまわないため）
+_GROUP_MAX_FILES = 12       # 1グループで読む添付の上限（定額枠を守る）
+# 保留した連投を次のサイクルで拾い直すための遡り幅。
+# analyzer が processed=1 を立ててしまうので、processed だけに頼れない
+# （二重回答は dedup_key `qa:<先頭message_id>` が防ぐ）
+_RECHECK_SEC = 600
+# 遡りの副作用対策: 失敗した質問を毎周回リトライし続けないための上限（定額枠を守る）。
+# 従来は processed=1 になった時点で二度と拾われず**黙って消えて**いたので、
+# 数回は再挑戦する価値がある。worker常駐中だけ覚えていればよいのでメモリ保持。
+_MAX_ATTEMPTS = 3
+_attempts: dict[str, int] = {}
+
+
+def _is_attachment_only(body: str) -> bool:
+    """本文が無く、添付だけのメッセージか（連投の2通目以降がこの形）。"""
+    return bool(attachments.chatwork_file_refs(body)) and not attachments.human_text(body)
+
+
+def _group_bursts(rows, ai_account_id, room_type) -> list[list]:
+    """質問対象のメッセージを、連投（同一人物・短時間・添付だけの続き）ごとにまとめる。
+
+    間に挟まる他人の発言（AI自身の「受付けました」を含む）はグループを切らない。
+    連投は1人が続けて送るものなので、**同じ account_id の並び**だけを見ればよい。
+    """
+    groups: list[list] = []
     for m in rows:
         if ai_account_id is not None and m["account_id"] == ai_account_id:
-            continue  # 自分（AI）の発言は対象外
-        if not is_ai_question(m["body"], ai_account_id, room["type"]):
+            continue                                  # 自分（AI）の発言は対象外
+        if not is_ai_question(m["body"], ai_account_id, room_type):
             continue
+        cur = groups[-1] if groups else None
+        if (cur
+                and m["account_id"] == cur[-1]["account_id"]
+                and _is_attachment_only(m["body"])
+                and 0 <= (m["send_time"] or 0) - (cur[-1]["send_time"] or 0) <= _GROUP_WINDOW_SEC
+                and _count_files(cur) < _GROUP_MAX_FILES):
+            cur.append(m)
+            continue
+        groups.append([m])
+    return groups
+
+
+def _count_files(group) -> int:
+    return sum(len(attachments.chatwork_file_refs(m["body"])) for m in group)
+
+
+def _still_arriving(group) -> bool:
+    """連投がまだ続いている可能性があるか（＝この周回では処理を見送るか）。
+
+    最後の1通が添付だけで、かつ届いたばかりなら待つ。本文つきの質問は待たせない
+    （待たせると「聞いたのに黙っている」時間が伸びるため）。
+    """
+    last = group[-1]
+    if not attachments.chatwork_file_refs(last["body"]):
+        return False
+    return (time.time() - (last["send_time"] or 0)) < _GROUP_SETTLE_SEC
+
+
+def process_questions(client, room, ai_account_id) -> int:
+    """未解析メッセージのうち AI への質問を検出し、qa.answer → outbox へ返信を積む。
+
+    連投（写真の一括送信など）は `_group_bursts` で1件にまとめ、**ack も返信も1回**にする。
+    """
+    rid = room["room_id"]
+    rows = query(
+        "SELECT * FROM messages WHERE room_id=? AND (processed=0 OR send_time>=?) "
+        "ORDER BY send_time, message_id",
+        (rid, int(time.time()) - _RECHECK_SEC),
+    )
+    answered = 0
+    for group in _group_bursts(rows, ai_account_id, room["type"]):
+        m = group[0]                                   # 先頭＝キャプションが載っている1通
         dedup = f"qa:{m['message_id']}"
         if outbox.has_dedup(dedup):
             continue  # 既に回答済み（二重回答防止）
+        if _still_arriving(group):
+            continue  # まだ送信中かもしれない。次のサイクルでまとめて処理する
+        if _attempts.get(m["message_id"], 0) >= _MAX_ATTEMPTS:
+            continue  # 何度やっても失敗する質問。ログには残っているので人が見る
+        _attempts[m["message_id"]] = _attempts.get(m["message_id"], 0) + 1
         question = _strip_tags(m["body"])
         # ★添付ファイル（Excel/Word/PDF/CSV…）があれば中身を読んで質問に足す。
-        #   タグを剥がす前の本文から拾う（_strip_tags が [download:..] ごと消すため）
-        refs = attachments.chatwork_file_refs(m["body"])
-        if refs:
+        #   タグを剥がす前の本文から拾う（_strip_tags が [download:..] ごと消すため）。
+        #   連投なら**グループ全員の添付**を集め、先頭の本文を全員のキャプションにする。
+        items = [(mm["message_id"], fid, name)
+                 for mm in group
+                 for fid, name in attachments.chatwork_file_refs(mm["body"])][:_GROUP_MAX_FILES]
+        if items:
             question = attachments.with_attachments(
-                question, attachments.read_chatwork_files(rid, refs, message_id=m["message_id"]))
+                question, attachments.read_chatwork_group(
+                    rid, items, caption_message_id=m["message_id"]))
         prefix = settings.get_setting("ai_prefix", "🤖AI業務マネージャー")
         to = mention(m["account_id"], m["account_name"])
         # 受付確認: エージェント処理（複数ツール反復）は数秒〜数十秒かかることがあるため、
@@ -110,6 +188,7 @@ def process_questions(client, room, ai_account_id) -> int:
         ob_id = outbox.enqueue(rid, body, kind="qa_reply", reason="@Claudeへの質問に回答",
                                to_account_ids=str(m["account_id"]),
                                related_message_id=m["message_id"], dedup_key=dedup)
+        _attempts.pop(m["message_id"], None)
         # 質問への返信は即送信（TODO解析を待たせない＝体感速度を上げる）
         if ob_id:
             outbox.send_one(client, ob_id)
