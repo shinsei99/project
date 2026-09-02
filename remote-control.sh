@@ -37,6 +37,22 @@ case "$NAME" in
     exit 0
     ;;
   --stop)
+    # ★親（このスクリプトの常駐分）ごと倒すこと（2026-09-03 に踏んだ）。
+    #   claude と script だけを殺すと、stdin を供給している無限ループが生き残り、
+    #   親はパイプの終了を待ち続ける＝launchd からは「実行中」に見える。
+    #   その結果 **KeepAlive が働かず、セッションが二度と戻らなかった**。
+    if [ -f "$LOGDIR/wrapper.pid" ]; then
+      W="$(cat "$LOGDIR/wrapper.pid" 2>/dev/null)"
+      # 供給側の無限ループ（子）→ 親 の順に倒す。孤児の sleep を残さないため
+      if [ -n "$W" ] && kill -0 "$W" 2>/dev/null; then
+        for c in $(pgrep -P "$W" 2>/dev/null); do
+          pkill -P "$c" 2>/dev/null
+          kill "$c" 2>/dev/null
+        done
+        kill "$W" 2>/dev/null
+      fi
+      rm -f "$LOGDIR/wrapper.pid"
+    fi
     pkill -f "$PATTERN" 2>/dev/null
     pkill -f "script -q $LOG" 2>/dev/null
     echo "止めた（launchd に登録済みなら KeepAlive で立ち上がり直す）"
@@ -72,6 +88,24 @@ mkdir -p "$LOGDIR"
 : > "$LOG"   # 毎回まっさらにする（TUIの再描画でログが肥大するため）
 
 cd "$HOME" || exit 1
+
+# stdin を開けたままにする。閉じる（EOF）とセッションも終わってしまう。
+#
+# ★パイプで繋いではいけない（2026-09-03 に実際に止まった）。
+#   もとは `{ …; while :; do sleep 3600; done } | script …` だった。この形だと、
+#   毎朝5:00 の `--stop` が **claude と script だけを殺し、左側の無限ループは生き残る**。
+#   親（このスクリプト）はパイプ全体の終了を待ち続けるので、**プロセスとしては「実行中」のまま**。
+#   launchd は親しか見ていないため **KeepAlive が働かず、セッションが二度と戻らなかった**
+#   （9/2 10:24 起動 → 9/3 05:00 に中身だけ死亡 → 朝は画面ごと消えた状態）。
+#
+#   ★FIFO で渡す形は**使えない**（同日に試して失敗）。`script` は stdin が FIFO だと
+#     `script: tcgetattr/ioctl: Operation not supported on socket` で即死し、
+#     KeepAlive と相まって9回クラッシュして launchd に throttle された。
+#     パイプなら通るので、**パイプのまま**にして「止め方」の側を直す。
+#
+#   → このスクリプト自身の PID を控えておき、`--stop` が**親ごと**倒す。
+#     親が終われば KeepAlive が立て直す＝毎朝の「まっさらにする」が意図どおり働く。
+echo $$ > "$LOGDIR/wrapper.pid"
 
 # stdin を開けたままにする。閉じる（EOF）とセッションも終わってしまう。
 {
