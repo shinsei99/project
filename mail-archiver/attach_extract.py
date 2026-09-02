@@ -291,9 +291,13 @@ def _run_claude_ocr(prompt: str, work_dir: str) -> str:
 # ★claude は「文字はありません」と**説明文で**返してくることがある（2026-09-02 に実測。
 #   `画像に写っている文字はありません(すべてイラスト・写真のみで…)` がそのまま本文として
 #   索引に入った）。説明文が検索に載ると邪魔なので、**合図の語だけを返させて捨てる**。
+# ★言い回しは実測で決めた（2026-09-02）。「説明を書くな／無ければ合図を返せ」だけを強く言うと、
+#   **文字が写っているのに `[文字なし]` を返す**ようになった（バナー画像の
+#   `35〜45cmまで指定可能（1cm単位）` を取り落とした）。**拾う側を先に、強く**言うこと。
 NO_TEXT_MARK = "[文字なし]"
-_RULES = ("認識した文字だけを返してください。説明・前置き・感想・要約は一切書かないこと。"
-          "文字が1つも読み取れないときは " + NO_TEXT_MARK + " とだけ返してください。")
+_RULES = ("小さな文字・帳票の項目名・数字・注記も含め、**読み取れた文字はすべて**そのまま"
+          "書き出してください。解釈・要約・整形は不要で、説明や前置きも書かないこと。"
+          "文字がまったく写っていない場合に限り " + NO_TEXT_MARK + " とだけ返してください。")
 
 
 def _strip_no_text(s: str) -> str:
@@ -342,14 +346,26 @@ def _ocr_two_stage(path: str, is_image: bool) -> Tuple[str, str]:
 
     method は 'ocr'（Vision で読めた）/ 'ocr-claude'（2段目で読めた）/ 'none'（両方だめ）。
     """
-    t = _clean(ocr(path))
+    # ★Vision が転んでも「失敗」で終わらせず claude へ回す（2026-09-02）。
+    #   添付の実体は Dropbox(CloudStorage) にあるので、**未ダウンロードのファイルを開くところで
+    #   長時間ブロックして時間切れになる**ことがある（共有フォルダ側で実際に一晩を潰した型）。
+    #   ここで error にすると行が書かれ、`--retry-empty` を人が明示するまで読まれない。
+    try:
+        t = _clean(ocr(path))
+    except (subprocess.TimeoutExpired, RuntimeError):
+        t = ""
     if len(t) >= MIN_TEXT_CHARS:
         return "ocr", t
     t2 = _clean(ocr_claude(path, is_image))     # 失敗時は OcrPostponed が飛ぶ
-    if len(t2) >= MIN_TEXT_CHARS:
+    # ★2段目は MIN_TEXT_CHARS(30) の下限を当てない（2026-09-02）。
+    #   1段目にこの下限があるのは「表紙だけ文字があるPDFをテキスト層ありと誤判定しない」ため。
+    #   2段目は事情が違って、**もう枠を使って読んだあと**。短くても中身は本物なので捨てない。
+    #   実例: バナー画像から取れた `35〜45cmまで指定可能（1cm単位）` は22文字で、
+    #   下限を当てると「文字なし」で確定し、**枠を使ったのに検索にも出ない**という最悪の形になる。
+    if t2:
         return "ocr-claude", t2
-    # ★ここだけが本当の「文字が無い」。両方の目で見て取れなかったので none で確定させる
-    return "none", t2 or t
+    # ★ここだけが本当の「文字が無い」。両方の目で見て何も取れなかったので none で確定させる
+    return "none", t
 
 
 def extract_one(path: str, filename: str, use_ocr: bool) -> Tuple[str, str, Optional[int], str]:

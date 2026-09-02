@@ -334,9 +334,17 @@ def _ocr_vision(path, max_pages=15) -> list:
     import subprocess
     if not os.path.exists(VISION_OCR_BIN):
         return []
+    # ★timeout は 90秒（2026-09-02 に 300秒から下げた）。
+    #   9/2 未明の夜間ジョブは **120分を使い切って取込0件**で終わった。詰まっていたのは claude
+    #   ではなく**ここ**で、24件×数分でちょうど120分になっていた。Dropbox(CloudStorage) の
+    #   未ダウンロード（オンラインのみ）ファイルを開くところで待たされるのが最有力
+    #   （同じ晩に `Errno 11 Resource deadlock avoided` が3件出ている）。
+    #   Vision の実測は 2.3秒/ページ＝15ページでも35秒なので、90秒あれば正常な書類は通る。
+    #   ★越えたときは空リストで返って claude へ回る（＝見送りリストには入らない）。
+    #     読めなくなるのではなく「無料の目で駄目なら有料の目で見る」に変わるだけ。
     try:
         r = subprocess.run([VISION_OCR_BIN, path, "--max-pages", str(max_pages)],
-                           capture_output=True, timeout=300)
+                           capture_output=True, timeout=90)
     except Exception:      # noqa: BLE001 … Vision が転んでも claude で拾えるので止めない
         return []
     if r.returncode != 0:
