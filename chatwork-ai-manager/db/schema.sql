@@ -502,3 +502,40 @@ CREATE TABLE IF NOT EXISTS chatwork_images (
     created_at    TEXT NOT NULL DEFAULT (datetime('now','localtime')),
     PRIMARY KEY (room_id, file_id)
 );
+
+-- ★新誠プロパティマネジメントの物件マスター（2026-09-02）。
+--
+-- **大京商事の `properties` とは別テーブルにする。** 同じ表に会社の列を足す案もあったが、
+-- `properties` を読む場所は6ファイル14か所（gis.py / gis_tools.py / views/property_map.py /
+-- property_master.py / fix_image_titles.py / ingest_properties.py）に散っており、
+-- **1か所でも絞り忘れると大京の画面へ新誠が黙って出る**（＝気づけない形で壁が破れる）。
+-- 別表なら、直すのは名寄せの2関数だけで済み、失敗しても「新誠の物件が見つからない」という
+-- **目に見える形**で止まる。列の中身も違う（台帳13列のうち `properties` に素で入るのは2列だけで、
+-- 地番・地積・簿価・利用状況・月額賃料・固定資産税評価額は大京側では全行NULLになる）。
+--
+-- 出所: GoogleDrive/マイドライブ/新誠プロパティ/★所有物件台帳.xlsx（23件）
+--       ＋ ★レントロール入金管理.xls（契約者・呼び名の揺れ）
+-- 取込: ingest_shinsei_properties.py
+CREATE TABLE IF NOT EXISTS shinsei_properties (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    property_id    TEXT NOT NULL UNIQUE,   -- 正式名から作る安定キー
+    no             INTEGER,                -- 台帳のNO
+    name           TEXT NOT NULL,          -- 識別名称（台帳の正式名。全角数字のまま）
+    aliases        TEXT,                   -- 呼び名の揺れ（改行区切り。「秋津2」「加東2」等）
+    city           TEXT,                   -- 市
+    town           TEXT,                   -- 所在
+    lot            TEXT,                   -- 地番
+    address        TEXT,                   -- 市＋所在＋地番を組んだもの
+    land_area      TEXT,                   -- 地積・㎡
+    floor_area     TEXT,                   -- 床面積・㎡
+    acquired       TEXT,                   -- 取得日
+    land_book      TEXT,                   -- 土地簿価
+    building_book  TEXT,                   -- 建物等簿価
+    status         TEXT,                   -- 利用状況（賃貸中 / 空き / 活用中）
+    rent           TEXT,                   -- 月額賃料
+    tax_value      TEXT,                   -- 固定資産税評価額
+    tenant         TEXT,                   -- 現在の契約者（レントロールの最新年シートから）
+    active         INTEGER NOT NULL DEFAULT 1,
+    created_at     TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    updated_at     TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+);

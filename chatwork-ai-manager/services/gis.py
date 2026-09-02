@@ -369,8 +369,28 @@ def list_properties(classification=None, category=None, area=None, keyword=None,
     return [_row(r) for r in query(sql, tuple(params))]
 
 
-def find_property(name_or_keyword: str):
+# ★会社の壁（2026-09-02）。新誠プロパティの所有物件は **別テーブル**
+#   `shinsei_properties` にある（理由は ingest_shinsei_properties.py 冒頭）。
+#   振り替えるのはこの下の2関数だけ。地図・近隣検索・集計は大京の管理物件のままで、
+#   新誠の場から呼んでも新誠の物件は出てこない（＝出ないことで気づける）。
+#   ★`room_id` を渡せるようにしてある。道具（agent_tool.py）は別プロセスで
+#   `CWAI_ROOM_ID` を受け取るので環境変数から会社が分かるが、**worker 本体で動く
+#   画像解析にはそれが入っていない**。渡さないと新誠の部屋でも大京のマスターを見る。
+def _shinsei_here(room_id=None) -> bool:
+    try:
+        from services import company_scope, shinsei_properties
+        me = (company_scope.company_of_room(room_id) if room_id is not None
+              else company_scope.here())
+        return me == shinsei_properties.COMPANY
+    except Exception:
+        return False
+
+
+def find_property(name_or_keyword: str, room_id=None):
     """物件名の部分一致で1件特定する（表記ゆれに強くするため NFKC で比較）。"""
+    if _shinsei_here(room_id):
+        from services import shinsei_properties
+        return shinsei_properties.find(name_or_keyword)
     k = unicodedata.normalize("NFKC", (name_or_keyword or "").strip())
     if not k:
         return None
@@ -385,7 +405,7 @@ def find_property(name_or_keyword: str):
     return addr[0] if addr else None
 
 
-def match_property_in_text(text: str):
+def match_property_in_text(text: str, room_id=None):
     """自由文の中に管理物件マスターの物件名が部分一致で含まれていれば、その物件（正式名称）を返す。
 
     `find_property` はキーワード1つに対して物件を特定する用途（キーワードが物件名に含まれる/
@@ -396,6 +416,9 @@ def match_property_in_text(text: str):
     （文字数の長い）名前を正式名称として優先する（例:「クリスタルコート66」が
     「クリスタルコート」より先にヒットする状況を避ける）。
     """
+    if _shinsei_here(room_id):
+        from services import shinsei_properties
+        return shinsei_properties.match_in_text(text)
     t = unicodedata.normalize("NFKC", text or "")
     if not t:
         return None

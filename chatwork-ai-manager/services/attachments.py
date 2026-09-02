@@ -482,7 +482,8 @@ def _split_title(text: str) -> tuple[str, str | None]:
     return cleaned, name
 
 
-def _resolve_master_property_name(context_text, description, property_name, title) -> str | None:
+def _resolve_master_property_name(context_text, description, property_name, title,
+                                  room_id=None) -> str | None:
     """vision解析結果・前後の会話文の中に管理物件マスター（properties・108件）の正式名称が
     含まれていれば、それを返す（TASK-20260827-005）。
 
@@ -494,11 +495,11 @@ def _resolve_master_property_name(context_text, description, property_name, titl
     if not combined:
         return None
     from services import gis
-    matched = gis.match_property_in_text(combined)
+    matched = gis.match_property_in_text(combined, room_id=room_id)
     return matched["name"] if matched else None
 
 
-def _resolve_master_property_from_caption(caption_text) -> str | None:
+def _resolve_master_property_from_caption(caption_text, room_id=None) -> str | None:
     """**画像と同一メッセージのキャプション**にマスター物件名がそのまま出現していないか確認する
     （TASK-20260827-009）。見つかれば画像解析(vision)の推定より優先して採用する。
 
@@ -513,7 +514,7 @@ def _resolve_master_property_from_caption(caption_text) -> str | None:
     if not caption_text:
         return None
     from services import gis
-    matched = gis.match_property_in_text(caption_text)
+    matched = gis.match_property_in_text(caption_text, room_id=room_id)
     return matched["name"] if matched else None
 
 
@@ -573,12 +574,13 @@ def read_chatwork_image(room_id, file_id: int, name: str, message_id=None,
             return _describe(name, "", "画像認識(claude vision)に失敗しました")
         text, title = _split_title(text)
         description, property_name = _split_property_name(text)
-        forced_name = _resolve_master_property_from_caption(caption_text)
+        forced_name = _resolve_master_property_from_caption(caption_text, room_id=room_id)
         if forced_name:
             property_name, title = forced_name, forced_name
         else:
             property_name = _resolve_master_property_name(
-                context_text, description, property_name, title) or property_name
+                context_text, description, property_name, title,
+                room_id=room_id) or property_name
         _image_cache_put(room_id, file_id, name, description, _room_name(room_id),
                           property_name, title)
         return _describe(name, description)

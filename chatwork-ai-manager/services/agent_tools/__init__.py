@@ -20,6 +20,7 @@ from services.agent_tools import (
     progress_tools,
     project_tools,
     reinfolib_tools,
+    shinsei_tools,
     stats_tools,
     streetview_tools,
     task_tools,
@@ -199,6 +200,29 @@ REGISTRY = {
         "usage": 'tasks_needing_attention {"kind":"overdue"}',
     },
     # ---- GIS / 地図（管理物件108件の位置情報。座標は国土地理院・DBキャッシュ済み） ----
+    # ---- 新誠プロパティの所有物件（大京の管理物件マスタとは別。2026-09-02）----
+    # ★新誠の場（鷲見さんとのダイレクト）でしか使えない。他社の場から呼ぶと断られる。
+    "shinsei_property_list": {
+        "func": shinsei_tools.shinsei_property_list,
+        "desc": "新誠プロパティの**所有物件23件**の一覧。status で「空き」「賃貸中」「活用中」に絞れる。"
+                "keyword は物件名・住所・呼び名・契約者名に当たる。"
+                "★大京商事の管理物件は gis_property_search の方（別のマスタ）",
+        "usage": 'shinsei_property_list {"status":"空き"}',
+    },
+    "shinsei_property_detail": {
+        "func": shinsei_tools.shinsei_property_detail,
+        "desc": "新誠の所有物件1件の詳細（台帳の全項目＋区画ごとの契約者）。"
+                "**呼び名でも引ける**（「秋津2」「加東2」→ 秋津戸建て２、「吹田岸部」→ SBP岸辺中）",
+        "usage": 'shinsei_property_detail {"name":"秋津2"}',
+    },
+    "shinsei_tenants": {
+        "func": shinsei_tools.shinsei_tenants,
+        "desc": "新誠の所有物件の契約者。name を省くと全物件。"
+                "★「（空室（退去済み））」と付いた名前は**退去した人**で、現在の入居者ではない。"
+                "レントロールの契約者欄は最新の1名しか残らないので、それ以前の入居者は分からない。"
+                "SBP岸辺中だけは別会社へ管理委託しており、毎月の送金明細書からの転記（時点に注意）",
+        "usage": 'shinsei_tenants {"name":"秋津2"}',
+    },
     "gis_property_search": {
         "func": gis_tools.gis_property_search,
         "desc": "管理物件マスタを検索（物件名/住所/オーナー・分類=自社|管理|仲介|終了・種別=マンション|ビル|駐車場等・エリア）。"
