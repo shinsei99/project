@@ -1,5 +1,61 @@
 # SESSION LOG — 横断作業
 
+## 2026-09-03（メインPC）— 夜のルーティンの点検。Zennの上限が解け、note との本数を揃えた
+
+### 完了したこと
+
+**夜のルーティン（9/2 22:00 〜 9/3 朝）は7工程中6つが完走。** 落ちたのは 5:00 の
+Remote Control リセット1件だけで、それも朝のうちに直っている（`03d90f25`・別セッション）。
+
+| 時刻 | 工程 | 結果 |
+|---|---|---|
+| 22:00 | Zenn 1本 | ✅ `deploy-not-reflected` 公開。**8/25以来の上限が解けた** |
+| 22:35 | note 1本 | 見送り（Zenn未公開待ち・5晩連続） |
+| 22:45 | 記事の自動執筆＋Vercel本番 | ✅ `multi-tenant-data-wall`／検査125本問題なし／HTTP 200 |
+| 00:30 | メールアーカイバ(8535) | ✅ 添付OCR 140件・進捗97.8%・ベクトル+48・1年超39通削除 |
+| 00:30 | 社内メールアーカイバ(8538) | ✅ 進捗96.4%・ベクトル+59・知識索引へ1,631通 |
+| 01:00 | 共有フォルダOCR | ✅ 上限300件で打ち切り（設計どおり）。取込301/失敗0 |
+| 05:00 | Remote Control リセット | ❌ 2時間半戻らなかった → 朝に修正済み |
+
+**★Zennの上限が解けた。** 静止期間明けに `zenn-daily` が自動再開し、push から10秒で公開
+（Zenn 12本）。**問い合わせ（`ai-tools-base/drafts/zenn-inquiry.md`）は送らなくてよくなった。**
+効いたのは「詰まった記事を `articles/` に置きっぱなしにしない」＝開発の push ごとに
+投稿を試みる状態をやめたこと。**この一点だけは今後も守る。**
+
+**note と Zenn の本数を揃えた**（オーナー判断）。Zenn 12 / note 13 で note が1本先行していた。
+
+| コミット | 中身 |
+|---|---|
+| `39895f52` | note に**期限つき**の静止ファイル（`drafts/note_quiet_until.txt`）を新設 |
+| `55dfe196` | `zenn_order.txt` の先頭に `excel-calendar-theme-color` を移した |
+| `7b3ee39f` | TODO.md の「Zenn停止中」を解除済みへ。経緯は `<details>` に畳んで保存 |
+
+### 発生したエラーと解決策
+
+- **note と Zenn の本数がズレたまま並走する** → 原因: note の関門（`note_post.py` の
+  `_zenn_live`）は「Zennに出ていない記事を note が追い越さない」ためのもので、
+  **通算本数を合わせる働きは無い**。8/27のZennデプロイ停止事故で付いた差1本が残っていた。
+  → 差を詰められるのは「Zennが出して note が出さない晩」を1回作るときだけ。
+  **`zenn_quiet_until.txt` と同じ期限つきの静止ファイル**を note にも用意した。
+  **launchd を外す形にしない**（外すと戻し忘れて永久に止まる）
+- **ズレの正体は `excel-calendar-theme-color`** → note だけ 8/28 に出て、Zenn版の原稿は
+  `drafts/zenn_pending/` にあるのに **`zenn_order.txt` へ載せ忘れ**、最後尾（約1か月後）に
+  回っていた。**そのあいだ 8/28 公開の note 記事末尾のZennリンクが6日間切れていた。**
+  → 順番表の先頭へ移動。本数合わせとリンク切れ解消が同じ晩に片付く
+- **`remote-control.sh --status` が、そのセッションの中から叩くと「起動していない」と嘘をつく**
+  → 実測: `pgrep -f` が**自分の先祖プロセスを拾わない**（親bash・script・claude が全部先祖）。
+  外の Terminal から叩けば正しく出る。**未修正**（実害は小さいが、判断を誤らせる）
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **★9/4 の朝に本数を確認する**（これだけ）:
+  `curl -s "https://zenn.dev/api/articles?username=shinsei99&count=100" | python3 -c "import sys,json;print(len(json.load(sys.stdin)['articles']))"`
+  が **13**、note も **13**（`ai-tools-base/drafts/.note_posted.json`）なら成功。以降は並走する
+- **TODO.md 冒頭の「Remote Control の朝5:00リセットをスマホが拾うか」は未検証のまま。**
+  9/3 の朝は事故で戻ってこなかったので確かめられていない。**9/4 の朝が再検証の機会**
+- `note_quiet_until.txt` は役目を終えたら消してよい（9/4以降。置いたままでも害は無い）
+- `remote-control.sh --status` の pgrep の件は直していない
+
 ## 2026-09-02（メインPC）— 外出先のスマホから繋げるように、Remote Control を常駐させた
 
 ### 完了したこと
