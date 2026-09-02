@@ -27,6 +27,10 @@ cd "$(dirname "$0")" || exit 1
 
 MAX_NEW="${OCR_MAX_NEW:-300}"
 MAX_MIN="${OCR_MAX_MINUTES:-120}"     # 02:00 開始で 04:00 に終わる（2026-08-28 オーナー指定）
+# ★2並列（2026-09-02 オーナー指示）。残り約3,900件を直列（実測186件/晩）で片付けると
+#   25晩以上かかるため。上げすぎない理由: claude の呼び出しが同時に増える＝定額枠を
+#   その分だけ速く食う。SQLite の書き込みがぶつかる回数も増える（ログの「DBロック」で見る）。
+WORKERS="${OCR_WORKERS:-2}"
 LOG="$HOME/Library/Logs/com.shinsei.chatwork-ai-manager-ocr.log"
 LOCK="/tmp/chatwork-ocr-nightly.lock"
 CHILD=""
@@ -61,12 +65,12 @@ if ! mkdir "$LOCK" 2>/dev/null; then
 fi
 echo $$ > "$LOCK/pid"
 
-log "OCR夜間ジョブ開始（最大 ${MAX_NEW}件 / ${MAX_MIN}分）"
+log "OCR夜間ジョブ開始（最大 ${MAX_NEW}件 / ${MAX_MIN}分 / ${WORKERS}並列）"
 
 # caffeinate: 長時間ジョブの途中でスリープに入られると中断されるため
 # （このMacは普段スリープしない設定だが、ジョブ側でも保険をかけておく）
 /usr/bin/caffeinate -i /usr/bin/python3 ocr_ingest.py \
-  --max-new "$MAX_NEW" --max-minutes "$MAX_MIN" >> "$LOG" 2>&1 &
+  --max-new "$MAX_NEW" --max-minutes "$MAX_MIN" --workers "$WORKERS" >> "$LOG" 2>&1 &
 CHILD=$!
 wait "$CHILD"
 rc=$?

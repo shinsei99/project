@@ -15,14 +15,21 @@
 添付は 39,726件（PDF 26,669 / doc 4,052 / xls 1,681 / xlsx 1,573 / docx 1,112 / 画像 3,700ほか）。
 PDFを60件抜き取って調べたところ **58%はテキスト層あり・42%はスキャン画像**だった。
 
-## 2段構え
+## 3段構え（2026-09-02 にOCRを二段構えへ。オーナー指示）
 
 1. **テキスト層・Office** … その場で取り出す（速い）
-2. **スキャン画像** … macOS Vision で OCR（`tools/ocr_pdf`）
+2. **スキャン画像** … macOS Vision で OCR（`tools/ocr_pdf`）。無料・ネット不要・実測2.3秒/ページ
+3. **Vision で読めなかったものだけ** claude vision（手書き・崩れた帳票に強い）
 
-★OCRに claude vision を使わない理由: AI業務マネージャーの夜間OCRと**同じ定額枠を取り合う**うえ、
-  実測 186件/2時間＝スキャン11,100件で約60晩かかる。macOS Vision は OS 同梱で無料・
-  ネットワーク不要・**実測 2.3秒/ページ**。並列も効く。
+★もともと 2 で止めていた（claude を使わなかった）。理由は AI業務マネージャーの夜間OCRと
+  **同じ定額枠を取り合う**から。3 を足しても枠への影響が小さいのは、**回るのが
+  「Visionが落とした分」だけ**だから。共有フォルダ側の実測では、Vision で 8割以上が片付く。
+
+★claude へ回すときの決まり（共有フォルダ側で事故った教訓をそのまま持ってきた）:
+  - **節約モード中は claude を呼ばない**。ただし `none`（文字なし）で記録もしない。
+    記録すると「この添付には文字が無い」と確定して**枠が戻っても二度と読まれない**
+    （2026-08-28 に AI業務マネージャーで実際に起きた事故と同じ型）。行を書かずに次の晩へ回す
+  - **claude 側の失敗（枠切れ・接続不良）も `none` にしない**。同じ理由で行を書かない
 
 ## 中断と再開
 
@@ -42,10 +49,14 @@ from __future__ import annotations
 
 import argparse
 import concurrent.futures as futures
+import datetime
+import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from typing import Optional, Tuple
 
@@ -63,6 +74,11 @@ MAX_CHARS = 200_000
 MIN_TEXT_CHARS = 30
 OCR_MAX_PAGES = 20
 OCR_TIMEOUT = 240
+# ★2段目（claude vision）。Vision がこの文字数に届かなかったものだけ回す。
+CLAUDE_BIN = shutil.which("claude") or "/opt/homebrew/bin/claude"
+CLAUDE_OCR_TIMEOUT = 600
+CLAUDE_OCR_MAX_PAGES = 10      # 1件が長くなりすぎないように。共有フォルダ側(15)より控えめ
+QUOTA_SAVER_FILE = os.path.expanduser("~/.ai-quota-saver")
 
 TEXT_EXTS = [".pdf", ".docx", ".xlsx", ".xlsm", ".xls", ".doc",
              ".csv", ".txt", ".md", ".html", ".htm"]
@@ -205,6 +221,137 @@ def ocr(path: str) -> str:
     return r.stdout.decode("utf-8", "replace").replace("\x0c", "\n")
 
 
+class OcrPostponed(Exception):
+    """claude へ回せなかったので**後日に回す**。異常ではない。
+
+    ★これを `none`（文字なし）と混ぜないことが肝。`none` で行を書くと「この添付には
+      文字が無い」と確定し、`--retry-empty` を人が明示しない限り**二度と読まれない**。
+      例外にしておけば行を書かないので、次の晩に自然と再挑戦される。
+    """
+
+
+def _quota_saver_active() -> bool:
+    """claude の定額枠の節約モード中か（`~/.ai-quota-saver` の1行目が期限）。
+
+    ★期限つき。on/off だけだと戻し忘れて永久に止まる。切り替えは `~/ai-quota-saver.sh`。
+    """
+    if not os.path.exists(QUOTA_SAVER_FILE):
+        return False
+    try:
+        with open(QUOTA_SAVER_FILE, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#"):
+                    # ISO表記なので文字列比較で正しく並ぶ
+                    return datetime.datetime.now().strftime("%Y-%m-%dT%H:%M") < line
+    except OSError:
+        return False
+    return False
+
+
+def _render_pdf_images(path: str, out_dir: str, max_pages: int, dpi: int = 150) -> list:
+    """PDFの各ページをPNGにする。claude は PDF を直接読めないため。"""
+    import fitz
+    out = []
+    with fitz.open(path) as doc:
+        for i, page in enumerate(doc, 1):
+            if i > max_pages:
+                break
+            fp = os.path.join(out_dir, "page-{:02d}.png".format(i))
+            page.get_pixmap(dpi=dpi).save(fp)
+            out.append((i, fp))
+    return out
+
+
+def _run_claude_ocr(prompt: str, work_dir: str) -> str:
+    """claude に画像を読ませて文字起こしさせる。失敗は OcrPostponed（`none` にしない）。"""
+    cmd = [CLAUDE_BIN, "-p", prompt, "--output-format", "json",
+           "--dangerously-skip-permissions", "--model", "sonnet",
+           "--add-dir", work_dir]
+    try:
+        # env は絞らない（CLAUDECODE 等が要る）／stdin=DEVNULL も付けない
+        proc = subprocess.run(cmd, capture_output=True, text=True,
+                              timeout=CLAUDE_OCR_TIMEOUT, cwd=work_dir)
+    except FileNotFoundError as e:
+        raise OcrPostponed("claude コマンドが見つからない") from e
+    except subprocess.TimeoutExpired as e:
+        raise OcrPostponed("claude が{}秒を超えた".format(CLAUDE_OCR_TIMEOUT)) from e
+    if proc.returncode != 0:
+        raise OcrPostponed("claude が失敗（code {}）: {}".format(
+            proc.returncode, (proc.stderr or "")[:150]))
+    try:
+        outer = json.loads(proc.stdout)
+    except json.JSONDecodeError as e:
+        raise OcrPostponed("claude の返答をJSONとして読めなかった") from e
+    if outer.get("is_error"):
+        raise OcrPostponed("claude がエラーを返した")
+    return (outer.get("result") or "").strip()
+
+
+# ★claude は「文字はありません」と**説明文で**返してくることがある（2026-09-02 に実測。
+#   `画像に写っている文字はありません(すべてイラスト・写真のみで…)` がそのまま本文として
+#   索引に入った）。説明文が検索に載ると邪魔なので、**合図の語だけを返させて捨てる**。
+NO_TEXT_MARK = "[文字なし]"
+_RULES = ("認識した文字だけを返してください。説明・前置き・感想・要約は一切書かないこと。"
+          "文字が1つも読み取れないときは " + NO_TEXT_MARK + " とだけ返してください。")
+
+
+def _strip_no_text(s: str) -> str:
+    """claude が「文字なし」と言ってきたら空にする（説明文を索引に入れない）。"""
+    t = (s or "").strip()
+    if not t or NO_TEXT_MARK in t:
+        return ""
+    # 合図を無視して地の文で答えてきた場合の保険。短い断り文だけを落とす
+    if len(t) < 120 and re.search(r"(文字|テキスト)(は|が)?(写って|含まれて|見当たり)?"
+                                  r"(いません|ありません|見当たりません)", t):
+        return ""
+    # 前置きの1行（「画像内の文字は以下の通りです。」等）を落とす。
+    # 索引に入ると検索の邪魔になるうえ、全部の添付に同じ文が並ぶため（2026-09-02 実測）
+    lines = t.split("\n")
+    if lines and re.match(r"^.{0,40}(以下の通りです|文字起こし(結果)?です|次のとおりです)[。:：]?$",
+                          lines[0].strip()):
+        t = "\n".join(lines[1:]).strip()
+    return t
+
+
+def ocr_claude(path: str, is_image: bool) -> str:
+    """2段目のOCR。Vision で読めなかったものだけがここへ来る。"""
+    if _quota_saver_active():
+        raise OcrPostponed("節約モード中（Vision では読めなかったので後日に回す）")
+    if is_image:
+        with tempfile.TemporaryDirectory() as tmp:
+            # 元ファイルを触らせない（添付の実体は原本なので読み取り専用で扱う）
+            fp = os.path.join(tmp, "page-01" + os.path.splitext(path)[1].lower())
+            shutil.copy2(path, fp)
+            return _strip_no_text(_run_claude_ocr(
+                "{} を Read ツールで開き、写っている文字を上から順にそのまま"
+                "文字起こししてください。{}".format(fp, _RULES), tmp))
+    with tempfile.TemporaryDirectory() as tmp:
+        pages = _render_pdf_images(path, tmp, max_pages=CLAUDE_OCR_MAX_PAGES)
+        if not pages:
+            return ""
+        names = "\n".join("- page-{:02d}.png（{}ページ目）".format(n, n) for n, _ in pages)
+        return _strip_no_text(_run_claude_ocr(
+            "次のスキャン画像ファイル（ディレクトリ {} 内）を Read ツールで1枚ずつ開き、"
+            "各ページに書かれている文字を上から順にそのまま文字起こししてください。{}"
+            "\n\n対象:\n{}".format(tmp, _RULES, names), tmp))
+
+
+def _ocr_two_stage(path: str, is_image: bool) -> Tuple[str, str]:
+    """① Vision →（読めなければ）② claude。戻り値 (method, text)。
+
+    method は 'ocr'（Vision で読めた）/ 'ocr-claude'（2段目で読めた）/ 'none'（両方だめ）。
+    """
+    t = _clean(ocr(path))
+    if len(t) >= MIN_TEXT_CHARS:
+        return "ocr", t
+    t2 = _clean(ocr_claude(path, is_image))     # 失敗時は OcrPostponed が飛ぶ
+    if len(t2) >= MIN_TEXT_CHARS:
+        return "ocr-claude", t2
+    # ★ここだけが本当の「文字が無い」。両方の目で見て取れなかったので none で確定させる
+    return "none", t2 or t
+
+
 def extract_one(path: str, filename: str, use_ocr: bool) -> Tuple[str, str, Optional[int], str]:
     """1件ぶん。戻り値 (method, text, pages, error)。**例外は投げない**。"""
     ext = os.path.splitext(filename)[1].lower()
@@ -214,8 +361,8 @@ def extract_one(path: str, filename: str, use_ocr: bool) -> Tuple[str, str, Opti
         if ext in IMAGE_EXTS:
             if not use_ocr:
                 return "skip", "", None, ""
-            t = _clean(ocr(path))
-            return ("ocr" if len(t) >= MIN_TEXT_CHARS else "none"), t, None, ""
+            method, t = _ocr_two_stage(path, is_image=True)
+            return method, t, None, ""
 
         fn = _EXTRACTORS.get(ext)
         if fn is None:
@@ -231,10 +378,13 @@ def extract_one(path: str, filename: str, use_ocr: bool) -> Tuple[str, str, Opti
             # テキスト層が無い＝スキャン画像。OCRへ回す
             if not use_ocr:
                 return "skip", "", pages, ""
-            t = _clean(ocr(path))
-            return ("ocr" if len(t) >= MIN_TEXT_CHARS else "none"), t, pages, ""
+            method, t = _ocr_two_stage(path, is_image=False)
+            return method, t, pages, ""
 
         return ("text" if len(text) >= MIN_TEXT_CHARS else "none"), text, pages, ""
+    except OcrPostponed as e:
+        # ★行を書かずに次の晩へ回す（`none` にしない＝二度と読まれなくなるのを防ぐ）
+        return "postpone", "", None, str(e)[:150]
     except subprocess.TimeoutExpired:
         return "error", "", None, "時間切れ"
     except Exception as e:                     # noqa: BLE001 … 1件で全体を止めない
@@ -278,7 +428,8 @@ def main() -> int:
         "（直近{}日ぶん）".format(args.since_days) if args.since_days else "",
         "する" if use_ocr else "しない", args.workers), flush=True)
 
-    counts = {"text": 0, "ocr": 0, "none": 0, "error": 0, "skip": 0}
+    counts = {"text": 0, "ocr": 0, "ocr-claude": 0, "none": 0,
+              "error": 0, "skip": 0, "postpone": 0}
     done = 0
     stop_reason = "対象をすべて処理した"
 
@@ -300,7 +451,8 @@ def main() -> int:
             finished, pending = futures.wait(pending, return_when=futures.FIRST_COMPLETED)
             for f in finished:
                 row, (method, text, pages, err) = f.result()
-                if method != "skip":
+                # ★postpone は行を書かない。書くと「処理済み」になって次の晩に来ない
+                if method not in ("skip", "postpone"):
                     db.save_attachment_text(conn, row["id"], row["message_id"],
                                             method, text, pages, err)
                     if counts.get(method) is not None:
@@ -334,8 +486,13 @@ def main() -> int:
     conn.commit()
     mins = (time.time() - started) / 60
     print("{} 終了 {:.1f}分 / {}".format(time.strftime("%Y-%m-%d %H:%M:%S"), mins, stop_reason))
-    print("  テキスト層 {:,} / OCR {:,} / 文字なし {:,} / 失敗 {:,} / 見送り {:,}".format(
-        counts["text"], counts["ocr"], counts["none"], counts["error"], counts["skip"]))
+    print("  テキスト層 {:,} / OCR(Vision) {:,} / OCR(claude) {:,} / 文字なし {:,} / "
+          "失敗 {:,} / 見送り {:,}".format(
+              counts["text"], counts["ocr"], counts["ocr-claude"], counts["none"],
+              counts["error"], counts["skip"]))
+    if counts["postpone"]:
+        print("  後日に回した {:,}件（節約モード中か claude が応答しなかった分）。"
+              "★行を書いていないので次の晩に自動で再挑戦する".format(counts["postpone"]))
     s = db.attachment_text_stats(conn)
     print("  進み具合: {:,} / {:,}件（{:.1f}%）".format(
         s["処理済み"], s["添付総数"], 100.0 * s["処理済み"] / max(1, s["添付総数"])))
