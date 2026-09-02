@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  常駐している Remote Control セッションを毎朝5:00 に一度落とす。
+  本体（com.shinsei.claude-remote-control）が KeepAlive で立ち上がり直すので、
+  結果として「毎朝、会話の文脈がまっさらな新品のセッションになる」。
+
+  なぜ要るか: 対話を続けるとその日のやりとりが積み上がり、1回の送信で送るトークンが
+  増え続ける（＝定額枠を余計に食う）。手で /clear を打つ代わりに、朝に入れ替える。
+  待っているだけの時間はトークンを消費しないので、常駐そのものは枠を減らさない。
+
+  5:00 にしている理由: 夜間ジョブ（メール取り込み 00:30・OCR）が終わったあと、
+  かつ出社前だから。使っている最中に切れない時間帯を選んでいる。
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.shinsei.claude-remote-control-restart</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/apple/remote-control.sh</string>
+    <string>--stop</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/apple</string>
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key>
+    <integer>5</integer>
+    <key>Minute</key>
+    <integer>0</integer>
+  </dict>
+  <key>RunAtLoad</key>
+  <false/>
+  <key>StandardOutPath</key>
+  <string>/Users/apple/Library/Logs/com.shinsei.claude-remote-control-restart.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/apple/Library/Logs/com.shinsei.claude-remote-control-restart.err.log</string>
+</dict>
+</plist>

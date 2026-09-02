@@ -1,5 +1,48 @@
 # SESSION LOG — 横断作業
 
+## 2026-09-02（メインPC）— 外出先のスマホから繋げるように、Remote Control を常駐させた
+
+### 完了したこと
+
+**症状**: ターミナルの窓を全部閉じていると、スマホの Claude アプリで「デバイスを追加」しても
+追加できない。→ **原因**: Remote Control は「動いている Claude Code のプロセスに繋ぐ」もので、
+プロセスが1本も無ければ繋ぐ先が無い。窓を開けておくのが前提の作りだった。
+
+**直し方**: 窓を1枚も開かずにセッションを常駐させる仕組みを作った。
+
+| 作ったもの | 中身 |
+|---|---|
+| `remote-control.sh` | 疑似端末を噛ませて `claude --remote-control メインPC` を立てる。`--status` / `--stop` つき |
+| `com.shinsei.claude-remote-control` | 上を常駐（RunAtLoad + KeepAlive）。**登録済み・稼働確認済み** |
+| `com.shinsei.claude-remote-control-restart` | 毎朝 5:00 に一度落とす。KeepAlive が立て直す＝**会話の文脈がまっさらになる**（`/clear` の代わり） |
+
+実測: `remote-control is active · … https://claude.ai/code/session_01GXqrfiMcTpXpibC8PFy3MJ` が
+ログに出ることを確認。`ListAgents` にも peer session として出る。
+
+### 発生したエラーと解決策
+
+- **`nohup claude --remote-control` が即死する** → 対話セッションなので TTY が要る。
+  端末が無いと `--print` 扱いになり `Error: Input must be provided either through stdin or
+  as a prompt argument when using --print` で終わる → **`script -q <log> claude …` で
+  疑似端末を用意する**。これで窓なしでも起動できる
+- **起動直後に「このフォルダを信頼しますか」で止まる** → `/Users/apple` は
+  `hasTrustDialogAccepted: false` のまま。→ **8秒・15秒・25秒の3回 Enter を送る**
+  （信頼済みになった後の空 Enter は無害）
+- **`Error: claude native binary not installed.` で即死** → PATH の並び順。claude は2か所にあり
+  **`/usr/local/bin/claude` は壊れた npm 版**、動くのは **`/opt/homebrew/bin/claude`**。
+  launchd 用に PATH を張り直すとき `/usr/local/bin` を先に置くと壊れた方を掴む
+  → **homebrew を先にする＋起動前に `--version` で叩けるか確かめる**。
+  ※ CLAUDE.md の「`claude` は `~/.local/bin`」という記述は**現状と違う**（今は homebrew）
+- **`script` の出力はすぐにはファイルへ出ない**（1〜2分遅れることがある）。
+  起動直後にログが空でも失敗とは限らない。生死は `--status`（プロセスの有無）で見る
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **スマホの実機で「デバイスを追加」に出るかは未確認**（こちらからは確認できない）。オーナー確認待ち
+- LINE/Chatwork から「リモコン起動」で立てる案は**作っていない**。常駐1本で足りるはずなので保留。
+  作るなら worker（launchd 配下）から起動するので、上の PATH の件を必ず踏むことになる
+- ログ `~/.remote-control/session.log` は起動のたびに空にしている。肥大するようなら `/dev/null` へ
+
 ## 2026-08-28（メインPC・昼）— OSアップデート＋再起動後の常駐点検
 
 ### 完了したこと

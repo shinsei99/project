@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  外出先のスマホ（Claudeアプリ）から繋ぐための Claude Code セッションを常時1本立てておく。
+  これが無いと、ターミナルの窓を全部閉じている間は「デバイスを追加」しても繋ぐ先が無い。
+
+  ★ProgramArguments は必ず /bin/bash 経由にすること。
+    remote-control.sh の中で PATH を張り直している（launchd は PATH が空で、
+    claude の実体 ~/.local/bin/claude が見つからず黙って落ちるため）。
+
+  ★KeepAlive で落ちても立ち上がり直す。毎朝5:00 に
+    com.shinsei.claude-remote-control-restart が一度落とし、ここが立て直す
+    ＝会話の文脈がまっさらになる（/clear の代わり）。
+
+  入れ直し（引数を変えたら kickstart では反映されない）:
+    launchctl bootout   gui/$(id -u)/com.shinsei.claude-remote-control
+    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.shinsei.claude-remote-control.plist
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.shinsei.claude-remote-control</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>/Users/apple/remote-control.sh</string>
+    <string>メインPC</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/apple</string>
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+  <key>ThrottleInterval</key>
+  <integer>30</integer>
+  <key>StandardOutPath</key>
+  <string>/Users/apple/Library/Logs/com.shinsei.claude-remote-control.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/apple/Library/Logs/com.shinsei.claude-remote-control.err.log</string>
+</dict>
+</plist>

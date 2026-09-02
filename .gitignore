@@ -25,6 +25,9 @@
 !API_STATUS.md
 # claudeの定額枠を節約するモードの切り替え（印は ~/.ai-quota-saver の1ファイル）
 !ai-quota-saver.sh
+# 外出先のスマホから繋ぐための Remote Control セッションを窓なしで常駐させる。
+# plist の控えは _launchd/ にある（許可行は下の「launchd 登録キット」で済んでいる）
+!remote-control.sh
 !dev-doctor.py
 !dev-setup.sh
 !secrets-sync.sh

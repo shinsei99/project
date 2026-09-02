@@ -459,6 +459,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
 | 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
+| （ポート無し） | **外出先のスマホ用 Claude Code セッション**（`remote-control.sh`）。窓を1枚も開かずに常駐させ、スマホの Claude アプリの「デバイスを追加」から繋げるようにするもの。**毎朝5:00 に -restart が一度落とし、KeepAlive が立て直す＝文脈がまっさらになる**（`/clear` の代わり）。生死は `./remote-control.sh --status` | com.shinsei.claude-remote-control ＋ -restart |
 
 **カード図鑑2本（8531 ポケカ・8537 ワンピ）は常駐させない**（2026-08-24 オーナー判断）。
 常設するのは **PSAカード管理（8527）だけ**で、図鑑はその中から開いて使う。
