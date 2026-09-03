@@ -66,9 +66,25 @@ if [ ! -x "$CLAUDE_BIN" ]; then
 fi
 
 # ② 書かせる。**破壊的な操作はさせない**ので、許可するツールを絞る
+#
+# ★一時的なAPIエラーは3回まで待って試し直す（2026-09-04 オーナー指示）。
+#   2026-09-03 の晩、`API Error: 529 Overloaded`（サーバー側の混雑）でこけて、
+#   **ネタ収集まで済んでいるのに1本も書かずに終わった**。claude の呼び出しは1晩1回なので、
+#   その1回が混雑に当たると、その日は丸ごと落ちる。
+#   ※時刻は22:45のまま（22:45 JST = 13:45 UTC ＝ 米国東部の午前で混みやすい時間帯ではあるが、
+#     529 はログ上この1回だけで、時間帯の癖と言える回数ではない。再試行で足りるかを先に見る）。
+#   ★**再試行するのは「一時的な障害の顔をしているとき」だけ**にする。何も作られなかった理由が
+#     混雑ではない（プロンプトの問題・ネタ切れ等）なら、3回投げても結果は同じで枠を捨てるだけ。
 BEFORE="$(ls content/works/*.json | wc -l | tr -d ' ')"
 BEFORE_ART="$(ls ../articles/*.md 2>/dev/null | xargs -n1 basename 2>/dev/null | sed 's/\.md$//' | sort)"
-OUT="$("$CLAUDE_BIN" -p "$(cat <<PROMPT
+#   ★待ちは**毎回15分**（2026-09-04 オーナー判断）。等間隔で短く3連発すると、同じ混雑の山の
+#     中を3回叩くだけになる。混雑が5分で収まる保証は無いので、**1回目から15分あける**。
+#     待ちの合計は30分。失敗は即返るので、最悪でも「22:45 → 23:00 → 23:15 に開始」で、
+#     成功した回の執筆（実測13分）を足しても 23:30 前後に終わる＝00:30 のメール取込に届かない。
+RETRY_WAITS="${DAILY_WRITE_RETRY_WAITS:-900 900}"   # 1回目の失敗後→15分、2回目の失敗後→15分
+TRIES=$(( $(echo "$RETRY_WAITS" | wc -w) + 1 ))
+TRANSIENT='529|overloaded|rate.?limit|too many requests|503|502|504|timed? ?out|connection (error|reset)|temporarily'
+PROMPT_TEXT="$(cat <<PROMPT
 あなたは ~/ai-tools-base の「制作記録」を書く担当です。**1本だけ**書いてください。
 
 ## 選ぶ
@@ -103,12 +119,28 @@ $NETA
   1〜3行目: 作った3つのファイルのパス
   4行目: NETA: <選んだネタの1行をそのまま貼る>
 PROMPT
-)" --allowedTools "Read,Grep,Glob,Write,Edit,Bash(git log:*),Bash(git show:*),Bash(ls:*),Bash(cat:*),Bash(sed:*),Bash(grep:*),Bash(wc:*)" 2>&1)"
-echo "$OUT" | tail -25
+)"
 
-AFTER="$(ls content/works/*.json | wc -l | tr -d ' ')"
+TRY=1
+while :; do
+  [ "$TRY" -gt 1 ] && echo "--- 再試行 $TRY 回目（$(date '+%H:%M')） ---"
+  OUT="$("$CLAUDE_BIN" -p "$PROMPT_TEXT" --allowedTools "Read,Grep,Glob,Write,Edit,Bash(git log:*),Bash(git show:*),Bash(ls:*),Bash(cat:*),Bash(sed:*),Bash(grep:*),Bash(wc:*)" 2>&1)"
+  echo "$OUT" | tail -25
+  AFTER="$(ls content/works/*.json | wc -l | tr -d ' ')"
+  [ "$BEFORE" != "$AFTER" ] && break          # 1本できた＝成功
+  if [ "$TRY" -ge "$TRIES" ]; then break; fi
+  if ! echo "$OUT" | grep -qiE "$TRANSIENT"; then
+    echo "→ 一時的な障害ではなさそうなので再試行しない（同じ結果になるため）"
+    break
+  fi
+  WAIT="$(echo "$RETRY_WAITS" | awk -v n="$TRY" '{print $n}')"
+  echo "→ 一時的なAPIエラーらしい。$((WAIT / 60))分あけて試し直す（$TRY/$TRIES）"
+  sleep "$WAIT"
+  TRY=$((TRY + 1))
+done
+
 if [ "$BEFORE" = "$AFTER" ]; then
-  echo "→ 記事が増えていない。今日は見送り"
+  echo "→ 記事が増えていない。今日は見送り（試した回数: $TRY）"
   exit 0
 fi
 
