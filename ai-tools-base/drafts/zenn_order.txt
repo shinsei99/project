@@ -41,3 +41,4 @@ search-fallback-fills-topk
 name-substitution-misfires
 drive-url-to-local-path
 multi-tenant-data-wall
+small-n-rate-false-alarm
