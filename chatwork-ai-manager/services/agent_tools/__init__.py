@@ -9,6 +9,7 @@ REGISTRY は「実装済みToolの唯一の真実」。System Prompt はこれ�
 """
 from services.agent_tools import (
     address_tools,
+    chatwork_attachment_tools,
     chatwork_image_tools,
     chatwork_tools,
     dev_tools,
@@ -110,6 +111,18 @@ REGISTRY = {
                 "手動削除の案内）をそのまま利用者に伝えること。Chatwork本体からは消えないが、"
                 "このBotの検索・再送信の対象からは自動で除外される",
         "usage": 'chatwork_image_delete {"room_id":349546270,"file_id":2145187954}',
+    },
+    # ---- Chatwork添付ファイル（PDF/Word/Excel等の文書系をその場で読む。TASK-20260903-002） ----
+    "chatwork_read_attachment": {
+        "func": chatwork_attachment_tools.chatwork_read_attachment,
+        "desc": "Chatworkに投稿されたPDF/Word/Excel等の文書添付（鍵預かり書・見積書等）を取得し、"
+                "その場で中身を読む。テキスト層のあるPDF・Office文書はそのまま抽出、"
+                "テキスト層の無いスキャンPDFはmacOS Vision→claude visionでOCRする。"
+                "画像添付（jpg/png等）はこれの対象外なので chatwork_image_search / "
+                "chatwork_image_fetch を使うこと。room_id/file_idは直近のやり取りの"
+                "添付情報から特定する。ここで読んだ内容は社内資料索引には登録しない"
+                "（会話に紐づく一回性の文書のため。恒久的な資料は kb_read_document）",
+        "usage": 'chatwork_read_attachment {"room_id":349546270,"file_id":123456789}',
     },
     # ---- ファイル送付（社内資料をChatworkへ添付） ----
     "chatwork_send_file": {
