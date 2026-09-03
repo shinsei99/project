@@ -15,7 +15,6 @@
 """
 from __future__ import annotations
 
-import json
 import re
 import sys
 from pathlib import Path
@@ -23,7 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import sm  # noqa: E402
 
-GATEWAY = "https://mp-gateway.spacemarket.com/rest/1"
+GATEWAY = sm.GATEWAY
 
 # 掲載名は長いので、社内で使っている呼び名に対応づける（uid は公開ページのURL末尾と同じ）
 KNOWN = {
@@ -33,61 +32,9 @@ KNOWN = {
 }
 
 
-def open_session(ctx) -> tuple[str, dict]:
-    """管理画面を1枚開いて、ホストのスラッグと API 用ヘッダを手に入れる。
-
-    ★ゲートウェイは Cookie では通らない（500 が返る）。次の3つが要る。
-        authorization: Bearer <Firebase のセッショントークン>
-        x-api-key:     <画面に埋め込まれている固定キー>
-        spacemarket-version: 2019-06-28
-
-    Bearer は短命（Firebase のトークン）なので**持ち回らない**。実行のたびに
-    画面が出すリクエストから拾い、そのプロセスのメモリ内だけで使う。
-    だからこのファイルにもディスクにも認証情報は残らない。
-    """
-    captured: dict = {}
-
-    def on_request(req):
-        if "mp-gateway" in req.url and not captured:
-            h = req.headers
-            if h.get("authorization") and h.get("x-api-key"):
-                captured.update(
-                    {
-                        "accept": "application/json",
-                        "authorization": h["authorization"],
-                        "x-api-key": h["x-api-key"],
-                        "spacemarket-version": h.get("spacemarket-version", "2019-06-28"),
-                        "referer": sm.DASHBOARD + "/",
-                    }
-                )
-
-    page = ctx.new_page()
-    page.on("request", on_request)
-    try:
-        page.goto(sm.DASHBOARD + "/", wait_until="domcontentloaded", timeout=60_000)
-        page.wait_for_url(re.compile(r"/[^/]+/dashboard"), timeout=30_000)
-        try:
-            page.wait_for_load_state("networkidle", timeout=25_000)
-        except Exception:
-            pass
-        m = re.search(r"spacemarket\.com/([^/]+)/", page.url)
-        if not m:
-            raise RuntimeError(f"ホストのスラッグを取れなかった: {page.url}")
-        if not captured:
-            raise RuntimeError(
-                "APIのヘッダを取れなかった（管理画面の作りが変わった可能性）。"
-                "./run.sh dump で中身を見直すこと。"
-            )
-        return m.group(1), captured
-    finally:
-        page.close()
-
-
-def get_json(ctx, url: str, headers: dict):
-    resp = ctx.request.get(url, headers=headers)
-    if resp.status != 200:
-        raise RuntimeError(f"{resp.status} {url}")
-    return resp.json()
+# ログイン済みセッションから API 用ヘッダを取る処理は sm.py に移した（fetch_reservations.py と共用）。
+open_session = sm.api_session
+get_json = sm.api_get
 
 
 def amount(field) -> str:

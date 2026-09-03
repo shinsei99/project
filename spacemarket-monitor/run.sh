@@ -5,6 +5,8 @@
 #   ./run.sh login     ホスト管理画面に人が1回だけ手動ログインする（Chromeが開く）
 #   ./run.sh dump      ログイン済みセッションで管理画面の中身を丸ごと取得する（初回の調査用）
 #   ./run.sh host      ホスト管理画面の実績レポートを作る（REST APIを直接叩く・普段はこれ）
+#   ./run.sh fetch     予約明細を全期間ぶん取り直す（trend の入力を更新する）
+#   ./run.sh trend     予約の増減を診断する（ログイン不要・ネットに出ない）
 #
 # Python は Playwright が入っているものを探す。特定アプリの .venv に依存しないよう、
 # CLAUDE.md の共通Visual Agentと同じ順番（VA_PYTHON → agent-platform → .va-venv → python3）。
@@ -27,5 +29,7 @@ case "$CMD" in
   login)  exec "$PY" login.py ;;
   dump)   exec "$PY" host_dump.py ;;
   host)   exec "$PY" host_check.py ;;
-  *) echo "使い方: ./run.sh [public|login|host|dump]" >&2; exit 2 ;;
+  fetch)  exec "$PY" fetch_reservations.py ;;
+  trend)  exec "$PY" trend_check.py ;;
+  *) echo "使い方: ./run.sh [public|login|host|dump|fetch|trend]" >&2; exit 2 ;;
 esac

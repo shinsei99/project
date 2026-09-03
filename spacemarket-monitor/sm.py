@@ -23,6 +23,18 @@ REPORT_DIR = ROOT / "reports"
 BASE = "https://www.spacemarket.com"
 DASHBOARD = "https://dashboard.spacemarket.com"
 LOGIN_URL = f"{BASE}/login/"
+GATEWAY = "https://mp-gateway.spacemarket.com/rest/1"
+
+# 管理画面が扱う掲載（room_id → 社内の呼び名）。予約明細には room.name しか入って
+# いないので、レポートで社内の呼び名に直すために持つ。知らない id が出たら
+# room.name をそのまま出す（＝把握されていない掲載として目に入る）。
+ROOM_NAMES = {
+    80802: "グリーンガーデン加東",
+    101974: "グリーンガーデン秋津",
+    37575: "レセプル福島",
+    69469: "加東・貸切BBQ（停止中）",
+    46403: "グリーンログTWIN（停止中）",
+}
 
 # 相手のサーバーに負荷をかけない（利用規約 第9条(9)「運営を妨害するおそれのある行為」を避ける）。
 # 1ページごとにこの秒数だけ待つ。
@@ -110,6 +122,65 @@ def require_login(ctx) -> None:
             "  先に手動ログインしてください（1回だけ・パスワードは人が入れる）:\n"
             "  ./spacemarket-monitor/run.sh login"
         )
+
+
+def api_session(ctx):
+    """管理画面を1枚開いて、ホストのスラッグと ゲートウェイAPI 用ヘッダを手に入れる。
+
+    ★ゲートウェイは Cookie では通らない（500 が返る）。次の3つが要る。
+        authorization: Bearer <Firebase のセッショントークン>
+        x-api-key:     <画面に埋め込まれている固定キー>
+        spacemarket-version: 2019-06-28
+
+    Bearer は短命（Firebase のトークン）なので**持ち回らない**。実行のたびに
+    画面が出すリクエストから拾い、そのプロセスのメモリ内だけで使う。
+    だからリポジトリにもディスクにも認証情報は残らない。
+    """
+    import re
+
+    captured: dict = {}
+
+    def on_request(req):
+        if "mp-gateway" in req.url and not captured:
+            h = req.headers
+            if h.get("authorization") and h.get("x-api-key"):
+                captured.update(
+                    {
+                        "accept": "application/json",
+                        "authorization": h["authorization"],
+                        "x-api-key": h["x-api-key"],
+                        "spacemarket-version": h.get("spacemarket-version", "2019-06-28"),
+                        "referer": DASHBOARD + "/",
+                    }
+                )
+
+    page = ctx.new_page()
+    page.on("request", on_request)
+    try:
+        page.goto(DASHBOARD + "/", wait_until="domcontentloaded", timeout=60_000)
+        page.wait_for_url(re.compile(r"/[^/]+/dashboard"), timeout=30_000)
+        try:
+            page.wait_for_load_state("networkidle", timeout=25_000)
+        except Exception:
+            pass
+        m = re.search(r"spacemarket\.com/([^/]+)/", page.url)
+        if not m:
+            raise RuntimeError(f"ホストのスラッグを取れなかった: {page.url}")
+        if not captured:
+            raise RuntimeError(
+                "APIのヘッダを取れなかった（管理画面の作りが変わった可能性）。"
+                "./run.sh dump で中身を見直すこと。"
+            )
+        return m.group(1), captured
+    finally:
+        page.close()
+
+
+def api_get(ctx, url: str, headers: dict):
+    resp = ctx.request.get(url, headers=headers)
+    if resp.status != 200:
+        raise RuntimeError(f"{resp.status} {url}")
+    return resp.json()
 
 
 def save_json(path: Path, obj) -> Path:
