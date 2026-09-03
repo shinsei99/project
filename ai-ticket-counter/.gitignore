@@ -1,6 +1,0 @@
-.env
-data/tickets.csv
-__pycache__/
-*.pyc
-.venv/
-venv/

@@ -7,7 +7,16 @@
   リポジトリにもDropboxにも存在しなかった**（列名・ファイル名で全体を探して0件）。
   人の手か外部の手で作られていたと思われる。これで本当に自動化できる。
 
-**出力の形は既存のExcelに合わせてある**（file-finder がそのまま読めるように）:
+**なぜ chatwork-ai-manager にあるか（2026-09-03 に file-finder から移設）**
+  元は横断ファイル検索（file-finder・8520）の付属だったが、そのアプリを廃止した
+  （AI業務マネージャーの `kb_search` / `find_files` が同じことをするため）。
+  ただし**この棚卸しだけは廃止できない**。作られる `全ファイル一覧.xlsx` は
+    1. AI業務マネージャーの知識索引に取り込まれている（毎晩の refresh）
+    2. `find_files` ツールの元データ
+    3. **全社員が共有フォルダで直接開いている実物**
+  の3役を兼ねている。**消費者がここになったので、ここに置く。**
+
+**出力の形は既存のExcelに合わせてある**（列やシートの形を変えると索引側が崩れる）:
   - 共有フォルダの**トップ階層のフォルダごとに1シート**
   - 列: 種別 / フルパス / 名前 / 親フォルダ / 階層 / 拡張子 / サイズ / サイズ(bytes) / 更新日時
   - フルパス・親フォルダは**そのシート（カテゴリ）から見た相対パス**
@@ -15,7 +24,7 @@
   - 隠しファイル（`.DS_Store` など）は入れない（既存Excelにも0件）
 
 **使い方**
-  python3 build_inventory.py             # file-finder/data/ にだけ書く（下見）
+  python3 build_inventory.py             # chatwork-ai-manager/data/ にだけ書く（下見）
   python3 build_inventory.py --publish   # 共有フォルダの実物も置き換える
 
 ★ --publish は**全社員が見るファイル**を置き換える。先に下見で件数を確かめること。
@@ -33,15 +42,15 @@ import openpyxl
 
 SHARE = pathlib.Path(
     "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ")
-LOCAL = pathlib.Path("/Users/apple/file-finder/data/全ファイル一覧.xlsx")
+LOCAL = pathlib.Path("/Users/apple/chatwork-ai-manager/data/全ファイル一覧.xlsx")
 PUBLISHED = SHARE / "全ファイル一覧.xlsx"
 def nfc(s: str) -> str:
     """★macOSのファイル名は分解形(NFD)で返る（「ブ」が「フ」+濁点になる）。
 
     そのまま書くと、既存のExcel（NFC）と別の文字列になり、
     シート名が一致しない・他の道具で突き合わせられない、といったことが起きる。
-    file-finder は検索時に NFKC で正規化するので検索自体は壊れないが、
     **保存する値は NFC に揃えておく**（実測で 2026-08-30 に気づいた）。
+    ここが崩れると kb_search / find_files が濁点つきの名前を拾えなくなる。
     """
     return unicodedata.normalize("NFC", s)
 

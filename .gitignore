@@ -89,8 +89,8 @@
 # 社内配布用のアプリ一覧Excelを作る道具。許可行が無く他PCへ渡っていなかった
 # （URLのホスト名が usernoMac-mini.local のままなので、使う前に現状へ直すこと）
 !make_app_list.py
-!handwriting-ocr/
-!handwriting-ocr/**
+# handwriting-ocr（手書き検針記録）は 2026-09-03 に廃止。
+# 常駐・社内配布とも無く、独自データも無かった。コードはgit履歴に残っている
 !swim-tracker-react/
 !swim-tracker-react/**
 !piyo-defense/
@@ -186,19 +186,9 @@ neko-escape/.run.pid
 # Capacitor/Xcode 生成物（各PCで `npx cap add ios` すれば作り直せる）。
 # ★やり直すとビルド番号が1に戻るので、版数は必ず HANDOFF-APPSTORE.md の手順で確認する
 digital-shosai/ios/
-!building-manager/
-!building-manager/**
-building-manager/node_modules/
-building-manager/.next/
-building-manager/dev.db
-building-manager/dev.db-journal
-building-manager/dev.db-shm
-building-manager/dev.db-wal
-building-manager/prisma/dev.db
-building-manager/prisma/dev.db-journal
-building-manager/prisma/dev.db-shm
-building-manager/prisma/dev.db-wal
-building-manager/public/uploads/
+# building-manager（マンション・ビル管理）は 2026-09-03 に廃止。
+# 中身は全部★要更新★Excelの写しで、独自データはゼロだった（実測）。
+# 同じ台帳・レントロールは chatwork-ai-manager が毎晩索引していて、そちらの方が新しい
 !.github/
 !.github/**
 !nyanko-ice/
@@ -279,9 +269,9 @@ baikai-generator/data/
 realestate-calc/ios/
 realestate-calc/node_modules/
 
-!ai-ticket-counter/
-!ai-ticket-counter/**
-
+# ai-ticket-counter（AI受付＆起票カウンター・8600）は 2026-09-03 に廃止。
+# 「対話でヒアリングして起票」は AI業務マネージャーの task_create / dev_task_create と
+# 同じ機能で、そちらは Chatwork / LINE から24時間受けられる。蓄積データは無かった
 !tsuikyaku-crm/
 !tsuikyaku-crm/**
 tsuikyaku-crm/data/
@@ -318,12 +308,10 @@ owner-payout-tracker/tracker.db
 !business-plan-generator/**
 business-plan-generator/logs_run.txt
 
-!file-finder/
-!file-finder/**
-file-finder/.venv/
-# 社内共有ドライブの実ファイル一覧（物件名・取引先名を含む）は公開しない。各PCに配置／README参照
-file-finder/data/
-
+# file-finder（横断ファイル検索・8520）は 2026-09-03 に廃止。
+# 同じ「全ファイル一覧.xlsx」を AI業務マネージャーの kb_search / find_files が読む。
+# ★棚卸しを作る側（build_inventory.py と週次ジョブ）は chatwork-ai-manager へ移設して存続。
+#   あのExcelは社員が直接開く実物でもあるので、作るのをやめてはいけない
 !gyomu-manual/
 !gyomu-manual/**
 

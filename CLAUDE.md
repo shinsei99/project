@@ -216,7 +216,7 @@ Fable を使うと**両方**が減る。しかも Fable は最上位モデルで
 そのときは `目的 / 実装内容 / 完了条件 / 検証方法 / 状態（TODO・進行中・保留・確認待ち・完了）/ 関連ファイル`
 を書く。**それ以外に様式を広げない**（51本すべてに様式を課すと続かないため）。
 
-構成が複雑なアプリ（`agent-platform` / `chatwork-ai-manager` / `building-manager`）は、
+構成が複雑なアプリ（`agent-platform` / `chatwork-ai-manager`）は、
 **構成と処理の流れを `<アプリ>/README.md` に図で残す**。他は不要。
 
 ### 書くときの原則
@@ -281,14 +281,24 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 
 ## ★ 最優先事項 — 全アプリ一覧（2026-08-07時点）
 
-**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全56本）※不動産32・ツール17・ゲーム7  
+**カテゴリ:** 不動産 / ツール / ゲーム の3分類（全52本）※不動産28・ツール17・ゲーム7  
+
+> **2026-09-03: 4本を廃止した**（`handwriting-ocr` / `building-manager` / `ai-ticket-counter` / `file-finder`）。
+> 理由は**AI業務マネージャーが同じ仕事をしていて、しかも新しいから**。
+> 実測: building-manager は最終同期 7/27 で止まっていたのに対し、AI側は ★要更新★ Excel 5本を
+> **毎晩自動で索引**（台帳は 9/1 22:00 版）。building-manager の独自データは**ゼロ**だった
+> （オーナー連絡先0件・入居者の電話/保証会社/緊急連絡先すべて0件＝全部Excelの写し）。
+> **退避先 `~/Desktop/削除予定_20260903/`（1.7GB）。コードはgit履歴に残っている。**
+> ★`file-finder` の**棚卸しを作る側だけは残してある**。`build_inventory.py` と週次ジョブを
+> `chatwork-ai-manager` へ移設済み（常駐ポート表の「共有フォルダの棚卸し」の行）。
+> あのExcelは**社員が直接開く実物**でもあるので、作るのをやめてはいけない。
+
 **社内LANルール:** 不動産カテゴリの完成済みのみ共有（launchd常時起動）
 
-### 不動産（32本）
+### 不動産（28本）
 
 | アプリ名 | フォルダ名 | port | 社内LAN | 外部公開 |
 |---|---|---|---|---|
-| 手書き検針記録 | handwriting-ocr | — | 開発中 | — |
 | 見積書自動生成ツール | quote-generator | 8503 | ✅ | **別リポジトリ**（下記） |
 | 物件管理案内文ジェネレーター | property-notice-generator | 8504 | ✅ | — |
 | マイソクコンバーター | maisoku-converter | 8505 | ✅ | — |
@@ -304,10 +314,7 @@ lsof -nP -iTCP:<port> -sTCP:LISTEN                                # 待ち受け
 | 顧客追客マネージャー | tsuikyaku-crm | 8516 | ✅ | — |
 | AI重説アシスタント（調査→公式書式へ自動入力→特約→検算） | jyuusetsu-research | 8536 | ✅ | — |
 | 媒介契約書ジェネレーター | baikai-generator | 8517 | ✅ | — |
-| AI受付＆起票カウンター | ai-ticket-counter | 8600 | ✅ | — |
-| マンション・ビル管理 | building-manager | — | 開発中 | — |
 | オーナー送金・月次締めマネージャー | owner-payout-tracker | 8519 | ✅ | — |
-| 横断ファイル検索ブラウザ | file-finder | 8520 | ✅ | — |
 | 不動産・金融マスター電卓 | realestate-calc | 8507 | ✅ | GitHub Pages / App Store ✅（**1.0 build7 が配信中**・2026-08-24 に API で確認） |
 | 業務マニュアル（Web） | gyomu-manual | 8521 | ✅ | — |
 | 駐車場配置図ビューア | parking-map | 8522 | ✅ | — |
@@ -437,7 +444,7 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8516 | 顧客追客マネージャー | com.shinsei.tsuikyaku-crm |
 | 8517 | 媒介契約書ジェネレーター | com.shinsei.baikai-generator |
 | 8519 | オーナー送金・月次締めマネージャー | com.shinsei.owner-payout-tracker |
-| 8520 | 横断ファイル検索ブラウザ | com.shinsei.file-finder ＋ **-inventory（毎週日曜5:00**に共有フォルダを棚卸しして `全ファイル一覧.xlsx` を作り直し、8520に読み直させる。2026-08-30 追加。それまで**作る側の仕組みが無く7/22で更新が止まっていた**） |
+| （ポート無し） | **共有フォルダの棚卸し**（毎週日曜5:00に `全ファイル一覧.xlsx` を作り直して共有フォルダの実物を置き換える）。**2026-09-03 に `file-finder` から `chatwork-ai-manager` へ移設**（アプリは廃止したが、この棚卸しは廃止できない。作られるExcelは ①AI業務マネージャーの知識索引 ②`find_files` の元データ ③**全社員が共有フォルダで直接開く実物** の3役を兼ねる）。以前あった「8520を再起動してHTTP 200を待つ」工程は読み手が無くなったので外した | com.shinsei.chatwork-ai-manager-inventory |
 | 8521 | 業務マニュアル（Web） | com.shinsei.gyomu-manual |
 | 8522 | 駐車場配置図ビューア | com.shinsei.parking-map |
 | 8523 | theta-viewer FTP APIサーバー（server.js） | com.shinsei.theta-viewer-api |
@@ -457,7 +464,6 @@ CLAUDE.md は**全セッション・全ターンに乗る固定費**なので、
 | 8536 | AI重説アシスタント（※不動産・0.0.0.0／**plistは `/bin/bash run.sh` を呼ぶ**＝Dropboxの公式書式200本を読むため `/bin/bash` にフルディスクアクセスが要る） | com.shinsei.jyuusetsu-research |
 | 8530 | AI業務マネージャー LINE webhook（※メインPCのみ稼働。ngrok固定ドメイン経由で公開） | com.shinsei.chatwork-ai-manager-line ＋ -ngrok |
 | 8540 | AI業務マネージャー 管理画面（※不動産・0.0.0.0・パスワード認証あり） | com.shinsei.chatwork-ai-manager（worker は -worker） |
-| 8600 | AI受付＆起票カウンター | com.shinsei.ai-ticket-counter |
 | 5175 | 間取り図トレーサー 手動編集エディタ（editor/、Vite+React+TS） | com.shinsei.madori-tracer-editor |
 | （ポート無し） | **外出先のスマホ用 Claude Code セッション**（`remote-control.sh`）。窓を1枚も開かずに常駐させ、スマホの Claude アプリの「デバイスを追加」から繋げるようにするもの。**毎朝5:00 に -restart が一度落とし、KeepAlive が立て直す＝文脈がまっさらになる**（`/clear` の代わり）。生死は `./remote-control.sh --status` | com.shinsei.claude-remote-control ＋ -restart |
 
@@ -475,7 +481,7 @@ PSA管理は図鑑の `app.py` を**モジュールとして直接読み込む**
 | 分類 | バインド | 対象 |
 |---|---|---|
 | 不動産だが**LANに出さない**（社員のメール本文） | `--server.address 127.0.0.1` | 8538 company-mail-archiver |
-| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の19本（8506 photo-inpainter を2026-08-17に追加）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8534 keyline＋**8536 jyuusetsu-research**（2026-08-27に完成扱いへ移行）＋8540 chatwork-ai-manager |
+| 不動産（社内LAN共有あり） | `--server.address 0.0.0.0` | 8503〜8525 の18本（8506 photo-inpainter を2026-08-17に追加／**8520 file-finder は2026-09-03に廃止**）＋8528 shorui-cabinet＋8532 agent-platform＋8533 business-plan-generator＋8534 keyline＋**8536 jyuusetsu-research**（2026-08-27に完成扱いへ移行）＋8540 chatwork-ai-manager |
 | 不動産だが**開発中** | `--server.address 127.0.0.1` | （現在なし。8532 agent-platform は2026-08-17に、8536 jyuusetsu-research は2026-08-27に完成扱いへ移行） |
 | ツール（社内共有なし） | `--server.address 127.0.0.1` | 8518 soufu-generator（個人専用） / 8526 kaitori-dm-maker / 8527 psa-collection / 8529 flyer-creator / 8535 mail-archiver / 8537 onepiece-dex / 3004 ai-tools-base（Next.js） |
 
@@ -487,6 +493,12 @@ PSA管理は図鑑の `app.py` を**モジュールとして直接読み込む**
 |---|---|
 | Dropbox `共有フォルダ/（★必読★）新共有フォルダ/社内ツール/` | 各アプリの `.url`（**24本**。2026-08-27にAI重説アシスタントを追加）＋ `icons/*.ico` |
 | その**1つ上**（`（★必読★）新共有フォルダ/` 直下） | `横断ファイル検索.url` と `業務マニュアル.url` の2本だけ。全社員が毎日使う入口なので浅い位置に置く |
+
+> **★2026-09-03 時点で、社内に配った入口が2本切れている（未対応）。**
+> `file-finder`（8520）と `ai-ticket-counter`（8600）を廃止して常駐を止めたので、
+> **`横断ファイル検索.url`（直下）と `社内ツール/AI受付＆起票カウンター.url` を踏んでも繋がらない。**
+> 撤去と、社員への案内（「ファイル探しと不具合報告は Chatwork の claude に頼んでください」）が要る。
+> **社員に作用するのでオーナー判断**。それまでリンクは残してある（黙って消すと問い合わせが増える）。
 | `Desktop/社内ツール/`（このMacのみ） | `.app`（**31本**）。Mac用のランチャで、Dropboxには置かない |
 
 - `.url` は **Shift-JIS(CP932)＋CRLF**。`URL=http://192.168.1.105:<port>`、
