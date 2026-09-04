@@ -176,3 +176,52 @@ Thank you for your time.
 以後一切の連絡が無く Waiting for Review のまま／**優先審査の依頼ではない**／
 通常どおり進んでいるのか、こちらに要るものがあるのかを知りたい／テストアカウント・
 デモ動画などが要るならすぐ出す／**別の部署の管轄なら正しい窓口を教えてほしい**
+
+---
+
+## ①-c ★採用: 一般の問い合わせフォーム（Developer Support）から出す（2026-09-04 オーナー判断）
+
+**入口**: https://developer.apple.com/contact （サインイン後にトピックを選ぶ）
+トピックは **App Store Connect 系**（無ければ Membership and Account 系）。返答目安は**2営業日**。
+
+**なぜここか**: **個人名義→法人名義の変更のときに、この窓口から出して実際に返事が来た実績がある**
+（オーナー談）。相手は審査官ではなく **Developer Support（人が返す部隊）**で、App Review とは別。
+Resolution Center（審査担当）が6日沈黙しているので、別の部隊に当たる。
+
+**★相手がサポート担当なので、頼み方を変えること。**
+「進んでいるか教えて」ではなく **「中で状況を確認するか、App Review へ上げてほしい」**。
+サポートは審査そのものはできないが、**内部で確認・エスカレーションはできる**。
+
+```
+App: スクラップメモpetapeta (Apple ID: 6793374853)
+Version: 1.0.5 (build 9) — submitted August 29, 2026
+Status: Waiting for Review (7 days, no change)
+
+Hello,
+
+I need help with a submission that is not moving, and with a Resolution
+Center thread that has received no reply.
+
+On August 29 this version was rejected under Guideline 4.3(a). The same day I
+replied in Resolution Center and resubmitted. Since then I have received no
+message of any kind, and the status has remained "Waiting for Review" for
+seven days.
+
+I am not asking for an expedited review. I am asking whether you can check
+the status internally, or escalate this to App Review so that either the
+review proceeds or I am told what is required from me.
+
+If anything is needed from my side — additional information, a test account,
+or a demo video — I will provide it immediately.
+
+Thank you for your help.
+```
+
+**日本語（確認用）**: 動かない提出と、返事の無い Resolution Center の件で助けてほしい／
+8/29に4.3(a)でリジェクト、同日返信して再提出、以後7日間なんの連絡もなく Waiting for Review
+のまま／**優先審査の依頼ではない**／**そちらで状況を確認するか、App Review へ上げてほしい**／
+必要なものがあればすぐ出す
+
+**送る順番**: ①-c（この一般フォーム）→ 反応が無ければ ①-b（App Review の
+`ask about using App Store Connect`）→ それでも動かなければ 9/12 にコールバック依頼。
+**② KeyTag のアピール（1回きり）は最後**。
