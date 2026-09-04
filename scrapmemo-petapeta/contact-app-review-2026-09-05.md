@@ -1,75 +1,133 @@
-# App Review への状況照会（スクラップメモ 1.0.5）— 2026-09-05 に送る用
+# App Review への連絡文（2026-09-05 に送る）
 
-**送り先**: https://developer.apple.com/contact/app-store/
-（"App Store Review" → "App Review status" 系の窓口。**Resolution Center の返信ではない**）
+入口: https://developer.apple.com/contact/app-store （サインインが要る）
 
-**これは提出ではない。** 返信で約束した「1件ずつ出す」を崩さないし、提出履歴にも積まれない。
+**「I would like to」の選択肢に、状況照会（status）があるかを先に確かめる。**
+2026-09-04 時点でスマホで見えたのは次の7つ（下にまだあるかもしれないので**一番下までスクロールする**）:
 
-## 送るときの決まり（調べた事例から）
+- appeal an app rejection or app removal ← **KeyTag のアピール用（1リジェクトにつき1回きり）**
+- re-instate a terminated developer program
+- request an expedited app review ← **選ばない**（年1〜2回の枠。混雑期は動かなかった報告多数）
+- ask a technical question about my app
+- ask about using App Store Connect
+- suggest a guideline change
+- report an app
 
-- **急かさない・議論しない。** 事実（アプリ名・ID・提出日）と「状況を知りたい」だけ書く
-- **Expedited Review は頼まない**（年1〜2回しか通らず、混雑期は動かなかった実績がある）
-- 4.3(a) の是非をここで蒸し返さない。それは Resolution Center の話
-- 送ったら**返事が来るまで何もしない**（取り下げ・再提出をしない）
+**状況照会の項目が無い場合**は、スクラップメモの分は **Resolution Center の既存スレッドに
+同じ文面を返信する**（新しい提出にならない・同じ案件の中に記録が残る）。
 
-## 本文（英語・これをそのまま貼る）
+---
 
-> Subject: Status inquiry — スクラップメモpetapeta (Apple ID 6793374853), version 1.0.5
->
-> Hello,
->
-> I am writing to ask about the status of a submission that has been in "Waiting for Review" longer than usual.
->
-> - App: スクラップメモpetapeta (Apple ID: 6793374853)
-> - Version: 1.0.5 (build 9)
-> - Submitted: August 29, 2026
-> - Current status: Waiting for Review (7 days as of today)
->
-> This version was resubmitted with a reply in Resolution Center after a Guideline 4.3(a) rejection on August 29. I have not received any message since then, and the submission has not moved.
->
-> I am not asking for expedited review. I would simply like to know whether the submission is progressing normally, or whether anything further is needed from me. If additional information would help the review, I am happy to provide it.
->
-> Thank you for your time.
->
-> Shinsei Sumi
-> SHINSEI PROPERTY MANAGEMENT.K.K.
+## ① スクラップメモ 1.0.5 の状況照会（**まずこれだけ送る**）
 
-## 日本語（オーナー確認用・送るのは英語のほう）
+**そのまま貼る（英語）**
 
-> 件名: 状況照会 — スクラップメモpetapeta（Apple ID 6793374853）バージョン 1.0.5
+```
+App: スクラップメモpetapeta (Apple ID: 6793374853)
+Version: 1.0.5 (build 9)
+Submitted: August 29, 2026
+Current status: Waiting for Review
+
+Hello,
+
+I would like to ask about the status of this submission. It has been in
+"Waiting for Review" for seven days without any change.
+
+This version was resubmitted on August 29 with a reply in Resolution Center,
+following a Guideline 4.3(a) rejection on the same day. I have not received
+any message since then.
+
+I am not requesting an expedited review. I would only like to know whether
+the submission is progressing normally, or whether anything further is needed
+from me. If additional information or materials would help the review, I am
+glad to provide them.
+
+Thank you for your time.
+```
+
+**日本語（内容確認用・送るのは上の英語）**
+
+> アプリ: スクラップメモpetapeta（Apple ID: 6793374853）／バージョン 1.0.5（build 9）／
+> 提出日: 2026年8月29日／現在の状態: Waiting for Review
 >
-> いつもお世話になっております。
-> 通常より長く「Waiting for Review」のままの提出について、状況を伺いたくご連絡します。
+> この提出の状況を伺いたくご連絡します。7日間「Waiting for Review」のまま変化がありません。
+> 8月29日の Guideline 4.3(a) によるリジェクトを受け、同日に Resolution Center へ返信を添えて
+> 再提出したものです。その後、こちらには何のメッセージも届いていません。
 >
-> ・アプリ: スクラップメモpetapeta（Apple ID: 6793374853）
-> ・バージョン: 1.0.5（build 9）
-> ・提出日: 2026年8月29日
-> ・現在の状態: Waiting for Review（本日で7日）
->
-> 8月29日の Guideline 4.3(a) によるリジェクトを受け、Resolution Center に返信を添えて再提出したものです。
-> その後こちらには何のメッセージも届いておらず、状態も動いていません。
->
-> 審査を早めてほしいという依頼ではありません。**通常どおり進んでいるのか、こちらから
-> 追加で必要なものがあるのか**を知りたいだけです。追加の情報が役に立つのであれば喜んで提出します。
+> 審査を早めてほしいという依頼ではありません。通常どおり進んでいるのか、こちらから追加で
+> 必要なものがあるのかを知りたいだけです。追加の情報や資料が役に立つのであれば喜んで提出します。
+
+**書き方の決まり（事例から）**: 急かさない／議論しない／Expedited を頼まない／
+4.3(a) の是非をここで蒸し返さない（それは Resolution Center の話）。
+
+---
+
+## ② KeyTag のアピール（**①の結果が出るまで送らない**）
+
+**1つのリジェクトにつき1回きりの弾**。スクラップメモが動いてから、この文面を見直して送る。
+選ぶ項目は `appeal an app rejection or app removal`。
+
+**そのまま貼る（英語）**
+
+```
+App: KeyTag鍵管理 (Apple ID: 6802493580)
+Version: 1.0 (build 4)
+Rejection: Guideline 4.3(a) - Design - Spam, August 29, 2026
+
+Hello,
+
+I would like to appeal this rejection, and to first acknowledge the part that
+was my fault.
+
+Over the past two months I submitted too many apps in too short a time, and
+several of them shared the same cross-platform shell, which made my
+submissions look like repackaged copies of one another. I understand why that
+pattern was flagged. I have stopped it: I now submit one app at a time, and I
+do not reuse store text between apps.
+
+On this app specifically, I would like to explain what it is, because it is
+not a template app:
+
+- It is an internal tool for a property management company. Staff tap an NFC
+  tag attached to a physical key or a piece of equipment, and the app records
+  who took it, when, and when it came back.
+- It talks to our own server, which holds our own key and equipment ledger.
+  The data and the workflow are specific to our business; there is no generic
+  content in it.
+- Its audience is our staff and the property owners we work with, not the
+  general public.
+
+Supporting material is already public, including a video that shows the NFC
+tag being read on a physical key:
+https://shinsei99.github.io/project/keytagnfc-support/
+
+If a test account, a longer demo video, or revised metadata would help, please
+tell me what would be most useful and I will provide it.
+
+Thank you for reconsidering.
+```
+
+**日本語（内容確認用）**
+
+> ・**非を先に認める**: 2か月で出しすぎた／同じ土台（Capacitor）で作ったため互いの
+>   焼き直しに見えた／**もう1件ずつしか出さない・掲載文を使い回さない**
+> ・**このアプリが何か**: 不動産管理会社の社内道具。鍵や備品に貼ったNFCタグを読んで、
+>   誰がいつ持ち出し・いつ返したかを記録する。**自社サーバーの自社台帳**とやり取りする。
+>   対象は社員とオーナーで、一般向けではない
+> ・**証拠**: 実機で鍵のタグを読む動画をサポートページに公開済み
+> ・**こちらから聞く**: テストアカウント・長めのデモ動画・掲載文の書き直し、どれが要るか
+
+---
 
 ## 送ったあとの目安
 
 | 経過 | すること |
 |---|---|
-| 送信後 2〜3日 | 動くことが多い（事例の報告） |
-| 提出から14日（9/12）で動かない | コールバック依頼（Contact Us の電話折り返し） |
-| 動いた | 結果に応じて次へ。KeyTag はそのあと |
+| 送信後 1〜5営業日 | 返答の目安（2026年の実績） |
+| 送信後 2〜3日 | 動くことが多い |
+| 提出から14日（9/12）で動かない | コールバック依頼 |
 
-## KeyTag（Apple ID 6802493580）は別扱い
+## 状態のちがい（2026-09-04 API実測）
 
-**状態が違う。** API で見ると:
-
-- スクラップメモ 1.0.5 … `WAITING_FOR_REVIEW` ＝**列に入っている**（沈黙は正常。長さだけが異常）
-- KeyTag 1.0 … `REJECTED` ＝**列に入っていない**（8/29 07:32 に Resolution Center へ返信したが、
-  6日たっても状態が変わらない＝**返信だけでは審査に戻っていない**）
-
-KeyTag を動かす手は2つ。**どちらもスクラップメモが片付いてから**（「1件ずつ出す」と書いたため）。
-
-1. **App Review Board へのアピール**（Contact Us の別窓口）。返答の目安は5〜7営業日。
-   **1つのリジェクトにつき1回だけ**なので、出すなら中身を固めてから
-2. **build 5 を作って再提出**（＝リジェクト後の再提出なので、通常は24〜72時間で再審査される）
+- スクラップメモ 1.0.5 … `WAITING_FOR_REVIEW` ＝**列に入っている**（沈黙は正常・長さが異常）
+- KeyTag 1.0 … `REJECTED` ＝**列に入っていない**（返信だけでは審査に戻っていない）
