@@ -131,3 +131,48 @@ Thank you for reconsidering.
 
 - スクラップメモ 1.0.5 … `WAITING_FOR_REVIEW` ＝**列に入っている**（沈黙は正常・長さが異常）
 - KeyTag 1.0 … `REJECTED` ＝**列に入っていない**（返信だけでは審査に戻っていない）
+
+---
+
+## ①-b 「ask about using App Store Connect」から出す版（2026-09-04 採用）
+
+**経緯**: Resolution Center には 8/29 に返信済みだが**6日たっても返事が無い**ため、
+**別窓口から出す**ことにした（オーナー判断）。この7つの中で、**アピールの1回きりの弾を
+使わずに別の担当へ届く**のはこの項目だけ。`appeal an app rejection or app removal` は
+KeyTag のために温存する。
+
+カテゴリが完全には合わないので、**冒頭で「何の件か」「なぜこの窓口か」を明示**し、
+末尾に**「別の部署のものなら正しい窓口を教えてほしい」**を入れる（放置されないため／
+次にどこへ出すかが確定するため）。
+
+```
+App: スクラップメモpetapeta (Apple ID: 6793374853)
+Version: 1.0.5 (build 9) — submitted August 29, 2026
+Current status: Waiting for Review (7 days)
+
+Hello,
+
+I am writing about a submission that has not moved, and about a Resolution
+Center thread that has received no reply. I am using this form because that
+thread has been silent for seven days.
+
+On August 29 this version was rejected under Guideline 4.3(a). The same day I
+replied in Resolution Center and resubmitted. Since then there has been no
+message of any kind, and the status has stayed at "Waiting for Review".
+
+I am not requesting an expedited review. I would like to know one of two
+things: whether the submission is progressing normally, or whether something
+is required from me that I have missed. If additional information, a test
+account, or a demo video would help, I will provide it immediately.
+
+If this inquiry belongs to a different team, I would be grateful if you could
+point me to the correct channel.
+
+Thank you for your time.
+```
+
+**日本語（内容確認用）**: 動かない提出と、返事の無い Resolution Center の件で連絡している／
+6日沈黙しているのでこの窓口から出している／8/29に4.3(a)でリジェクト、同日返信して再提出、
+以後一切の連絡が無く Waiting for Review のまま／**優先審査の依頼ではない**／
+通常どおり進んでいるのか、こちらに要るものがあるのかを知りたい／テストアカウント・
+デモ動画などが要るならすぐ出す／**別の部署の管轄なら正しい窓口を教えてほしい**
