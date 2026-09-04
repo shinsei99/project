@@ -7,10 +7,11 @@ build 5 ひも付け済み・スクショ5枚 COMPLETE・説明1,760字・審査
 
 **押す前に残っていること**
 
-- [ ] **実機とタグで NFC の読み書きを1回通す**（オーナーしかできない）。build 5 は NFC を
-      丸ごと書き直しており、**entitlement から `NDEF` を外した**ので、まっさらなタグと
-      他アプリが書いたタグを掴めるかはここで初めて分かる
+- [x] **実機で動いた**（2026-09-04 夜・オーナー確認）。`NDEF` を entitlement から外しても
+      実機の読み書きは成立する＝ altool 90778 への対処は正しかった。
+      ※ まっさらな（未フォーマットの）タグまで試したかは未確認
 - [ ] **提出はスクラップメモ 1.0.5 が動いてから**（1件ずつの約束）。押すのはオーナー
+      ← **これだけが残り**
 
 やり直したいときは `keytag-native/screenshots/shoot.sh`（スクショ）と
 `keytag/push-metadata.py --apply` / `push-screenshots.py ../keytag-native/screenshots --apply`（反映）。
