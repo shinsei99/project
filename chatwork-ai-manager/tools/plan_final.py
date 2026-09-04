@@ -10,7 +10,7 @@
        {物件名}/お知らせ/        騒音・ごみ・停電・断水・検針などの通知
        {物件名}/その他/
        {物件名}/入居者/{部屋_名前}/   ← レントロールに載っている人
-       {物件名}/解約済/{部屋_名前}/   ← 載っていない／名前に解約とある人
+       {物件名}/解約・精算/{部屋_名前}/   ← 載っていない／名前に解約とある人
    ■ 棚が大きいときの分け方
        50件以下      そのまま
        50件超        「2021年以降」「2020年以前」に分ける
@@ -81,7 +81,7 @@ SHELVES = [
     ("図面・写真", r"図面|竣工|平面|間取|配置|測量|公図|写真|マイソク|パース|看板|広告物|サイン|地図|矩計|DSCN|DSC\d|IMG[_\-]?\d|P\d{7}"),
     ("お知らせ",   r"お知らせ|おしらせ|通知|案内|貼紙|掲示|連絡|検針|メーター|水道|電気|ガス|使用量|騒音|ごみ|ゴミ|停電|断水|アンケート"),
 ]
-OLD_SHELF = re.compile(r"^(0[1-9])_|^(契約|修繕・点検|図面・写真|お知らせ|その他|入居者|解約済)$")
+OLD_SHELF = re.compile(r"^(0[1-9])_|^(契約|修繕・点検|図面・写真|お知らせ|その他|入居者|解約・精算)$")
 ENTITY = re.compile(r"^\d+番|^\d+号|^[A-Z]?\d{3,4}(号|室|_)|^\d+[FＦ]|^\d+階|^[0-9]{3}_|^\d+[FＦ]【|"
                     r"（\d{4}[.\-/]\d{1,2}|～）|^\d{4}[.\-]\d{2}[.\-]\d{2}_")
 KAIYAKU = re.compile(r"解約|退去|明渡|不成立|終了")
@@ -142,7 +142,7 @@ for p in files:
         cand = [kk for kk in rr if kk and (kk in k or k in kk) and min(len(kk), len(k)) >= 3]
         if cand: table = rr[max(cand, key=len)]
         if KAIYAKU.search(keep) or KAIYAKU.search(below):
-            box, why = "解約済", "名前に解約とある"
+            box, why = "解約・精算", "名前に解約とある"
         elif table is None:
             box, why = "", "★レントロールに物件が無い＝動かさない"
         else:
@@ -150,7 +150,7 @@ for p in files:
             hit = [t for t in table if t and len(t) >= 3
                    and any(t in c or c.endswith(t) or t.endswith(c) for c in cands)]
             box, why = ("入居者", f"レントロール {table[max(hit,key=len)]} と一致") if hit \
-                       else ("解約済", "レントロールに載っていない")
+                       else ("解約・精算", "レントロールに載っていない")
         tmp.append({"物件":prop, "種別":kind, "棚":box, "人の箱":keep, "決め手":"実体フォルダ",
                     "根拠":why, "現在のパス":p, "注意":""})
     else:
@@ -217,8 +217,8 @@ print("\n  人の箱:")
 pb = [r for r in tgt if r["人の箱"]]
 print(f"    入居者 {sum(1 for r in pb if r['棚']=='入居者'):>5,}件 / "
       f"{len({(r['物件'],r['人の箱']) for r in pb if r['棚']=='入居者'})}箱")
-print(f"    解約済 {sum(1 for r in pb if r['棚']=='解約済'):>5,}件 / "
-      f"{len({(r['物件'],r['人の箱']) for r in pb if r['棚']=='解約済'})}箱")
+print(f"    解約済 {sum(1 for r in pb if r['棚']=='解約・精算'):>5,}件 / "
+      f"{len({(r['物件'],r['人の箱']) for r in pb if r['棚']=='解約・精算'})}箱")
 dd = collections.Counter(len(r["移動後のパス"].split("/"))-1 for r in tgt if r["棚"])
 print("\n  移動後の深さ（新共有フォルダから）:")
 for k in sorted(dd): print(f"    {k}階層 {dd[k]:>6,}件")
@@ -248,7 +248,7 @@ for i in range(2, ws.max_row+1):
         for c in range(1, len(COLS)+1): ws.cell(i, c).fill = yel
 
 ws2 = wb.create_sheet("物件ごと")
-ws2.append(["物件","種別","件数","契約","修繕・点検","図面・写真","お知らせ","その他","入居者","解約済","最大階層"])
+ws2.append(["物件","種別","件数","契約","修繕・点検","図面・写真","お知らせ","その他","入居者","解約・精算","最大階層"])
 for c in range(1, 12):
     ws2.cell(1, c).font = Font(bold=True, color="FFFFFF")
     ws2.cell(1, c).fill = PatternFill("solid", fgColor="4472C4")
@@ -257,7 +257,7 @@ for r in tgt: g2[(r["物件"], r["種別"])].append(r)
 for (nm, kind), rs in sorted(g2.items(), key=lambda x: -len(x[1])):
     c = collections.Counter(r["棚"] for r in rs)
     ws2.append([nm, kind, len(rs), c["契約"], c["修繕・点検"], c["図面・写真"], c["お知らせ"],
-                c["その他"], c["入居者"], c["解約済"],
+                c["その他"], c["入居者"], c["解約・精算"],
                 max(len(r["移動後のパス"].split("/"))-1 for r in rs)])
 for i, w in enumerate([30,12,8,8,12,12,10,8,10,10,10], 1):
     ws2.column_dimensions[get_column_letter(i)].width = w

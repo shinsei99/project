@@ -20,7 +20,7 @@ if res.returncode != 0:
 plan = json.loads(res.stdout)
 MP = "物件・管理/管理物件"
 
-SHELF = ("契約","解約・精算","修繕・点検","図面・写真","お知らせ","入居者","解約済")
+SHELF = ("契約","修繕・点検","図面・写真","お知らせ","入居者","解約・精算")
 
 print("=" * 74)
 print(("【実行】" if GO else "【下見】") + f"  {'、'.join(props)}")
@@ -31,8 +31,8 @@ for r in plan:
     if sh == "（動かさない）": continue
     src = os.path.join(ROOT, N(r["現在のパス"]))
     item = r["名前"]
-    if sh == "解約済" and item.startswith("解約済"):
-        dst = os.path.join(ROOT, MP, r["種別"], r["物件"], "解約済")
+    if sh == "解約・精算" and item.startswith("解約済"):   # 「解約済み・申込不成立」等は箱ごと改名
+        dst = os.path.join(ROOT, MP, r["種別"], r["物件"], "解約・精算")
     elif sh == "入居者" and item.startswith("賃借人資料"):
         dst = os.path.join(ROOT, MP, r["種別"], r["物件"], "入居者")
     else:
@@ -43,7 +43,7 @@ stay = [r for r in plan if r["行き先"] == "（動かさない）"]
 ng = []
 for s, d, sh, item in mv:
     if not os.path.exists(s): ng.append(("元が無い", item))
-    elif os.path.exists(d) and not os.path.basename(d) in ("解約済","入居者"): ng.append(("先に同名", item))
+    elif os.path.exists(d) and not os.path.basename(d) in ("解約・精算","入居者"): ng.append(("先に同名", item))
 if ng:
     print(f"\n★点検で問題 {len(ng)}件。中止。")
     for k, p in ng[:10]: print(f"   [{k}] {p}")
