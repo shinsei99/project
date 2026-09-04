@@ -4,7 +4,12 @@
   "visibility": "public",
   "category": "realestate",
   "summary": "重要事項説明書などの公式書式200本に、調査結果を自動で書き込む。見出しから入力欄を割り出す精度が17項目中11だったところを17まで上げるまでに分かった、人間向けの書式が持つ前提の話。",
-  "stack": ["Python", "openpyxl", "docx", "Claude CLI"],
+  "stack": [
+    "Python",
+    "openpyxl",
+    "docx",
+    "Claude CLI"
+  ],
   "year": 2026,
   "features": [
     "公式書式を走査して、書式ごとに入力欄の位置を登録する",
@@ -63,5 +68,16 @@
       "fix": "既定を、実務でいちばん多い一般の売主の書式にする。選び分けは利用者が変えられるようにする"
     }
   ],
-  "links": []
+  "links": [
+    {
+      "label": "Zenn",
+      "url": "https://zenn.dev/shinsei99/articles/form-field-detection",
+      "note": "技術的な詳細（コード付き）"
+    },
+    {
+      "label": "note",
+      "url": "https://note.com/shinsei99/n/ne1e1a0f4a81e",
+      "note": "技術用語なしの読み物"
+    }
+  ]
 }

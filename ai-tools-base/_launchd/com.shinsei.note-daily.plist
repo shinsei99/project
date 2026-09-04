@@ -1,6 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- note へ毎晩1本投稿する。Zenn（22:30）の5分後に出す。
+<!-- note へ毎晩1本投稿する。Zenn（22:00）の60分後＝23:00 に出す。
      note本文にZennのURLを埋めてあるので、Zennが先に公開されている必要がある。
+
+     ★なぜ60分空けるか（2026-09-05 に 22:35 から変更）:
+       note_post.py はZennの公開APIを見て「まだ載っていなければ出さない」ので、
+       **Zennのデプロイが終わる前に見に行くと、その1本が翌晩へずれる**。
+       実測したデプロイ所要時間はバラつきが大きい:
+         2026-09-03 excel-calendar-theme-color … 22:00 push → 22:05:34 公開（5分半）
+         2026-09-04 form-field-detection      … 22:00 push → 22:49:44 公開（49分）
+       22:35 では後者に14分足りず、8/29〜9/4 の間 note だけ止まっていた。
+       60分あれば実測の最大値をカバーできる。足りない晩は翌晩に回るだけで壊れない。
 
      入れ方（メインPCで）:
        cp ai-tools-base/_launchd/com.shinsei.note-daily.plist ~/Library/LaunchAgents/
@@ -18,8 +27,8 @@
   </array>
   <key>StartCalendarInterval</key>
   <dict>
-    <key>Hour</key><integer>22</integer>
-    <key>Minute</key><integer>35</integer>
+    <key>Hour</key><integer>23</integer>
+    <key>Minute</key><integer>0</integer>
   </dict>
   <!-- ★ログは /tmp に置かない。macOS が再起動時に /private/tmp を掃除するので、
        夜に動いた証拠が朝には消えている（2026-08-28の再起動で実際に消えた）。 -->
