@@ -60,7 +60,7 @@ struct ReadView: View {
                 Text(lead).font(.footnote).foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                if !NFCService.isAvailable {
+                if !NFCService.isAvailable, !ShotMode.on {
                     Text("この端末ではNFCを使えません（実機のiPhoneが必要です）。台帳の行をタップすると、タグなしで中身を確認できます。")
                         .font(.caption).foregroundColor(.orange)
                         .frame(maxWidth: .infinity, alignment: .leading)

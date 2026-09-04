@@ -1,6 +1,21 @@
 # TODO — KeyLine（NFC鍵・備品貸出管理）
 
-## 🛠 進行中（2026-09-04）— KeyTag を **SwiftUI ネイティブ**に作り替える
+## ⏸ いまここ（2026-09-04 夕）— **build 5 を上げ終え、提出の一歩手前で止めてある**
+
+App Store Connect 側は**［審査へ提出］を押すだけ**の状態（版 1.0 / `PREPARE_FOR_SUBMISSION`・
+build 5 ひも付け済み・スクショ5枚 COMPLETE・説明1,760字・審査ノート1,308字）。
+
+**押す前に残っていること**
+
+- [ ] **実機とタグで NFC の読み書きを1回通す**（オーナーしかできない）。build 5 は NFC を
+      丸ごと書き直しており、**entitlement から `NDEF` を外した**ので、まっさらなタグと
+      他アプリが書いたタグを掴めるかはここで初めて分かる
+- [ ] **提出はスクラップメモ 1.0.5 が動いてから**（1件ずつの約束）。押すのはオーナー
+
+やり直したいときは `keytag-native/screenshots/shoot.sh`（スクショ）と
+`keytag/push-metadata.py --apply` / `push-screenshots.py ../keytag-native/screenshots --apply`（反映）。
+
+## ✅ 完了（2026-09-04）— KeyTag を **SwiftUI ネイティブ**に作り替える
 
 **目的**: Guideline 4.3(a) の3つの引き金のうち、**①バイナリの類似**を根本から消す。
 いまの KeyTag は **Capacitor の殻 + www/ 1,553行**で、ネオンブロックス・ゲーム各種と

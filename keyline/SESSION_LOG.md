@@ -1,3 +1,55 @@
+## 2026-09-04（メインPC・夕）— ネイティブ版を **build 5 としてアップロードし、提出の一歩手前まで**
+
+### 完了したこと
+
+**★App Store Connect 側は「あとは人が［審査へ提出］を押すだけ」の状態。**
+提出そのものは**していない**（スクラップメモ 1.0.5 の結果待ち＝1件ずつの約束）。
+
+| 項目 | 結果（API で実測） |
+|---|---|
+| 版 1.0 | `PREPARE_FOR_SUBMISSION`（REJECTED から戻った）・`AFTER_APPROVAL` |
+| ビルド | **build 5 が VALID・版にひも付け済み**・minOS 15.0・`usesNonExemptEncryption=false` |
+| スクショ | `APP_IPHONE_65` **5枚・すべて COMPLETE**（ネイティブ版で撮り直し） |
+| 説明 / キーワード / プロモ | 1,760字 / 68字 / 122字（ja のみ） |
+| 審査ノート | 1,308字（**「ネイティブに書き直した」を1項目めに**） |
+
+- `xcodebuild archive` → `-exportArchive` → `altool --validate-app` → `--upload-app`。
+  **Xcode の Organizer は開いていない**（手順は `reference_ios_upload_cli` のとおり）
+- **`ExportOptions.plist` を keytag-native に新設**（`manageAppVersionAndBuildNumber=false`）
+- 掲載文（`keytag/store-text.md`）に **Excel の書き出し・読み込み**を追記し、
+  審査ノートの1項目めを **4.3(a) への直接の回答**（＝共通の外枠を取り除いた事実）に差し替え。
+  `push-metadata.py --apply` / `push-screenshots.py --apply` で反映済み
+
+### 発生したエラーと解決策
+
+- **`altool` が 90778 で弾いた**: `Invalid entitlement for core nfc framework. …
+  'NDEF is disallowed'`（SDK 26.5 × minOS 15.0）→ 原因: **entitlement の
+  `readersession.formats` に `NDEF` を書けなくなった**。→ **`TAG` だけにした**。
+  このアプリは `NFCTagReaderSession` しか使わず、NDEF の読み書きは `NFCNDEFTag` 経由なので
+  **実機の機能は減らない**（`NFCNDEFReaderSession` は1か所も使っていないことを確認）。
+  再アーカイブして VERIFY 成功 → アップロード成功
+- **`TARGETED_DEVICE_FAMILY` が `1,2`（iPad込み）になっていた** → iPad には NFC が無く、
+  主機能が動かない端末を対象に入れると 2.1 で落ちる。iPad用スクショも要る。
+  **`1`（iPhone専用）に直した**（build 4 も iPhone専用だった）。archive の Info.plist で
+  `UIDeviceFamily = [1]` を実測
+- **`ITSAppUsesNonExemptEncryption` が入っていなかった**（build 3 で輸出コンプライアンス待ちを
+  踏んだ箇所）→ `INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO` を足し、
+  archive の Info.plist に `false` が入ったことを実測
+- **スクショに「この端末ではNFCを使えません（実機のiPhoneが必要です）」が写り込む**
+  （シミュレータには NFC が無いため）→ **実機では絶対に出ない文言**なので、そのまま出すと
+  ストアの絵が実物と食い違う。`KEYTAG_SHOTS=1`（`#if DEBUG` 限定）でこの1文だけ隠して撮る
+  `ShotMode` を足した。あわせて書き込み画面が空欄では絵にならないので、
+  `KEYTAG_DRAFT=1` で入力済みの状態にして撮れるようにした
+
+### 次回への引き継ぎ事項・未解決の課題
+
+- **提出はオーナーが画面から**（スクラップメモ 1.0.5 が動いてから。1件ずつの約束）
+- **NFC の実機確認は未了**。build 5 は NFC 周りを丸ごと書き直しているので、
+  提出前に**実機とタグで読み書きを1回は通すこと**（シミュレータでは確認できない）。
+  とくに **entitlement から NDEF を外した影響**＝まっさらなタグ・他アプリが書いたタグを
+  掴めるかは、ここで初めて分かる
+- スクショは5枚とも `keytag-native/screenshots/`。`shoot.sh` でいつでも撮り直せる
+
 ## 2026-09-04（メインPC）— KeyTag を SwiftUI ネイティブに作り替えた／台帳のExcel入出力を新設
 
 ### 完了したこと

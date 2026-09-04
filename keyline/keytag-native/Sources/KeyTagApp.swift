@@ -42,6 +42,12 @@ extension KeyTagApp {
             }
         default: break
         }
+        // 書き込み画面を「入力済み」の状態で開く（空の入力欄はストア用の絵にならない）
+        if env["KEYTAG_DRAFT"] == "1" {
+            router.openWrite(with: .init(property: "本社ビル", name: "1階エントランス",
+                                         numbers: "10001 / 10002 / 10003 ×3",
+                                         boxCode: "BOX-01", boxPosition: "01"))
+        }
         switch env["KEYTAG_TAB"] {
         case "write": router.tab = .write
         case "ledger": router.tab = .ledger
@@ -49,6 +55,21 @@ extension KeyTagApp {
         case "read": router.tab = .read
         default: break
         }
+        #endif
+    }
+}
+
+/// ストア用スクショを撮るときだけ立てる印。**`#if DEBUG` なので配信物では常に false。**
+///
+/// なぜ要るか: シミュレータには NFC が無いので「この端末ではNFCを使えません」という
+/// 注意書きが出る。**実機では絶対に出ない文言**なので、そのまま撮るとストアの絵が
+/// 実物と食い違う。実機と同じ絵を撮るために、この印が立っているあいだだけ隠す。
+enum ShotMode {
+    static var on: Bool {
+        #if DEBUG
+        return ProcessInfo.processInfo.environment["KEYTAG_SHOTS"] == "1"
+        #else
+        return false
         #endif
     }
 }

@@ -38,14 +38,22 @@ targets:
       path: KeyTag.entitlements
       properties:
         # TAG セッションでないと、まっさらな（NDEF未フォーマットの）タグを掴めない。
-        # NDEF も入れておくと、他アプリが書いた素のNDEFタグも読める。
-        com.apple.developer.nfc.readersession.formats: [TAG, NDEF]
+        # ★NDEF は入れてはいけない（2026-09-04 実測）。SDK 26.5 で書くと altool が
+        #   90778 "NDEF is disallowed" でアップロードを弾く。このアプリは
+        #   NFCTagReaderSession しか使っておらず、NDEFの読み書きは NFCNDEFTag 経由で
+        #   TAG のまま通るので、実機の機能は減らない。
+        com.apple.developer.nfc.readersession.formats: [TAG]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.shinsei99.keytag
         GENERATE_INFOPLIST_FILE: YES
-        TARGETED_DEVICE_FAMILY: "1,2"
+        # ★iPhone専用（1）。iPad には NFC が無く、主機能が動かない端末を対象に入れると
+        #   2.1（機能しない）で落ちるうえ、iPad用スクショまで要る。build 4 も iPhone専用だった。
+        TARGETED_DEVICE_FAMILY: "1"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # 暗号の輸出コンプライアンス。これがバンドルに無いと、アップロード後に
+        # 「輸出コンプライアンス待ち」で止まる（build 3 で実際に踏んだ）
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
         INFOPLIST_KEY_CFBundleDisplayName: KeyTag鍵管理
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.business
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
