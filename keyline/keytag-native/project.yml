@@ -1,0 +1,58 @@
+# KeyTag（ネイティブ版）の Xcode プロジェクト定義。
+#
+# ★なぜネイティブに作り替えたか（2026-09-04）
+#   旧版は Capacitor の殻 + www/ の HTML/JS だった。同じ殻のアプリが他に6〜8本あり、
+#   実行ファイルの大半が同一になる。Apple はバイナリの指紋を取るので、
+#   Guideline 4.3(a)（スパム＝他と似ている）に対して**文章では反論できない**状態だった。
+#   NFC は Core NFC が純正 API なので、ネイティブのほうが素直でもある。
+#
+# ★バンドルIDは旧版と同じ。App 記録も同じものを使う（4.3 の直後に新記録を作らない）。
+# ★生成は `xcodegen generate`（このディレクトリで）。ただし **一度生成したら再実行しない**
+#   （署名の Team 選択が消えるため。photo-remake で踏んだ罠と同じ）。
+name: KeyTag
+options:
+  bundleIdPrefix: com.shinsei99
+  developmentLanguage: ja
+  deploymentTarget:
+    iOS: "15.0"        # ★15.0未満は2027年春からアップロード不可（リポジトリ共通ルール）
+settings:
+  base:
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "5"    # 旧版(Capacitor)が build 4 まで登録済み → 次は 5
+    SWIFT_VERSION: "5.0"
+  configs:
+    Debug:
+      SWIFT_ACTIVE_COMPILATION_CONDITIONS: DEBUG
+      SWIFT_OPTIMIZATION_LEVEL: "-Onone"
+    Release:
+      SWIFT_OPTIMIZATION_LEVEL: "-O"
+targets:
+  KeyTag:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: Sources
+      - path: Resources
+    entitlements:
+      path: KeyTag.entitlements
+      properties:
+        # TAG セッションでないと、まっさらな（NDEF未フォーマットの）タグを掴めない。
+        # NDEF も入れておくと、他アプリが書いた素のNDEFタグも読める。
+        com.apple.developer.nfc.readersession.formats: [TAG, NDEF]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.shinsei99.keytag
+        GENERATE_INFOPLIST_FILE: YES
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_CFBundleDisplayName: KeyTag鍵管理
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.business
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        # NFC を使う理由。審査でも読まれるので、何をするアプリかが分かる文にする
+        INFOPLIST_KEY_NFCReaderUsageDescription: 鍵や備品に貼ったNFCタグを読み書きして、貸出と返却を記録するために使用します。
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        # 社内LANの平文HTTPサーバー（KeyLine 8534）に繋ぐため。既定では ATS が止める。
+        # ★任意接続ではなく「利用者が設定画面で入れたURLだけ」に繋ぐ作り
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: YES

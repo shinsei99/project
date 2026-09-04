@@ -437,6 +437,12 @@ keyline/keytag/build-sim/
 # デモ動画の生成物（元動画628MB・完成品20MB。完成品は gh-pages にある）
 keyline/keytag/.demo-build/
 keyline/keytag/DerivedData/
+# ネイティブ版（2026-09-04）。生成物と個人設定は入れない。
+# ★`KeyTag.xcodeproj` は入れる（photo-remake と同じ。オーナーがXcodeで開いて署名Teamを選ぶため）。
+#   ただし xcodegen を再実行するとその選択が消えるので、一度作ったら再生成しない
+keyline/keytag-native/DerivedData/
+keyline/keytag-native/**/xcuserdata/
+keyline/keytag-native/build/
 keyline/data/
 keyline/.secret_key
 keyline/*.db
