@@ -5,7 +5,7 @@
            apply_v2.py "大京本社ビル" --go   … 実行"""
 import os, sys, json, shutil, datetime, unicodedata, subprocess, collections
 N = lambda s: unicodedata.normalize("NFC", s)
-ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
+ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ"
 REC  = os.path.expanduser("~/chatwork-ai-manager/local/")
 GO = "--go" in sys.argv
 props = [a for a in sys.argv[1:] if not a.startswith("--")]

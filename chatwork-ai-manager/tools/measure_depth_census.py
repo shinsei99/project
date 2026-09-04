@@ -3,7 +3,7 @@
 """実物のフォルダを全部歩いて深さを数える。読むだけ。"""
 import os, collections
 
-ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
+ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ"
 SKIP = {".DS_Store", "Icon\r", "desktop.ini"}
 
 files = []          # (深さ=新共有フォルダ直下を1とするフォルダ数, 相対パス)

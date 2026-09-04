@@ -1,8 +1,8 @@
 #!/bin/bash
 # 社内共有フォルダ → 個人Dropbox へ週1回ミラーする。
 #
-#   元: 大京商事Dropbox / 共有フォルダ / （★必読★）新共有フォルダ   （社員が全員触る）
-#   先: 個人Dropbox / 社内バックアップ / （★必読★）新共有フォルダ   （オーナーしか触らない）
+#   元: 大京商事Dropbox / 共有フォルダ   （社員が全員触る）
+#   先: 個人Dropbox / 社内バックアップ / 共有フォルダ   （オーナーしか触らない）
 #
 # 方式はミラー（rsync -a --delete）。元で消えたファイルは次回の実行で先からも消える。
 # ただし1回で MAX_DELETE 件以上消える回は、1件も触らずに中断して人に知らせる。
@@ -23,9 +23,9 @@ export PATH="/usr/bin:/bin:/usr/sbin:/sbin"
 export LANG="ja_JP.UTF-8"
 export LC_ALL="ja_JP.UTF-8"
 
-SRC="/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
+SRC="/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ"
 DST_ROOT="/Users/apple/Library/CloudStorage/Dropbox-個人/CLAUDE/社内バックアップ"
-DST="${DST_ROOT}/（★必読★）新共有フォルダ"
+DST="${DST_ROOT}/共有フォルダ"
 
 BASE="/Users/apple/dropbox-backup"
 LOG_DIR="${BASE}/logs"

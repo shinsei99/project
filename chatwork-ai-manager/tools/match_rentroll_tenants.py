@@ -5,7 +5,7 @@
 import os, re, unicodedata, collections
 from openpyxl import load_workbook
 
-ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
+ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ"
 MP   = os.path.join(ROOT, "物件・管理/管理物件")
 RR   = ["★要更新★レントロール一覧（ビル）.xlsx",
         "★要更新★レントロール一覧（マンション）.xlsx",

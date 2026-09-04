@@ -5,7 +5,7 @@
 import os, sys, json, shutil, datetime, unicodedata
 from openpyxl import load_workbook
 
-ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
+ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ"
 PLAN = os.path.expanduser(f"~/Desktop/整理計画_仲介から物件へ_{datetime.date.today():%Y%m%d}.xlsx")
 REC  = os.path.expanduser("~/chatwork-ai-manager/local/")
 GO = "--go" in sys.argv

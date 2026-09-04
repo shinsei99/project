@@ -2,7 +2,7 @@
 # Dropbox同期でxattrが消えるたびに横断ファイル検索.lnk のアイコンを再設定する
 # GUIセッション経由の osascript (AppKit) で書き込む
 
-LNK="/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ/横断ファイル検索.lnk"
+LNK="/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/横断ファイル検索.lnk"
 ICON="/Users/apple/Desktop/社内ツール/横断ファイル検索.app/Contents/Resources/AppIcon.icns"
 LOG="$HOME/gyomu-manual/logs/lnk-icon.log"
 

@@ -3,7 +3,7 @@
 """① 5階層へ寄せる（実体フォルダは深さを問わず残す） ② 完全重複を数える。読むだけ。"""
 import os, re, collections, unicodedata, hashlib
 
-ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
+ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ"
 N = lambda s: unicodedata.normalize("NFC", s)
 ARC = N("_アーカイブ（2027年7月削除予定）")
 PRE = N("物件・管理/管理物件/")

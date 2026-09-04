@@ -8,7 +8,7 @@
 """
 import os, sys, collections, unicodedata, hashlib, json, datetime, re
 
-ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
+ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ"
 ARC = unicodedata.normalize("NFC", "_アーカイブ（2027年7月削除予定）")
 N = lambda s: unicodedata.normalize("NFC", s)
 CACHE = os.path.expanduser("~/chatwork-ai-manager/local/dup_hash_cache.json")

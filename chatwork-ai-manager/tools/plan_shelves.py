@@ -9,7 +9,7 @@
 """
 import os, re, unicodedata, collections, datetime, hashlib
 
-ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
+ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ"
 PRE  = "物件・管理/管理物件"
 N = lambda s: unicodedata.normalize("NFC", s)
 

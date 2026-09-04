@@ -25,7 +25,7 @@ from services import field_map, official_format_service as ofs  # noqa: E402
 
 DEFAULT_ROOT = os.path.expanduser(
     "~/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/"
-    "（★必読★）新共有フォルダ/契約・書類/書類雛形"
+    "契約・書類/書類雛形"
 )
 OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "format_registry.json")
 

@@ -9,7 +9,7 @@ def _nfc(s): return unicodedata.normalize("NFC", s)
 #                    配信しているのは /Users/apple/gyomu-manual/業務マニュアル.html。
 #   従来は OUT が共有フォルダを指していたが**そこにファイルは存在せず**、
 #   生成し直しても社員の画面は変わらない状態だった（実測で判明）。
-SHARE = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
+SHARE = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ"
 OUT = "/Users/apple/gyomu-manual/業務マニュアル.html"
 
 def esc(s): return html.escape(str(s))
@@ -102,7 +102,7 @@ def _para_html(paras):
     return "".join(ps)
 
 # ---- Calendar (全体像) ----
-# (日, 対象=正式名称, 業務内容, 部門, フォルダ相対パス)  ※1行=1対象。フォルダは新共有フォルダ直下からの相対パス
+# (日, 対象=正式名称, 業務内容, 部門, フォルダ相対パス)  ※1行=1対象。フォルダは共有フォルダ直下からの相対パス
 _B  = "物件・管理/管理物件/ビル/"
 _M  = "物件・管理/管理物件/マンション/"
 _P  = "物件・管理/管理物件/駐車場/"

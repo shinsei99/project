@@ -4,7 +4,7 @@
 import sqlite3, re, collections
 
 DB = "/Users/apple/chatwork-ai-manager/data/app.db"
-ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ/"
+ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/"
 con = sqlite3.connect(DB); con.row_factory = sqlite3.Row
 
 # 標準の棚（案）: 物件フォルダの下はこの7つだけにする

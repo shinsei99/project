@@ -41,7 +41,7 @@ import unicodedata
 import openpyxl
 
 SHARE = pathlib.Path(
-    "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ")
+    "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ")
 LOCAL = pathlib.Path("/Users/apple/chatwork-ai-manager/data/全ファイル一覧.xlsx")
 PUBLISHED = SHARE / "全ファイル一覧.xlsx"
 def nfc(s: str) -> str:

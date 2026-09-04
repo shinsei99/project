@@ -50,7 +50,7 @@ fi
 
 # ★控えの世代管理。アーカイブに毎週1本たまるので、8本（約2か月）を超えたら古いものから消す。
 #   消す前に件数を出す（黙って消さない）。
-ARC="$HOME/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ/_アーカイブ（2027年7月削除予定）"
+ARC="$HOME/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/_アーカイブ（2027年7月削除予定）"
 KEEP=8
 if [ -d "$ARC" ]; then
   n=$(ls -1 "$ARC"/全ファイル一覧_*_旧.xlsx 2>/dev/null | wc -l | tr -d ' ')

@@ -4,7 +4,7 @@
    読むだけ。1件も動かさない。 出力: ~/Desktop/整理計画_仲介→物件_YYYYMMDD.xlsx"""
 import os, re, unicodedata, collections, datetime, hashlib
 
-ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ/（★必読★）新共有フォルダ"
+ROOT = "/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/共有フォルダ"
 N = lambda s: unicodedata.normalize("NFC", s)
 MED = "契約・書類/★仲介（賃貸・売買）"
 MP  = "物件・管理/管理物件"

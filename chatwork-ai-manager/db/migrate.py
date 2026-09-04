@@ -53,7 +53,7 @@ DEFAULT_SETTINGS = {
     "daily_report_mail": "1",
     "daily_report_mail_to": "info@daikyocorp.co.jp",
     "daily_report_save_dir": ("/Users/apple/Library/CloudStorage/Dropbox-大京商事　株式会社/"
-                              "共有フォルダ/（★必読★）新共有フォルダ/社内・総務/業務日報"),
+                              "共有フォルダ/社内・総務/業務日報"),
     # 会社の休業日（年間休暇スケジュール。オレンジ＝休み）。この日は日報を作らない
     "holiday_schedule_path": ("/Users/apple/Library/CloudStorage/GoogleDrive-daikyocorp.s@gmail.com/"
                               "その他のパソコン/マイ Mac mini/Desktop/ルーティーン/"
