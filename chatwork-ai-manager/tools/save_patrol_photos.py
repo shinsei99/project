@@ -45,14 +45,25 @@ for kind in sorted(os.listdir(MP)):
 #   これが無いと「ユーリムズビル」の巡回写真が11枚まるごと保存できなかった（2026-09-05）。
 _c1 = sqlite3.connect(DB)
 ALIAS = {}                      # 呼び名 → 正式名称
+GROUP = {}                      # 正式名称 → その物件の呼び名すべて（正式名も含む）
 for (nm, al) in _c1.execute("SELECT name, aliases FROM properties WHERE active=1"):
-    for a in re.split(r"[\n,、]", al or ""):
-        a = a.strip()
-        if a: ALIAS.setdefault(norm(a), nm)
+    g = [nm] + [a.strip() for a in re.split(r"[\n,、]", al or "") if a.strip()]
+    GROUP[nm] = g
+    for a in g: ALIAS.setdefault(norm(a), nm)
 _c1.close()
-for _a, _nm in ALIAS.items():
-    _d = folders.get(norm(_nm))
-    if _d: folders.setdefault(_a, _d)
+
+# ★正式名称とフォルダ名が違う物件がある（例 マスタ「MDXビル」／フォルダ「MDXBLDG」）。
+#   正式名だけで引くと外れるので、**その物件の呼び名を順に当てて**フォルダを探す。
+for _nm, _g in GROUP.items():
+    _d = next((folders[norm(x)] for x in _g if norm(x) in folders), None)
+    if _d:
+        for x in _g: folders.setdefault(norm(x), _d)
+
+# ★「メゾン・ド・アトラー宛て買取勧誘状」のように、題名が物件名＋用件になっていることがある。
+#   末尾の部屋番号を落とした形でも引けるようにしておく。
+for _k in list(folders):
+    _s = re.sub(r"[0-9]+$", "", _k)
+    if len(_s) >= 4: folders.setdefault(_s, folders[_k])
 
 
 def canon(name):
@@ -120,13 +131,26 @@ for f in sorted(os.listdir(IMG)):
     jp = os.path.join(IMG, f + ".json")
     if not os.path.exists(jp): continue
     j = json.load(open(jp))
-    rid, fid = j.get("room_id"), j.get("file_id")
+    # ★古い .json は room_id / file_id を **文字列**で持っている。
+    #   DB（patrol_photo_saved）は数値なので、そのまま比べると
+    #   「保存済み」の判定が効かず、同じ写真を何度でも入れてしまう（2026-09-05）。
+    try:
+        rid, fid = int(j.get("room_id")), int(j.get("file_id"))
+    except (TypeError, ValueError):
+        continue
     row = con.execute("""SELECT property_name, title, description, created_at
                          FROM chatwork_images WHERE room_id=? AND file_id=?""", (rid, fid)).fetchone()
     if not row: continue
     prop, title, desc, created = row
     items.append({"file": f, "room_id": rid, "file_id": fid, "prop": prop,
                   "title": title or j.get("title") or "", "desc": desc or "", "created": created})
+
+# ★同じ写真の .json が複数あることがある（AIが読み直すたびに増える）。
+#   1枚につき1件にまとめる。まとめないと同じ写真を2回計画してしまう。
+_uniq = {}
+for _it in items:
+    _uniq.setdefault((_it["room_id"], _it["file_id"]), _it)
+items = list(_uniq.values())
 
 print("=" * 72)
 print(("【実行】" if GO else "【下見】") + f"  巡回写真の保存  （実体 {len(items)}枚）")
